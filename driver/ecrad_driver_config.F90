@@ -1,0 +1,277 @@
+! ecrad_driver_config.F90 - Configure driver for offline ecRad radiation scheme
+!
+! Copyright (C) 2015-2018 ECMWF
+!
+! Author:  Robin Hogan
+! Email:   r.j.hogan@ecmwf.int
+! License: see the COPYING file for details
+
+module ecrad_driver_config
+
+  use parkind1,                      only : jprb
+
+  implicit none
+
+  type driver_config_type
+    
+     ! Use PS-Rad (the Pincus-Stevens code in the rrtm dir_name)
+     ! instead?
+     logical :: use_psrad
+
+     ! Parallel settings
+     logical :: do_parallel
+     integer :: nblocksize ! Number of columns processed at once
+
+     ! Override values from the radiation_override namelist (mostly
+     ! related to clouds): these will override any values in the
+     ! NetCDF data file (or scale them)
+     real(jprb) :: fractional_std_override
+     real(jprb) :: overlap_decorr_length_override
+     real(jprb) :: high_inv_effective_size_override   = -1.0_jprb ! m-1
+     real(jprb) :: middle_inv_effective_size_override = -1.0_jprb ! m-1
+     real(jprb) :: low_inv_effective_size_override    = -1.0_jprb ! m-1
+     real(jprb) :: effective_size_scaling
+     real(jprb) :: sw_albedo_override
+     real(jprb) :: lw_emissivity_override
+     real(jprb) :: q_liq_scaling, q_ice_scaling
+     real(jprb) :: cloud_fraction_scaling
+     real(jprb) :: overlap_decorr_length_scaling
+     real(jprb) :: skin_temperature_override ! K
+     real(jprb) :: solar_irradiance_override ! W m-2
+     real(jprb) :: cos_sza_override
+     real(jprb) :: cloud_inhom_separation_factor  = 1.0_jprb
+     real(jprb) :: cloud_separation_scale_surface = -1.0_jprb
+     real(jprb) :: cloud_separation_scale_toa     = -1.0_jprb
+     real(jprb) :: cloud_separation_scale_power   = 1.0_jprb
+
+     ! Process a limited number of columns (iendcol=0 indicates to
+     ! process from istartcol up to the end)
+     integer :: istartcol, iendcol
+
+     ! Save inputs in "inputs.nc"
+     logical :: do_save_inputs
+
+     ! Do we ignore the inv_inhom_effective_size variable and instead
+     ! assume the scale of cloud inhomogeneities is the same as the
+     ! scale of the clouds themselves?
+     logical :: do_ignore_inhom_effective_size = .false.
+
+     ! Number of repeats (for benchmarking)
+     integer :: nrepeat
+
+     ! Do we correct unphysical inputs (e.g. negative gas concentrations)?
+     logical :: do_correct_unphysical_inputs = .false.
+
+     ! Control verbosity in driver routine: 0=none (no output to
+     ! standard output; write to standard error only if an error
+     ! occurs), 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+     integer :: iverbose
+
+   contains
+     procedure :: read => read_config_from_namelist
+
+  end type driver_config_type
+
+contains
+
+  !---------------------------------------------------------------------
+  ! This subroutine reads configuration data from a namelist file, and
+  ! anything that is not in the namelists will be set to default
+  ! values. If optional output argument "is_success" is present, then on
+  ! error (e.g. missing file) it will be set to .false.; if this
+  ! argument is missing then on error the program will be aborted.
+  subroutine read_config_from_namelist(this, file_name, is_success)
+
+    use yomhook,      only : lhook, dr_hook
+    use radiation_io, only : nulerr, radiation_abort
+
+    class(driver_config_type), intent(inout) :: this
+    character(*), intent(in)          :: file_name
+    logical, intent(out), optional    :: is_success
+
+    integer :: iosopen ! Status after calling open
+
+    ! Use PS-rad radiation scheme?
+    logical :: use_psrad
+
+    ! Override and scaling values
+    real(jprb) :: fractional_std
+    real(jprb) :: overlap_decorr_length
+    real(jprb) :: inv_effective_size
+    real(jprb) :: high_inv_effective_size
+    real(jprb) :: middle_inv_effective_size
+    real(jprb) :: low_inv_effective_size
+    real(jprb) :: effective_size_scaling
+    real(jprb) :: sw_albedo
+    real(jprb) :: lw_emissivity
+    real(jprb) :: q_liquid_scaling, q_ice_scaling
+    real(jprb) :: cloud_fraction_scaling
+    real(jprb) :: overlap_decorr_length_scaling
+    real(jprb) :: skin_temperature
+    real(jprb) :: cos_solar_zenith_angle
+    real(jprb) :: solar_irradiance_override
+    real(jprb) :: cloud_inhom_separation_factor
+    real(jprb) :: cloud_separation_scale_surface
+    real(jprb) :: cloud_separation_scale_toa
+    real(jprb) :: cloud_separation_scale_power
+
+    ! Parallel settings
+    logical :: do_parallel
+    integer :: nblocksize
+
+    logical :: do_save_inputs, do_ignore_inhom_effective_size, do_correct_unphysical_inputs
+    integer :: nrepeat
+
+    ! Process a limited number of columns (iendcol=0 indicates to
+    ! process from istartcol up to the end)
+    integer :: istartcol, iendcol
+
+    ! Verbosity
+    integer :: iverbose
+
+    ! Are we going to override the effective size?
+    logical :: do_override_eff_size
+
+    namelist /radiation_driver/ use_psrad, fractional_std, &
+         &  overlap_decorr_length, inv_effective_size, sw_albedo, &
+         &  high_inv_effective_size, middle_inv_effective_size, &
+         &  low_inv_effective_size, cloud_inhom_separation_factor, &
+         &  effective_size_scaling, cos_solar_zenith_angle, &
+         &  lw_emissivity, q_liquid_scaling, q_ice_scaling, &
+         &  istartcol, iendcol, solar_irradiance_override, &
+         &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
+         &  skin_temperature, do_parallel, nblocksize, iverbose, &
+         &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
+         &  cloud_separation_scale_toa, cloud_separation_scale_surface, &
+         &  cloud_separation_scale_power, do_correct_unphysical_inputs
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('ecrad_driver_config:read',0,hook_handle)
+    
+    ! Default values
+    use_psrad = .false.
+    do_parallel = .true.
+    do_save_inputs = .false.
+    do_ignore_inhom_effective_size = .false.
+    nblocksize = 8
+
+    ! Negative values indicate no override will take place
+    fractional_std = -1.0_jprb
+    overlap_decorr_length = -1.0_jprb
+    inv_effective_size = -1.0_jprb
+    high_inv_effective_size = -1.0_jprb
+    middle_inv_effective_size = -1.0_jprb
+    low_inv_effective_size = -1.0_jprb
+    effective_size_scaling = -1.0_jprb
+    sw_albedo = -1.0_jprb
+    lw_emissivity = -1.0_jprb
+    q_liquid_scaling = -1.0_jprb
+    q_ice_scaling = -1.0_jprb
+    cloud_fraction_scaling = -1.0_jprb
+    overlap_decorr_length_scaling = -1.0_jprb
+    skin_temperature = -1.0_jprb
+    cos_solar_zenith_angle = -1.0_jprb
+    solar_irradiance_override = -1.0_jprb
+    cloud_inhom_separation_factor = 1.0_jprb
+    cloud_separation_scale_toa = -1.0_jprb
+    cloud_separation_scale_surface = -1.0_jprb
+    cloud_separation_scale_power = 1.0_jprb
+    iverbose = 2 ! Default verbosity is "warning"
+    istartcol = 0
+    iendcol = 0
+    nrepeat = 1
+    do_correct_unphysical_inputs = .false.
+
+    ! Open the namelist file and read the radiation_driver namelist
+    open(unit=10, iostat=iosopen, file=trim(file_name))
+    if (iosopen /= 0) then
+      ! An error occurred
+      if (present(is_success)) then
+        is_success = .false.
+        ! We now continue the subroutine so that the default values
+        ! are placed in the config structure
+      else
+        write(nulerr,'(a,a,a)') '*** Error: namelist file "', &
+             &                trim(file_name), '" not found'
+        call radiation_abort('Driver configuration error')
+      end if
+    else
+      ! Read the radiation_driver namelist, noting that it is not an
+      ! error if this namelist is not present, provided all the required
+      ! variables are present in the NetCDF data file instead
+      read(unit=10, nml=radiation_driver)
+      close(unit=10)
+    end if
+
+    ! Copy namelist data into configuration object
+    this%use_psrad = use_psrad
+    this%do_parallel = do_parallel
+    this%do_save_inputs = do_save_inputs
+    this%do_ignore_inhom_effective_size = do_ignore_inhom_effective_size
+    this%nblocksize = nblocksize
+    this%iverbose = iverbose
+    this%nrepeat = nrepeat
+    if (istartcol < 1) then
+      this%istartcol = 1
+    else
+      this%istartcol = istartcol
+    end if
+    if (iendcol < 1) then
+      this%iendcol = 0
+    else
+      this%iendcol = iendcol
+    end if
+
+    ! Set override values
+    this%fractional_std_override = fractional_std
+    this%overlap_decorr_length_override = overlap_decorr_length
+
+    do_override_eff_size = .false.
+    if (inv_effective_size >= 0.0_jprb) then
+      this%high_inv_effective_size_override = inv_effective_size
+      this%middle_inv_effective_size_override = inv_effective_size
+      this%low_inv_effective_size_override = inv_effective_size
+    end if
+    if (high_inv_effective_size >= 0.0_jprb) then
+      this%high_inv_effective_size_override = high_inv_effective_size
+      do_override_eff_size = .true.
+    end if
+    if (middle_inv_effective_size >= 0.0_jprb) then
+      this%middle_inv_effective_size_override = middle_inv_effective_size
+      do_override_eff_size = .true.
+    end if
+    if (low_inv_effective_size >= 0.0_jprb) then
+      this%low_inv_effective_size_override = low_inv_effective_size
+      do_override_eff_size = .true.
+    end if
+
+    if (do_override_eff_size &
+         &  .and. (this%high_inv_effective_size_override < 0.0_jprb &
+              .or. this%middle_inv_effective_size_override < 0.0_jprb &
+              .or. this%low_inv_effective_size_override < 0.0_jprb)) then
+      write(nulerr,'(a)') '*** Error: inverse effective cloud size not specified for high, middle and low clouds"'
+      call radiation_abort('Driver configuration error')
+    end if
+
+    this%effective_size_scaling = effective_size_scaling
+    this%sw_albedo_override = sw_albedo
+    this%lw_emissivity_override = lw_emissivity
+    this%q_liq_scaling = q_liquid_scaling
+    this%q_ice_scaling = q_ice_scaling
+    this%cloud_fraction_scaling = cloud_fraction_scaling
+    this%overlap_decorr_length_scaling = overlap_decorr_length_scaling
+    this%skin_temperature_override = skin_temperature
+    this%cos_sza_override = cos_solar_zenith_angle
+    this%solar_irradiance_override = solar_irradiance_override
+    this%cloud_inhom_separation_factor = cloud_inhom_separation_factor
+    this%cloud_separation_scale_toa = cloud_separation_scale_toa
+    this%cloud_separation_scale_surface = cloud_separation_scale_surface
+    this%cloud_separation_scale_power = cloud_separation_scale_power
+    this%do_correct_unphysical_inputs = do_correct_unphysical_inputs
+
+    if (lhook) call dr_hook('ecrad_driver_config:read',1,hook_handle)
+
+  end subroutine read_config_from_namelist
+
+end module ecrad_driver_config

@@ -1,0 +1,33 @@
+# Fortran compiler executable
+FC = gfortran
+
+# Tell the compiler to accept C-preprocessor directives
+CPPFLAGS = -cpp
+
+# Basic flags such as where to write module files, and an instruction
+#  to read Fortran unformatted data files as big endian 
+BASICFLAGS = -J../mod -fconvert=big-endian
+
+# OpenMP flag
+OMPFLAG = -fopenmp
+
+ifndef DEBUG
+# --NORMAL CONFIGURATION--
+
+# Optimization flags
+OPTFLAGS = -O3
+
+# Warning flags: all except those that warn about unused stuff
+WARNFLAGS = -Wall -Wno-unused-label -Wno-unused-dummy-argument -Wno-unused-variable
+
+# Debugging flags, such as "-g" to store debugging symbols, and
+# instructions to abort if certain floating-point exceptions occur
+DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow
+
+else
+# --DEBUGGING CONFIGURATION--
+OPTFLAGS = -O0
+WARNFLAGS = -Wall
+DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan
+
+endif

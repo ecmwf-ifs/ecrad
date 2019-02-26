@@ -1,0 +1,543 @@
+version 1.1.10
+	- Renamed occurrences of "encroachment" with "entrapment" to match
+	  terminology of Hogan et al. entrapment paper, but namelist
+	  interface still accepts sw_encroachment_name (sw_entrapment_name
+	  preferred) and encroachment_scaling (overhang_factor preferred).
+
+version 1.1.9 (9 Feb 2019)
+	- Mapping from albedo/emissivity intevals to bands may be done as
+	  before by selecting the nearest interval to the centre of each
+	  band, or now by computing the fractional overlap of each interval
+	  with each band.  This is controlled by the
+	  do_nearest_spectral_[sw_albedo|lw_emiss] configuration parameter
+	- The user can specify the spectral range of the albedo/emissivity
+	  intervals using namelist parameters
+	  [sw_albedo|lw_emiss]_wavelength_bound and
+	  i_[sw_albedo|lw_emiss]_index, or calling the
+	  config%define_[sw_albedo|lw_albedo]_intervals routines before
+	  calling setup_radiation, which does the actual mapping once the
+  	  ecRad bands are known
+	- Parameterize cloud separation scale via radiation_driver
+	  namelist options "cloud_separation_scale_[toa|surface|power]"
+	- radiation_driver:do_correct_unphysical_inputs namelist option
+	  does not simply warn about unphysical inputs (e.g. negative gas
+	  concentrations) but fixes them
+	- Replaced LwDiffusivity by 2.0 in
+	  radiation_two_stream:calc_frac_scattered_diffuse_sw, which is
+	  more consistent with the Zdunkowski scheme, but has a very small
+	  effect
+
+version 1.1.8 (17 January 2019)
+	- easy_netcdf.F90 allows for reading and writing slices of larger
+	  arrays and writing HDF5 files, overcoming the maximum array size
+	  limitation of classic NetCDF files
+	- cloud%inv_inhom_effective_size allows different effective sizes
+	  for cloud inhomogeneities and cloud boundaries in SPARTACUS,
+	  important for realistic behaviour when cloud fraction is near one,
+	  and can be specified directly in the NetCDF input file
+	- The namelist variable "do_ignore_inhom_effective_size" in
+	  "driver_config" means that "inv_inhom_effective_size" will be
+	  ignored if it is present in the file, reverting to the old
+	  behaviour
+	- Alternative input variables "inv_cloud_effective_separation" and
+	  "inv_inhom_effective_separation" allow cloud structure for
+	  SPARTACUS to be specified in a way less dependent on cloud
+	  fraction
+	- If "inv_cloud_effective_separation" provided but not
+	  "inv_inhom_effective_separation" then the effective size of
+	  inhomogeneities is computed as that for the clouds themselves
+	  multiplied by the "cloud_inhom_separation_factor" namelist
+	  variable from "driver_config" (or 1 if not provided).
+	- Check physical bounds of inputs to radiation interface
+	- [aerosol|ice|liq]_optics_override_file_name now read from namelist
+	- radiation_homogeneous_[sl]w.F90 now stores spectral flux
+	  profiles, if required
+
+version 1.1.7 (8 January 2019)
+	- Added "Cloudless" solvers in shortwave and longwave
+	- Writing radiative_properties*.nc files now thread-safe
+	- Fixed segmentation fault in solver_tripleclouds_sw when
+	  do_save_spectral_flux .and. .not. do_sw_direct
+	- Initialize shortwave properties in radiation_ifs_rrtm in case
+	  sun is below horizon, needed for some compiler options
+	- Modified test/ifs/ecrad_meridian.nc to allow sun to go below
+	  horizon, rather than including the online correction for Earth
+	  curvature.
+	- Modified driver/ecrad_driver_read_input.F90 so that if sw_albedo
+	  and lw_emissivity override namelist parameters are provided, they
+	  don't also need to be provided in the input files
+
+version 1.1.6 (17 December 2018)
+	- Generalized "alpha" overlap matrix calculation to allow for
+	  possibility that the two cloudy regions in the Tripleclouds
+	  assumption are not of equal size
+	- Introduced radiation_regions.F90 to compute region fractions and
+	  optical depth scalings at the same time
+	- New gamma distribution behaviour in Tripleclouds and SPARTACUS:
+	  if fractional standard deviation FSD > 1.5 then use non-equal
+	  fractions for the two cloudy regions, which better predicts
+	  fluxes. Also set a minimum optical depth scaling of 1/40, which
+	  means that Tripleclouds and SPARTACUS will give slightly different
+	  fluxes from before (< 0.1 W m-2) even for FSD < 1.5
+	- SPARTACUS shortwave encroachment uses new fast_expm_exchange
+	  routine given that matrix to be exponentiated has a regular structure
+	- Execution halts if gases not provided with 0 (well-mixed) or 2
+	  dimensions; before execution silently continued with these gases
+	  not present
+
+version 1.1.5 (15 September 2018)
+	- Added "Zero" option for sw_encroachment_name, which turns off
+	  not only encroachment due to horizontal transport within regions,
+	  but also encroachment due to horizontal transport between regions
+
+version 1.1.4 (13 September 2018)
+	- Added "Fractal" option for sw_encroachment_name, which makes a
+	  better assumption about the cloud size distribution than
+	  "Computed" in the part that uses the horizontal radiation
+	  migration distance to work out how much exchange has occurred
+	  under regions
+
+version 1.1.3 (4 September 2018)
+	- Added (shortwave) encroachment_scaling to namelist, configuring
+	  how one assumes cloud boundaries line up in adjacent layers: 0.0
+	  (the boundaries line up to the greatest extent possible given the
+	  overlap parameter) and 1.0 (the boundaries line up to the minimum
+	  extent possible, which was the old behaviour)
+	- Fixed related minor bug where encroachment transfer rate was
+	  computed from the edge lengths in the wrong layer
+
+version 1.1.2 (3 September 2018)
+	- Added Python script test/ifs/plot_ifs.py (thanks to Alessio
+	  Bozzo)
+	- Bug fix in calculation of direct horizontal migration distance
+	  in radiation_spartacus_sw.F90
+	- Added namelist parameter min_cloud_effective_size to help with
+	  stability of SPARTACUS
+
+version 1.1.1 (29 August 2018)
+	- Complete reformulation of the calculation of horizontal
+	  migration distances in radiation_spartacus_sw.F90
+	- Option to set particulate single-scattering albedo and asymmetry
+	  factor via namelist in LW and SW monochromatic case
+
+version 1.1.0 (21 August 2018)
+	- Clean-up for release
+	- Updated test/i3rc/duplicate_profiles.sh to work with latest nco
+	  tools
+
+version 1.0.16 (7 May 2018)
+	- "make PRINT_ENCROACHMENT_DATA=1" prints encroachment data from
+	  SPARTACUS shortwave solver to units 101 and 102, which can be
+	  tested with test/i3rc/plot_encroachment.m
+	- Enabled radsurf canopies to include longwave gas
+	  absorption/emission at full spectral resolution
+	- Monochromatic shortwave properties now more consistent with 0.55
+	  micron wavelength (g=0.86, ssa=0.999999, delta-Eddington applied)
+	- Now pass in KLEV rather than a structure to ifsrrtm routines
+
+version 1.0.15 (18 April 2018)
+	- Added capability to provide aerosol optical properties rather
+	  than mixing ratios, implemented via the add_aerosol_optics_direct
+	  routine
+	- Removed dummy "method" argument to calc_two_stream_gammas_?w
+	- Removed a large number of unused dummy arguments
+	- Updated README and test/ifs/ecrad_meridian_default_out_REFERENCE.nc
+
+version 1.0.14 (23 March 2018)
+	- Large number of improvements and fixes to the treatment of urban
+	  areas
+
+version 1.0.13 (14 March 2018)
+	- Extra securities on transmittance, reflectance etc. in shortwave
+	  SPARTACUS solver
+	- Reduced default max_cloud_od for SPARTACUS solver to 18 for
+	  stability
+	- Finally fixed permute option when writing 3D array using
+	  easy_netcdf.F90
+
+version 1.0.12 (22 February 2018)
+	- Optimized radiation_ifs_rrtm.F90 and radiation_cloud_generator.F90
+
+version 1.0.11 (20 February 2018)
+	- Corrected "computed encroachment" in SPARTACUS shortwave solver
+	  to propagate migration distances according to overlap rules
+	- Default configuration file in test/ifs directory is for Cycle
+	  46R1 of IFS, which includes longwave scattering, fixes LW ice
+	  optics bug and computes shortwave delta-Eddington scaling for
+	  particulates only
+
+version 1.0.10 (23 October 2017)
+	- Added single precision option: compile with "make
+	  SINGLE_PRECISION=1"
+	- easy_netcdf can read 4D arrays (thanks to Alessio Bozzo)
+	- Renamed single-character variables
+	- New data/yi_ice_scattering_rrtm.nc with longwave extinction
+	  rather than absorption coefficient (thanks to Mark Fielding)
+	- Added security on n_scat_diffuse
+
+version 1.0.9 (26 July 2017)
+	- Refined shortwave SPARTACUS such that computed encroachment
+	  estimates the number of diffuse scattering events and reduces the
+	  migration distance accordingly
+	- Optimized calculation of longwave reflection/transmission coeffs
+
+version 1.0.8 (22 July 2017)
+	- Added lognormal/gamma cloud PDF options that affect McICA,
+	  Tripleclouds and SPARTACUS solvers: namelist entry
+	  "cloud_pdf_shape_name" can be "Lognormal" or "Gamma" (default
+	  "Gamma")
+	- radiation_driver can read "iseed" variable for seeding the McICA
+	  cloud generator
+	- Added Yi et al. (2013) ice optics model (thanks to Mark
+	  Fielding): namelist entry ice_model_name="Yi"
+
+version 1.0.7 (7 July 2017)
+	- Bug fix in reformulated SPARTACUS solver
+
+version 1.0.6 (4 July 2017)
+	- Reformulated shortwave SPARTACUS solver to have the option of
+	  explicitly computing "encroachment" (what Shonk & Hogan called
+	  "anomalous transport") accounting for expected horizontal
+	  migration distance during a reflection event
+
+version 1.0.5 (29 June 2017)
+	- Added "urban" tile type
+
+version 1.0.4 (24 April 2017)
+	- Added "flat" and "vegetation" tile types
+	- Added "make DEBUG=1" option for turning on debug flags
+
+version 1.0.3 (11 April 2017)
+	- Converted code to use "surface" type for multi-tile surfaces in
+ 	  future
+
+(version 1.0.2surface - unstable intermediate version)
+
+version 1.0.1 (15 February 2017)
+	- Fixed Makefile options for PGI Fortran
+	- Removed erroneous commas from test/i3rc/Makefile
+	- Renamed variables shadowing intrinsics "scale" and "index"
+
+version 1.0 (13 February 2017)
+	- Read RADRRTM and RADSRTM from data directory
+	- Renamed "PROFILE" in test/i3rc/Makefile to avoid clash with use
+	  of the same name in top-level Makefile
+
+version 0.9.48 (13 January 2017)
+	- test/ifs now includes a test where aerosol is turned off, and a
+	  reference output NetCDF file so that the compilation can be checked
+
+version 0.9.47 (9 January 2017)
+	- Can specify output precision via "is_double" argument in easy_netcdf
+	- save_inputs stores iseed in double precision
+	- test/i3rc contains I3RC test case
+	- test/ifs contains IFS test case
+	- Preliminary "Baran-2017" ice optics scheme: a new
+	  parameterization derived from the Baran et al. (2016) ice optical
+	  properties
+
+version 0.9.46 (3 January 2017)
+	- Added mcica_bidisperse.nc to enable McICA to reproduce the
+	  two-mode PDF used by the Tripleclouds and SPARTACUS schemes
+
+version 0.9.45 (25 November 2016)
+	- Added OpenIFS license
+	- Changed build system to use Makefile_include.<prof> files
+	- Renamed package from "spartacus" to "ecrad"
+	- Fixed writing of 3D arrays in easy_netcdf to permute
+	  withorder=i_permute_3d(i_permute_3d)
+	- Offline code can be run on input data written by
+	  radiation_save:save_inputs
+	- New file socrates_droplet_scattering_rrtm.nc with manually
+ 	  changed coefficients for shortwave band 11 to prevent singularity
+	  in SSA calculation at re=25.733um.  Note that there is still a
+	  singularity at re=1.63um in shortwave optical depth in band 10,
+	  so effective radius should be capped to the range 2-50 microns.
+
+version 0.9.44 (22 October 2016)
+	- Revised aerosol scattering file aerosol_ifs_rrtm_43R1.nc
+	- Fixed radiation_cloud_cover: it could access arrays out of
+	  bounds - provided that the memory address was accessible this
+	  would have had no impact since the data were not used
+
+version 0.9.43 (23 September 2016)
+	- RADRRTM and RADSRTM can now be read from directory in
+	  environment variable "DATA"
+	- do_fu_lw_ice_optics_bug is now a namelist option
+	- Added Baran 2016 ice optics option
+	- Optimized calculation of Planck function
+	- Better ordered the printing of configuration information
+	- Added configCY43R3.nam to match expected configuration in ECMWF
+	  IFS cycle 43R3
+
+version 0.9.42 (31 August 2016)
+	- Optimized radiation_ifs_rrtm.F90 and added
+	  rrtm_gas_optical_depth.F90 to replace rrtm_gasabs1a_140gp.F90
+	- Optimized calc_two_stream_gammas_sw
+	- Added Tripleclouds solvers in longwave and shortwave
+
+version 0.9.41 (16 August 2016)
+	- Added possibility to reproduce IFS bug in longwave ice where
+	  single scattering albedo is one minus what it should be
+	- Ensure initialization to zero of [od/ssa/g]_[sw/lw]_[liq/ice]
+	  variables in radiation_cloud_optics.F90
+	- Removed Dr Hook calls for small routines called many times:
+	  everything in radiation_two_stream, plus
+	  radiation_aerosol_optics_data:calc_rh_index, calc_liq_optics_*,
+	  calc_ice_optics_*
+
+version 0.9.40 (14 July 2016)
+	- Updated files in ifs directory
+
+version 0.9.39 (22 June 2016)
+	- Renamed cloud_cover_* routines to cum_cloud_cover_* since they
+	  compute the cumulative cloud cover, and added a "cloud_cover"
+	  function that does actually compute the total cloud cover (only)
+	- Use gamma rather than lognormal distribution for McICA to better
+	  match the current IFS
+	- radiation_cloud::set_overlap_param now uses the correct layer
+	  separation from temperature and pressure, rather than an
+	  approximate one using a constant atmospheric scale height
+	- radiation_cloud_generator now correlates cloud inhomogeneities
+	  between non-adjacent layers if the Exp-Exp overlap scheme is used
+	- radiation_cloud_cover::cum_cloud_cover_exp_exp now checks for
+	  pair_cloud_cover not consistent with the cumulative cloud cover
+	  profile
+
+version 0.9.38 (2 June 2016)
+	- Added Tegen climatology data file and modified
+	  radiation_aerosol_optics_data to read data files that don't
+	  contain hydrophilic aerosols
+	- Added Slingo (1989) and Lindner and Li (2000) liquid droplet
+	  optics parameterizations for backwards compatibility with the IFS,
+	  although note that Slingo (1989) has been found to have errors
+
+version 0.9.37 (17 May 2016)
+	- Added do_3d_lw_multilayer_effects to mirror the same for
+	  shortwave.  This controls whether off-diagonal elements are
+	  permitted in the total_albedo matrix - these represent the
+	  probability that downwelling radiaton exiting a region is
+	  reflected up in another region.  This may be due to transport
+	  through cloud sides, or due to "anomalous" horizontal transport
+	  where fluxes are homogenized in regions.  Unlike in the shortwave,
+	  this option is not forced on if 3D effects are enabled; in fact,
+	  it is probably better to turn it off in both 1D and 3D cases
+	  because this homogenization is not likely to occur to any
+	  significant degree in the longwave.
+	- Added capability to select single/double precision in
+	  easy_netcdf.F90, and radiative properties are now stored in double
+	  precision.
+	- Changed verbosity settings of driver: 2 = print *all* setup
+ 	  info, 3 = also print numbers of current profiles being processed.
+	- radiation_ifs_rrtm now checks solar zenith angle for positivity
+	  to decide whether to set incident solar radiation to zero
+
+
+version 0.9.36 (10 May 2016)
+	- Bug fix in radiation_monochromatic.F90: Planck profile calculation
+	- Maximum 3D transfer rate is now configurable (max_3d_transfer_rate)
+	- Inverse effective cloud size can be specified separately for eta
+	  in the bands 0-0.45, 0.45-0.8 and 0.8-1 via high_inv_eff_size,
+	  middle_inv_eff_size, low_inv_eff_size in the radiation_config
+	  namelist.
+	- License and copyright now in LICENSE and NOTICE; COPYING has
+	  been removed
+	- "ifs" directory added illustrating how the radiation scheme is
+	  called from the IFS, including the routines for computing cloud
+	  particle effective radius.
+
+version 0.9.35 (29 April 2016)
+	- Added Exponential-Exponential overlap capability to match
+	  original IFS Raisanen cloud generator
+	- Overlap in McICA can be selected with overlap_scheme_name in
+	  namelist = Exp-Exp, Exp-Ran or Max-Ran
+	- Removed test on od_over_mu0 in
+	  calc_reflectance_transmittance_sw, which speeds up IFS
+	  implementation
+	- In same routine, increased minimum "k^2" to 1.0e-12_jprb which
+	  removes noise in clear-sky upwelling versus solar zenith angle
+
+version 0.9.34 (20 April 2016)
+	- Added option to do delta-Eddington scaling after merging with
+	  gases, which seems less "correct", but is how the original IFS
+	  scheme works
+	- Delta-Eddington now a header file included by several modules
+	- Clarified that RRTMG license is now BSD 3-clause
+
+version 0.9.33 (March 2016)
+	- Removed PS-Rad implementation of RRTMG
+	- Added delta-Eddington scaling of aerosol scattering properties
+
+version 0.9.32 (17 March 2016)
+	- Slight change to the way that cloud overlap is specified
+	- Added aerosol optics data files matching IFS cycles
+	- Default aerosol file is aerosol_ifs_rrtm_42R1.nc
+
+version 0.9.31 (26 January 2016)
+	- Print out description of aerosol types being used
+	- Added iverbosesetup in order to specify separately the verbosity
+	  of the setup and normal execution parts
+	- Removed "is_verbose" from namelist
+	- Removed "ncol" as an argument from the solvers
+	- PS-Rad RRTMG option now prefixed by PSRAD in the code and the
+	  directory structure; radiation_ifsrrtm renamed to
+	  radiation_ifs_rrtm
+
+version 0.9.30 (16 January 2016)
+	- Bug fix: if layer overcast and only 2 regions then 3D
+	  calculations not performed
+	- Split cloud optics into separate source files
+
+version 0.9.29 (7 January 2016)
+	- Support for separate direct and diffuse shortwave albedos
+	- Explicit loop indices in radiation_adding_ica_*w and
+	  radiation_ifsrrtm speeds these routines up somewhat
+	- Added capability to calculate longwave derivatives for Hogan &
+	  Bozzo (2015) method
+	- Faster longwave McICA solver if cloud scattering not represented
+	- Added homogeneous solvers
+
+version 0.9.28 (17 November 2015)
+	- Added some comments to McICA parts and cleaned up
+
+version 0.9.27 (13 November 2015)
+	- Capped the transfer rate between regions in 3D SPARTACUS to "10"
+	  per layer, equivalent to an optical depth of 10
+	- Fixed cloud cover calculation in cloud generator
+	- Fixed bug in McICA LW where surface Planck function taken from
+	  wrong column
+	- Optimized SW reflectance transmittance: use simple expression
+	  for optically thin points
+
+version 0.9.26 (6 November 2015)
+	- Added no-scattering solver for McICA longwave, typically used in
+	  clear skies when aerosol scattering is turned off
+
+version 0.9.25 (4 November 2015)
+	- Reordered gas and cloud optical properties to have g-point
+	  varying fastest, leading to a significant speed-up
+
+version 0.9.24 (4 November 2015)
+	- Added possibility for radiation to be transported directly
+	  between regions a and c, via clear_to_thick_fraction
+	- Added capability for direct beam from overhead sun to pass
+	  through cloud sides, to improve 3D effect for overhead sun
+	- Read McICA PDF look-up table from mcica_lognormal.nc to
+	  radiation_pdf_sampler.F90
+	- Verified McICA cloud generator
+	- Added capability to interpret overlap parameter as Hogan &
+	  Illingworth's "alpha" rather than Shonk et al.'s "beta", made this
+	  the default and verified that McICA and SPARTACUS give the same
+	  total cloud cover.
+	- Added capability to repeat calculation multiple times for better
+	  profiling
+	- Gas optics unit scaling now done all at once to avoid bugs
+	  associated with part of mixing_ratio array being in one unit and
+	  another part being in another unit (for the same gas)
+	- Some optimization of gamma calculations
+
+version 0.9.23 (19 October 2015)
+	- Thresholds on gas optical depth now performed in
+  	  radiation_ifsrrtm.F90 to avoid problems with unphysical ssa after
+	  aerosol optics
+
+version 0.9.22 (13 October 2015)
+	- Protection for zero Kelvin in monochromatic Planck function
+	- Check on dimensions read from aerosol optics file
+	- Better diagnostic of aerosol settings in print_config
+	- Included longwave internal radiation distribution
+	  parameterization for 3D (config%do_lw_side_emissivity)
+	- Added requirement for non-zero water content in
+	  radiation_spartacus_?w.F90
+
+version 0.9.21
+	- Fixed the monochromatic option
+
+version 0.9.20
+	- Bug fixes in radiation_matrix.F90 and radiation_ifsrrtm.F90
+	- Better printing of the configuration in radiation_config.F90
+
+version 0.9.19 (not a stable version)
+	- Moved solar irradiance from config to single_level
+
+version 0.9.18
+	- Module radiation_io for abort and output units
+	- Started shortwave McICA implementation
+	- Better IFS compatibility
+	- Revised config_type structure
+
+version 0.9.17
+	- Optical depth thresholds now in the radiation namelist as
+	  max_gas_od_3d and max_cloud_od
+	- Can process limited number of columns via istartcol and iendcol
+	  in the radiation_driver namelist
+	- Fixed bug where upwelling longwave surface clear-sky flux was
+	  underestimated if a cloud was present in lowest model level
+	- Incoming solar flux scaled in radiation_ifsrrtm to match
+	  requested TSI
+
+version 0.9.16
+	- Rather than turning off 3D radiation if OD in a region is too
+	  high, we cap the OD of the cloud and still do 3D calculations.
+	  Note that to enable 3D effect to be calculated, this is done even
+	  if 3D effects are turned OFF.
+
+version 0.9.15
+	- Added capability to output fluxes per g-point with
+	  do_save_gpoint_flux
+	- Check for "ghost" clouds (zero water content, non-zero cloud
+	  fraction)
+	- 3D radiation only called if optical depth of gas < 8 and total
+	  optical depth of thickest region < 30
+
+version 0.9.14
+	- Cleaned up the text output via separate "iverbose" config
+	  variables for the driver and the main radiation code
+
+version 0.9.13
+	- driver/radiation_driver_config.F90 now handles the aspects of
+	  the configuration that are limited to the driver rather than the
+	  radiation code itself
+
+version 0.9.12
+	- Now use IFS version of RRTM-G gas optics
+	- g_lw zeroed in radiation_interface
+
+version 0.9.11
+	- Monochromatic is now a run-time rather than compile-time option
+	- Option to output spectral fluxes
+
+version 0.9.10
+	- Added overlap_decorr_length_scaling option for namelists
+
+version 0.9.9
+	- Added IFS RRTM code in ifsrrtm/
+	- Added "make resort" in work/ to provide re-sorted g points for
+	   radiation_rrtm.f90
+
+version 0.9.8
+	- Better compatibility with IFS: added dr_hook, nulout,
+          nulerr, abor1
+	- easy_netcdf into utilities library
+ 	- Revised the variable name convention in radiation/*.f90 so
+           that can be converted to IFS coding norms if required
+
+version 0.9.7
+	- Added Fu (1996) and Fu et al. (1998) ice optics
+
+version 0.9.6
+	- Implemented aerosols
+
+version 0.9.5
+	- Implemented ice optics
+
+version 0.9.4
+	- Combined clear-sky calculations into single spartacus call
+	- Fixed the optimized matrix operations for shortwave sparsity
+
+version 0.9.3
+	- Fixed ozone in standard atmosphere profiles
+	- Fixed bug in Meador-Weaver direct transmittance calculation
+
+version 0.9.2
+	- First beta release

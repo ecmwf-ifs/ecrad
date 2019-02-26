@@ -1,0 +1,67 @@
+! Configuration namelists for ECRAD radiation code
+!
+! The following namelist controls the behaviour of the driver routine,
+! including parallelization options and overriding numbers read from
+! the NetCDF input file
+!
+! This version matches the configuration of ECMWF IFS Cycle 43R3
+!
+&radiation_driver
+do_parallel              = true,   ! Use OpenMP parallelization?
+nblocksize               = 32,      ! Number of columns to process per thread
+do_save_inputs           = true,   ! Save inputs in "inputs.nc"?
+! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+iverbose    	   	= 3, 
+istartcol               = 0,      ! Use full range of columns by default
+iendcol                 = 0,
+nrepeat                 = 1,
+/
+!
+! The following namelist controls the behaviour of the SPARTACUS
+! radiation code
+!
+&radiation
+do_sw			= true,           ! Compute shortwave fluxes?
+do_lw			= true,           ! Compute longwave fluxes?
+do_sw_direct 		= true,           ! Compute direct downward shortwave fluxes?
+do_clear		= true,           ! Compute clear-sky fluxes?
+directory_name		= "../../data",      ! Location of configuration files
+liquid_model_name       = "SOCRATES",     ! Liquid droplet scattering model
+ice_model_name		= "Fu-IFS",       ! Ice particle scattering model
+sw_solver_name          = "McICA",
+lw_solver_name          = "McICA",
+overlap_scheme_name     = "Exp-Exp",      ! Exp-Ran, Max-Ran or Exp-Exp
+cloud_fraction_threshold = 0.001e-3,      ! 
+do_lw_aerosol_scattering= false,          ! Aerosols scatter in the longwave?
+do_lw_cloud_scattering 	= false, 	  ! Clouds scatter in the longwave?
+cloud_inhom_decorr_scaling = 0.5,         ! Ratio of overlap decorr len of inhomogeneities to boundaries
+use_beta_overlap        = false,
+do_save_radiative_properties = false,     ! Save raw radiation properties in radiative_properties.nc?
+do_3d_effects		= false,          ! Represent 3D effects?
+sw_encroachment_name    = "Maximum",
+! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+! Separate verbosity specified for setup and ordinary execution
+iverbose    	   	= 1, 
+iverbosesetup           = 3,
+use_aerosols		= true,           ! Include aerosols in radiation calculations?
+do_save_spectral_flux   = false,           ! Save spectral fluxes in output file?
+do_save_gpoint_flux     = false,           ! Save fluxes per g-point in output file?
+do_lw_derivatives       = true,            ! Hogan-Bozzo style derivatives for approx updates
+gas_model_name          = "RRTMG-IFS",     ! Gas model
+do_surface_sw_spectral_flux = true,
+do_fu_lw_ice_optics_bug = true,
+do_sw_delta_scaling_with_gases = true,
+!
+! 12 IFS aerosol classes stored in aerosol_ifs_rrtm.nc: 1-3 Sea salt,
+! 4-6 Boucher desert dust, 7 hydrophilic organics, 8 hydrophobic
+! organics, 9&10 hydrophobic black carbon, 11 ammonium sulphate, 12
+! inactive SO2
+n_aerosol_types       = 12,              ! Aerosols are deactivated if this is zero
+!
+! Indices to the aerosol optical properties in aerosol_ifs_rrtm.nc,
+! for each class, where negative numbers index hydrophilic aerosol
+! types and positive numbers index hydrophobic aerosol types
+i_aerosol_type_map = -1, -2, -3, 1, 2, 3, -4, 10, 11, 11, -5, 14,
+! Tegen types are rather more simple
+!i_aerosol_type_map = 2, 2, 2, 3, 3, 3, 1, 1, 4, 4, 6, 5,
+/

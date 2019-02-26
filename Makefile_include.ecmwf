@@ -1,0 +1,13 @@
+$(info *******************************************************************************)
+$(info *** ECMWF/gfortran)
+$(info *******************************************************************************)
+
+include Makefile_include.gfortran
+
+ifndef NETCDF_INCLUDE
+$(error You need to run "module load netcdf" first)
+endif
+
+ifdef OMP_NUM_THREADS
+$(warning Type "unset OMP_NUM_THREADS" for best performance when running the radiation code)
+endif

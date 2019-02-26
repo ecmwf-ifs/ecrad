@@ -1,0 +1,13 @@
+FC = pgf90
+CPPFLAGS = -Mpreprocess
+
+ifndef DEBUG
+OPTFLAGS = -O3
+else
+OPTFLAGS = -O0
+endif
+
+WARNFLAGS = -Minform=inform
+BASICFLAGS = -module ../mod -Mbyteswapio
+DEBUGFLAGS = -g
+OMPFLAG = -mp=nonuma

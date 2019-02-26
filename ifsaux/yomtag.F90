@@ -1,0 +1,12 @@
+MODULE YOMTAG
+
+USE PARKIND1  ,ONLY : JPIM
+
+IMPLICIT NONE
+
+SAVE
+
+! MTAGRAD : tag for communications done in SUECRAD (ECMWF physics)
+INTEGER(KIND=JPIM), PARAMETER :: MTAGRAD               =  2800
+
+END MODULE YOMTAG

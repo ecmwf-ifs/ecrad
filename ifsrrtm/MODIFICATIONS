@@ -1,0 +1,16 @@
+srtm_gas_optical_depth.F90
+	New file - adapted from srtm_spcrt(_mcica).F90
+	MODIFIED 28 Sept 2015
+rrtm_prepare_gases.F90
+	New file - adapted from rrtm_ecrt_140gp_mcica.F90
+	MODIFIED 28 Sept 2015
+rrtm_rrtm_140gp_mcica.F90
+	Remove ZHEATFAC
+srtm_srtm_224gp_mcica.F90 - NOT USED?
+	RII0 is an argument
+rrtm_setcoeff_140gp.F90
+	Fix argument order
+yoesrta21.F90
+	Fix equivalence
+rrtm_init_140gp.F90, rrtm_kgb1.F90, srtm_init.F90, srtm_kgb16.F90
+	Pass through directory containing RADRRTM and RADSRTM

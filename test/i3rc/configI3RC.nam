@@ -1,0 +1,49 @@
+! Configuration namelists for ECRAD radiation code
+!
+! The following namelist controls the behaviour of the driver routine,
+! including parallelization options and overriding numbers read from
+! the NetCDF input file
+!
+&radiation_driver
+do_parallel             = true,   ! Use OpenMP parallelization?
+nblocksize              = 8,      ! Number of columns to process per thread
+sw_albedo               = 0.08,    ! Override shortwave albedo
+!lw_emissivity          = 1.0,     ! Override longwave emissivity
+! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+iverbose    	   	= 2, 
+solar_irradiance_override= 1366.0,! Total solar irradiance (W m-2)
+
+! Note that the overlap parameters computed from adjacent cloud
+! fractions lead to the total cloud cover being overestimated, so an
+! adjustment is used to go half-way to matching the true cloud cover
+! of the scene (see Hogan et al. 2016)
+overlap_decorr_length_scaling=1.13,
+effective_size_scaling = 1.0,
+/
+!
+! The following namelist controls the behaviour of the ECRAD
+! radiation code
+!
+&radiation
+do_3d_effects		= true,           ! Represent 3D effects?
+do_lw_side_emissivity   = true,
+n_regions 		= 3,              ! Number of regions (2=clear+cloudy, 3=clear+2cloudy)
+do_3d_lw_multilayer_effects = true,
+min_cloud_effective_size= 1.0e-6,         ! Minimum cloud effective size, for stability (m)
+sw_encroachment_name    = "Maximum",      ! "Maximum" = old behaviour (also "Minimum"/"Computed")
+encroachment_scaling    = 1.0,
+directory_name		= "../../data",   ! Location of configuration files
+sw_solver_name          = "SPARTACUS",
+lw_solver_name          = "SPARTACUS",
+cloud_pdf_shape_name    = "Gamma",
+overhead_sun_factor = 0.06,
+do_lw_cloud_scattering 	= true,           ! Clouds scatter in the longwave?
+cloud_inhom_decorr_scaling = 0.5,
+do_save_radiative_properties = false,     ! Save raw radiation properties in radiative_properties.nc?
+! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+iverbose    	   	= 1, 
+use_aerosols		= false,           ! Include aerosols in radiation calculations?
+do_save_spectral_flux   = false,           ! Save spectral fluxes in output file?
+do_save_gpoint_flux     = false,           ! Save fluxes per g-point in output file?
+gas_model_name          = "RRTMG-IFS",     ! Gas model
+/

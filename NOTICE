@@ -1,0 +1,14 @@
+ECRAD - Modular atmospheric radiation scheme Copyright (C) 2014-2018
+European Centre for Medium Range Weather Forecasts (ECMWF) This
+software may be used and modified under the terms of the OpenIFS
+license, described in 20150304_OpenIFS_terms.pdf. Note that before it
+can be used, an authoritative signature from your institute is
+required as described at https://confluence.ecmwf.int/display/ECRAD
+. This code may NOT BE REDISTRIBUTED without explicit permission from
+ECMWF.
+
+The ifsrrtm directory of this package includes a modified version of
+the gas optics part of the Rapid Radiative Transfer Model for GCMS
+(RRTMG).  RRTMG was developed at Atmospheric & Environmental Research
+(AER), Inc., Lexington, Massachusetts and is available under the
+"3-clause BSD" license; for details, see ifsrrtm/AER-BSD3-LICENSE.

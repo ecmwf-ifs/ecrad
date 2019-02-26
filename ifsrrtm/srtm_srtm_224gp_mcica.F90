@@ -1,0 +1,463 @@
+SUBROUTINE SRTM_SRTM_224GP_MCICA &
+ & ( KIDIA, KFDIA, KLON , KLEV , KSW  , KCOLS , KCLDLY ,&
+ &   PAER , PALBD, PALBP, PAPH , PAP  , PAERTAUS, PAERASYS, PAEROMGS ,&
+ &   PTS  , PTH  , PT   ,&
+ &   PQ   , PCO2 , PCH4 , PN2O , PNO2 , POZN  , PRMU0 ,&
+ &   PFRCL, PTAUC, PASYC, POMGC,&
+ &   PFSUX, PFSUC, PFUVF, PFUVC, PPARF, PPARCF, PSUDU ,&
+ &   PFDIR, PCDIR, PFDIF, PCDIF, PSwDiffuseBand, PSwDirectBand, RII0)  
+
+!----compiled for Cray with -h nopaattern----
+
+!-- interface to RRTM_SW
+!     JJMorcrette 030225
+!     JJMorcrette 20050110  McICA version
+!     JJMorcrette 20070614  bug-fix for solar duration
+!     JJMorcrette 20071015  3D fields of CO2, CH4, N2O and NO2
+!     D.Salmond  31-Oct-2007 Vector version in the style of RRTM from Meteo France & NEC
+!     JJMorcrette 20091201  Total and clear-sky downward direct flux
+!     PBechtold+NSemane  09-Jul-2012 Gravity
+!     R J Hogan   20140627  Passing through PSwDn*SurfBand
+
+USE PARKIND1 , ONLY : JPIM, JPRB
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
+USE YOMCST   , ONLY : RG, RI0
+USE YOERAD   , ONLY : NSW, NAER, LApproxSwUpdate
+USE YOESRTAER, ONLY : RSRTAUA, RSRPIZA, RSRASYA
+USE YOEAERATM, ONLY : LAERRRTM, LAERCSTR, LAERVOL
+!USE YOMPHY3  , ONLY : RII0
+USE YOMDYNCORE,ONLY : RPLRG
+USE YOM_YGFL , ONLY : YGFL
+
+IMPLICIT NONE
+
+!-- Input arguments
+
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLON 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
+INTEGER(KIND=JPIM),INTENT(IN)    :: KSW  
+INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KCOLS
+INTEGER(KIND=JPIM),INTENT(IN)    :: KCLDLY(KCOLS) 
+
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAER(KLON,6,KLEV)    ! top to bottom
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAERTAUS(KLON,KLEV,14), PAERASYS(KLON,KLEV,14), PAEROMGS(KLON,KLEV,14)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PALBD(KLON,KSW) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PALBP(KLON,KSW) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPH(KLON,KLEV+1) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAP(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTS(KLON) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTH(KLON,KLEV+1) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PQ(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PCO2(KLON,KLEV), PCH4(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PN2O(KLON,KLEV), PNO2(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: POZN(KLON,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KLON)
+
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PFRCL(KLON,KCOLS,KLEV) ! bottom to top
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PTAUC(KLON,KCOLS,KLEV) ! bottom to top
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PASYC(KLON,KCOLS,KLEV) ! bottom to top
+REAL(KIND=JPRB)   ,INTENT(IN)    :: POMGC(KLON,KCOLS,KLEV) ! bottom to top
+
+!-- Output arguments
+
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFSUX(KLON,2,KLEV+1) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFSUC(KLON,2,KLEV+1) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFUVF(KLON), PFUVC(KLON), PPARF(KLON), PPARCF(KLON)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSUDU(KLON)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFDIF(KLON,KLEV+1), PCDIF(KLON,KLEV+1)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFDIR(KLON,KLEV+1), PCDIR(KLON,KLEV+1)
+
+! Surface diffuse and direct downwelling shortwave flux in each
+! shortwave albedo band, used in RADINTG to update the surface fluxes
+! accounting for high-resolution albedo information
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSwDiffuseBand(KLON,NSW)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSwDirectBand (KLON,NSW)
+
+REAL(KIND=JPRB)   ,INTENT(IN)    :: RII0
+!-----------------------------------------------------------------------
+
+!-- dummy integers
+
+INTEGER(KIND=JPIM) :: ICLDATM, INFLAG, ICEFLAG, I_LIQFLAG, ITMOL, I_NSTR
+
+INTEGER(KIND=JPIM) :: IK, IMOL, J1, J2, JAE, JL, JK, JSW, JB
+
+!-- dummy reals
+
+REAL(KIND=JPRB) :: ZPZ(KIDIA:KFDIA,0:KLEV)   , ZPAVEL(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZTAVEL(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZCOLDRY(KIDIA:KFDIA,KLEV) , ZCOLMOL(KIDIA:KFDIA,KLEV) , ZWKL(KIDIA:KFDIA,35,KLEV)
+REAL(KIND=JPRB) :: ZCOLCH4(KIDIA:KFDIA,KLEV) , ZCOLCO2(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZCOLH2O(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZCOLO2(KIDIA:KFDIA,KLEV)  , ZCOLO3(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZFORFAC(KIDIA:KFDIA,KLEV) , ZFORFRAC(KIDIA:KFDIA,KLEV), ZSELFFAC(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZSELFFRAC(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZFAC00(KIDIA:KFDIA,KLEV)  , ZFAC01(KIDIA:KFDIA,KLEV)  , ZFAC10(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZFAC11(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB) :: ZONEMINUS(KIDIA:KFDIA)    , ZRMU0(KIDIA:KFDIA) , ZADJI0
+REAL(KIND=JPRB) :: ZALBD(KIDIA:KFDIA,KSW)    , ZALBP(KIDIA:KFDIA,KSW)    
+
+REAL(KIND=JPRB) :: ZFRCL(KIDIA:KFDIA,KCOLS,KLEV), ZTAUC(KIDIA:KFDIA,KLEV,KCOLS), &
+                 & ZASYC(KIDIA:KFDIA,KLEV,KCOLS)
+REAL(KIND=JPRB) :: ZOMGC(KIDIA:KFDIA,KLEV,KCOLS)
+REAL(KIND=JPRB) :: ZTAUA(KIDIA:KFDIA,KLEV,KSW), ZASYA(KIDIA:KFDIA,KLEV,KSW), ZOMGA(KIDIA:KFDIA,KLEV,KSW)
+REAL(KIND=JPRB) :: ZFUVF(KIDIA:KFDIA), ZFUVC(KIDIA:KFDIA), ZPARF(KIDIA:KFDIA), ZPARCF(KIDIA:KFDIA), ZSUDU(KIDIA:KFDIA)
+
+REAL(KIND=JPRB) :: ZBBCD(KIDIA:KFDIA,KLEV+1), ZBBCU(KIDIA:KFDIA,KLEV+1), ZBBFD(KIDIA:KFDIA,KLEV+1), &
+                 & ZBBFU(KIDIA:KFDIA,KLEV+1)
+REAL(KIND=JPRB) :: ZBBFDIR(KIDIA:KFDIA,KLEV+1),ZBBCDIR(KIDIA:KFDIA,KLEV+1)
+
+! As PSw*Band but dimensioned KIDIA:KFDIA
+REAL(KIND=JPRB) :: ZSwDiffuseBand(KIDIA:KFDIA,NSW)
+REAL(KIND=JPRB) :: ZSwDirectBand (KIDIA:KFDIA,NSW)
+
+INTEGER(KIND=JPIM) :: ILAYTROP(KIDIA:KFDIA)
+INTEGER(KIND=JPIM) :: INDFOR(KIDIA:KFDIA,KLEV), INDSELF(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM) :: JP(KIDIA:KFDIA,KLEV), JT(KIDIA:KFDIA,KLEV), JT1(KIDIA:KFDIA,KLEV)
+
+REAL(KIND=JPRB) :: ZAMD                  ! Effective molecular weight of dry air (g/mol)
+REAL(KIND=JPRB) :: ZAMW                  ! Molecular weight of water vapor (g/mol)
+REAL(KIND=JPRB) :: ZAMCO2                ! Molecular weight of carbon dioxide (g/mol)
+REAL(KIND=JPRB) :: ZAMO                  ! Molecular weight of ozone (g/mol)
+REAL(KIND=JPRB) :: ZAMCH4                ! Molecular weight of methane (g/mol)
+REAL(KIND=JPRB) :: ZAMN2O                ! Molecular weight of nitrous oxide (g/mol)
+REAL(KIND=JPRB) :: ZAMC11                ! Molecular weight of CFC11 (g/mol) - CFCL3
+REAL(KIND=JPRB) :: ZAMC12                ! Molecular weight of CFC12 (g/mol) - CF2CL2
+REAL(KIND=JPRB) :: ZAVGDRO               ! Avogadro's number (molecules/mole)
+REAL(KIND=JPRB) :: ZGRAVIT               ! Gravitational acceleration (cm/sec2)
+REAL(KIND=JPRB) :: ZAMM(KIDIA:KFDIA)
+
+REAL(KIND=JPRB) :: ZRAMW                  ! Molecular weight of water vapor (g/mol)
+REAL(KIND=JPRB) :: ZRAMCO2                ! Molecular weight of carbon dioxide (g/mol)
+REAL(KIND=JPRB) :: ZRAMO                  ! Molecular weight of ozone (g/mol)
+REAL(KIND=JPRB) :: ZRAMCH4                ! Molecular weight of methane (g/mol)
+REAL(KIND=JPRB) :: ZRAMN2O                ! Molecular weight of nitrous oxide (g/mol)
+
+! Atomic weights for conversion from mass to volume mixing ratios; these
+!  are the same values used in ECRT to assure accurate conversion to vmr
+data ZAMD   /  28.970_JPRB    /
+data ZAMW   /  18.0154_JPRB   /
+data ZAMCO2 /  44.011_JPRB    /
+data ZAMO   /  47.9982_JPRB   /
+data ZAMCH4 /  16.043_JPRB    /
+data ZAMN2O /  44.013_JPRB    /
+data ZAMC11 / 137.3686_JPRB   /
+data ZAMC12 / 120.9140_JPRB   /
+data ZAVGDRO/ 6.02214E23_JPRB /
+data ZRAMW   /  0.05550_JPRB   /
+data ZRAMCO2 /  0.02272_JPRB   /
+data ZRAMO   /  0.02083_JPRB   /
+data ZRAMCH4 /  0.06233_JPRB    /
+data ZRAMN2O /  0.02272_JPRB    /
+
+
+!REAL(KIND=JPRB) :: ZCLEAR, ZCLOUD, ZTOTCC
+REAL(KIND=JPRB) :: ZEPSEC
+
+INTEGER(KIND=JPIM) :: IOVLP, IC, ICOUNT, INDEX(KIDIA:KFDIA)
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
+
+
+#include "srtm_setcoef.intfb.h"
+#include "srtm_spcvrt_mcica.intfb.h"
+
+
+!-----------------------------------------------------------------------
+!-- calculate information needed ny the radiative transfer routine 
+
+ASSOCIATE(NFLEVG=>KLEV, &
+ & NACTAERO=>YGFL%NACTAERO)
+IF (LHOOK) CALL DR_HOOK('SRTM_SRTM_224GP_MCICA',0,ZHOOK_HANDLE)
+ZGRAVIT =(RG/RPLRG)*1.E2_JPRB
+ZEPSEC  = 1.E-06_JPRB
+ZONEMINUS=1.0_JPRB -  ZEPSEC
+ZADJI0 = RII0 / RI0
+!-- overlap: 1=max-ran, 2=maximum, 3=random   N.B.: irrelevant in McICA version
+IOVLP=3
+
+IC=0
+DO JL = KIDIA, KFDIA
+  IF (PRMU0(JL) > 0.0_JPRB) THEN
+    IC=IC+1
+    INDEX(IC)=JL
+  ENDIF
+ENDDO
+ICOUNT=IC
+
+ICLDATM  = 1
+INFLAG   = 2
+ICEFLAG  = 3
+I_LIQFLAG= 1
+ITMOL    = 7
+I_NSTR   = 2
+
+DO JSW=1,KCOLS
+  DO JK=1,KLEV
+    DO JL = KIDIA, KFDIA
+      ZFRCL(JL,JSW,JK) = PFRCL(JL,JSW,JK)
+      ZTAUC(JL,JK,JSW) = PTAUC(JL,JSW,JK)
+      ZASYC(JL,JK,JSW) = PASYC(JL,JSW,JK)
+      ZOMGC(JL,JK,JSW) = POMGC(JL,JSW,JK)
+    ENDDO
+  ENDDO
+ENDDO
+
+ZRMU0(KIDIA:KFDIA)=PRMU0(KIDIA:KFDIA)
+PFUVF(KIDIA:KFDIA)=0._JPRB
+PFUVC(KIDIA:KFDIA)=0._JPRB
+PPARF(KIDIA:KFDIA)=0._JPRB
+PPARCF(KIDIA:KFDIA)=0._JPRB
+
+!- coefficients related to the cloud optical properties (original RRTM_SW)
+
+!- coefficients for the temperature and pressure dependence of the 
+! molecular absorption coefficients
+
+DO J1=1,35
+  DO J2=1,KLEV
+    DO IC=1,ICOUNT
+      JL=INDEX(IC)
+      ZWKL(JL,J1,J2)=0.0_JPRB 
+    ENDDO
+  ENDDO
+ENDDO
+
+DO IC=1,ICOUNT
+  JL=INDEX(IC)
+  ZPZ(JL,0) = paph(JL,klev+1)*0.01_JPRB
+ENDDO
+
+!ZCLEAR=1.0_JPRB
+!ZCLOUD=0.0_JPRB
+!ZTOTCC=0.0_JPRB
+
+DO JK = 1, KLEV
+  DO IC=1,ICOUNT
+    JL=INDEX(IC)
+    ZPAVEL(JL,JK) = pap(JL,KLEV-JK+1) *0.01_JPRB
+    ZTAVEL(JL,JK) = pt (JL,KLEV-JK+1)
+    ZPZ(JL,JK)    = paph(JL,KLEV-JK+1) *0.01_JPRB
+    ZWKL(JL,1,JK) = pq(JL,KLEV-JK+1)  *ZAMD*ZRAMW
+    ZWKL(JL,2,JK) = PCO2(JL,KLEV-JK+1)*ZAMD*ZRAMCO2
+    ZWKL(JL,3,JK) = pozn(JL,KLEV-JK+1)*ZAMD*ZRAMO
+    ZWKL(JL,4,JK) = PN2O(JL,KLEV-JK+1)*ZAMD*ZRAMN2O
+    ZWKL(JL,6,JK) = PCH4(JL,KLEV-JK+1)*ZAMD*ZRAMCH4
+!O2 volume mixing ratio
+    ZWKL(JL,7,JK) = 0.20944_JPRB
+    ZAMM(JL) = (1-ZWKL(JL,1,JK))*ZAMD + ZWKL(JL,1,JK)*ZAMW
+    ZCOLDRY(JL,JK) = (ZPZ(JL,JK-1)-ZPZ(JL,JK))*1.E3_JPRB*ZAVGDRO/(ZGRAVIT*ZAMM(JL)*(1+ZWKL(JL,1,JK)))
+  ENDDO
+ENDDO
+
+DO IMOL=1,ITMOL
+  DO JK=1,KLEV
+    DO IC=1,ICOUNT
+      JL=INDEX(IC)
+      ZWKL(JL,IMOL,JK)=ZCOLDRY(JL,JK)* ZWKL(JL,IMOL,JK)
+    ENDDO
+  ENDDO
+ENDDO
+
+CALL SRTM_SETCOEF &
+ & ( KIDIA , KFDIA    , KLEV,&
+ & ZPAVEL  , ZTAVEL,&
+ & ZCOLDRY , ZWKL,&
+ & ILAYTROP,&
+ & ZCOLCH4  , ZCOLCO2 , ZCOLH2O , ZCOLMOL  , ZCOLO2 , ZCOLO3,&
+ & ZFORFAC , ZFORFRAC , INDFOR  , ZSELFFAC, ZSELFFRAC, INDSELF, &
+ & ZFAC00  , ZFAC01   , ZFAC10  , ZFAC11,&
+ & JP      , JT       , JT1     , ZRMU0  &
+ & )  
+
+!- call the radiation transfer routine
+
+DO JSW=1,KSW
+  DO IC=1,ICOUNT
+    JL=INDEX(IC)
+    ZALBD(JL,JSW)=PALBD(JL,JSW)
+    ZALBP(JL,JSW)=PALBP(JL,JSW)
+  ENDDO
+ENDDO
+
+!- mixing of aerosols
+
+IF (NAER == 0) THEN
+  DO JSW=1,KSW
+    DO JK=1,KLEV
+      DO IC=1,ICOUNT
+        JL=INDEX(IC)
+        ZTAUA(JL,JK,JSW)= 0.0_JPRB
+        ZASYA(JL,JK,JSW)= 0.0_JPRB
+        ZOMGA(JL,JK,JSW)= 1.0_JPRB
+      ENDDO
+    ENDDO
+  ENDDO
+ELSE
+
+!- If prognostic aerosols with proper RRTM optical properties, fill the RRTM aerosol arrays
+
+  IF (LAERRRTM) THEN
+    IF (LAERCSTR .OR. (LAERVOL .AND. NACTAERO == 15)) THEN
+      DO JSW=1,KSW
+        DO JK=1,KLEV
+          IK=KLEV-JK+1
+          DO IC=1,ICOUNT
+            JL=INDEX(IC)
+            ZTAUA(JL,JK,JSW)=PAERTAUS(JL,IK,JSW)
+            ZASYA(JL,JK,JSW)=PAERASYS(JL,IK,JSW)
+            ZOMGA(JL,JK,JSW)=PAEROMGS(JL,IK,JSW)
+          ENDDO
+        ENDDO
+      ENDDO
+
+    ELSEIF (.NOT.LAERCSTR) THEN
+      DO JSW=1,KSW
+        DO JK=1,KLEV
+          IK=KLEV-JK+1
+          DO IC=1,ICOUNT
+            JL=INDEX(IC)
+            ZTAUA(JL,JK,JSW)=PAERTAUS(JL,IK,JSW)+RSRTAUA(JSW,6)*PAER(JL,6,IK)
+            ZASYA(JL,JK,JSW)=PAERASYS(JL,IK,JSW)+RSRTAUA(JSW,6)*PAER(JL,6,IK)*RSRPIZA(JSW,6)
+            ZOMGA(JL,JK,JSW)=PAEROMGS(JL,IK,JSW)+RSRTAUA(JSW,6)*PAER(JL,6,IK)*RSRPIZA(JSW,6)*RSRASYA(JSW,6)
+            IF (ZOMGA(JL,JK,JSW) /= 0.0_JPRB) THEN
+              ZASYA(JL,JK,JSW)=ZASYA(JL,JK,JSW)/ZOMGA(JL,JK,JSW)
+            ENDIF
+            IF (ZTAUA(JL,JK,JSW) /= 0.0_JPRB) THEN
+              ZOMGA(JL,JK,JSW)=ZOMGA(JL,JK,JSW)/ZTAUA(JL,JK,JSW)
+            ENDIF
+          ENDDO
+        ENDDO
+      ENDDO
+    ENDIF 
+
+  ELSE
+
+!- Otherwise, fill RRTM aerosol arrays with operational ECMWF aerosols,
+!  do the mixing and distribute over the 14 spectral intervals
+
+    DO JSW=1,KSW
+      DO JK=1,KLEV
+        DO IC=1,ICOUNT
+          JL=INDEX(IC)
+          IK=KLEV+1-JK
+          ZTAUA(JL,JK,JSW)=0.0_JPRB
+          ZASYA(JL,JK,JSW)=0.0_JPRB
+          ZOMGA(JL,JK,JSW)=0.0_JPRB
+!CDIR UNROLL=6
+          DO JAE=1,6
+            ZTAUA(JL,JK,JSW)=ZTAUA(JL,JK,JSW)+RSRTAUA(JSW,JAE)*PAER(JL,JAE,IK)
+            ZOMGA(JL,JK,JSW)=ZOMGA(JL,JK,JSW)+RSRTAUA(JSW,JAE)*PAER(JL,JAE,IK) &
+             & *RSRPIZA(JSW,JAE)  
+            ZASYA(JL,JK,JSW)=ZASYA(JL,JK,JSW)+RSRTAUA(JSW,JAE)*PAER(JL,JAE,IK) &
+             & *RSRPIZA(JSW,JAE)*RSRASYA(JSW,JAE)  
+          ENDDO
+          IF (ZOMGA(JL,JK,JSW) /= 0.0_JPRB) THEN
+            ZASYA(JL,JK,JSW)=ZASYA(JL,JK,JSW)/ZOMGA(JL,JK,JSW)
+          ENDIF
+          IF (ZTAUA(JL,JK,JSW) /= 0.0_JPRB) THEN
+            ZOMGA(JL,JK,JSW)=ZOMGA(JL,JK,JSW)/ZTAUA(JL,JK,JSW)
+          ENDIF
+        ENDDO
+      ENDDO
+    ENDDO
+  ENDIF
+ENDIF
+
+DO JK=1,KLEV+1
+  DO IC=1,ICOUNT
+    JL=INDEX(IC)
+    ZBBCU(JL,JK)=0.0_JPRB
+    ZBBCD(JL,JK)=0.0_JPRB
+    ZBBFU(JL,JK)=0.0_JPRB
+    ZBBFD(JL,JK)=0.0_JPRB
+    ZBBFDIR(JL,JK)=0.0_JPRB
+    ZBBCDIR(JL,JK)=0.0_JPRB
+  ENDDO
+ENDDO
+
+DO IC=1,ICOUNT
+  JL=INDEX(IC)
+  ZFUVF(JL)=0.0_JPRB
+  ZFUVC(JL)=0.0_JPRB
+  ZPARF(JL)=0.0_JPRB
+  ZPARCF(JL)=0.0_JPRB     
+  ZSUDU(JL)=0.0_JPRB
+ENDDO
+
+CALL SRTM_SPCVRT_MCICA &
+ &( KIDIA  , KFDIA    , KLEV   , KSW    , KCOLS  , ZONEMINUS,&
+ & ZALBD   , ZALBP,&
+ & ZFRCL   , ZTAUC    , ZASYC  , ZOMGC  ,&
+ & ZTAUA   , ZASYA   , ZOMGA , ZRMU0,&
+ & ILAYTROP,&
+ & ZCOLCH4 , ZCOLCO2  , ZCOLH2O, ZCOLMOL , ZCOLO2   , ZCOLO3,&
+ & ZFORFAC , ZFORFRAC , INDFOR , ZSELFFAC, ZSELFFRAC, INDSELF,&
+ & ZFAC00  , ZFAC01   , ZFAC10 , ZFAC11  ,&
+ & JP      , JT       , JT1    ,&
+ & ZBBFD   , ZBBFU    , ZBBCD  , ZBBCU , ZFUVF , ZFUVC, ZPARF, ZPARCF, ZSUDU,& 
+ & ZBBFDIR , ZBBCDIR  , ZSwDiffuseBand, ZSwDirectBand)
+
+DO JK=1,KLEV+1
+  DO IC=1,ICOUNT
+    JL=INDEX(IC)
+    PFSUC(JL,1,JK)=ZADJI0 * ZBBCU(JL,JK)
+    PFSUC(JL,2,JK)=ZADJI0 * ZBBCD(JL,JK)
+    PFSUX(JL,1,JK)=ZADJI0 * ZBBFU(JL,JK)
+    PFSUX(JL,2,JK)=ZADJI0 * ZBBFD(JL,JK)
+    PFDIR(JL,JK)  =ZADJI0 * ZBBFDIR(JL,JK)
+    PCDIR(JL,JK)  =ZADJI0 * ZBBCDIR(JL,JK)
+    PFDIF(JL,JK)  =PFSUX(JL,2,JK)-PFDIR(JL,JK)
+    PCDIF(JL,JK)  =PFSUC(JL,2,JK)-PCDIR(JL,JK)
+  ENDDO
+ENDDO
+
+IF (LApproxSwUpdate) THEN
+  DO JB=1,NSW
+    DO IC=1,ICOUNT
+      JL=INDEX(IC)
+      PSwDiffuseBand(JL,JB) = ZADJI0 * ZSwDiffuseBand(JL,JB)
+      PSwDirectBand (JL,JB) = ZADJI0 * ZSwDirectBand (JL,JB)
+    ENDDO
+  ENDDO
+ENDIF
+
+DO IC=1,ICOUNT
+  JL=INDEX(IC)
+  PFUVF(JL) =ZADJI0 * ZFUVF(JL)
+  PFUVC(JL) =ZADJI0 * ZFUVC(JL)
+  PPARF(JL) =ZADJI0 * ZPARF(JL)
+  PPARCF(JL)=ZADJI0 * ZPARCF(JL)
+  PSUDU(JL) =ZADJI0 * ZSUDU(JL)
+ENDDO
+
+DO JK=1,KLEV+1
+  DO IC=1,ICOUNT
+    JL=INDEX(IC)
+    IF (PRMU0(JL) <= 0.0_JPRB) THEN
+      PFSUC(JL,1,JK)=0.0_JPRB
+      PFSUC(JL,2,JK)=0.0_JPRB
+      PFSUX(JL,1,JK)=0.0_JPRB
+      PFSUX(JL,2,JK)=0.0_JPRB
+      PFDIR(JL,JK)  =0.0_JPRB
+      PCDIR(JL,JK)  =0.0_JPRB
+    ENDIF
+  ENDDO
+ENDDO
+DO IC=1,ICOUNT
+  JL=INDEX(IC)
+  IF (PRMU0(JL) <= 0.0_JPRB) THEN
+    PFUVF(JL) =0.0_JPRB
+    PFUVC(JL) =0.0_JPRB
+    PPARF(JL) =0.0_JPRB
+    PPARCF(JL)=0.0_JPRB
+    PSUDU(JL)=0.0_JPRB
+  ENDIF
+ENDDO
+
+!-----------------------------------------------------------------------
+IF (LHOOK) CALL DR_HOOK('SRTM_SRTM_224GP_MCICA',1,ZHOOK_HANDLE)
+END ASSOCIATE
+END SUBROUTINE SRTM_SRTM_224GP_MCICA

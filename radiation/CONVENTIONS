@@ -1,0 +1,63 @@
+The Fortran conventions that the author of the code in this directory
+aspired to are as follows:
+
+ - Module names are prefixed by the static library name, in this case
+   "radiation" (no need to suffix by "_mod" since this is always
+   obvious from the context)
+
+ - Names of derived types are suffixed by "_type"
+
+ - Implicit none everywhere
+
+ - Logicals are prefixed by "do_", "use_" or "is_"
+
+ - All variables in SI units by default
+
+ - Variables not in SI units have the units in the variable name,
+   e.g. pressure_hPa
+
+ - Integers either prefixed by "j" to indicate loop counter, "n" to
+   indicate the size of an array dimension, or "i" otherwise.
+
+ - Loop counters should be brief and contain no underscores
+
+ - Integers variables beginning with "n" or "i" should either contain
+   no underscores (e.g. "naerosoltypes"), or should have an underscore
+   immediately after the "n" or "i" (e.g. "n_aerosol_types"). Thus, a
+   variable beginning with "n" or "i" containing an underscore but not
+   as its second character need not be an integer (would normally then
+   be a real or a derived type), in order to enable real variables
+   such as "ice_water_content".
+
+ - All variables and procedure names in lower case using descriptive
+   names, and if not too long these will be composed of complete words
+   separated by underscores
+
+ - All parameters are in CamelCase, and integer parameters are
+   prefixed by "I" or "N"
+
+ - C-style enumerations are treated as integer parameters
+
+ - Variable character strings are suffixed by "_name" or "_str", while
+   parameter character strings (in CamelCase) are suffixed by "Name"
+   or "Str"
+
+ - Global data included in modules must be constant; any variable data
+   must be passed to procedures via dummy arguments
+
+ - Long argument lists avoided by grouping variables thematically into
+   derived types
+
+ - Any variable used in a source file should be defined in a comment
+   earlier in the source file (if this is not obvious from the
+   variable name) including its units if it has them (even if they are
+   SI units)
+
+ - All functions and subroutines to be defined in modules and their
+   explicit interfaces to be revealed via the "use" command, which
+   should use "only".
+
+ - Data are read in at run-time from NetCDF files rather than being
+   embedded in the code (e.g. using data statements).
+
+ - Lots of comments!

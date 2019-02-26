@@ -1,0 +1,9 @@
+This directory contains the 1D profile of the I3RC cumulus test case
+used by Hogan et al. (2016). Typing "make test" in this directory runs
+the various 1D and 3D configurations of ECRAD. The Matlab script
+plot_i3rc.m can then be used to visualize the results, reproducing
+three of the figures from Hogan et al. (2016). Note that you will need
+to ensure that a reasonably up-to-date version of the "nco" tools are
+available and in your path.  This test involves running the
+duplicate_profiles.sh script, which duplicates the single profile in
+i3rc_mls_cumulus.nc, each with a different solar zenith angle.

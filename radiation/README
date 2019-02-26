@@ -1,0 +1,72 @@
+This directory contains the main part of the radiation scheme except
+for the calculation of gas optics.  It is compiled into static library
+../lib/libradiation.a and module files ../mod/radiation_*.mod. The
+coding conventions are described in the CONVENTIONS file.  See the
+file ../driver/radiation_driver.f90 for an example of how the
+radiation scheme is called. The code is arranged as follows.
+
+The configuration information for the radiation scheme is stored in a
+"config" object (type defined in *radiation_config.f90*).  After this
+has been populated depending on how the radiation scheme is to be
+configured, the subroutine "setup_radiation" in
+*radiation_interface.f90* is called.  This sets up the gas, cloud and
+aerosol optics, all of which involve reading data from NetCDF files.
+The cloud and aerosol optics data are described in
+*radiation_aerosol_optics_data.f90* and
+*radiation_cloud_optics_data.f90*.
+
+The main interface to the radiation scheme is via the "radiation"
+subroutine in radiation_interface.f90, which takes six objects as
+input (noting that multiple columns are processed at once):
+
+  single_level - all single-level fields such as skin temperature and
+      surface albedo (type defined in *radiation_single_level.f90*)
+
+  thermodynamics - pressure and temperature (type defined in
+      *radiation_thermodynamics.f90*)
+
+  gas - mixing ratios of gases (type defined in *radiation_gas.f90*)
+
+  cloud - cloud fraction, water content and other information (type
+      defined in *radiation_cloud.f90*)
+
+  aerosol - mixing ratios of different aerosol species (type defined
+      in *radiation_aerosol.f90*)
+
+The output is stored in the following object:
+
+  flux - upwelling and downwelling shortwave and longwave fluxes (type
+      defined in *radiation_flux.f90*)
+
+The "radiation" subroutine first computes the gas optical properties
+(in the form of 3D arrays of dimension column, height and spectral
+g-point), via a call to the "gas_optics" subroutine in
+*radiation_ifsrrtm.f90*, which provides an interface to the IFS
+implementation of the RRTM-G gas optics model in the ../ifsrrtm
+directory.  For testing, a simple monochromatic gas model is also
+provided in *radiation_monochromatic.f90*.
+
+To these fields are added the contribution from aerosols via a call to
+the "aerosol_optics" subroutine, from *radiation_aerosol_optics.f90*.
+
+Cloud optical properties are computed (in the form of 3D arrays of
+dimension column, height and spectral band), via a call to the
+"cloud_optics" subroutine in *radiation_cloud_optics.f90*.
+
+The optical properties may then be saved to an intermediate NetCDF
+file via a routine in *radiation_save.f90*.
+
+Finally, the optics data are passed to the solver, which computes the
+flux profiles.  Currently McICA nad SPARTACUS solvers are
+available. In the case of SPARTACUS, the longwave and shortwave
+versions are in *radiation_spartacus_lw.f90* and
+*radiation_spartacus_sw.f90*, respectively.  These make use of
+routines in the following files:
+
+  *radiation_two_stream.f90* - compute two-stream coefficients
+
+  *radiation_matrix.f90* - matrix operations needed by SPARTACUS
+
+  *radiation_overlap.f90* - compute cloud overlap matrices.
+
+Physical constants are provided in *radiation_constants.f90*.

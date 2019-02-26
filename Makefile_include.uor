@@ -1,0 +1,8 @@
+$(info *******************************************************************************)
+$(info *** UoR/pgi-fortran: ensure you have typed "setup pgi13.6; setup nco-4.4.3")
+$(info *******************************************************************************)
+
+include Makefile_include.pgi
+
+NETCDF_INCLUDE = -I/home/swrhgnrj/include
+NETCDF_LIB     = -L/home/swrhgnrj/lib -lnetcdf -Wl,-Bstatic -lnetcdff -Wl,-Bdynamic
