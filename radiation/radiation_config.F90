@@ -325,7 +325,7 @@ module radiation_config
 
     ! It has also sometimes been found necessary to set a minimum
     ! cloud effective size for stability (metres)
-    real(jprb) :: min_cloud_effective_size = 1.0e-6_jprb
+    real(jprb) :: min_cloud_effective_size = 100.0_jprb
 
     ! Given a horizontal migration distance, there is still
     ! uncertainty about how much entrapment occurs associated with how
