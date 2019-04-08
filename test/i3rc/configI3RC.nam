@@ -30,8 +30,8 @@ do_lw_side_emissivity   = true,
 n_regions 		= 3,              ! Number of regions (2=clear+cloudy, 3=clear+2cloudy)
 do_3d_lw_multilayer_effects = true,
 min_cloud_effective_size= 1.0e-6,         ! Minimum cloud effective size, for stability (m)
-sw_encroachment_name    = "Maximum",      ! "Maximum" = old behaviour (also "Minimum"/"Computed")
-encroachment_scaling    = 1.0,
+sw_entrapment_name      = "Maximum",      ! "Maximum" = old behaviour ("Explicit" is the best)
+overhang_factor         = 1.0,
 directory_name		= "../../data",   ! Location of configuration files
 sw_solver_name          = "SPARTACUS",
 lw_solver_name          = "SPARTACUS",

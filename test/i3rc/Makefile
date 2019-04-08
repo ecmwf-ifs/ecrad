@@ -34,30 +34,29 @@ i3rc_spartacus2: $(INPUT_PROFILE)_sza.nc
 	$(DRIVER) config_2reg_3d.nam \
 		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_2reg_3d_out.nc
 i3rc_spartacus_extra:  $(INPUT_PROFILE)_sza.nc
-	./change_namelist.sh $(CONFIG) config_3reg_3d_computed.nam \
-		sw_encroachment_name='"Computed"'
-	./change_namelist.sh $(CONFIG) config_3reg_3d_fractal.nam \
-		sw_encroachment_name='"Fractal"'
-	./change_namelist.sh $(CONFIG) config_3reg_3d_minimum.nam \
-		sw_encroachment_name='"Minimum"'
-	./change_namelist.sh $(CONFIG) config_3reg_1d_computed.nam \
-		do_3d_effects=false sw_encroachment_name='"Computed"'
-	./change_namelist.sh $(CONFIG) config_3reg_1d_minimum.nam \
-		do_3d_effects=false sw_encroachment_name='"Minimum"'
-	./change_namelist.sh $(CONFIG) config_3reg_3d_computedleast.nam \
-		sw_encroachment_name='"Computed"' encroachment_scaling=0.0
-	$(DRIVER) config_3reg_3d_computed.nam \
-		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_3d_computed_out.nc
-	$(DRIVER) config_3reg_3d_fractal.nam \
-		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_3d_fractal_out.nc
-	$(DRIVER) config_3reg_3d_minimum.nam \
-		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_3d_minimum_out.nc
-	$(DRIVER) config_3reg_1d_computed.nam \
-		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_1d_computed_out.nc
-	$(DRIVER) config_3reg_1d_minimum.nam \
-		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_1d_minimum_out.nc
-	$(DRIVER) config_3reg_3d_computedleast.nam \
-		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_3d_computedleast_out.nc
+	./change_namelist.sh $(CONFIG) config_3reg_3d_explicit.nam \
+		sw_entrapment_name='"Explicit"'
+	./change_namelist.sh $(CONFIG) config_3reg_3d_nonfractal.nam \
+		sw_entrapment_name='"Non-fractal"'
+	./change_namelist.sh $(CONFIG) config_3reg_3d_edgeonly.nam \
+		sw_entrapment_name='"Edge-only"'
+	./change_namelist.sh $(CONFIG) config_3reg_1d_explicit.nam \
+		do_3d_effects=false sw_entrapment_name='"Explicit"'
+	./change_namelist.sh $(CONFIG) config_3reg_1d_edgeonly.nam \
+		do_3d_effects=false sw_entrapment_name='"Edge-only"'
+	./change_namelist.sh $(CONFIG) config_3reg_3d_explicit_ohf1.nam \
+		sw_entrapment_name='"Explicit"' overhang_factor=1.0
+	$(DRIVER) config_3reg_3d_explicit.nam \
+		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_3d_explicit_out.nc
+	$(DRIVER) config_3reg_3d_nonfractal.nam \
+		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_3d_nonfractal_out.nc	$(DRIVER) config_3reg_3d_edgeonly.nam \
+		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_3d_edgeonly_out.nc
+	$(DRIVER) config_3reg_1d_explicit.nam \
+		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_1d_explicit_out.nc
+	$(DRIVER) config_3reg_1d_edgeonly.nam \
+		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_1d_edgeonly_out.nc
+	$(DRIVER) config_3reg_3d_explicit_ohf1.nam \
+		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_3reg_3d_explicit_ohf1_out.nc
 
 i3rc_tripleclouds: $(INPUT_PROFILE)_sza.nc
 	./change_namelist.sh $(CONFIG) config_tc.nam n_regions=3 \
@@ -70,13 +69,13 @@ i3rc_mcica: $(INPUT_PROFILE)_sza.nc
 	$(DRIVER) config_mcica.nam \
 		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_mcica_out.nc
 
-i3rc_print_encroachment: $(INPUT_PROFILE)_sza.nc
-	./change_namelist.sh $(CONFIG) config_print_encr.nam \
-		sw_encroachment_name='"Computed"' \
+i3rc_print_entrapment: $(INPUT_PROFILE)_sza.nc
+	./change_namelist.sh $(CONFIG) config_print_entr.nam \
+		sw_entrapment_name='"Explicit"' \
 		gas_model_name='"Monochromatic"' \
 		sw_albedo=0.2
-	$(DRIVER) config_print_encr.nam \
-		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_mono_encr_out.nc
+	$(DRIVER) config_print_entr.nam \
+		$(INPUT_PROFILE)_sza.nc $(INPUT_PROFILE)_mono_entr_out.nc
 
 # Clean data files
 clean:

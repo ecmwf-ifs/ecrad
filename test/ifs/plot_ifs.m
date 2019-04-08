@@ -7,7 +7,7 @@ cases = {[code '_noaer_out.nc'],
 	 [code '_expran_out.nc'],
 	 [code '_tc_out.nc'],
 	 [code '_spartacus_out.nc'],
-	 [code '_spartacus_maxencr_out.nc']};
+	 [code '_spartacus_maxentr_out.nc']};
 clear out
 for icase = 1:length(cases)
   out{icase} = loadnc(cases{icase});

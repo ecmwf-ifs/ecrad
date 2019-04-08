@@ -102,6 +102,7 @@ module radiation_gas
      procedure :: deallocate => deallocate_gas
      procedure :: put        => put_gas
      procedure :: put_well_mixed => put_well_mixed_gas
+     procedure :: scale      => scale_gas
      procedure :: set_units  => set_units_gas
      procedure :: assert_units => assert_units_gas
      procedure :: get        => get_gas
@@ -332,10 +333,46 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Set the units to "iunits", applying to gas with ID "igas" if
-  ! present, otherwise to all gases. Optional argument scale factor
-  ! specifies any subsequent multiplication to apply; for PPMV one
-  ! would use iunits=IVolumeMixingRatio and scale_factor=1.0e6.
+  ! Scale gas concentrations, e.g. igas=ICO2 and set scale_factor=2 to
+  ! double CO2.  Note that this does not perform the scaling
+  ! immediately, but changes the scale factor for the specified gas,
+  ! ready to be used in set_units_gas.
+
+  subroutine scale_gas(this, igas, scale_factor, lverbose)
+
+    use radiation_io, only : nulout
+
+    class(gas_type),      intent(inout) :: this
+    integer,              intent(in)    :: igas
+    real(jprb),           intent(in)    :: scale_factor
+    logical,    optional, intent(in)    :: lverbose
+
+    if (scale_factor /= 1.0_jprb) then
+      this%scale_factor(igas) = this%scale_factor(igas) * scale_factor
+      if (present(lverbose)) then
+        if (lverbose) then
+          write(nulout,'(a,a,a,f0.3)') '  Scaling ', trim(GasName(igas)), &
+               &  ' concentration by ', scale_factor
+        end if
+      end if
+    end if
+
+  end subroutine scale_gas
+
+
+  !---------------------------------------------------------------------
+  ! Scale the gas concentrations so that they have the units "iunits"
+  ! and are therefore ready to be used by the gas optics model within
+  ! ecRad with no further scaling.  The existing scale_factor for each
+  ! gas is applied.  If "igas" is present then apply only to gas with
+  ! ID "igas", otherwise to all gases. Optional argument scale_factor
+  ! specifies scaling that any subsequent access would need to apply
+  ! to get a dimensionless result (consistent with definition of
+  ! gas_type). So say that your gas optics model requires gas
+  ! concentrations in PPMV, specify iunits=IVolumeMixingRatio and
+  ! scale_factor=1.0e-6. If the gas concentrations were currently
+  ! dimensionless volume mixing ratios, then the values would be
+  ! internally divided by 1.0e-6.
   recursive subroutine set_units_gas(this, iunits, igas, scale_factor)
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: iunits
@@ -351,14 +388,20 @@ contains
     real(jprb) :: new_sf
 
     if (present(scale_factor)) then
-      sf = scale_factor
+      ! "sf" is the scaling to be applied now to the numbers (and may
+      ! be modified below), "new_sf" is the value to be stored along
+      ! with the numbers, informing subsequent routines how much you
+      ! would need to multiply the numbers by to get a dimensionless
+      ! result.
+      sf     = 1.0_jprb / scale_factor
+      new_sf = scale_factor
     else
-      sf = 1.0_jprb
+      sf     = 1.0_jprb
+      new_sf = 1.0_jprb
     end if
 
     if (present(igas)) then
       if (this%is_present(igas)) then
-        new_sf = sf
         if (iunits == IMassMixingRatio &
              &   .and. this%iunits(igas) == IVolumeMixingRatio) then
           sf = sf * IGasMolarMass(igas) / IAirMolarMass
@@ -366,7 +409,7 @@ contains
              &   .and. this%iunits(igas) == IMassMixingRatio) then
           sf = sf * IAirMolarMass / IGasMolarMass(igas)
         end if
-        sf = sf / this%scale_factor(igas)
+        sf = sf * this%scale_factor(igas)
         
         if (sf /= 1.0_jprb) then
           this%mixing_ratio(:,:,igas) = this%mixing_ratio(:,:,igas) * sf
@@ -378,7 +421,7 @@ contains
       end if
     else
       do ig = 1,this%ntype
-        call this%set_units(iunits, igas=this%icode(ig), scale_factor=sf)
+        call this%set_units(iunits, igas=this%icode(ig), scale_factor=new_sf)
       end do
     end if
 
@@ -493,7 +536,7 @@ contains
            &   .and. this%iunits(igas) == IMassMixingRatio) then
         sf = sf * IAirMolarMass / IGasMolarMass(igas)
       end if
-      sf = sf / this%scale_factor(igas)
+      sf = sf * this%scale_factor(igas)
         
       if (sf /= 1.0_jprb) then
         mixing_ratio = this%mixing_ratio(i1:i2,:,igas) * sf

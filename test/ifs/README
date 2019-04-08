@@ -25,10 +25,10 @@ configuration similar to forthcoming cycle 46R1:
 
   (e) as "a" but with longwave scattering (default since 46R1);
 
-  (f) as "d" but with the SPARTACUS solver (computed encroachment);
+  (f) as "d" but with the SPARTACUS solver (explicit entrapment)
 
   (g) as "f" but with an older configuration of the SPARTACUS solver
-    (maximum encroachment).
+    (maximum entrapment).
 
 To run with a configuration similar to older cycle 43R3, type
 

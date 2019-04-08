@@ -1,14 +1,14 @@
 % This script plots horizontal migration distances predicted by
-% SPARTACUS's "computed encroachment" option, but it requires (1) the
+% SPARTACUS's "explicit entrapment" option, but it requires (1) the
 % whole code to have been compiled with "make
-% PRINT_ENCROACHMENT_DATA=1", and (2) "make i3rc_print_encroachment"
-% to have been run in this directory. This produces the fort.10[12]
-% files containing the migration distances.
+% PRINT_ENTRAPMENT_DATA=1", and (2) "make i3rc_print_entrapment" to
+% have been run in this directory. This produces the fort.10[12] files
+% containing the migration distances.
 
 xdata = load('fort.101');
 fdata = load('fort.102');
 in = loadnc('i3rc_mls_cumulus_sza.nc');
-out= loadnc('i3rc_mls_cumulus_mono_encr_out.nc');
+out= loadnc('i3rc_mls_cumulus_mono_entr_out.nc');
 
 z=in.height_hl(1:end-1,1)./1000;
 zh=in.height_hl(:,1)./1000;

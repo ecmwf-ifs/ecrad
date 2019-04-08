@@ -11,7 +11,7 @@ CONFIG = configCY47R1.nam
 all: test
 
 test: test_default test_noaer test_expran test_tripleclouds test_spartacus \
-	test_spartacus_maxencr
+	test_spartacus_maxentr
 
 # (a) Default IFS settings for cycle 43R3: McICA solver with
 # exponential-exponential overlap
@@ -51,14 +51,14 @@ test_spartacus:
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus.nam $(INPUT).nc $(INPUT)_spartacus_out.nc
 
-# (g) 3D radiative transfer using the older "maximum encroachment"
-test_spartacus_maxencr:
-	./change_namelist.sh $(CONFIG) config_spartacus_maxencr.nam \
+# (g) 3D radiative transfer using the older "maximum entrapment"
+test_spartacus_maxentr:
+	./change_namelist.sh $(CONFIG) config_spartacus_maxentr.nam \
 		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
 		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
-		sw_encroachment_name='"Maximum"' \
+		sw_entrapment_name='"Maximum"' \
 		do_sw_delta_scaling_with_gases="false"
-	$(DRIVER) config_spartacus_maxencr.nam $(INPUT).nc $(INPUT)_spartacus_maxencr_out.nc
+	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
 
 # Clean data files
 clean:

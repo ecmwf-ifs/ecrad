@@ -390,7 +390,7 @@ contains
   ! the value of eta (=pressure divided by surface pressure)
   subroutine create_inv_cloud_effective_size_eta(this, ncol, nlev, &
        &  pressure_hl, inv_eff_size_low, inv_eff_size_mid, inv_eff_size_high, &
-       &  eta_low_mid, eta_mid_high)
+       &  eta_low_mid, eta_mid_high, istartcol, iendcol)
 
     use yomhook,                  only : lhook, dr_hook
 
@@ -404,12 +404,16 @@ contains
     real(jprb),        intent(in)    :: inv_eff_size_high
     ! Eta values at low-mid and mid-high interfaces
     real(jprb),        intent(in)    :: eta_low_mid, eta_mid_high
+    integer, optional, intent(in)    :: istartcol, iendcol
 
     ! Ratio of layer midpoint pressure to surface pressure
     real(jprb) :: eta(nlev)
 
     ! Indices of column, level and surface half-level
     integer :: jcol, isurf
+
+    ! Local values of istartcol, iendcol
+    integer :: i1, i2
 
     real(jprb)             :: hook_handle
 
@@ -421,6 +425,18 @@ contains
     
     allocate(this%inv_cloud_effective_size(ncol, nlev))
 
+    if (present(istartcol)) then
+      i1 = istartcol
+    else
+      i1 = 1
+    end if
+
+    if (present(iendcol)) then
+      i2 = iendcol
+    else
+      i2 = ncol
+    end if
+
     ! Locate the surface half-level
     if (pressure_hl(1,1) > pressure_hl(1,2)) then
       isurf = 1
@@ -428,7 +444,7 @@ contains
       isurf = nlev+1
     end if
 
-    do jcol = 1,ncol
+    do jcol = i1,i2
       eta = (pressure_hl(jcol,1:nlev)+pressure_hl(jcol,2:nlev+1)) &
            &  * (0.5_jprb / pressure_hl(jcol,isurf))
       where (eta > eta_low_mid)
@@ -451,7 +467,8 @@ contains
   ! divided by surface pressure): effective_separation =
   ! coeff_a + coeff_b*exp(-(eta**power)).  
   subroutine param_cloud_effective_separation_eta(this, ncol, nlev, &
-       &  pressure_hl, separation_surf, separation_toa, power, inhom_separation_factor)
+       &  pressure_hl, separation_surf, separation_toa, power, &
+       &  inhom_separation_factor, istartcol, iendcol)
 
     use yomhook,                  only : lhook, dr_hook
 
@@ -465,6 +482,7 @@ contains
     real(jprb),           intent(in) :: separation_toa ! m
     real(jprb),           intent(in) :: power
     real(jprb), optional, intent(in) :: inhom_separation_factor
+    integer,    optional, intent(in) :: istartcol, iendcol
 
     ! Ratio of layer midpoint pressure to surface pressure
     real(jprb) :: eta(nlev)
@@ -477,6 +495,9 @@ contains
 
     ! Indices of column, level and surface half-level
     integer :: jcol, isurf
+
+    ! Local values of istartcol, iendcol
+    integer :: i1, i2
 
     real(jprb) :: hook_handle
 
@@ -502,6 +523,18 @@ contains
     allocate(this%inv_cloud_effective_size(ncol, nlev))
     allocate(this%inv_inhom_effective_size(ncol, nlev))
 
+    if (present(istartcol)) then
+      i1 = istartcol
+    else
+      i1 = 1
+    end if
+
+    if (present(iendcol)) then
+      i2 = iendcol
+    else
+      i2 = ncol
+    end if
+
     ! Locate the surface half-level
     if (pressure_hl(1,1) > pressure_hl(1,2)) then
       isurf = 1
@@ -509,7 +542,7 @@ contains
       isurf = nlev+1
     end if
 
-    do jcol = 1,ncol
+    do jcol = i1,i2
       eta = (pressure_hl(jcol,1:nlev)+pressure_hl(jcol,2:nlev+1)) &
            &  * (0.5_jprb / pressure_hl(jcol,isurf))
       eff_separation = coeff_a + coeff_b * exp(-eta**power)

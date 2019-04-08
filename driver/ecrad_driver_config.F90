@@ -43,6 +43,18 @@ module ecrad_driver_config
      real(jprb) :: cloud_separation_scale_surface = -1.0_jprb
      real(jprb) :: cloud_separation_scale_toa     = -1.0_jprb
      real(jprb) :: cloud_separation_scale_power   = 1.0_jprb
+     real(jprb) :: h2o_scaling    = 1.0_jprb
+     real(jprb) :: co2_scaling    = 1.0_jprb
+     real(jprb) :: o3_scaling     = 1.0_jprb
+     real(jprb) :: co_scaling     = 1.0_jprb
+     real(jprb) :: ch4_scaling    = 1.0_jprb
+     real(jprb) :: n2o_scaling    = 1.0_jprb
+     real(jprb) :: o2_scaling     = 1.0_jprb
+     real(jprb) :: cfc11_scaling  = 1.0_jprb
+     real(jprb) :: cfc12_scaling  = 1.0_jprb
+     real(jprb) :: hcfc22_scaling = 1.0_jprb
+     real(jprb) :: ccl4_scaling   = 1.0_jprb
+     real(jprb) :: no2_scaling    = 1.0_jprb
 
      ! Process a limited number of columns (iendcol=0 indicates to
      ! process from istartcol up to the end)
@@ -114,7 +126,18 @@ contains
     real(jprb) :: cloud_separation_scale_surface
     real(jprb) :: cloud_separation_scale_toa
     real(jprb) :: cloud_separation_scale_power
-
+    real(jprb) :: h2o_scaling   
+    real(jprb) :: co2_scaling   
+    real(jprb) :: o3_scaling    
+    real(jprb) :: co_scaling    
+    real(jprb) :: ch4_scaling   
+    real(jprb) :: n2o_scaling
+    real(jprb) :: o2_scaling    
+    real(jprb) :: cfc11_scaling 
+    real(jprb) :: cfc12_scaling 
+    real(jprb) :: hcfc22_scaling
+    real(jprb) :: ccl4_scaling  
+    real(jprb) :: no2_scaling   
     ! Parallel settings
     logical :: do_parallel
     integer :: nblocksize
@@ -143,7 +166,10 @@ contains
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
          &  cloud_separation_scale_toa, cloud_separation_scale_surface, &
-         &  cloud_separation_scale_power, do_correct_unphysical_inputs
+         &  cloud_separation_scale_power, do_correct_unphysical_inputs, &
+         &  h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
+         &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
+         &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling
 
     real(jprb) :: hook_handle
 
@@ -177,6 +203,18 @@ contains
     cloud_separation_scale_toa = -1.0_jprb
     cloud_separation_scale_surface = -1.0_jprb
     cloud_separation_scale_power = 1.0_jprb
+    h2o_scaling    = 1.0_jprb
+    co2_scaling    = 1.0_jprb
+    o3_scaling     = 1.0_jprb
+    co_scaling     = 1.0_jprb
+    ch4_scaling    = 1.0_jprb
+    n2o_scaling    = 1.0_jprb
+    o2_scaling     = 1.0_jprb
+    cfc11_scaling  = 1.0_jprb
+    cfc12_scaling  = 1.0_jprb
+    hcfc22_scaling = 1.0_jprb
+    ccl4_scaling   = 1.0_jprb
+    no2_scaling    = 1.0_jprb
     iverbose = 2 ! Default verbosity is "warning"
     istartcol = 0
     iendcol = 0
@@ -269,6 +307,18 @@ contains
     this%cloud_separation_scale_surface = cloud_separation_scale_surface
     this%cloud_separation_scale_power = cloud_separation_scale_power
     this%do_correct_unphysical_inputs = do_correct_unphysical_inputs
+    this%h2o_scaling    = h2o_scaling
+    this%co2_scaling    = co2_scaling
+    this%o3_scaling     = o3_scaling
+    this%co_scaling     = co_scaling
+    this%ch4_scaling    = ch4_scaling
+    this%n2o_scaling    = n2o_scaling
+    this%o2_scaling     = o2_scaling
+    this%cfc11_scaling  = cfc11_scaling
+    this%cfc12_scaling  = cfc12_scaling
+    this%hcfc22_scaling = hcfc22_scaling
+    this%ccl4_scaling   = ccl4_scaling
+    this%no2_scaling    = no2_scaling
 
     if (lhook) call dr_hook('ecrad_driver_config:read',1,hook_handle)
 

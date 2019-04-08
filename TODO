@@ -31,4 +31,17 @@ DIFFERENCES IN IFS VERSION OF ECRAD
  - radiation_mcica_*.F90 contain Intel optimizations
  - radiation_interface.F90 and radiation_ifs_rrtm.F90 take YDERAD arguments
 
+TUTORIAL
+Expand test directories so that ecRad can be used for radiation
+practical classes "out of the box".
+Cases:
+ - time evolution at a single point, e.g. from single column model
+ - standard atmospheres
+ - cloud profiles with various solar zenith angles
+ - meridian from ECWMF model
+
+PYTHON PLOTTING SCRIPTS
+ - 
+
+
 KNOWN BUGS

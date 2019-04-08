@@ -1,8 +1,15 @@
-version 1.1.10
+version 1.1.10 (8 April 2019)
 	- Renamed occurrences of "encroachment" with "entrapment" to match
 	  terminology of Hogan et al. entrapment paper, but namelist
 	  interface still accepts sw_encroachment_name (sw_entrapment_name
 	  preferred) and encroachment_scaling (overhang_factor preferred).
+	- Added gas%scale routine to scale gas concentrations and namelist
+	  parameters driver_config%co2_scaling (and all gases) so that users
+	  can easily test the effect of, for example, doubling CO2 or
+	  setting it to zero.
+	- Fixed parameterization of cloud scales in radiation_cloud to
+	  optionally take as input the range of columns to process.
+	- Redefined use of scale_factor in radiation_gas.F90
 
 version 1.1.9 (9 Feb 2019)
 	- Mapping from albedo/emissivity intevals to bands may be done as

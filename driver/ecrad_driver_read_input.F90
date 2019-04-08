@@ -25,7 +25,7 @@ contains
     use radiation_gas,            only : gas_type, &
        &   IVolumeMixingRatio, IMassMixingRatio, &
        &   IH2O, ICO2, IO3, IN2O, ICO, ICH4, IO2, ICFC11, ICFC12, &
-       &   IHCFC22, ICCl4, GasName, GasLowerCaseName, NMaxGases
+       &   IHCFC22, ICCl4, INO2, GasName, GasLowerCaseName, NMaxGases
     use radiation_cloud,          only : cloud_type
     use radiation_aerosol,        only : aerosol_type
     use easy_netcdf,              only : netcdf_file
@@ -587,6 +587,20 @@ contains
       end if
       if (allocated(gas_mr)) deallocate(gas_mr)
     end do
+
+    ! Scale gas concentrations if needed
+    call gas%scale(IH2O,    driver_config%h2o_scaling,    driver_config%iverbose >= 2)
+    call gas%scale(ICO2,    driver_config%co2_scaling,    driver_config%iverbose >= 2)
+    call gas%scale(IO3,     driver_config%o3_scaling,     driver_config%iverbose >= 2)
+    call gas%scale(IN2O,    driver_config%n2o_scaling,    driver_config%iverbose >= 2)
+    call gas%scale(ICO,     driver_config%co_scaling,     driver_config%iverbose >= 2)
+    call gas%scale(ICH4,    driver_config%ch4_scaling,    driver_config%iverbose >= 2)
+    call gas%scale(IO2,     driver_config%o2_scaling,     driver_config%iverbose >= 2)
+    call gas%scale(ICFC11,  driver_config%cfc11_scaling,  driver_config%iverbose >= 2)
+    call gas%scale(ICFC12,  driver_config%cfc12_scaling,  driver_config%iverbose >= 2)
+    call gas%scale(IHCFC22, driver_config%hcfc22_scaling, driver_config%iverbose >= 2)
+    call gas%scale(ICCL4,   driver_config%ccl4_scaling,   driver_config%iverbose >= 2)
+    call gas%scale(INO2,    driver_config%no2_scaling,    driver_config%iverbose >= 2)
 
   end subroutine read_input
 
