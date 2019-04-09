@@ -203,8 +203,9 @@ module radiation_config
     real(jprb) :: max_gas_od_3d = 8.0_jprb
 
     ! Maximum total optical depth of a cloudy region for stability:
-    ! optical depth will be capped at this value
-    real(jprb) :: max_cloud_od = 18.0_jprb
+    ! optical depth will be capped at this value in the SPARTACUS
+    ! solvers
+    real(jprb) :: max_cloud_od = 16.0_jprb
 
     ! How much longwave scattering is included?
     logical :: do_lw_cloud_scattering = .true.
