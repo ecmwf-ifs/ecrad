@@ -304,7 +304,8 @@ contains
 
     if (lhook) call dr_hook('radiation_interface:radiation',0,hook_handle)
 
-    if (thermodynamics%pressure_hl(1,2) < thermodynamics%pressure_hl(1,1)) then
+    if (thermodynamics%pressure_hl(istartcol,2) &
+         &  < thermodynamics%pressure_hl(istartcol,1)) then
       ! Input arrays are arranged in order of decreasing pressure /
       ! increasing height: the following subroutine reverses them,
       ! call the radiation scheme and then reverses the returned
