@@ -118,17 +118,10 @@ contains
       if (file%exists('q_hydrometeor')) then
         call file%get('q_hydrometeor',  cloud%mixing_ratio)     ! kg/kg
         call file%get('re_hydrometeor', cloud%effective_radius) ! m
-        ! For backwards compatibility, associate pointers for liquid
-        ! and ice to the first and second slices of cloud%mixing_ratio
-        ! and cloud%effective_radius
-        cloud%q_liq  => cloud%mixing_ratio(:,:,1)
-        cloud%q_ice  => cloud%mixing_ratio(:,:,2)
-        cloud%re_liq => cloud%effective_radius(:,:,1)
-        cloud%re_ice => cloud%effective_radius(:,:,2)
       else
         ! Ice and liquid properties provided in separate arrays
         allocate(cloud%mixing_ratio(ncol,nlev,2))
-        allocate(cloud%mixing_ratio(ncol,nlev,2))
+        allocate(cloud%effective_radius(ncol,nlev,2))
         call file%get('q_liquid', prop_2d)   ! kg/kg
         cloud%mixing_ratio(:,:,1) = prop_2d
         call file%get('q_ice', prop_2d)   ! kg/kg
@@ -138,6 +131,13 @@ contains
         call file%get('re_ice', prop_2d)   ! m
         cloud%effective_radius(:,:,2) = prop_2d
       end if
+      ! For backwards compatibility, associate pointers for liquid and
+      ! ice to the first and second slices of cloud%mixing_ratio and
+      ! cloud%effective_radius
+      cloud%q_liq  => cloud%mixing_ratio(:,:,1)
+      cloud%q_ice  => cloud%mixing_ratio(:,:,2)
+      cloud%re_liq => cloud%effective_radius(:,:,1)
+      cloud%re_ice => cloud%effective_radius(:,:,2)
 
       ! Simple initialization of the seeds for the Monte Carlo scheme
       call single_level%init_seed_simple(1,ncol)
