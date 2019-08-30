@@ -221,14 +221,16 @@ contains
         ! precedence: (1) effective size namelist overrides, (2)
         ! separation namelist overrides, (3) inv_cloud_effective_size
         ! present in NetCDF, (4) inv_cloud_effective_separation
-        ! present in NetCDF.
+        ! present in NetCDF. Only in the latter two cases may the
+        ! effective size be scaled by the namelist variable
+        ! "effective_size_scaling".
 
-        is_cloud_size_scalable = .false.
+        is_cloud_size_scalable = .false. ! Default for cases (1) and (2)
 
         if (driver_config%low_inv_effective_size_override >= 0.0_jprb &
              &  .or. driver_config%middle_inv_effective_size_override >= 0.0_jprb &
              &  .or. driver_config%high_inv_effective_size_override >= 0.0_jprb) then
-          ! Cloud effective size specified in namelist
+          ! (1) Cloud effective size specified in namelist
 
           ! First check all three ranges provided
           if (driver_config%low_inv_effective_size_override < 0.0_jprb &
@@ -255,7 +257,7 @@ contains
 
         else if (driver_config%cloud_separation_scale_surface > 0.0_jprb &
              &  .and. driver_config%cloud_separation_scale_toa > 0.0_jprb) then
-          ! Cloud separation scale provided in namelist
+          ! (2) Cloud separation scale provided in namelist
 
           if (driver_config%iverbose >= 2) then
             write(nulout,'(a)') '  Effective cloud separation parameterized versus eta:'
@@ -276,7 +278,9 @@ contains
                &  driver_config%cloud_inhom_separation_factor)
           
         else if (file%exists('inv_cloud_effective_size')) then
-          ! NetCDF file contains cloud effective size
+          ! (3) NetCDF file contains cloud effective size
+
+          is_cloud_size_scalable = .true.
 
           call file%get('inv_cloud_effective_size', cloud%inv_cloud_effective_size)
           ! For finer control we can specify the effective size for
@@ -298,7 +302,9 @@ contains
           end if
           
         else if (file%exists('inv_cloud_effective_separation')) then
-          ! Alternative way to specify cloud scale
+          ! (4) Alternative way to specify cloud scale
+
+          is_cloud_size_scalable = .true.
           
           call file%get('inv_cloud_effective_separation', prop_2d)
           allocate(cloud%inv_cloud_effective_size(ncol,nlev))
@@ -352,15 +358,14 @@ contains
           deallocate(prop_2d)
           
         else
-          !call cloud%create_inv_cloud_effective_size(ncol, nlev, 0.0_jprb)
-          !if (driver_config%iverbose >= 1) then
-          !  write(nulout,'(a)') 'Warning: inverse cloud effective size set to zero (no 3D effects)'
-          !end if
+
           write(nulout,'(a)') '*** Error: SPARTACUS solver specified but cloud size not, either in namelist or input file'
           stop
 
         end if ! Select method of specifying cloud effective size
         
+        ! In cases (3) and (4) above the effective size obtained from
+        ! the NetCDF may be scaled by a namelist variable
         if (is_cloud_size_scalable .and. driver_config%effective_size_scaling > 0.0_jprb) then
           ! Scale cloud effective size
           cloud%inv_cloud_effective_size = cloud%inv_cloud_effective_size &
@@ -555,8 +560,16 @@ contains
     ! Loop through all radiatively important gases
     do jgas = 1,NMaxGases
       if (jgas == IH2O) then
-        call file%get('q', gas_mr)
-        call gas%put(IH2O, IMassMixingRatio, gas_mr)
+        if (file%exists('q')) then
+          call file%get('q', gas_mr)
+          call gas%put(IH2O, IMassMixingRatio, gas_mr)
+        else if (file%exists('h2o_mmr')) then
+          call file%get('h2o_mmr', gas_mr)
+          call gas%put(IH2O, IMassMixingRatio, gas_mr)
+        else
+          call file%get('h2o_vmr', gas_mr);
+          call gas%put(IH2O, IVolumeMixingRatio, gas_mr)
+        end if
       else if (jgas == IO3) then
         if (file%exists('o3_mmr')) then
           call file%get('o3_mmr', gas_mr)

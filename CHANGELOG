@@ -3,6 +3,9 @@ version 1.1.11
 	  (although 500 m is used in the IFS for better SPARTACUS
 	  stability)
 	- Reduced max_cloud_od to 16 for SPARTACUS stability
+	- Allow water vapour to be specified by "h2o_mmr" or "h2o_vmr" if
+	  "q" not present in input file
+	- Fixed effective_size_scaling namelist variable, broken in v1.1.8
 
 version 1.1.10 (8 April 2019)
 	- Renamed occurrences of "encroachment" with "entrapment" to match
