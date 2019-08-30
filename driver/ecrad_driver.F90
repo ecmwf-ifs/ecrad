@@ -223,8 +223,8 @@ program ecrad_driver
   if (driver_config%do_save_inputs) then
     call save_inputs('inputs.nc', config, single_level, thermodynamics, &
          &                gas, cloud, aerosol, &
-         &                lat=single_level%cos_sza*0.0_jprb, &
-         &                lon=single_level%cos_sza*0.0_jprb, &
+         &                lat=spread(0.0_jprb,1,ncol), &
+         &                lon=spread(0.0_jprb,1,ncol), &
          &                iverbose=driver_config%iverbose)
   end if
 

@@ -777,9 +777,11 @@ contains
     end if
     call out_file%define_variable("skin_temperature", &
          &   dim1_name="column", units_str="K", long_name="Skin_temperature")
-    call out_file%define_variable("cos_solar_zenith_angle", &
-         &   dim1_name="column", units_str="1", &
-         &   long_name="Cosine of the solar zenith angle")
+    if (config%do_sw) then
+      call out_file%define_variable("cos_solar_zenith_angle", &
+           &   dim1_name="column", units_str="1", &
+           &   long_name="Cosine of the solar zenith angle")
+    end if
 
     if (allocated(single_level%sw_albedo_direct)) then
       call out_file%define_variable("sw_albedo", &
@@ -887,7 +889,9 @@ contains
       call out_file%put("lon", lon)
     end if
     call out_file%put("skin_temperature", single_level%skin_temperature)
-    call out_file%put("cos_solar_zenith_angle", single_level%cos_sza)
+    if (config%do_sw) then
+      call out_file%put("cos_solar_zenith_angle", single_level%cos_sza)
+    end if
     call out_file%put("sw_albedo", single_level%sw_albedo)
     if (allocated(single_level%sw_albedo_direct)) then
       call out_file%put("sw_albedo_direct", single_level%sw_albedo_direct)

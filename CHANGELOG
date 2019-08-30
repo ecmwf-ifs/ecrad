@@ -6,6 +6,9 @@ version 1.1.11
 	- Allow water vapour to be specified by "h2o_mmr" or "h2o_vmr" if
 	  "q" not present in input file
 	- Fixed effective_size_scaling namelist variable, broken in v1.1.8
+	- cos_solar_zenith_angle not needed if do_sw=false
+	- skin_temperature set to lowest air temperature if not provided
+	- Warning issued if default solar_irradiance of 1366 is used
 
 version 1.1.10 (8 April 2019)
 	- Renamed occurrences of "encroachment" with "entrapment" to match

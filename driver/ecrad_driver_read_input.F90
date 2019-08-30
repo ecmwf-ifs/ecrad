@@ -93,12 +93,48 @@ contains
     call file%get('pressure_hl',   thermodynamics%pressure_hl)
     call file%get('temperature_hl',thermodynamics%temperature_hl)
 
-    ! Single-level variables, all with dimensions (ncol)
-    call file%get('cos_solar_zenith_angle',single_level%cos_sza)
-
     ! Extract array dimensions
-    ncol = size(single_level%cos_sza)
+    ncol = size(thermodynamics%pressure_hl,1)
     nlev = size(thermodynamics%pressure_hl,2)-1
+
+    if (driver_config%solar_irradiance_override > 0.0_jprb) then
+      ! Optional override of solar irradiance
+      single_level%solar_irradiance = driver_config%solar_irradiance_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,f10.1)')  '  Overriding solar irradiance with ', &
+             &  driver_config%solar_irradiance_override
+      end if
+    else if (file%exists('solar_irradiance')) then
+      call file%get('solar_irradiance', single_level%solar_irradiance)
+    else
+      single_level%solar_irradiance = 1366.0_jprb
+      if (driver_config%iverbose >= 1 .and. config%do_sw) then
+        write(nulout,'(a,g10.3,a)') 'Warning: solar irradiance set to ', &
+             &  single_level%solar_irradiance, ' W m-2'
+        end if
+    end if
+
+    if (driver_config%cos_sza_override >= 0.0_jprb) then
+      ! Optional override of cosine of solar zenith angle
+      allocate(single_level%cos_sza(ncol))
+      single_level%cos_sza = driver_config%cos_sza_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding cos_sza with ', &
+             &  driver_config%cos_sza_override
+      end if
+    else if (file%exists('cos_solar_zenith_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('cos_solar_zenith_angle',single_level%cos_sza)
+    else if (.not. config%do_sw) then
+      ! If cos_solar_zenith_angle not present and shortwave radiation
+      ! not to be performed, we create an array of zeros as some gas
+      ! optics schemes still need to be run in the shortwave
+      allocate(single_level%cos_sza(ncol))
+      single_level%cos_sza = 0.0_jprb
+    else
+      write(nulout,'(a,a)') '*** Error: cos_solar_zenith_angle not provided'
+      stop
+    end if
 
     if (config%do_clouds) then
 
@@ -443,7 +479,16 @@ contains
       is_complex_surface = .false.
 
       ! Single-level variable with dimensions (ncol)
-      call file%get('skin_temperature',single_level%skin_temperature) ! K
+      if (file%exists('skin_temperature')) then
+        call file%get('skin_temperature',single_level%skin_temperature) ! K
+      else
+        allocate(single_level%skin_temperature(ncol))
+        single_level%skin_temperature(1:ncol) = thermodynamics%temperature_hl(1:ncol,nlev+1)
+        if (driver_config%iverbose >= 1 .and. config%do_lw &
+             &  .and. driver_config%skin_temperature_override < 0.0_jprb) then 
+          write(nulout,'(a)') 'Warning: skin temperature set equal to lowest air temperature'
+        end if
+      end if
 
       if (driver_config%sw_albedo_override >= 0.0_jprb) then
         ! Optional override of shortwave albedo
@@ -492,12 +537,6 @@ contains
       end if
     end if
 
-    if (file%exists('solar_irradiance')) then
-      call file%get('solar_irradiance', single_level%solar_irradiance)
-    else
-      single_level%solar_irradiance = 1366.0_jprb
-    end if
-
     ! Optional override of skin temperature
     if (driver_config%skin_temperature_override >= 0.0_jprb) then
       if (is_complex_surface) then
@@ -512,24 +551,6 @@ contains
           write(nulout,'(a,g10.3)') '  Overriding skin_temperature with ', &
                &  driver_config%skin_temperature_override
         end if
-      end if
-    end if
-
-    ! Optional override of cosine of solar zenith angle
-    if (driver_config%cos_sza_override >= 0.0_jprb) then
-      single_level%cos_sza = driver_config%cos_sza_override
-      if (driver_config%iverbose >= 2) then
-        write(nulout,'(a,g10.3)') '  Overriding cos_sza with ', &
-             &  driver_config%cos_sza_override
-      end if
-    end if
-
-    ! Optional override of solar irradiance
-    if (driver_config%solar_irradiance_override > 0.0_jprb) then
-      single_level%solar_irradiance = driver_config%solar_irradiance_override
-      if (driver_config%iverbose >= 2) then
-        write(nulout,'(a,f10.1)')  '  Overriding solar irradiance with ', &
-             &  driver_config%solar_irradiance_override
       end if
     end if
 
