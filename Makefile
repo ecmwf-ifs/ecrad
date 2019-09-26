@@ -30,6 +30,11 @@ endif
 ifdef PRINT_ENCROACHMENT_DATA
 CPPFLAGS += -DPRINT_ENTRAPMENT_DATA 
 endif
+# Allow the capability to write NetCDF4/HDF5 files, provided the code
+# is compiled against the NetCDF4 library
+ifdef NETCDF4
+CPPFLAGS += -DNC_NETCDF4
+endif
 
 # Consolidate flags
 export FC

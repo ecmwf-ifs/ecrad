@@ -26,7 +26,7 @@ contains
   ! Save fluxes in "flux" to NetCDF file_name, plus pressure from the
   ! thermodynamics object
   subroutine save_fluxes(file_name, config, thermodynamics, flux, &
-       &                 iverbose)
+       &                 iverbose, is_hdf5_file)
 
     use yomhook,                  only : lhook, dr_hook
 
@@ -50,6 +50,8 @@ contains
 
     integer, optional, intent(in) :: iverbose
     integer                       :: i_local_verbose
+
+    logical, optional, intent(in) :: is_hdf5_file
 
     real(jprb) :: hook_handle
 
@@ -84,7 +86,7 @@ contains
     end if
 
     ! Open the file
-    call out_file%create(trim(file_name), iverbose=i_local_verbose)
+    call out_file%create(trim(file_name), iverbose=i_local_verbose, is_hdf5_file=is_hdf5_file)
 
     ! Variables stored internally with column varying fastest, but in
     ! output file column varies most slowly so need to transpose

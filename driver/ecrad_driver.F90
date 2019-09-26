@@ -363,7 +363,7 @@ program ecrad_driver
 
   ! Store the fluxes in the output file
   call save_fluxes(file_name, config, thermodynamics, flux, &
-       &   iverbose=driver_config%iverbose)
+       &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5)
     
   if (is_complex_surface) then
     ! Get NetCDF output file name for surface

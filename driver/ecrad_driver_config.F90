@@ -74,6 +74,10 @@ module ecrad_driver_config
      ! Do we correct unphysical inputs (e.g. negative gas concentrations)?
      logical :: do_correct_unphysical_inputs = .false.
 
+     ! Do we write NetCDF4/HDF5 file format, needed for very large
+     ! files?
+     logical :: do_write_hdf5 = .false.
+
      ! Control verbosity in driver routine: 0=none (no output to
      ! standard output; write to standard error only if an error
      ! occurs), 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
@@ -142,7 +146,8 @@ contains
     logical :: do_parallel
     integer :: nblocksize
 
-    logical :: do_save_inputs, do_ignore_inhom_effective_size, do_correct_unphysical_inputs
+    logical :: do_save_inputs, do_ignore_inhom_effective_size, &
+         &  do_correct_unphysical_inputs, do_write_hdf5
     integer :: nrepeat
 
     ! Process a limited number of columns (iendcol=0 indicates to
@@ -167,7 +172,7 @@ contains
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
          &  cloud_separation_scale_toa, cloud_separation_scale_surface, &
          &  cloud_separation_scale_power, do_correct_unphysical_inputs, &
-         &  h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
+         &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
          &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling
 
@@ -220,6 +225,7 @@ contains
     iendcol = 0
     nrepeat = 1
     do_correct_unphysical_inputs = .false.
+    do_write_hdf5 = .false.
 
     ! Open the namelist file and read the radiation_driver namelist
     open(unit=10, iostat=iosopen, file=trim(file_name))
@@ -307,6 +313,7 @@ contains
     this%cloud_separation_scale_surface = cloud_separation_scale_surface
     this%cloud_separation_scale_power = cloud_separation_scale_power
     this%do_correct_unphysical_inputs = do_correct_unphysical_inputs
+    this%do_write_hdf5  = do_write_hdf5
     this%h2o_scaling    = h2o_scaling
     this%co2_scaling    = co2_scaling
     this%o3_scaling     = o3_scaling
