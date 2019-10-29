@@ -124,21 +124,27 @@ contains
     end if
 
     ! Put global attributes
-    call out_file%put_global_attributes(title_str &
-         & = "Radiative flux profiles from SPARTACUS offline radiation model")
+    call out_file%put_global_attributes( &
+         &   title_str="Radiative flux profiles from the ecRad offline radiation model", &
+         &   references_str="Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation " &
+         &   //"scheme for the ECMWF model. J. Adv. Modeling Earth Sys., 10, 1990–2008", &
+         &   source_str="ecRad offline radiation model")
 
     ! Define variables
     call out_file%define_variable("pressure_hl", &
          &   dim2_name="column", dim1_name="half_level", &
-         &   units_str="Pa", long_name="Pressure")
+         &   units_str="Pa", long_name="Pressure", &
+         &   standard_name="air_pressure")
 
     if (config%do_lw) then
       call out_file%define_variable("flux_up_lw", &
            &   dim2_name="column", dim1_name="half_level", &
-           &   units_str=lw_units_str, long_name="Upwelling longwave flux")
+           &   units_str=lw_units_str, long_name="Upwelling longwave flux", &
+           &   standard_name="upwelling_longwave_flux_in_air")
       call out_file%define_variable("flux_dn_lw", &
            &   dim2_name="column", dim1_name="half_level", &
-           &   units_str=lw_units_str, long_name="Downwelling longwave flux")
+           &   units_str=lw_units_str, long_name="Downwelling longwave flux", &
+           &   standard_name="downwelling_longwave_flux_in_air")
       if (config%do_clear) then
         call out_file%define_variable("flux_up_lw_clear", &
              &   dim2_name="column", dim1_name="half_level", &
@@ -189,10 +195,12 @@ contains
     if (config%do_sw) then
       call out_file%define_variable("flux_up_sw", &
            &   dim2_name="column", dim1_name="half_level", &
-           &   units_str="W m-2", long_name="Upwelling shortwave flux")
+           &   units_str="W m-2", long_name="Upwelling shortwave flux", &
+           &   standard_name="upwelling_shortwave_flux_in_air")
       call out_file%define_variable("flux_dn_sw", &
            &   dim2_name="column", dim1_name="half_level", &
-           &   units_str="W m-2", long_name="Downwelling shortwave flux")
+           &   units_str="W m-2", long_name="Downwelling shortwave flux", &
+           &   standard_name="downwelling_shortwave_flux_in_air")
       if (config%do_sw_direct) then
         call out_file%define_variable("flux_dn_direct_sw", &
              &   dim2_name="column", dim1_name="half_level", &
@@ -275,15 +283,17 @@ contains
 
     end if
    
-    if (config%do_lw) then
+    if (config%do_lw .and. config%do_clouds) then
       call out_file%define_variable("cloud_cover_lw", &
            &  dim1_name="column", units_str="1", &
-           &  long_name="Total cloud cover diagnosed by longwave solver")
+           &  long_name="Total cloud cover diagnosed by longwave solver", &
+           &  standard_name="cloud_area_fraction")
     end if
-    if (config%do_sw) then
+    if (config%do_sw .and. config%do_clouds) then
       call out_file%define_variable("cloud_cover_sw", &
            &  dim1_name="column", units_str="1", &
-           &  long_name="Total cloud cover diagnosed by shortwave solver")
+           &  long_name="Total cloud cover diagnosed by shortwave solver", &
+           &  standard_name="cloud_area_fraction")
     end if
 
     ! Write variables
@@ -369,10 +379,10 @@ contains
 
     end if
 
-    if (config%do_lw) then
+    if (config%do_lw .and. config%do_clouds) then
       call out_file%put("cloud_cover_lw", flux%cloud_cover_lw)
     end if
-    if (config%do_sw) then
+    if (config%do_sw .and. config%do_clouds) then
       call out_file%put("cloud_cover_sw", flux%cloud_cover_sw)
     end if
 
@@ -480,23 +490,36 @@ contains
     call out_file%define_dimension("column", 0) ! "Unlimited" dimension
     call out_file%define_dimension("level", nlev)
     call out_file%define_dimension("half_level", nlev+1)
-    call out_file%define_dimension("level_interface", nlev-1)
+    if (config%do_clouds) then
+      call out_file%define_dimension("level_interface", nlev-1)
+    end if
 
     if (config%do_lw) then
       call out_file%define_dimension("gpoint_lw", config%n_g_lw) 
-      call out_file%define_dimension("band_lw", config%n_bands_lw) 
+      if (config%do_clouds) then
+        call out_file%define_dimension("band_lw", config%n_bands_lw)
+      end if
     end if
     if (config%do_sw) then
       call out_file%define_dimension("gpoint_sw", config%n_g_sw) 
-      call out_file%define_dimension("band_sw", config%n_bands_sw) 
+      if (config%do_clouds) then
+        call out_file%define_dimension("band_sw", config%n_bands_sw)
+      end if
     end if
+
+    ! Put global attributes
+    call out_file%put_global_attributes( &
+         &   title_str="Spectral radiative properties from the ecRad offline radiation model", &
+         &   references_str="Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation " &
+         &   //"scheme for the ECMWF model. J. Adv. Modeling Earth Sys., 10, 1990–2008", &
+         &   source_str="ecRad offline radiation model")
 
     ! Define variables
     call out_file%define_variable("pressure_hl", &
          &  dim2_name="column", dim1_name="half_level", &
          &  units_str="Pa", long_name="Pressure on half-levels")
 
-    if (allocated(thermodynamics%h2o_sat_liq)) then
+    if (allocated(thermodynamics%h2o_sat_liq) .and. config%use_aerosols) then
       call out_file%define_variable("q_sat_liquid", &
            &  dim2_name="column", dim1_name="level", &
            &  units_str="kg kg-1", long_name="Specific humidity at liquid saturation")
@@ -611,7 +634,7 @@ contains
     ! Write variables
     call out_file%put("pressure_hl", thermodynamics%pressure_hl(istartcol:iendcol,:))
 
-    if (allocated(thermodynamics%h2o_sat_liq)) then
+    if (allocated(thermodynamics%h2o_sat_liq) .and. config%use_aerosols) then
       call out_file%put("q_sat_liquid", thermodynamics%h2o_sat_liq(istartcol:iendcol,:))
     end if
 
@@ -764,7 +787,10 @@ contains
 
     ! Put global attributes
     call out_file%put_global_attributes( &
-         &   title_str="Input profiles to radiation scheme")
+         &   title_str="Input profiles to the ecRad offline radiation model", &
+         &   references_str="Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation " &
+         &   //"scheme for the ECMWF model. J. Adv. Modeling Earth Sys., 10, 1990–2008", &
+         &   source_str="ecRad offline radiation model")
 
     ! Define single-level variables
     call out_file%define_variable("solar_irradiance", &
