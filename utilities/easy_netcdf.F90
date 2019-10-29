@@ -1762,6 +1762,7 @@ contains
     end if
 
     if (present(fill_value)) then
+#ifdef NC_NETCDF4
       if (data_type == NF90_DOUBLE) then
         istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,8))
       else if (data_type == NF90_FLOAT) then
@@ -1773,6 +1774,19 @@ contains
       else if (data_type == NF90_BYTE) then
         istatus = nf90_def_var_fill(this%ncid, ivarid, 0, int(fill_value,1))
       end if
+#else
+      if (data_type == NF90_DOUBLE) then
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,8))
+      else if (data_type == NF90_FLOAT) then
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,4))
+      else if (data_type == NF90_INT) then
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", int(fill_value,4))
+      else if (data_type == NF90_SHORT) then
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", int(fill_value,2))
+      else if (data_type == NF90_BYTE) then
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", int(fill_value,1))
+      end if
+#endif
     end if
 
   end subroutine define_variable
