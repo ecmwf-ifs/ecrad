@@ -9,6 +9,9 @@ version 1.1.11
 	- cos_solar_zenith_angle not needed if do_sw=false
 	- skin_temperature set to lowest air temperature if not provided
 	- Warning issued if default solar_irradiance of 1366 is used
+	- Added radiation_config namelist variable "vmr_unit_suffix_str"
+	  (default "_vmr") to enable the expected variable names containing
+	  gas volume mixing ratios to be overridden
 
 version 1.1.10 (8 April 2019)
 	- Renamed occurrences of "encroachment" with "entrapment" to match
