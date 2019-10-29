@@ -13,10 +13,12 @@
 !   2019-01-04  R. Hogan  Allow reading and writing a slice of a larger array
 !   2019-01-07  R. Hogan  HDF5 writing support, allowing larger files, provided NC_NETCDF4 defined
 !   2019-01-16  R. Hogan  Revised interpretation of "iverbose"
+!   2019-06-17  R. Hogan  Pass through deflate_level and shuffle to variable definition
+
 module easy_netcdf
 
   use netcdf
-  use parkind1,      only : jprb
+  use parkind1,      only : jprb, jpib
   use radiation_io,  only : nulout, nulerr, my_abort => radiation_abort
 
   implicit none
@@ -25,14 +27,13 @@ module easy_netcdf
   ! An object of this type provides convenient read or write access to
   ! a NetCDF file
   type netcdf_file
-    integer :: ncid     ! NetCDF file ID
+    integer :: ncid             ! NetCDF file ID
     integer :: iverbose ! Verbosity: 0 = report only fatal errors,
                         !            1 = ...and warnings,
                         !            2 = ...and when opening files,
                         !            3 = ...and when reading/writing variables,
                         !            4 = ...and variable attributes and when writing dimensions,
                         !            5 = ...and debugging information
-
     logical :: do_transpose_2d = .false.   ! Transpose 2D arrays on read/write?
     logical :: is_write_mode   = .false.   ! .false. for read, .true. for write
     logical :: is_define_mode  = .true.    ! .true. if in NetCDF define mode
@@ -60,10 +61,15 @@ module easy_netcdf
          &              get_real_array4, &
          &              get_real_scalar_indexed, get_real_vector_indexed, &
          &              get_real_matrix_indexed, get_real_array3_indexed
+    procedure :: get_real_scalar_attribute
+    procedure :: get_string_attribute
+    generic   :: get_attribute => get_real_scalar_attribute, &
+         &                        get_string_attribute
     procedure :: get_global_attribute
 
     procedure :: define_dimension
     procedure :: define_variable
+    procedure :: put_attribute
     procedure :: put_global_attributes
     procedure :: put_global_attribute
     procedure :: put_real_scalar
@@ -84,6 +90,7 @@ module easy_netcdf
     procedure :: get_rank
     procedure :: exists
     procedure :: get_outer_dimension
+    procedure :: attribute_exists
     procedure :: global_attribute_exists
     procedure, private :: get_array_dimensions
     procedure, private :: get_variable_id
@@ -348,7 +355,7 @@ contains
     integer, intent(in)            :: ivarid
     integer, intent(out)           :: ndims
     integer, intent(out)           :: ndimlens(NF90_MAX_VAR_DIMS)
-    integer, intent(out), optional :: ntotal
+    integer(kind=jpib), intent(out), optional :: ntotal
 
     integer                        :: j, istatus
     integer                        :: dimids(NF90_MAX_VAR_DIMS)
@@ -486,6 +493,42 @@ contains
     end if
 
   end function exists
+
+
+  !---------------------------------------------------------------------
+  ! Return true if the attribute is present, false otherwise.  If
+  ! argument "len" is provided then return false if len is smaller
+  ! than the length of the attribute.  This is useful if you have a
+  ! fixed array size and want to check whether the attribute will fit
+  ! into it.
+  function attribute_exists(this, var_name, attr_name, len) result(is_present)
+    class(netcdf_file)            :: this
+    character(len=*), intent(in)  :: var_name, attr_name
+    integer, optional, intent(in) :: len
+
+    logical :: is_present
+    integer :: i_attr_len, ivarid
+    integer :: istatus
+
+    istatus = nf90_inq_varid(this%ncid, var_name, ivarid)
+    if (istatus /= NF90_NOERR) then
+      is_present = .false.
+    else
+      istatus = nf90_inquire_attribute(this%ncid, ivarid, attr_name, &
+           &                           len=i_attr_len)
+      if (istatus /= NF90_NOERR) then
+        is_present = .false.
+      else 
+        is_present = .true.
+        if (present(len)) then
+          if (i_attr_len > len) then
+            is_present = .false.
+          end if
+        end if
+      end if
+    end if
+
+  end function attribute_exists
 
 
   !---------------------------------------------------------------------
@@ -1407,6 +1450,87 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Get attribute as a character string
+  subroutine get_string_attribute(this, var_name, attr_name, attr_str)
+    class(netcdf_file) :: this
+
+    character(len=*), intent(in)    :: var_name, attr_name
+    character(len=*), intent(inout) :: attr_str
+
+    integer :: i_attr_len, ivarid
+    integer :: istatus
+    integer :: j
+
+    istatus = nf90_inq_varid(this%ncid, var_name, ivarid)
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error inquiring about variable ', var_name, &
+           &                    ': ', trim(nf90_strerror(istatus))
+      call my_abort('Error reading NetCDF file')
+    end if
+    istatus = nf90_inquire_attribute(this%ncid, ivarid, attr_name, &
+         &                           len = i_attr_len)
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error reading size of attribute ', attr_name, &
+           &                    ': ', trim(nf90_strerror(istatus))
+      call my_abort('Error reading NetCDF file')
+    end if
+
+    ! Allocatable character strings not supported one enough compilers
+    ! yet
+    !    if (allocated(attr_str)) then
+    !      deallocate(attr_str)
+    !    end if
+    !    allocate(character(len=i_attr_len) :: attr_str)
+    if (len(attr_str) < i_attr_len) then
+      write(nulerr,'(a,a)') '*** Not enough space to read attribute ', attr_name
+      call my_abort('Error reading NetCDF file')
+    end if
+
+    istatus = nf90_get_att(this%ncid, ivarid, attr_name, attr_str)
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error reading attribute ', attr_name, &
+           &                    ': ', trim(nf90_strerror(istatus))
+      call my_abort('Error reading NetCDF file')
+    end if
+
+    ! Pad with blanks since nf90_get_att does not do this
+    do j = i_attr_len+1,len(attr_str)
+      attr_str(j:j) = ' '
+    end do
+
+  end subroutine get_string_attribute
+
+
+
+  !---------------------------------------------------------------------
+  ! Get attribute as a real scalar
+  subroutine get_real_scalar_attribute(this, var_name, attr_name, attr)
+    class(netcdf_file) :: this
+
+    character(len=*), intent(in)  :: var_name, attr_name
+    real(jprb),       intent(out) :: attr
+
+    integer :: i_attr_len, ivarid
+    integer :: istatus
+    integer :: j
+
+    istatus = nf90_inq_varid(this%ncid, var_name, ivarid)
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error inquiring about variable ', var_name, &
+           &                    ': ', trim(nf90_strerror(istatus))
+      call my_abort('Error reading NetCDF file')
+    end if
+    istatus = nf90_get_att(this%ncid, ivarid, attr_name, attr)
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error reading attribute ', attr_name, &
+           &                    ': ', trim(nf90_strerror(istatus))
+      call my_abort('Error reading NetCDF file')
+    end if
+
+  end subroutine get_real_scalar_attribute
+
+
+  !---------------------------------------------------------------------
   ! Get a global attribute as a character string
   subroutine get_global_attribute(this, attr_name, attr_str)
     class(netcdf_file) :: this
@@ -1530,16 +1654,22 @@ contains
   ! long_name, units and comment write string attributes with these
   ! names.
   subroutine define_variable(this, var_name, dim1_name, dim2_name, dim3_name, &
-       &                     long_name, units_str, comment_str, is_double)
+       &                     long_name, units_str, comment_str, standard_name, is_double, &
+       &                     data_type_name, fill_value, deflate_level, shuffle, chunksizes)
     class(netcdf_file)                     :: this
     character(len=*), intent(in)           :: var_name
-    character(len=*), intent(in), optional :: long_name, units_str, comment_str
+    character(len=*), intent(in), optional :: long_name, units_str, comment_str, standard_name
     character(len=*), intent(in), optional :: dim1_name, dim2_name, dim3_name
     logical,          intent(in), optional :: is_double
+    character(len=*), intent(in), optional :: data_type_name
+    real(jprb),       intent(in), optional :: fill_value
+    integer,          intent(in), optional :: deflate_level ! Compression: 0 (none) to 9 (most)
+    logical,          intent(in), optional :: shuffle ! Shuffle bytes before compression
+    integer, dimension(:), intent(in), optional :: chunksizes
 
     integer :: istatus, ndims, ivarid
     integer, dimension(NF90_MAX_VAR_DIMS) :: idimids
-    logical :: is_double_precision
+    integer :: data_type
 
     if (present(dim1_name)) then
       ! Variable is at least one dimensional
@@ -1577,20 +1707,33 @@ contains
 
     ! Read output precision from optional argument "is_double" if
     ! present, otherwise from default output precision for this file
-    if (present(is_double)) then
-      is_double_precision = is_double
-    else
-      is_double_precision = this%is_double_precision
+    data_type = NF90_FLOAT ! Default
+    if (present(data_type_name)) then
+      if (data_type_name == 'double') then
+        data_type = NF90_DOUBLE
+      else if (data_type_name == 'byte') then
+        data_type = NF90_BYTE
+      else if (data_type_name == 'short') then
+        data_type = NF90_SHORT
+      else if (data_type_name == 'int') then
+        data_type = NF90_INT
+      else if (data_type_name == 'float') then
+        data_type = NF90_FLOAT
+      else
+        write(nulerr,'(a,a,a)') '*** NetCDF data type "', data_type_name, '" not supported'
+        call my_abort('Error writing NetCDF file')
+      end if
+    else if (present(is_double)) then
+      data_type = NF90_DOUBLE
     end if
 
     ! Define variable
-    if (is_double_precision) then
-      istatus = nf90_def_var(this%ncid, var_name, NF90_DOUBLE, idimids(1:ndims), &
-           & ivarid)
-    else
-      istatus = nf90_def_var(this%ncid, var_name, NF90_FLOAT, idimids(1:ndims), &
-           & ivarid)
-    end if
+#ifdef NC_NETCDF4
+    istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims), &
+         & ivarid, deflate_level=deflate_level, shuffle=shuffle, chunksizes=chunksizes)
+#else
+    istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims), ivarid)
+#endif
     if (istatus /= NF90_NOERR) then
       write(nulerr,'(a,a,a,a)') '*** Error defining variable ', var_name, &
            &                    ': ', trim(nf90_strerror(istatus))
@@ -1611,8 +1754,25 @@ contains
     if (present(units_str)) then
       istatus = nf90_put_att(this%ncid, ivarid, "units", units_str)
     end if
+    if (present(standard_name)) then
+      istatus = nf90_put_att(this%ncid, ivarid, "standard_name", standard_name)
+    end if
     if (present(comment_str)) then
       istatus = nf90_put_att(this%ncid, ivarid, "comment", comment_str)
+    end if
+
+    if (present(fill_value)) then
+      if (data_type == NF90_DOUBLE) then
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,8))
+      else if (data_type == NF90_FLOAT) then
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,4))
+      else if (data_type == NF90_INT) then
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, int(fill_value,4))
+      else if (data_type == NF90_SHORT) then
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, int(fill_value,2))
+      else if (data_type == NF90_BYTE) then
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, int(fill_value,1))
+      end if
     end if
 
   end subroutine define_variable
@@ -1621,18 +1781,21 @@ contains
   !---------------------------------------------------------------------
   ! Put CF-compliant global attributes into the file
   subroutine put_global_attributes(this, title_str, inst_str, source_str, &
-       &  comment_str, ref_str)
+       &  comment_str, references_str, creator_name, creator_email_str, &
+       &  contributor_name, project_str, conventions_str)
     class(netcdf_file)                     :: this
 
     character(len=*), intent(in), optional :: title_str
     character(len=*), intent(in), optional :: inst_str
     character(len=*), intent(in), optional :: source_str
-    character(len=*), intent(in), optional :: comment_str
-    character(len=*), intent(in), optional :: ref_str
+    character(len=*), intent(in), optional :: creator_name, creator_email_str
+    character(len=*), intent(in), optional :: contributor_name, project_str
+    character(len=*), intent(in), optional :: comment_str, conventions_str
+    character(len=*), intent(in), optional :: references_str
 
     character(len=32)   :: date_time_str
-    character(len=1024) :: command_line_str
-    character(len=1056) :: history_str
+    character(len=4000) :: command_line_str
+    character(len=4032) :: history_str
 
     integer :: time_vals(8)
     integer :: i ! status
@@ -1645,15 +1808,21 @@ contains
 
     history_str = trim(date_time_str) // ': ' // trim(command_line_str)
 
-
     if (present(title_str))   i=nf90_put_att(this%ncid, NF90_GLOBAL, "title", title_str)
     if (present(inst_str))    i=nf90_put_att(this%ncid, NF90_GLOBAL, "institution", inst_str)
     if (present(source_str))  i=nf90_put_att(this%ncid, NF90_GLOBAL, "source", source_str)
+    if (present(creator_name))i=nf90_put_att(this%ncid, NF90_GLOBAL, "creator_name", creator_name)
+    if (present(creator_email_str))i=nf90_put_att(this%ncid, NF90_GLOBAL, "creator_email", creator_email_str)
+    if (present(contributor_name))i=nf90_put_att(this%ncid, NF90_GLOBAL, "contributor_name", contributor_name)
 
     i = nf90_put_att(this%ncid, NF90_GLOBAL, "history", history_str)
 
+    if (present(project_str)) i=nf90_put_att(this%ncid, NF90_GLOBAL, "project", project_str)
     if (present(comment_str)) i=nf90_put_att(this%ncid, NF90_GLOBAL, "comment", comment_str)
-    if (present(ref_str))     i=nf90_put_att(this%ncid, NF90_GLOBAL, "references", ref_str)
+    if (present(references_str)) i=nf90_put_att(this%ncid, NF90_GLOBAL, &
+         &  "references", references_str)
+    if (present(conventions_str)) i=nf90_put_att(this%ncid, NF90_GLOBAL, &
+         &  "conventions", conventions_str)
 
   end subroutine put_global_attributes
 
@@ -1679,6 +1848,28 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Put a non-standard variable attribute into the file
+  subroutine put_attribute(this, var_name, attr_name, attr_str)
+    class(netcdf_file) :: this
+
+    character(len=*), intent(in) :: var_name, attr_name, attr_str
+
+    integer :: istatus, ivarid
+
+    call this%get_variable_id(var_name, ivarid)
+
+    istatus = nf90_put_att(this%ncid, ivarid, trim(attr_name), trim(attr_str))
+
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error writing attribute ', attr_name, &
+           &                    ': ', trim(nf90_strerror(istatus))
+      call my_abort('Error writing NetCDF file')
+    end if
+
+  end subroutine put_attribute
+
+
+  !---------------------------------------------------------------------
   ! The "put" method saves a scalar, vector or matrix into the
   ! variable with name var_name, according to the rank of the var
   ! argument. This version saves a scalar.
@@ -1687,7 +1878,8 @@ contains
     character(len=*), intent(in)   :: var_name
     real(jprb), intent(in)         :: var
 
-    integer :: ivarid, ndims, ntotal, istatus
+    integer :: ivarid, ndims, istatus
+    integer(kind=jpib) :: ntotal
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
 
     ! If we are in define mode, exit define mode
@@ -1721,7 +1913,7 @@ contains
     real(jprb), intent(in)         :: var
     integer, intent(in)            :: index
 
-    integer :: ivarid, ndims, ntotal, istatus
+    integer :: ivarid, ndims, istatus
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
     integer :: vstart(NF90_MAX_VAR_DIMS)
 
@@ -1757,7 +1949,8 @@ contains
     character(len=*), intent(in)   :: var_name
     real(jprb), intent(in)         :: var(:)
 
-    integer :: ivarid, ndims, ntotal, istatus
+    integer :: ivarid, ndims, istatus
+    integer(kind=jpib) :: ntotal
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
 
     call this%end_define_mode()
@@ -1765,7 +1958,7 @@ contains
     ! Check the vector is of the right length
     call this%get_variable_id(var_name, ivarid)
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
-    if (ntotal /= size(var)) then
+    if (ntotal /= size(var,kind=jpib)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write vector of length ', &
            & size(var), ' to ', var_name, ' which has total length ', ntotal
       call my_abort('Error writing NetCDF file')
@@ -1790,7 +1983,8 @@ contains
     real(jprb), intent(in)         :: var(:)
     integer, intent(in)            :: index
 
-    integer :: ivarid, ndims, ntotal, istatus
+    integer :: ivarid, ndims, istatus
+    integer(kind=jpib) :: ntotal
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
     integer :: vstart(NF90_MAX_VAR_DIMS)
     integer :: vcount(NF90_MAX_VAR_DIMS)
@@ -1801,7 +1995,7 @@ contains
     call this%get_variable_id(var_name, ivarid)
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
     ntotal = ntotal / ndimlens(ndims)
-    if (ntotal /= size(var)) then
+    if (ntotal /= size(var,kind=jpib)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write vector of length ', &
            & size(var), ' to slice of ', var_name, ' which has length ', ntotal
       call my_abort('Error writing NetCDF file')
@@ -1838,7 +2032,8 @@ contains
     real(jprb), allocatable        :: var_transpose(:,:)
     logical, optional, intent(in):: do_transp
 
-    integer :: ivarid, ndims, ntotal, nvarlen, istatus
+    integer :: ivarid, ndims, nvarlen, istatus
+    integer(kind=jpib) :: ntotal
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
 
     logical :: do_transpose
@@ -1858,7 +2053,7 @@ contains
 
     ! Check the total size of the variable to be stored (but receiving
     ! ntotal is zero then there must be an unlimited dimension)
-    if (ntotal /= size(var) .and. ntotal /= 0) then
+    if (ntotal /= size(var,kind=jpib) .and. ntotal /= 0) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write matrix of total size ', &
            & nvarlen, ' to ', var_name, ' which has total size ', ntotal
       call my_abort('Error writing NetCDF file')
@@ -1904,7 +2099,8 @@ contains
     real(jprb), allocatable        :: var_transpose(:,:)
     logical, optional, intent(in):: do_transp
 
-    integer :: ivarid, ndims, ntotal, nvarlen, istatus
+    integer :: ivarid, ndims, nvarlen, istatus
+    integer(kind=jpib) :: ntotal
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
     integer :: vstart(NF90_MAX_VAR_DIMS)
     integer :: vcount(NF90_MAX_VAR_DIMS)
@@ -1927,7 +2123,7 @@ contains
     ! Check the total size of the variable to be stored (but receiving
     ! ntotal is zero then there must be an unlimited dimension)
     ntotal = ntotal / ndimlens(ndims)
-    if (ntotal /= size(var) .and. ntotal /= 0) then
+    if (ntotal /= size(var,kind=jpib) .and. ntotal /= 0) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write matrix of total size ', &
            & nvarlen, ' to ', var_name, ' which has total size ', ntotal
       call my_abort('Error writing NetCDF file')
@@ -1941,7 +2137,7 @@ contains
     if (do_transpose) then
       ! Save the matrix with transposition
       if (this%iverbose >= 3) then
-        write(nulout,'(a,a,a)') '  Writing ', var_name, &
+        write(nulout,'(a,i0,a,a,a)') '  Writing slice ', index, ' of ', var_name, &
              & ' (transposing dimensions)'
       end if
       allocate(var_transpose(size(var,2), size(var,1)))
@@ -1951,7 +2147,7 @@ contains
     else
       ! Save the matrix without transposition
       if (this%iverbose >= 3) then
-        write(nulout,'(a,a)') '  Writing ', var_name
+        write(nulout,'(a,i0,a,a)') '  Writing slice ', index, ' of ', var_name
       end if
       istatus = nf90_put_var(this%ncid, ivarid, var, start=vstart, count=vcount)
     end if
@@ -1980,7 +2176,8 @@ contains
     real(jprb), allocatable        :: var_permute(:,:,:)
     integer, optional, intent(in)  :: ipermute(3)
 
-    integer :: ivarid, ndims, ntotal, nvarlen, istatus
+    integer :: ivarid, ndims, nvarlen, istatus
+    integer(kind=jpib) :: ntotal
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
 
     logical :: do_permute          ! Do we permute?
@@ -2003,7 +2200,7 @@ contains
     call this%get_variable_id(var_name, ivarid)
     call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
     nvarlen = size(var,1)*size(var,2)*size(var,3)
-    if (ntotal /= size(var)) then
+    if (ntotal /= size(var,kind=jpib)) then
       write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write array of total size ', &
            & nvarlen, ' to ', var_name, ' which has total size ', ntotal
       call my_abort('Error writing NetCDF file')
@@ -2018,7 +2215,7 @@ contains
       n_dimlens_permuted = (/ size(var,i_permute_3d(1)), &
            &                  size(var,i_permute_3d(2)), &
            &                  size(var,i_permute_3d(3))  /)
-      if (this%iverbose >= 5) then
+      if (this%iverbose >= 4) then
         write(nulout,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') '    (', &
              &  n_dimlens_permuted(1), ',', n_dimlens_permuted(2), &
              &  ',', n_dimlens_permuted(3), ') -> (', ndimlens(1), &
