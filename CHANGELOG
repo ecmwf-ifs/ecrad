@@ -1,4 +1,4 @@
-version 1.2.0
+version 1.2.0 (30 October 2019)
 	- Increased default minimum cloud effective size to 100 m
 	  (although 500 m is used in the IFS for better SPARTACUS
 	  stability)
