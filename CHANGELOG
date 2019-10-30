@@ -1,4 +1,4 @@
-version 1.1.11
+version 1.2.0
 	- Increased default minimum cloud effective size to 100 m
 	  (although 500 m is used in the IFS for better SPARTACUS
 	  stability)
@@ -9,7 +9,7 @@ version 1.1.11
 	- cos_solar_zenith_angle not needed if do_sw=false
 	- skin_temperature set to lowest air temperature if not provided
 	- Warning issued if default solar_irradiance of 1366 is used
-	- Added radiation_config namelist variable "vmr_unit_suffix_str"
+	- Added radiation_config namelist variable "vmr_suffix_str"
 	  (default "_vmr") to enable the expected variable names containing
 	  gas volume mixing ratios to be overridden
 	- Use the nf-config utility to set NETCDF_INCLUDE and NETCDF_LIB

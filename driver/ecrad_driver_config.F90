@@ -60,7 +60,7 @@ module ecrad_driver_config
      ! mole fractions (mol mol-1)) are typically stored in the input
      ! file with a name like co2_vmr, but the suffix can be overridden
      ! by the user
-     character(len=32) :: vmr_unit_suffix_str = '_vmr'
+     character(len=32) :: vmr_suffix_str = '_vmr'
 
      ! Process a limited number of columns (iendcol=0 indicates to
      ! process from istartcol up to the end)
@@ -148,7 +148,7 @@ contains
     real(jprb) :: hcfc22_scaling
     real(jprb) :: ccl4_scaling  
     real(jprb) :: no2_scaling   
-    character(len=32) :: vmr_unit_suffix_str
+    character(len=32) :: vmr_suffix_str
 
     ! Parallel settings
     logical :: do_parallel
@@ -183,7 +183,7 @@ contains
          &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
          &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling, &
-         &  vmr_unit_suffix_str
+         &  vmr_suffix_str
 
     real(jprb) :: hook_handle
 
@@ -229,7 +229,7 @@ contains
     hcfc22_scaling = 1.0_jprb
     ccl4_scaling   = 1.0_jprb
     no2_scaling    = 1.0_jprb
-    vmr_unit_suffix_str = '_vmr';
+    vmr_suffix_str = '_vmr';
     iverbose = 2 ! Default verbosity is "warning"
     istartcol = 0
     iendcol = 0
@@ -336,7 +336,7 @@ contains
     this%hcfc22_scaling = hcfc22_scaling
     this%ccl4_scaling   = ccl4_scaling
     this%no2_scaling    = no2_scaling
-    this%vmr_unit_suffix_str = trim(vmr_unit_suffix_str)
+    this%vmr_suffix_str = trim(vmr_suffix_str)
 
     if (lhook) call dr_hook('ecrad_driver_config:read',1,hook_handle)
 

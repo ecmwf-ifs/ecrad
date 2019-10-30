@@ -584,7 +584,7 @@ contains
           call file%get('h2o_mmr', gas_mr)
           call gas%put(IH2O, IMassMixingRatio, gas_mr)
         else
-          call file%get('h2o' // trim(driver_config%vmr_unit_suffix_str), gas_mr);
+          call file%get('h2o' // trim(driver_config%vmr_suffix_str), gas_mr);
           call gas%put(IH2O, IVolumeMixingRatio, gas_mr)
         end if
       else if (jgas == IO3) then
@@ -592,14 +592,14 @@ contains
           call file%get('o3_mmr', gas_mr)
           call gas%put(IO3, IMassMixingRatio, gas_mr)
         else
-          call file%get('o3' // trim(driver_config%vmr_unit_suffix_str), gas_mr)
+          call file%get('o3' // trim(driver_config%vmr_suffix_str), gas_mr)
           call gas%put(IO3, IVolumeMixingRatio, gas_mr)
         end if
       else
         ! Find number of dimensions of the variable holding gas "jgas" in
         ! the input file, where the following function returns -1 if the
         ! gas is not found
-        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_unit_suffix_str)
+        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
         irank = file%get_rank(trim(gas_var_name))
         ! Note that if the gas is not present then a warning will have
         ! been issued, and irank will be returned as -1
