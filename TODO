@@ -8,8 +8,8 @@ LONGER TERM FEATURES
    IFS values will be calculated of: solar zenith angle, trace gas and
    aerosol mixing ratio, and cloud effective ratio
  - Complete surface radiative transfer component including vegetation
-   and urban surfaces
- - Incorporate RRTMGP
+   and urban surfaces (?)
+ - Incorporate RRTMGP and FSCK
 
 INTERFACE
  - Rename "do_3d" as it is misleading
@@ -41,7 +41,8 @@ Cases:
  - meridian from ECWMF model
 
 PYTHON PLOTTING SCRIPTS
- - 
+ - Add some!
 
 
 KNOWN BUGS
+ - Incorporate fixes from Daniel Rieger

@@ -1,8 +1,18 @@
-version 1.1.11
+version 1.2.0 (30 October 2019)
 	- Increased default minimum cloud effective size to 100 m
 	  (although 500 m is used in the IFS for better SPARTACUS
 	  stability)
 	- Reduced max_cloud_od to 16 for SPARTACUS stability
+	- Allow water vapour to be specified by "h2o_mmr" or "h2o_vmr" if
+	  "q" not present in input file
+	- Fixed effective_size_scaling namelist variable, broken in v1.1.8
+	- cos_solar_zenith_angle not needed if do_sw=false
+	- skin_temperature set to lowest air temperature if not provided
+	- Warning issued if default solar_irradiance of 1366 is used
+	- Added radiation_config namelist variable "vmr_suffix_str"
+	  (default "_vmr") to enable the expected variable names containing
+	  gas volume mixing ratios to be overridden
+	- Use the nf-config utility to set NETCDF_INCLUDE and NETCDF_LIB
 
 version 1.1.10 (8 April 2019)
 	- Renamed occurrences of "encroachment" with "entrapment" to match

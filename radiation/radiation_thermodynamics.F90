@@ -92,10 +92,10 @@ contains
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',0,hook_handle)
 
     if (allocated(this%pressure_hl)) then
-       deallocate(this%pressure_hl)
+      deallocate(this%pressure_hl)
     end if
     if (allocated(this%temperature_hl)) then
-       deallocate(this%temperature_hl)
+      deallocate(this%temperature_hl)
     end if
     if (allocated(this%h2o_sat_liq)) then
       deallocate(this%h2o_sat_liq)
@@ -132,7 +132,7 @@ contains
     nlev = size(this%pressure_hl,2) - 1
 
     if (.not. allocated(this%h2o_sat_liq)) then
-       allocate(this%h2o_sat_liq(ncol,nlev))
+      allocate(this%h2o_sat_liq(ncol,nlev))
     end if
 
     do jlev = 1,nlev

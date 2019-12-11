@@ -223,8 +223,8 @@ program ecrad_driver
   if (driver_config%do_save_inputs) then
     call save_inputs('inputs.nc', config, single_level, thermodynamics, &
          &                gas, cloud, aerosol, &
-         &                lat=single_level%cos_sza*0.0_jprb, &
-         &                lon=single_level%cos_sza*0.0_jprb, &
+         &                lat=spread(0.0_jprb,1,ncol), &
+         &                lon=spread(0.0_jprb,1,ncol), &
          &                iverbose=driver_config%iverbose)
   end if
 
@@ -363,7 +363,7 @@ program ecrad_driver
 
   ! Store the fluxes in the output file
   call save_fluxes(file_name, config, thermodynamics, flux, &
-       &   iverbose=driver_config%iverbose)
+       &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5)
     
   if (is_complex_surface) then
     ! Get NetCDF output file name for surface

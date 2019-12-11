@@ -1,9 +1,13 @@
 ECRAD - ECMWF atmospheric radiation scheme
 
-This document last updated 21 August 2018
+This document last updated 30 October 2019
 
 Robin Hogan <r.j.hogan@ecmwf.int>
-https://confluence.ecmwf.int/display/ECRAD
+
+For more complete information about compilation and usage of ecRad,
+please see the documentation on the ecRad web site:
+  https://confluence.ecmwf.int/display/ECRAD
+
 
 INTRODUCTION
 
@@ -16,7 +20,7 @@ thereby facilitating future changes where different gas models or
 solvers may be switched in and out independently. The offline code is
 parallelized using OpenMP.
 
-Four solvers are currently available:
+Five solvers are currently available:
 
 1. The Monte Carlo Independent Column Approximation (McICA) of Pincus
 et al. (2003). This is is a now widely used method for treating cloud
@@ -45,6 +49,8 @@ inhomogeneity.
 to fill the gridbox horizontally.  This is useful for computing
 Independent Column Approximation benchmarks.
 
+5. A "cloudless" solver if your focus is on clear skies.
+
 One gas optics model is provided: the Rapid Radiative Transfer Model
 for GCMs (RRTMG), the implementation being that from the ECMWF
 Integrated Forecasting System (IFS). The code is designed so that
@@ -60,6 +66,8 @@ The subdirectories are as follows:
 
   radsurf - source code for radiative transfer in complex surfaces
        such as vegetation and urban areas - this is UNDER DEVELOPMENT
+       and is likely to be removed as these features will be put in a
+       separate package
 
   ifsaux - source code providing a (sometimes dummy) IFS environment
 
@@ -215,6 +223,14 @@ Hogan, R. J., S. A. K. Schäfer, C. Klinger, J.-C. Chiu and B. Mayer,
 2. Matrix formulation and broadband evaluation. J. Geophys. Res., 121,
 8583-8599.
 http://www.met.reading.ac.uk/~swrhgnrj/publications/spartacus_part2.pdf
+
+More recent developments on the shortwave SPARTACUS solver, available
+since ecRad 1.1.10, are described here:
+
+Hogan, R. J., M. D. Fielding, H. W. Barker, N. Villefranque and
+S. A. K. Schäfer, 2019: Entrapment: An important mechanism to explain
+the shortwave 3D radiative effect of clouds. J. Atmos. Sci., 76,
+2123–2141.
 
 
 CONTACT
