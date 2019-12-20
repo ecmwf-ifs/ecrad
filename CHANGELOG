@@ -1,3 +1,8 @@
+version 1.2.1
+	- Corrected shortwave band fluxes in Cloudless and Homogeneous
+	  solvers, which scaled the direct downwelling spectral flux by the
+	  cosine of the solar zenith angle twice
+
 version 1.2.0 (30 October 2019)
 	- Increased default minimum cloud effective size to 100 m
 	  (although 500 m is used in the IFS for better SPARTACUS
