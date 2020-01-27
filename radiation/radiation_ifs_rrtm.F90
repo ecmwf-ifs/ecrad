@@ -363,6 +363,9 @@ contains
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
 
+    ! Warning: O2 is hard-coded within the following function so the
+    ! user-provided concentrations of this gas are ignored for both
+    ! the longwave and shortwave
     CALL RRTM_PREPARE_GASES &
          & ( istartcol, iendcol, ncol, nlev, &
          &   thermodynamics%pressure_hl(:,istartlev:iendlev+1), &
