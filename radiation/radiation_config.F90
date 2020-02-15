@@ -1808,7 +1808,7 @@ contains
   ! specify i1 and i2 for the range.
   function out_of_bounds_1d(var, var_name, boundmin, boundmax, do_fix, i1, i2) result (is_bad)
 
-    use radiation_io,     only : nulerr
+    use radiation_io,     only : nulout
 
     real(jprb), allocatable, intent(inout) :: var(:)
     character(len=*),        intent(in) :: var_name
@@ -1833,7 +1833,7 @@ contains
       end if
 
       if (varmin < boundmin .or. varmax > boundmax) then
-        write(nulerr,'(a,a,a,g12.4,a,g12.4,a,g12.4,a,g12.4)',advance='no') &
+        write(nulout,'(a,a,a,g12.4,a,g12.4,a,g12.4,a,g12.4)',advance='no') &
              &  '*** Warning: ', var_name, ' range', varmin, ' to', varmax, &
              &  ' is out of physical range', boundmin, 'to', boundmax
         is_bad = .true.
@@ -1843,9 +1843,9 @@ contains
           else
             var = max(boundmin, min(boundmax, var))
           end if
-          write(nulerr,'(a)') ': corrected'
+          write(nulout,'(a)') ': corrected'
         else
-          write(nulerr,'(1x)')
+          write(nulout,'(1x)')
         end if
       end if
 
@@ -1862,7 +1862,7 @@ contains
   function out_of_bounds_2d(var, var_name, boundmin, boundmax, do_fix, &
        &                    i1, i2, j1, j2) result (is_bad)
 
-    use radiation_io,     only : nulerr
+    use radiation_io,     only : nulout
 
     real(jprb), allocatable, intent(inout) :: var(:,:)
     character(len=*),        intent(in) :: var_name
@@ -1899,15 +1899,15 @@ contains
       varmax = maxval(var(ii1:ii2,jj1:jj2))
 
       if (varmin < boundmin .or. varmax > boundmax) then
-        write(nulerr,'(a,a,a,g12.4,a,g12.4,a,g12.4,a,g12.4)',advance='no') &
+        write(nulout,'(a,a,a,g12.4,a,g12.4,a,g12.4,a,g12.4)',advance='no') &
              &  '*** Warning: ', var_name, ' range', varmin, ' to', varmax,&
              &  ' is out of physical range', boundmin, 'to', boundmax
         is_bad = .true.
         if (do_fix) then
           var(ii1:ii2,jj1:jj2) = max(boundmin, min(boundmax, var(ii1:ii2,jj1:jj2)))
-          write(nulerr,'(a)') ': corrected'
+          write(nulout,'(a)') ': corrected'
         else
-          write(nulerr,'(1x)')
+          write(nulout,'(1x)')
         end if
       end if
 
@@ -1925,7 +1925,7 @@ contains
   function out_of_bounds_3d(var, var_name, boundmin, boundmax, do_fix, &
        &                    i1, i2, j1, j2, k1, k2) result (is_bad)
 
-    use radiation_io,     only : nulerr
+    use radiation_io,     only : nulout
 
     real(jprb), allocatable, intent(inout) :: var(:,:,:)
     character(len=*),        intent(in) :: var_name
@@ -1969,16 +1969,16 @@ contains
       varmax = maxval(var(ii1:ii2,jj1:jj2,kk1:kk2))
 
       if (varmin < boundmin .or. varmax > boundmax) then
-        write(nulerr,'(a,a,a,g12.4,a,g12.4,a,g12.4,a,g12.4)',advance='no') &
+        write(nulout,'(a,a,a,g12.4,a,g12.4,a,g12.4,a,g12.4)',advance='no') &
              &  '*** Warning: ', var_name, ' range', varmin, ' to', varmax,&
              &  ' is out of physical range', boundmin, 'to', boundmax
         is_bad = .true.
         if (do_fix) then
           var(ii1:ii2,jj1:jj2,kk1:kk2) = max(boundmin, min(boundmax, &
                &                             var(ii1:ii2,jj1:jj2,kk1:kk2)))
-          write(nulerr,'(a)') ': corrected'
+          write(nulout,'(a)') ': corrected'
         else
-          write(nulerr,'(1x)')
+          write(nulout,'(1x)')
         end if
       end if
 
