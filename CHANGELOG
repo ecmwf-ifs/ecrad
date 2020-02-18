@@ -2,6 +2,8 @@ version 1.2.1
 	- Corrected shortwave band fluxes in Cloudless and Homogeneous
 	  solvers, which scaled the direct downwelling spectral flux by the
 	  cosine of the solar zenith angle twice
+	- Write "experiment" global attribute to output if
+	  radiation_config variable "experiment_name" is present
 
 version 1.2.0 (30 October 2019)
 	- Increased default minimum cloud effective size to 100 m
