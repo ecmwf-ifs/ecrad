@@ -4,6 +4,8 @@ version 1.2.1
 	  cosine of the solar zenith angle twice
 	- Write "experiment" global attribute to output if
 	  radiation_config variable "experiment_name" is present
+	- Previously overlap_decorr_length_scaling=0.0 was ignored; now it
+	  implements random overlap
 
 version 1.2.0 (30 October 2019)
 	- Increased default minimum cloud effective size to 100 m

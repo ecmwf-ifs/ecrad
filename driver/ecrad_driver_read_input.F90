@@ -220,6 +220,11 @@ contains
           write(nulout,'(a,g10.3)')  '  Scaling overlap decorrelation length by a factor of ', &
                &  driver_config%overlap_decorr_length_scaling
         end if
+      else if (driver_config%overlap_decorr_length_scaling == 0.0_jprb) then
+        cloud%overlap_param = 0.0_jprb
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a)')  '  Setting overlap decorrelation length to zero (random overlap)'
+        end if
       end if
       
       ! Cloud inhomogeneity is specified by the fractional standard
