@@ -1,6 +1,6 @@
 ECRAD - ECMWF atmospheric radiation scheme
 
-This document last updated 30 October 2019
+This document last updated 9 March 2020
 
 Robin Hogan <r.j.hogan@ecmwf.int>
 
@@ -183,7 +183,7 @@ This software may be used and modified under the terms of the OpenIFS
 license, described in 20150304_OpenIFS_terms.pdf. Note that before it
 can be used, an authoritative signature from your institute is
 required as described at
-https://software.ecmwf.int/wiki/display/OIFS/Licensing. Copyright
+https://confluence.ecmwf.int/display/OIFS/OpenIFS+Licensing. Copyright
 statements are given in the file NOTICE. This code may NOT BE
 REDISTRIBUTED outside your institute without explicit permission from
 ECMWF.
