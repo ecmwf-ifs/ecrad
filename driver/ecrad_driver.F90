@@ -1,6 +1,6 @@
 ! ecrad_driver.F90 - Driver for offline ECRAD radiation scheme
 !
-! Copyright (C) 2014-2019 European Centre for Medium-Range Weather Forecasts
+! Copyright (C) 2014-2020 European Centre for Medium-Range Weather Forecasts
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -133,7 +133,7 @@ program ecrad_driver
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
-    write(nulout,'(a)') 'Copyright (C) 2014-2019 European Centre for Medium-Range Weather Forecasts'
+    write(nulout,'(a)') 'Copyright (C) 2014-2020 European Centre for Medium-Range Weather Forecasts'
     write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
     if (.not. driver_config%use_psrad) then
 #ifdef SINGLE_PRECISION

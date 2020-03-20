@@ -1,4 +1,4 @@
-version 1.2.1
+version 1.3.0 (20 March 2020)
 	- Corrected shortwave band fluxes in Cloudless and Homogeneous
 	  solvers, which scaled the direct downwelling spectral flux by the
 	  cosine of the solar zenith angle twice
@@ -6,6 +6,7 @@ version 1.2.1
 	  radiation_config variable "experiment_name" is present
 	- Previously overlap_decorr_length_scaling=0.0 was ignored; now it
 	  implements random overlap
+	- Added the ecRad practical exercises to the "practical" directory
 
 version 1.2.0 (30 October 2019)
 	- Increased default minimum cloud effective size to 100 m

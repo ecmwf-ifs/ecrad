@@ -1,6 +1,6 @@
 ECRAD - ECMWF atmospheric radiation scheme
 
-This document last updated 9 March 2020
+This document last updated 20 March 2020
 
 Robin Hogan <r.j.hogan@ecmwf.int>
 
@@ -93,6 +93,7 @@ The subdirectories are as follows:
 
   include - automatically generated interface blocks for non-module routines
 
+  practical - exercises to get started with ecRad 
 
 TO COMPILE
 
@@ -141,6 +142,10 @@ The offline driver is run via
 where the radiation scheme is configured using the Fortran namelist
 <namelist.nam>, and the inputs and outputs are in NetCDF format.  
 
+The "practical" directory contains a set of practical exercises to
+help new users become familiar with the capabilities of ecRad. Start
+by reading the instructions in practical/ecrad_practical.pdf.
+
 The "test/ifs" directory contains a pole-to-pole slice of
 low-resolution IFS model data in a form to use as input to the offline
 version of ecRad. It includes aerosols extracted from the CAMS
@@ -150,7 +155,8 @@ in the Makefile. The Matlab script plot_ifs.m can be used to visualize
 the results. The file "ecrad_meridian_default_out_REFERENCE.nc"
 contains a reference version of the output file
 "ecrad_meridian_default_out.nc" (case "a"), which you can compare to
-be sure your compilation is working as expected.
+be sure your compilation is working as expected. This case has
+essentially be superceded by the slice in the "practical" directory.q
 
 The "test/i3rc" directory contains the 1D profile of the I3RC cumulus
 test case used by Hogan et al. (2016). Typing "make test" in this
