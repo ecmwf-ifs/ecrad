@@ -1,0 +1,85 @@
+! Configuration namelists for ecRad radiation scheme
+!
+! The "radiation_driver" namelist controls the behaviour of the driver
+! routine, including parallelization options and overriding numbers
+! read from the NetCDF input file. The "radiation" namelist controls
+! the behaviour of the radiative transfer algorithm itself. Any line
+! prefixed by "!" is ignored. If a namelist parameter is missing then
+! ecRad will use a default value.  For most parameters you can see
+! what ecRad has used from the output printed to the terminal when it
+! runs.
+!
+! The "iverbose*" parameters specify the verbosity level: 0=none,
+! 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+
+&radiation_driver
+!
+! GENERAL
+!
+iverbose    	= 2, 
+do_parallel     = true,      ! Use OpenMP parallelization, if possible?
+nblocksize      = 32,        ! Number of columns to process per thread
+experiment_name = "Control", ! Written to output file, used in plot legends
+!
+! SCALE OR OVERRIDE ECRAD INPUTS
+!
+fractional_std  = 1, ! Fractional standard dev. of in-cloud water content
+overlap_decorr_length_scaling = 1.0, ! Scale cloud overlap decorr. length
+solar_irradiance_override = 1361.0, ! Top-of-atmosphere solar irradiance (W m-2)
+!cos_solar_zenith_angle = 0.0, ! 0.0 = night-time, 1.0 = overhead sun
+!
+! SCALE GAS CONCENTRATIONS
+!
+h2o_scaling     = 1.0,       ! Scale water vapour concentration
+co2_scaling     = 1.0,       ! Scale carbon dioxide concentration
+o3_scaling      = 1.0,       ! Scale ozone concentration
+ch4_scaling     = 1.0,       ! Scale methane concentration
+n2o_scaling     = 1.0,       ! Scale nitrous oxide concentration
+o2_scaling      = 1.0,       ! Scale molecular oxygen concentration
+cfc11_scaling   = 1.0,       ! Scale CFC11 concentration
+cfc12_scaling   = 1.0,       ! Scale CFC12 concentration
+!
+! The following settings configure the SPARTACUS solver
+cloud_separation_scale_toa     = 14000.0,
+cloud_separation_scale_surface = 2500.0,
+cloud_separation_scale_power   = 3.5,
+cloud_inhom_separation_factor  = 0.75,
+/
+
+&radiation
+!
+! GENERAL
+!
+iverbose            = 1, 
+iverbosesetup       = 1,
+directory_name      = "data",         ! Location of configuration files
+do_surface_sw_spectral_flux = false,  ! Save surface fluxes in each band?
+!
+! CLOUDS
+!
+ice_model_name      = "Fu-IFS",       ! Can be "Fu-IFS" or "Yi"
+sw_solver_name      = "Tripleclouds", ! "Tripleclouds", "McICA" or "SPARTACUS"
+lw_solver_name      = "Tripleclouds", ! "Tripleclouds", "McICA" or "SPARTACUS"
+overlap_scheme_name = "Exp-Ran",      ! McICA also accepts Max-Ran or Exp-Exp
+do_lw_cloud_scattering = true,        ! Clouds scatter in the longwave?
+!
+! AEROSOLS
+!
+use_aerosols             = true,      ! Radiation sees aerosols?
+do_lw_aerosol_scattering = false,     ! Aerosols scatter in the longwave?
+!
+! 11 IFS aerosol mixing ratios are stored in the ecRad input file: 1-3
+! Sea salt, 4-6 mineral dust, 7 hydrophilic organics, 8 hydrophobic
+! organics, 9 hydrophilic black carbon, 10 hydrophobic black carbon, 11
+! ammonium sulfate
+n_aerosol_types  = 11,   ! Number of aerosol types in input file
+!
+! The aerosol optical properties are in this file:
+aerosol_optics_override_file_name = 'aerosol_ifs_rrtm_46R1_with_NI_AM.nc'
+!
+! For each of the 11 mixing ratios in the input file, we need to map to
+! one of the optical properties, where negative numbers index
+! hydrophilic aerosol types and positive numbers index hydrophobic
+! aerosol types, e.g. 11=black carbon, -5=sulphate.
+i_aerosol_type_map = -1, -2, -3, 1, 2, 3, -4, 10, 11, 11, -5,
+/
