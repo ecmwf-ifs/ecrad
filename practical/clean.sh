@@ -16,7 +16,7 @@ rm -f config_*.nam
 rm -f $(ls -1 *.nc | egrep -v era5slice.nc)
 
 # Remove Python cached files
-rm -f ecradplot/__pycache__
+rm -rf ecradplot/__pycache__
 
 # Remove emacs autosave files
 rm -f *~
