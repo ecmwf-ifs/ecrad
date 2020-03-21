@@ -16,10 +16,6 @@ module ecrad_driver_config
   integer, parameter :: NMaxStringLength = 2000
 
   type driver_config_type
-    
-     ! Use PS-Rad (the Pincus-Stevens code in the rrtm dir_name)
-     ! instead?
-     logical :: use_psrad
 
      ! Parallel settings
      logical :: do_parallel
@@ -119,9 +115,6 @@ contains
 
     integer :: iosopen ! Status after calling open
 
-    ! Use PS-rad radiation scheme?
-    logical :: use_psrad
-
     ! Override and scaling values
     real(jprb) :: fractional_std
     real(jprb) :: overlap_decorr_length
@@ -175,7 +168,7 @@ contains
     ! Are we going to override the effective size?
     logical :: do_override_eff_size
 
-    namelist /radiation_driver/ use_psrad, fractional_std, &
+    namelist /radiation_driver/ fractional_std, &
          &  overlap_decorr_length, inv_effective_size, sw_albedo, &
          &  high_inv_effective_size, middle_inv_effective_size, &
          &  low_inv_effective_size, cloud_inhom_separation_factor, &
@@ -197,7 +190,6 @@ contains
     if (lhook) call dr_hook('ecrad_driver_config:read',0,hook_handle)
     
     ! Default values
-    use_psrad = .false.
     do_parallel = .true.
     do_save_inputs = .false.
     do_ignore_inhom_effective_size = .false.
@@ -267,7 +259,6 @@ contains
     end if
 
     ! Copy namelist data into configuration object
-    this%use_psrad = use_psrad
     this%do_parallel = do_parallel
     this%do_save_inputs = do_save_inputs
     this%do_ignore_inhom_effective_size = do_ignore_inhom_effective_size

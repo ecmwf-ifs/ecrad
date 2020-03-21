@@ -21,11 +21,6 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_regions.F90 \
 	radiation_cloudless_lw.F90 radiation_cloudless_sw.F90
 
-ifdef USE_PSRAD
-SOURCES += radiation_psrad.F90 radiation_psrad_rrtm.F90 
-PSRAD_RRTM_OBJ = radiation_psrad_rrtm.o
-endif
-
 OBJECTS := $(SOURCES:.F90=.o)
 LIBRAD = ../lib/libradiation.a
 
@@ -44,14 +39,14 @@ radiation_flux.o radiation_aerosol.o: radiation_config.o
 radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_flux.o radiation_cloud.o radiation_save.o \
 	radiation_single_level.o radiation_gas.o radiation_monochromatic.o \
-	radiation_thermodynamics.o $(PSRAD_RRTM_OBJ) radiation_spartacus_sw.o \
+	radiation_thermodynamics.o radiation_spartacus_sw.o \
 	radiation_spartacus_lw.o radiation_cloud_optics.o \
 	radiation_aerosol_optics.o radiation_config.o \
 	radiation_ifs_rrtm.o radiation_mcica_sw.o radiation_mcica_lw.o \
 	radiation_homogeneous_lw.o radiation_homogeneous_sw.o \
 	radiation_cloudless_lw.o radiation_cloudless_sw.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o 
-radiation_ifs_rrtm.o $(PSRAD_RRTM_OBJ) radiation_monochromatic.o: radiation_config.o \
+radiation_ifs_rrtm.o radiation_monochromatic.o: radiation_config.o \
 	radiation_thermodynamics.o radiation_gas.o
 radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_mcica_sw.o \
 	radiation_mcica_lw.o radiation_homogeneous_sw.o radiation_homogeneous_lw.o \
@@ -60,9 +55,6 @@ radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_mcica_sw.o \
 	radiation_thermodynamics.o \
 	radiation_single_level.o radiation_cloud.o \
 	radiation_two_stream.o
-radiation_psrad.o:  radiation_config.o radiation_aerosol.o \
-	radiation_thermodynamics.o radiation_gas.o radiation_flux.o \
-	radiation_single_level.o radiation_cloud.o 
 radiation_cloud.o: radiation_thermodynamics.o
 radiation_save.o: radiation_config.o \
 	radiation_single_level.o radiation_thermodynamics.o \

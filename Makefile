@@ -79,11 +79,7 @@ help:
 	@echo "  make PROFILE=<prof>"
 	@echo "where <prof> is one of gfortran, pgi etc."
 
-ifdef USE_PSRAD
-build: libifsaux libutilities libpsradrrtm libifsrrtm libradiation libradsurf driver symlinks
-else
 build: libifsaux libutilities libifsrrtm libradiation libradsurf driver symlinks
-endif
 
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps
@@ -97,9 +93,6 @@ libifsaux:
 
 libutilities:
 	cd utilities && $(MAKE)
-
-libpsradrrtm:
-	cd psradrrtm && $(MAKE)
 
 libifsrrtm:
 	cd ifsrrtm && $(MAKE)
@@ -154,6 +147,6 @@ clean-symlinks:
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
-.PHONY: all build help deps clean-deps libifsaux libutilities libpsradrrtm libifsrrtm \
+.PHONY: all build help deps clean-deps libifsaux libutilities libifsrrtm \
 	libradiation libradsurf driver symlinks clean clean-toplevel test test_ifs \
 	test_i3rc test_surface clean-tests clean-utilities clean-mods clean-symlinks

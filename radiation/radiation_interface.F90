@@ -16,11 +16,6 @@
 ! be represented, and call "radiation" multiple times on different
 ! input profiles.
 
-! Several parts of this module are only activated if the HAVE_PSRAD
-! preprocessor variable is defined, which means that we have the
-! implementation of the RRTMG gas absorption model that forms part of
-! the PS-Rad (Pincus & Stevens) package.
-
 module radiation_interface
 
   implicit none
@@ -47,11 +42,6 @@ contains
          &   setup_cloud_optics_mono   => setup_cloud_optics, &
          &   setup_aerosol_optics_mono => setup_aerosol_optics
     use radiation_ifs_rrtm,       only :  setup_gas_optics
-#ifdef HAVE_PSRAD
-    use radiation_psrad_rrtm,     only : &
-         &   setup_gas_optics_psrad    => setup_gas_optics, &
-         &   setup_cloud_optics_psrad  => setup_cloud_optics
-#endif
     use radiation_cloud_optics,   only :  setup_cloud_optics
     use radiation_aerosol_optics, only :  setup_aerosol_optics
 
@@ -70,10 +60,6 @@ contains
       call setup_gas_optics_mono(config, trim(config%directory_name))
     else if (config%i_gas_model == IGasModelIFSRRTMG) then
       call setup_gas_optics(config, trim(config%directory_name))
-#ifdef HAVE_PSRAD
-    else
-      call setup_gas_optics_psrad(config, trim(config%directory_name))
-#endif
     end if
 
     ! Whether or not the "radiation" subroutine needs ssa_lw and g_lw
@@ -121,10 +107,6 @@ contains
     if (config%do_clouds) then
       if (config%i_gas_model == IGasModelMonochromatic) then
         !      call setup_cloud_optics_mono(config)
-#ifdef HAVE_PSRAD
-      else if (config%use_psrad_cloud_optics) then
-        call setup_cloud_optics_psrad(config)
-#endif
       else
         call setup_cloud_optics(config)
       end if
@@ -161,19 +143,12 @@ contains
     use radiation_gas,           only : gas_type
     use radiation_monochromatic, only : set_gas_units_mono  => set_gas_units
     use radiation_ifs_rrtm,      only : set_gas_units_ifs   => set_gas_units
-#ifdef HAVE_PSRAD
-    use radiation_psrad_rrtm,    only : set_gas_units_psrad => set_gas_units
-#endif
 
     type(config_type), intent(in)    :: config
     type(gas_type),    intent(inout) :: gas
 
     if (config%i_gas_model == IGasModelMonochromatic) then
       call set_gas_units_mono(gas)
-#ifdef HAVE_PSRAD
-    else if (config%i_gas_model == IGasModelPSRRTMG) then
-      call set_gas_units_psrad(gas)
-#endif
     else
       call set_gas_units_ifs(gas)
     end if
@@ -225,11 +200,6 @@ contains
          &   gas_optics_mono         => gas_optics, &
          &   cloud_optics_mono       => cloud_optics, &
          &   add_aerosol_optics_mono => add_aerosol_optics
-#ifdef HAVE_PSRAD
-    use radiation_psrad_rrtm,     only : &
-         &  gas_optics_psrad         => gas_optics, &
-         &  cloud_optics_psrad       => cloud_optics
-#endif
     use radiation_ifs_rrtm,       only : gas_optics
     use radiation_cloud_optics,   only : cloud_optics
     use radiation_aerosol_optics, only : add_aerosol_optics
@@ -332,13 +302,6 @@ contains
              &  single_level, thermodynamics, gas, lw_albedo, &
              &  od_lw, od_sw, ssa_sw, &
              &  planck_hl, lw_emission, incoming_sw)
-#ifdef HAVE_PSRAD
-      else if (config%i_gas_model == IGasModelPSRRTMG) then
-        call gas_optics_psrad(ncol,nlev,istartcol,iendcol, config, &
-             &  single_level, thermodynamics, gas, lw_albedo, &
-             &  od_lw, od_sw, ssa_sw, &
-             &  planck_hl, lw_emission, incoming_sw)
-#endif
       else
         call gas_optics(ncol,nlev,istartcol,iendcol, config, &
              &  single_level, thermodynamics, gas, &
@@ -362,13 +325,6 @@ contains
                &  config, thermodynamics, cloud, &
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
-#ifdef HAVE_PSRAD
-        else if (config%use_psrad_cloud_optics) then
-          call cloud_optics_psrad(ncol, nlev, istartcol, iendcol, &
-               &  config, single_level, thermodynamics, cloud, &
-               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
-#endif
         else
           call cloud_optics(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, & 

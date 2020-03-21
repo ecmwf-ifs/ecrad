@@ -44,12 +44,6 @@ program ecrad_driver
   use radiation_aerosol,        only : aerosol_type
   use radiation_flux,           only : flux_type
   use radiation_save,           only : save_fluxes, save_inputs
-! An older version of this driver file provided access to the
-! Pincus-Stevens radiation scheme, but this is no longer supported
-#ifdef HAVE_PSRAD
-  use radiation_psrad,          only : psrad
-#endif
-
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
@@ -125,26 +119,16 @@ program ecrad_driver
   ! Read "radiation_driver" namelist into radiation driver config type
   call driver_config%read(file_name)
 
-  ! Cannot save spectral fluxes with PS-Rad output
-  if (driver_config%use_psrad) then
-    config%do_save_spectral_flux = .false.
-    config%do_surface_sw_spectral_flux = .false.
-  end if
-
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
     write(nulout,'(a)') 'Copyright (C) 2014-2020 European Centre for Medium-Range Weather Forecasts'
     write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
-    if (.not. driver_config%use_psrad) then
 #ifdef SINGLE_PRECISION
     write(nulout,'(a)') 'Floating-point precision: single'
 #else
     write(nulout,'(a)') 'Floating-point precision: double'
 #endif
-      call config%print(driver_config%iverbose)
-    else 
-      write(nulout,'(a)') 'Using PS-Rad radiation scheme'
-    end if
+    call config%print(driver_config%iverbose)
   end if
 
   ! Albedo/emissivity intervals may be specified like this
@@ -156,8 +140,8 @@ program ecrad_driver
   !     &  [8.0e-6_jprb, 13.0e-6_jprb], [1,2,1], &
   !     &   do_nearest=.false.)
 
-  ! Setup the non-PSRad radiation scheme: load the coefficients for
-  ! gas and cloud optics, currently from RRTMG
+  ! Setup the radiation scheme: load the coefficients for gas and
+  ! cloud optics, currently from RRTMG
   call setup_radiation(config)
 
   ! --------------------------------------------------------
@@ -228,132 +212,110 @@ program ecrad_driver
          &                iverbose=driver_config%iverbose)
   end if
 
-  if (driver_config%use_psrad) then
-#ifdef HAVE_PSRAD
-    ! Allocate memory for the flux profiles, which may include
-    ! arrays of dimension n_bands_sw/n_bands_lw, so must be called
-    ! after setup_radiation
-    call flux%allocate(config, 1, ncol, nlev)
+  ! --------------------------------------------------------
+  ! Section 4: Call radiation scheme
+  ! --------------------------------------------------------
+
+  ! Ensure the units of the gas mixing ratios are what is required
+  ! by the gas absorption model
+  call set_gas_units(config, gas)
+
+  ! Compute saturation with respect to liquid (needed for aerosol
+  ! hydration) call
+  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
+
+  if (is_complex_surface) then
+    call surface_intermediate%allocate(driver_config%istartcol, driver_config%iendcol, &
+         &                             config, surface)
+    call surface_flux%allocate(config, driver_config%istartcol, driver_config%iendcol, &
+         &                     surface%i_representation)
+  end if
+
+  ! Check inputs are within physical bounds, printing message if not
+  is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) &
+       & .or.   single_level%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) &
+       & .or. thermodynamics%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) &
+       & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) &
+       & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) 
+  
+  ! Allocate memory for the flux profiles, which may include arrays
+  ! of dimension n_bands_sw/n_bands_lw, so must be called after
+  ! setup_radiation
+  call flux%allocate(config, 1, ncol, nlev)
+  
+  if (driver_config%iverbose >= 2) then
+    write(nulout,'(a)')  'Performing radiative transfer calculations'
+  end if
+  
+  ! Option of repeating calculation multiple time for more accurate
+  ! profiling
+  do jrepeat = 1,driver_config%nrepeat
     
-    ! Call the Pincus & Stevens radiation code - this is basically
-    ! RRTMG for gas absorption, and McICA with constant cloud mixing
-    ! ratio.  Currently the spectral sampling capability is
-    ! unavailable.  Note that the "psrad" subroutine is defined in the
-    ! radiation/radiation_psrad.F90 module, but the core of the code
-    ! is in the rrtm directory.
-    call psrad(ncol, nlev, 1, ncol, config, &
-         &  single_level, surface, thermodynamics, gas, cloud, aerosol, flux)
-#else
-    write(nulout,'(a)') '*** Error: PS-Rad not available'
-    stop
-#endif
-  else
-
-    ! --------------------------------------------------------
-    ! Section 4: Call radiation scheme
-    ! --------------------------------------------------------
-
-    ! Ensure the units of the gas mixing ratios are what is required
-    ! by the gas absorption model
-    call set_gas_units(config, gas)
-
-    ! Compute saturation with respect to liquid (needed for aerosol
-    ! hydration) call
-    call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
-
-    if (is_complex_surface) then
-      call surface_intermediate%allocate(driver_config%istartcol, driver_config%iendcol, &
-           &                             config, surface)
-      call surface_flux%allocate(config, driver_config%istartcol, driver_config%iendcol, &
-           &                     surface%i_representation)
-    end if
-
-    ! Check inputs are within physical bounds, printing message if not
-    is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-         &                                            driver_config%do_correct_unphysical_inputs) &
-         & .or.   single_level%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-         &                                            driver_config%do_correct_unphysical_inputs) &
-         & .or. thermodynamics%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-         &                                            driver_config%do_correct_unphysical_inputs) &
-         & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-         &                                            driver_config%do_correct_unphysical_inputs) &
-         & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-         &                                            driver_config%do_correct_unphysical_inputs) 
-
-    ! Allocate memory for the flux profiles, which may include arrays
-    ! of dimension n_bands_sw/n_bands_lw, so must be called after
-    ! setup_radiation
-    call flux%allocate(config, 1, ncol, nlev)
-
-    if (driver_config%iverbose >= 2) then
-      write(nulout,'(a)')  'Performing radiative transfer calculations'
-    end if
-
-    ! Option of repeating calculation multiple time for more accurate
-    ! profiling
-    do jrepeat = 1,driver_config%nrepeat
-
-      if (driver_config%do_parallel) then
-        ! Run radiation scheme over blocks of columns in parallel
-        
-        ! Compute number of blocks to process
-        nblock = (driver_config%iendcol - driver_config%istartcol &
-             &  + driver_config%nblocksize) / driver_config%nblocksize
-        
-        !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
-        do jblock = 1, nblock
-          ! Specify the range of columns to process.
-          istartcol = (jblock-1) * driver_config%nblocksize &
-               &    + driver_config%istartcol
-          iendcol = min(istartcol + driver_config%nblocksize - 1, &
-               &        driver_config%iendcol)
+    if (driver_config%do_parallel) then
+      ! Run radiation scheme over blocks of columns in parallel
+      
+      ! Compute number of blocks to process
+      nblock = (driver_config%iendcol - driver_config%istartcol &
+           &  + driver_config%nblocksize) / driver_config%nblocksize
+      
+      !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
+      do jblock = 1, nblock
+        ! Specify the range of columns to process.
+        istartcol = (jblock-1) * driver_config%nblocksize &
+             &    + driver_config%istartcol
+        iendcol = min(istartcol + driver_config%nblocksize - 1, &
+             &        driver_config%iendcol)
           
-          if (driver_config%iverbose >= 3) then
-            write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
-                 &  ' processing columns ', istartcol, '-', iendcol
-          end if
-
-          if (is_complex_surface) then
-            call surface_intermediate%calc_boundary_conditions(driver_config%istartcol, &
-                 &  driver_config%iendcol, config, surface, thermodynamics, gas, single_level)
-          end if
-
-          ! Call the ECRAD radiation scheme
-          call radiation(ncol, nlev, istartcol, iendcol, config, &
-               &  single_level, thermodynamics, gas, cloud, aerosol, flux)
-
-          if (is_complex_surface) then
-            call surface_intermediate%partition_fluxes(driver_config%istartcol, &
-                 &  driver_config%iendcol, config, surface, flux, surface_flux)
-          end if
-
-        end do
-        !$OMP END PARALLEL DO
-        
-      else
-        ! Run radiation scheme serially
         if (driver_config%iverbose >= 3) then
-          write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
+          write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
+               &  ' processing columns ', istartcol, '-', iendcol
         end if
         
         if (is_complex_surface) then
           call surface_intermediate%calc_boundary_conditions(driver_config%istartcol, &
                &  driver_config%iendcol, config, surface, thermodynamics, gas, single_level)
         end if
-
+        
         ! Call the ECRAD radiation scheme
-        call radiation(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
-             &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
-
+        call radiation(ncol, nlev, istartcol, iendcol, config, &
+             &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+        
         if (is_complex_surface) then
           call surface_intermediate%partition_fluxes(driver_config%istartcol, &
                &  driver_config%iendcol, config, surface, flux, surface_flux)
         end if
-
+        
+      end do
+      !$OMP END PARALLEL DO
+      
+    else
+      ! Run radiation scheme serially
+      if (driver_config%iverbose >= 3) then
+        write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
       end if
       
-    end do
-  end if
+      if (is_complex_surface) then
+        call surface_intermediate%calc_boundary_conditions(driver_config%istartcol, &
+             &  driver_config%iendcol, config, surface, thermodynamics, gas, single_level)
+      end if
+      
+      ! Call the ECRAD radiation scheme
+      call radiation(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
+           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
+      
+      if (is_complex_surface) then
+        call surface_intermediate%partition_fluxes(driver_config%istartcol, &
+             &  driver_config%iendcol, config, surface, flux, surface_flux)
+      end if
+      
+    end if
+    
+  end do
 
   ! --------------------------------------------------------
   ! Section 5: Check and save output

@@ -88,13 +88,12 @@ module radiation_config
   enum, bind(c) 
      enumerator IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelPSRRTMG
   end enum
-  character(len=*), parameter :: GasModelName(0:2) = (/ 'Monochromatic', &
-       &                                                'RRTMG-IFS    ', &
-       &                                                'RRTMG-PSRAD  ' /)
+  character(len=*), parameter :: GasModelName(0:1) = (/ 'Monochromatic', &
+       &                                                'RRTMG-IFS    ' /)
 
   ! Hydrometeor scattering models
   enum, bind(c) 
-     enumerator ILiquidModelMonochromatic, ILiquidModelHuStamnesPSRAD, &
+     enumerator ILiquidModelMonochromatic, &
           &     ILiquidModelSOCRATES, ILiquidModelSlingo
   end enum
   character(len=*), parameter :: LiquidModelName(0:3) = (/ 'Monochromatic', &
@@ -103,12 +102,11 @@ module radiation_config
        &                                                   'Slingo       ' /)
 
   enum, bind(c) 
-     enumerator IIceModelMonochromatic, IIceModelFuPSRAD, IIceModelFu, &
+     enumerator IIceModelMonochromatic, IIceModelFu, &
           &  IIceModelBaran, IIceModelBaran2016, IIceModelBaran2017,   &
           &  IIceModelYi
   end enum
-  character(len=*), parameter :: IceModelName(0:6) = (/ 'Monochromatic', &
-       &                                                'Fu-PSRAD     ', &
+  character(len=*), parameter :: IceModelName(0:5) = (/ 'Monochromatic', &
        &                                                'Fu-IFS       ', &
        &                                                'Baran        ', &
        &                                                'Baran2016    ', &
@@ -259,7 +257,6 @@ module radiation_config
     ! Codes describing particle scattering models
     integer :: i_liq_model = ILiquidModelSOCRATES
     integer :: i_ice_model = IIceModelBaran
-    logical :: use_psrad_cloud_optics = .false.
     
     ! The mapping from albedo/emissivity intervals to SW/LW bands can
     ! either be done by finding the interval containing the central
@@ -930,18 +927,6 @@ contains
       this%do_surface_sw_spectral_flux = .true.
     end if
 
-    if ((this%i_liq_model == ILiquidModelHuStamnesPSRAD &
-         .and. this%i_ice_model /= IIceModelFuPSRAD) .or. &
-         (this%i_liq_model /= ILiquidModelHuStamnesPSRAD &
-         .and. this%i_ice_model == IIceModelFuPSRAD)) then
-      write(nulerr,'(a)') '*** Error: liquid model "HuStamnesPSRAD" must be used with ice model "FuPSRAD"'
-      call radiation_abort('Radiation configuration error')
-    else if (this%i_liq_model == ILiquidModelHuStamnesPSRAD) then
-      this%use_psrad_cloud_optics = .true.
-    else
-      this%use_psrad_cloud_optics = .false.
-    end if
-
     ! Will clouds be used at all?
     if ((this%do_sw .and. this%i_solver_sw /= ISolverCloudless) &
          &  .or. (this%do_lw .and. this%i_solver_lw /= ISolverCloudless)) then
@@ -1048,7 +1033,6 @@ contains
     ! In the monochromatic case we need to override the liquid, ice
     ! and aerosol models to ensure compatibility
     if (this%i_gas_model == IGasModelMonochromatic) then
-      this%use_psrad_cloud_optics = .false.
       this%i_liq_model = ILiquidModelMonochromatic
       this%i_ice_model = IIceModelMonochromatic
       this%use_aerosols = .false.
