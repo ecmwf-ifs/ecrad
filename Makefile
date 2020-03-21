@@ -152,6 +152,6 @@ clean-symlinks:
 	rm -f practical/ecrad practical/data
 
 clean-autosaves:
-	rm -f *~ */*~ */*/*~
+	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: libifsaux libpsradrrtm libifsrrtm libradiation libradsurf driver clean clean-toplevel test
