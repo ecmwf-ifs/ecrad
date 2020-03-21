@@ -113,7 +113,7 @@ libradsurf:
 driver:
 	cd driver && $(MAKE)
 
-symlinks:
+symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
 	cd practical && ln -s ../data
 
@@ -154,4 +154,6 @@ clean-symlinks:
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
-.PHONY: libifsaux libpsradrrtm libifsrrtm libradiation libradsurf driver clean clean-toplevel test
+.PHONY: all build help deps clean-deps libifsaux libutilities libpsradrrtm libifsrrtm \
+	libradiation libradsurf driver symlinks clean clean-toplevel test test_ifs \
+	test_i3rc test_surface clean-tests clean-utilities clean-mods clean-symlinks
