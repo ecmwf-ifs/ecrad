@@ -31,15 +31,6 @@ module radiation_io
   ! but should be closed as soon as the file is read
   integer :: nulrad = 25
 
-  ! The abor1 subroutine is provided in the IFS and cleans up all MPI
-  ! nodes.  Radiation routines should call radiation_abort instead.
-  interface
-    subroutine abor1(text)
-      character(len=*) :: text
-    end subroutine abor1
-  end interface
-  private :: abor1
-
 contains
 
   ! Abort the program with optional error message. Normally you would
@@ -47,9 +38,10 @@ contains
   subroutine radiation_abort(text)
     character(len=*), intent(in), optional :: text
     if (present(text)) then
-      call abor1(text)
+      write(nulerr,'(a)') text
+      error stop 1
     else
-      call abor1('Error in radiation scheme')
+      error stop 'Error in radiation scheme'
     end if
   end subroutine radiation_abort
 

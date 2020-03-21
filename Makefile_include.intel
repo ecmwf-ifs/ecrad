@@ -1,0 +1,17 @@
+# This is a Makefile for the Intel compiler: run "make
+# PROFILE=intel". It will compile but unfortunately crashes at a call
+# to single_level%get_albedos... still needs debugging.
+
+FC = ifort
+CPPFLAGS = 
+
+ifndef DEBUG
+OPTFLAGS = -O3 
+else
+OPTFLAGS = -O0
+endif
+
+WARNFLAGS = -warn all
+BASICFLAGS = -module ../mod -convert big_endian
+DEBUGFLAGS = -g
+OMPFLAG = -qopenmp
