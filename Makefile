@@ -80,9 +80,9 @@ help:
 	@echo "where <prof> is one of gfortran, pgi etc."
 
 ifdef USE_PSRAD
-build: libifsaux libutilities libpsradrrtm libifsrrtm libradiation libradsurf driver
+build: libifsaux libutilities libpsradrrtm libifsrrtm libradiation libradsurf driver symlinks
 else
-build: libifsaux libutilities libifsrrtm libradiation libradsurf driver
+build: libifsaux libutilities libifsrrtm libradiation libradsurf driver symlinks
 endif
 
 deps: clean-deps
@@ -113,6 +113,10 @@ libradsurf:
 driver:
 	cd driver && $(MAKE)
 
+symlinks:
+	cd practical && ln -s ../bin/ecrad
+	cd practical && ln -s ../data
+
 test: test_ifs test_i3rc
 
 test_ifs:
@@ -124,7 +128,7 @@ test_i3rc:
 test_surface:
 	cd test/surface && $(MAKE) test
 
-clean: clean-tests clean-toplevel clean-utilities clean-mods
+clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks
 
 clean-tests:
 	cd test/ifs && $(MAKE) clean
@@ -143,6 +147,9 @@ clean-utilities:
 
 clean-mods:
 	rm -f mod/*.mod
+
+clean-symlinks:
+	rm -f practical/ecrad practical/data
 
 clean-autosaves:
 	rm -f *~ */*~ */*/*~
