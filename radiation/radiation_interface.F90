@@ -33,7 +33,7 @@ contains
     use parkind1,         only : jprb
     use yomhook,          only : lhook, dr_hook
     use radiation_config, only : config_type, ISolverMcICA, &
-         &   IGasModelMonochromatic, IGasModelPSRRTMG, IGasModelIFSRRTMG
+         &   IGasModelMonochromatic, IGasModelIFSRRTMG
 
     ! Currently there are two gas absorption models: RRTMG (default)
     ! and monochromatic
@@ -174,7 +174,7 @@ contains
 
     use radiation_io,             only : nulout
     use radiation_config,         only : config_type, &
-         &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelPSRRTMG, &
+         &   IGasModelMonochromatic, IGasModelIFSRRTMG, &
          &   ISolverMcICA, ISolverSpartacus, ISolverHomogeneous, &
          &   ISolverTripleclouds
     use radiation_single_level,   only : single_level_type

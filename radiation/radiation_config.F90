@@ -1,6 +1,6 @@
 ! radiation_config.F90 - Derived type to configure the radiation scheme
 !
-! Copyright (C) 2014-2019 ECMWF
+! Copyright (C) 2014-2020 ECMWF
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -86,7 +86,7 @@ module radiation_config
 
   ! Gas models
   enum, bind(c) 
-     enumerator IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelPSRRTMG
+     enumerator IGasModelMonochromatic, IGasModelIFSRRTMG
   end enum
   character(len=*), parameter :: GasModelName(0:1) = (/ 'Monochromatic', &
        &                                                'RRTMG-IFS    ' /)
@@ -96,8 +96,7 @@ module radiation_config
      enumerator ILiquidModelMonochromatic, &
           &     ILiquidModelSOCRATES, ILiquidModelSlingo
   end enum
-  character(len=*), parameter :: LiquidModelName(0:3) = (/ 'Monochromatic', &
-       &                                                   'HuStamnes    ', &
+  character(len=*), parameter :: LiquidModelName(0:2) = (/ 'Monochromatic', &
        &                                                   'SOCRATES     ', &
        &                                                   'Slingo       ' /)
 
