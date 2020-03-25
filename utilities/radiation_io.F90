@@ -39,9 +39,17 @@ contains
     character(len=*), intent(in), optional :: text
     if (present(text)) then
       write(nulerr,'(a)') text
+#ifdef __PGI
+      stop 1
+#else
       error stop 1
+#endif
     else
+#ifdef __PGI
+      stop 'Error in radiation scheme'
+#else
       error stop 'Error in radiation scheme'
+#endif
     end if
   end subroutine radiation_abort
 
