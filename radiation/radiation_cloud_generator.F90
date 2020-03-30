@@ -1,6 +1,6 @@
 ! radiation_cloud_generator.F90 - Generate water-content or optical-depth scalings for McICA
 !
-! Copyright (C) 2015-2018 ECMWF
+! Copyright (C) 2015-2020 ECMWF
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -174,37 +174,48 @@ contains
       ! Reset optical depth scaling to clear skies
       od_scaling = 0.0_jprb
 
-      ! Expensive operation: initialize random number generator for
-      ! this column
-      call initialize_random_numbers(iseed, random_stream)
+      if (.false.) then
 
-      ! Compute ng random numbers to use to locate cloud top
-      call uniform_distribution(rand_top, random_stream)
+        ! Expensive operation: initialize random number generator for
+        ! this column
+        call initialize_random_numbers(iseed, random_stream)
 
-      ! Loop over ng columns
-      do jg = 1,ng
-        ! Find the cloud top height corresponding to the current
-        ! random number, and store in itrigger
-        trigger = rand_top(jg) * total_cloud_cover
-        jlev = ibegin
-        do while (trigger > cum_cloud_cover(jlev) .and. jlev < iend)
-          jlev = jlev + 1
-        end do
-        itrigger = jlev
-
-        if (i_overlap_scheme /= IOverlapExponential) then
-          call generate_column_exp_ran(ng, nlev, jg, random_stream, pdf_sampler, &
-               &  frac, pair_cloud_cover, &
-               &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-               &  itrigger, iend, od_scaling)
-        else
-          call generate_column_exp_exp(ng, nlev, jg, random_stream, pdf_sampler, &
-               &  frac, pair_cloud_cover, &
-               &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-               &  itrigger, iend, od_scaling)
-        end if
+        ! Compute ng random numbers to use to locate cloud top
+        call uniform_distribution(rand_top, random_stream)
         
-      end do
+        ! Loop over ng columns
+        do jg = 1,ng
+          ! Find the cloud top height corresponding to the current
+          ! random number, and store in itrigger
+          trigger = rand_top(jg) * total_cloud_cover
+          jlev = ibegin
+          do while (trigger > cum_cloud_cover(jlev) .and. jlev < iend)
+            jlev = jlev + 1
+          end do
+          itrigger = jlev
+          
+          if (i_overlap_scheme /= IOverlapExponential) then
+            call generate_column_exp_ran(ng, nlev, jg, random_stream, pdf_sampler, &
+                 &  frac, pair_cloud_cover, &
+                 &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
+                 &  itrigger, iend, od_scaling)
+          else
+            call generate_column_exp_exp(ng, nlev, jg, random_stream, pdf_sampler, &
+                 &  frac, pair_cloud_cover, &
+                 &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
+                 &  itrigger, iend, od_scaling)
+          end if
+          
+        end do
+
+      else
+
+        call generate_columns_exp_ran(ng, nlev, iseed, pdf_sampler, &
+             &  total_cloud_cover, frac, pair_cloud_cover, &
+             &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
+             &  ibegin, iend, od_scaling)
+
+      end if
 
     end if
 
@@ -473,5 +484,121 @@ contains
          &  is_cloudy(itrigger:iend))
         
   end subroutine generate_column_exp_exp
+
+
+  !---------------------------------------------------------------------
+  ! Generate columns of optical depth scalings using
+  ! exponential-random overlap (which includes maximum-random overlap
+  ! as a limiting case)
+  subroutine generate_columns_exp_ran(ng, nlev, iseed, pdf_sampler, &
+       &  total_cloud_cover, frac, pair_cloud_cover, &
+       &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
+       &  ibegin, iend, od_scaling)
+
+    use parkind1,              only : jprb
+    use radiation_pdf_sampler, only : pdf_sampler_type
+!    use random_numbers_mix,    only : randomnumberstream, &
+!         initialize_random_numbers, uniform_distribution
+    use radiation_random_numbers, only : rng_type, IRngMinstdParallel, IRngNative
+
+    implicit none
+
+    ! Number of g points / columns
+    integer, intent(in) :: ng
+
+    ! Number of levels
+    integer, intent(in) :: nlev
+
+    integer, intent(in) :: iseed ! seed for random number generator
+
+    ! Stream for producing random numbers
+    !type(randomnumberstream) :: random_stream
+    type(rng_type) :: random_number_generator
+
+    ! Object for sampling from a lognormal or gamma distribution
+    type(pdf_sampler_type), intent(in) :: pdf_sampler
+
+    ! Total cloud cover using cloud fraction and overlap parameter
+    real(jprb), intent(in) :: total_cloud_cover
+
+    ! Cloud fraction, cumulative cloud cover and fractional standard
+    ! deviation in each layer
+    real(jprb), intent(in), dimension(nlev) :: frac, cum_cloud_cover, fractional_std
+
+    ! Cloud cover of a pair of layers, and amount by which cloud at
+    ! next level increases total cloud cover as seen from above
+    real(jprb), intent(in), dimension(nlev-1) :: pair_cloud_cover, overhang
+
+    ! Overlap parameter of inhomogeneities
+    real(jprb), intent(in), dimension(nlev-1) :: overlap_param_inhom
+
+    ! Top of highest cloudy layer and base of lowest
+    integer, intent(inout) :: ibegin, iend
+
+    ! Optical depth scaling to output
+    real(jprb), intent(inout), dimension(ng,nlev) :: od_scaling
+
+    ! Uniform deviates between 0 and 1
+    real(jprb) :: rand_top(ng)
+
+    ! Height indices
+    integer :: jlev, jcloud
+
+    integer :: iy
+
+    ! Is it time to fill the od_scaling variable?
+    logical :: do_fill_od_scaling
+
+    real(jprb) :: rand_cloud(ng,ibegin:iend)
+    real(jprb) :: rand_inhom(ng,ibegin:iend), rand_inhom2(ng,ibegin:iend)
+
+    ! Scaled random number for finding cloud
+    real(jprb) :: trigger(ng)
+
+    logical, dimension(ng) :: found_cloud, first_cloud, is_cloud, prev_cloud
+
+
+    ! Expensive operation: initialize random number generator for this
+    ! column
+    !call initialize_random_numbers(iseed, random_stream)
+    call random_number_generator%initialize(IRngMinstdParallel, iseed=iseed, nmaxstreams=ng)
+
+    ! Compute ng random numbers to use to locate cloud top
+    !call uniform_distribution(trigger, random_stream)
+    call random_number_generator%uniform_distribution(trigger)
+    call random_number_generator%uniform_distribution(rand_cloud)
+    call random_number_generator%uniform_distribution(rand_inhom)
+    call random_number_generator%uniform_distribution(rand_inhom2)
+
+    trigger = trigger * total_cloud_cover
+
+    found_cloud = .false.
+    is_cloud = .false.
+    first_cloud = .false.
+    do jlev = ibegin,iend
+
+      prev_cloud = is_cloud
+      first_cloud = (trigger <= cum_cloud_cover(jlev) .and. .not. found_cloud)
+      found_cloud = found_cloud .or. first_cloud
+      is_cloud = first_cloud &
+           &  .or. merge(prev_cloud, rand_cloud(:,jlev)*frac(jlev-1) &
+           &                           < frac(jlev)+frac(jlev-1)-pair_cloud_cover(jlev-1), &
+           &                         rand_cloud(:,jlev)*(cum_cloud_cover(jlev-1) - frac(jlev-1)) &
+           &                           < pair_cloud_cover(jlev-1) - overhang(jlev-1) - frac(jlev-1))
+      rand_inhom(:,jlev) = merge(rand_inhom(:,jlev-1), rand_inhom(:,jlev), &
+           &                     rand_inhom2(:,jlev) < overlap_param_inhom(jlev-1))
+
+    end do
+       
+    ! Sample from a lognormal or gamma distribution to obtain the
+    ! optical depth scalings, calling the faster masked version and
+    ! assuming values outside the range ibegin:iend are already zero
+    call pdf_sampler%block_sample(iend-ibegin+1, ng, &
+         &  fractional_std(ibegin:iend), &
+         &  rand_inhom(:,ibegin:iend), od_scaling(:,ibegin:iend))
+!, &
+!         &  is_cloudy(itrigger:iend))
+ 
+  end subroutine generate_columns_exp_ran
 
 end module radiation_cloud_generator
