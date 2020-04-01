@@ -12,6 +12,7 @@
 ! Modifications
 !   2018-02-22  R. Hogan  Call masked version of PDF sampler for speed
 !   2020-03-31  R. Hogan  More vectorizable version of Exp-Ran
+
 module radiation_cloud_generator
 
 contains
@@ -42,8 +43,6 @@ contains
          &       cum_cloud_cover_max_ran, cum_cloud_cover_exp_exp, &
          &       IOverlapMaximumRandom, IOverlapExponentialRandom, &
          &       IOverlapExponential
-
-    use print_matrix_mod, only : print_matrix
 
     implicit none
 
@@ -189,6 +188,8 @@ contains
       end if
 
       if (.not. use_vec_gen) then
+        ! Original generator that minimizes the number of random
+        ! numbers used, but is not vectorizable
 
         ! Expensive operation: initialize random number generator for
         ! this column
@@ -223,6 +224,10 @@ contains
         end do
 
       else
+        ! Alternative generator (only for Exp-Ran overlap so far) that
+        ! should be vectorizable but generates more random numbers,
+        ! some of which are not used
+
         if (i_overlap_scheme == IOverlapExponential) then
           write(nulerr,'(a)') '*** Error: vectorizable cloud generator is not available with Exp-Exp overlap'
           call radiation_abort()
@@ -236,8 +241,6 @@ contains
       end if
 
     end if
-
-    !call print_matrix(od_scaling, name='od_scaling', unit=101)
 
     if (lhook) call dr_hook('radiation_cloud_generator:cloud_generator',1,hook_handle)
 
@@ -509,7 +512,11 @@ contains
   ! Generate columns of optical depth scalings using
   ! exponential-random overlap (which includes maximum-random overlap
   ! as a limiting case).  This version is intended to work better on
-  ! hardware with long vector lengths.
+  ! hardware with long vector lengths.  As with all calculations in
+  ! this file, we zoom into the fraction of the column with cloud at
+  ! any height, so that all spectral intervals see a cloud somewhere.
+  ! In the McICA solver, this is combined appropriately with the
+  ! clear-sky calculation.
   subroutine generate_columns_exp_ran(ng, nlev, iseed, pdf_sampler, &
        &  total_cloud_cover, frac_threshold, frac, pair_cloud_cover, &
        &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
@@ -518,8 +525,6 @@ contains
     use parkind1,              only : jprb
     use radiation_pdf_sampler, only : pdf_sampler_type
     use radiation_random_numbers, only : rng_type, IRngMinstdVector, IRngNative
-
-    use print_matrix_mod, only : print_matrix, print_vector
 
     implicit none
 
@@ -574,62 +579,83 @@ contains
     real(jprb) :: rand_cloud(ng,ibegin:iend)
     real(jprb) :: rand_inhom(ng,ibegin-1:iend), rand_inhom2(ng,ibegin:iend)
 
+    ! Is the cloud fraction above the minimum threshold at each level
     logical :: is_any_cloud(ibegin:iend)
 
     ! Scaled random number for finding cloud
     real(jprb) :: trigger(ng)
 
-    logical, dimension(ng) :: found_cloud, first_cloud, is_cloud, prev_cloud
+    logical :: is_cloud(ng)    ! Is there cloud at this level and spectral interval?
+    logical :: prev_cloud(ng)  ! Was there cloud at level above?
+    logical :: first_cloud(ng) ! At level of first cloud counting down from top?
+    logical :: found_cloud(ng) ! Cloud found in this column counting down from top?
 
     is_any_cloud = (frac(ibegin:iend) >= frac_threshold)
 
-    ! Expensive operation: initialize random number generator for this
-    ! column
+    ! Initialize random number generator for this column, and state
+    ! that random numbers will be requested in blocks of length the
+    ! number of spectral intervals ng.
     call random_number_generator%initialize(IRngMinstdVector, iseed=iseed, &
          &                                  nmaxstreams=ng)
 
-    ! Compute ng random numbers to use to locate cloud top
-    !call uniform_distribution(trigger, random_stream)
+    ! Random numbers to use to locate cloud top
     call random_number_generator%uniform_distribution(trigger)
+
+    ! Random numbers to work out whether to transition vertically from
+    ! clear to cloudy, cloudy to clear, clear to clear or cloudy to
+    ! cloudy
     call random_number_generator%uniform_distribution(rand_cloud, is_any_cloud)
+
+    ! Random numbers to generate sub-grid cloud structure
     call random_number_generator%uniform_distribution(rand_inhom)
     call random_number_generator%uniform_distribution(rand_inhom2, is_any_cloud)
 
-    call print_vector(trigger, name='trigger', unit=ng)
-!    call print_matrix(rand_cloud, name='rand_cloud', unit=ng)
-    call print_matrix(rand_inhom, name='rand_inhom', unit=ng)
-!    call print_matrix(rand_inhom2, name='rand_inhom2', unit=ng)
-
     trigger = trigger * total_cloud_cover
 
-    print *, rand_cloud(:,ibegin)
-
+    ! Initialize logicals for clear-sky above first cloudy layer
     found_cloud = .false.
-    is_cloud = .false.
+    is_cloud    = .false.
     first_cloud = .false.
+
+    ! Loop down through layers starting at the first cloudy layer
     do jlev = ibegin,iend
 
       if (is_any_cloud(jlev)) then
+        ! The intention is that all these operations are vectorizable,
+        ! since all are vector operations on vectors of length ng...
 
-        ! The intention is that all these operations are vectorizable
+        ! Copy the cloud mask between levels
         prev_cloud = is_cloud
+
+        ! For each spectral interval, has the first cloud appeared at this level?
         first_cloud = (trigger <= cum_cloud_cover(jlev) .and. .not. found_cloud)
+
+        ! ...if so, add to found_cloud
         found_cloud = found_cloud .or. first_cloud
+
+        ! There is cloud at this level either if a first cloud has
+        ! appeared, or using separate probability calculations
+        ! depending on whether there is a cloud above (given by
+        ! prev_cloud)
         is_cloud = first_cloud &
              &  .or. found_cloud .and. merge(rand_cloud(:,jlev)*frac(jlev-1) &
              &               < frac(jlev)+frac(jlev-1)-pair_cloud_cover(jlev-1), &
              &             rand_cloud(:,jlev)*(cum_cloud_cover(jlev-1) - frac(jlev-1)) &
              &               < pair_cloud_cover(jlev-1) - overhang(jlev-1) - frac(jlev-1), &
              &             prev_cloud)
+        ! The random number determining cloud structure decorrelates
+        ! with the one above it according to the overlap parameter,
+        ! but always decorrelates if there is clear-sky above.  If
+        ! there is clear-sky in the present level, the random number
+        ! is set to zero to ensure that the optical depth scaling is
+        ! also zero.
         rand_inhom(:,jlev) = merge(merge(rand_inhom(:,jlev-1), rand_inhom(:,jlev), &
              &                           rand_inhom2(:,jlev) < overlap_param_inhom(jlev-1) &
              &                           .and. prev_cloud), &
              &                     0.0_jprb, is_cloud)
-        print *, jlev, total_cloud_cover, frac(jlev), cum_cloud_cover(jlev), &
-             &  real(count(first_cloud))/real(ng), real(count(found_cloud))/real(ng), real(count(is_cloud))/real(ng), &
-             &  real(count(rand_inhom(:,jlev)>0.0_jprb))/real(ng)
         
       else
+        ! No cloud at this level
         is_cloud = .false.
       end if
     end do
