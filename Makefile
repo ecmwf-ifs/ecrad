@@ -79,7 +79,14 @@ help:
 	@echo "  make PROFILE=<prof>"
 	@echo "where <prof> is one of gfortran, pgi etc."
 
-build: libifsaux libutilities libifsrrtm libradiation libradsurf driver symlinks
+build: directories libifsaux libutilities libifsrrtm libradiation libradsurf driver symlinks
+
+# git cannot store empty directories so they may need to be created 
+directories: mod lib
+mod:
+	mkdir -p mod
+lib:
+	mkdir -p lib
 
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps
