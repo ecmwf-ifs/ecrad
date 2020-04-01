@@ -5,8 +5,7 @@ DRIVER = ../../bin/ecrad
 
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
-#CONFIG = configCY47R1.nam
-CONFIG = configCY47R1cloudgenvec.nam
+CONFIG = configCY47R1.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
