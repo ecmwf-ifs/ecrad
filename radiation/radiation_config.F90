@@ -161,6 +161,10 @@ module radiation_config
     ! (2000)?
     logical :: use_beta_overlap = .false.
 
+    ! Use a more vectorizable McICA cloud generator, at the expense of
+    ! more random numbers being generated?
+    logical :: use_vectorizable_generator = .false.
+
     ! Shape of sub-grid cloud water PDF
     integer :: i_cloud_pdf_shape = IPdfShapeGamma
 
@@ -571,7 +575,7 @@ contains
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
     logical :: do_save_radiative_properties, do_save_spectral_flux
     logical :: do_save_gpoint_flux, do_surface_sw_spectral_flux
-    logical :: use_beta_overlap, do_lw_derivatives
+    logical :: use_beta_overlap, do_lw_derivatives, use_vectorizable_generator
     logical :: do_sw_delta_scaling_with_gases
     logical :: do_canopy_fluxes_sw, do_canopy_fluxes_lw
     logical :: use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw
@@ -618,7 +622,7 @@ contains
          &  do_canopy_fluxes_sw, do_canopy_fluxes_lw, &
          &  do_canopy_gases_sw, do_canopy_gases_lw, &
          &  do_sw_delta_scaling_with_gases, overlap_scheme_name, &
-         &  sw_solver_name, lw_solver_name, use_beta_overlap, &
+         &  sw_solver_name, lw_solver_name, use_beta_overlap, use_vectorizable_generator, &
          &  use_expm_everywhere, iverbose, iverbosesetup, &
          &  cloud_inhom_decorr_scaling, cloud_fraction_threshold, &
          &  clear_to_thick_fraction, max_gas_od_3d, max_cloud_od, &
@@ -672,6 +676,7 @@ contains
     cloud_fraction_threshold = this%cloud_fraction_threshold
     cloud_mixing_ratio_threshold = this%cloud_mixing_ratio_threshold
     use_beta_overlap = this%use_beta_overlap
+    use_vectorizable_generator = this%use_vectorizable_generator
     cloud_inhom_decorr_scaling = this%cloud_inhom_decorr_scaling
     clear_to_thick_fraction = this%clear_to_thick_fraction
     overhead_sun_factor = this%overhead_sun_factor
@@ -802,6 +807,7 @@ contains
     this%mono_lw_asymmetry_factor = mono_lw_asymmetry_factor
     this%mono_sw_asymmetry_factor = mono_sw_asymmetry_factor
     this%use_beta_overlap = use_beta_overlap
+    this%use_vectorizable_generator = use_vectorizable_generator
     this%cloud_inhom_decorr_scaling = cloud_inhom_decorr_scaling
     this%clear_to_thick_fraction = clear_to_thick_fraction
     this%overhead_sun_factor = overhead_sun_factor
@@ -1276,6 +1282,11 @@ contains
           call print_real('    Overhang factor', &
                &   'overhang_factor', this%overhang_factor)
         end if
+
+      else if (this%i_solver_sw == ISolverMcICA &
+           &  .or. this%i_solver_lw == ISolverMcICA) then
+        call print_logical('  Use vectorizable McICA cloud generator', &
+             &   'use_vectorizable_generator', this%use_vectorizable_generator)
       end if
             
     end if

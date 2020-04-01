@@ -1,4 +1,4 @@
-SOURCES = easy_netcdf.F90 radiation_io.F90
+SOURCES = easy_netcdf.F90 radiation_io.F90 print_matrix.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBUTILITIES = ../lib/libutilities.a

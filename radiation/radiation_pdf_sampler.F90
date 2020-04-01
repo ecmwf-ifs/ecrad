@@ -37,6 +37,7 @@ module radiation_pdf_sampler
     procedure :: sample => sample_from_pdf
     procedure :: masked_sample => sample_from_pdf_masked
     procedure :: block_sample => sample_from_pdf_block
+    procedure :: masked_block_sample => sample_from_pdf_masked_block
     procedure :: deallocate => deallocate_pdf_sampler
 
   end type pdf_sampler_type
@@ -205,7 +206,58 @@ contains
   ! Extract the values of a PDF with fractional standard deviation
   ! "fsd" corresponding to the cumulative distribution function values
   ! "cdf", and return in val. This version works on 2D blocks of data.
-  subroutine sample_from_pdf_block(this, nz, ng, fsd, cdf, val, mask)
+  subroutine sample_from_pdf_block(this, nz, ng, fsd, cdf, val)
+    
+    class(pdf_sampler_type), intent(in)  :: this
+
+    ! Number of samples
+    integer,    intent(in) :: nz, ng
+
+    ! Fractional standard deviation (0 to 4) and cumulative
+    ! distribution function (0 to 1)
+    real(jprb), intent(in)  :: fsd(nz), cdf(ng, nz)
+
+    ! Sample from distribution
+    real(jprb), intent(out) :: val(:,:)
+
+    ! Loop index
+    integer    :: jz, jg
+
+    ! Index to look-up table
+    integer    :: ifsd, icdf
+
+    ! Weights in bilinear interpolation
+    real(jprb) :: wfsd, wcdf
+
+    do jz = 1,nz
+      do jg = 1,ng
+        if (cdf(jg, jz) > 0.0_jprb) then
+          ! Bilinear interpolation with bounds
+          wcdf = cdf(jg,jz) * (this%ncdf-1) + 1.0_jprb
+          icdf = max(1, min(int(wcdf), this%ncdf-1))
+          wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
+          
+          wfsd = (fsd(jz)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
+          ifsd = max(1, min(int(wfsd), this%nfsd-1))
+          wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
+          
+          val(jg,jz)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
+               &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
+               &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
+               &    +          wcdf *          wfsd  * this%val(icdf+1,ifsd+1)
+        else
+          val(jg,jz) = 0.0_jprb
+        end if
+      end do
+    end do
+
+  end subroutine sample_from_pdf_block
+
+  !---------------------------------------------------------------------
+  ! Extract the values of a PDF with fractional standard deviation
+  ! "fsd" corresponding to the cumulative distribution function values
+  ! "cdf", and return in val. This version works on 2D blocks of data.
+  subroutine sample_from_pdf_masked_block(this, nz, ng, fsd, cdf, val, mask)
     
     class(pdf_sampler_type), intent(in)  :: this
 
@@ -232,23 +284,33 @@ contains
     real(jprb) :: wfsd, wcdf
 
     do jz = 1,nz
-      do jg = 1,ng
-        ! Bilinear interpolation with bounds
-        wcdf = cdf(ng,nz) * (this%ncdf-1) + 1.0_jprb
-        icdf = max(1, min(int(wcdf), this%ncdf-1))
-        wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
+
+      if (mask(jz)) then
         
-        wfsd = (fsd(jz)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
-        ifsd = max(1, min(int(wfsd), this%nfsd-1))
-        wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
-        
-        val(jg,jz)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
-             &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
-             &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
-             &    +          wcdf *          wfsd  * this%val(icdf+1,ifsd+1)
-      end do
+        do jg = 1,ng
+          if (cdf(jg, jz) > 0.0_jprb) then
+            ! Bilinear interpolation with bounds
+            wcdf = cdf(jg,jz) * (this%ncdf-1) + 1.0_jprb
+            icdf = max(1, min(int(wcdf), this%ncdf-1))
+            wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
+          
+            wfsd = (fsd(jz)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
+            ifsd = max(1, min(int(wfsd), this%nfsd-1))
+            wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
+            
+            val(jg,jz)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
+                 &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
+                 &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
+                 &    +          wcdf *          wfsd  * this%val(icdf+1,ifsd+1)
+          else
+            val(jg,jz) = 0.0_jprb
+          end if
+        end do
+
+      end if
+
     end do
 
-  end subroutine sample_from_pdf_block
+  end subroutine sample_from_pdf_masked_block
 
 end module radiation_pdf_sampler

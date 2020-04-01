@@ -194,7 +194,8 @@ contains
            &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
            &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
            &  config%pdf_sampler, od_scaling, total_cloud_cover, &
-           &  is_beta_overlap=config%use_beta_overlap)
+           &  use_beta_overlap=config%use_beta_overlap, &
+           &  use_vectorizable_generator=config%use_vectorizable_generator)
       
       ! Store total cloud cover
       flux%cloud_cover_lw(jcol) = total_cloud_cover

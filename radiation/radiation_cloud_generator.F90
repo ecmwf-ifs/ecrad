@@ -11,7 +11,7 @@
 !
 ! Modifications
 !   2018-02-22  R. Hogan  Call masked version of PDF sampler for speed
-
+!   2020-03-31  R. Hogan  More vectorizable version of Exp-Ran
 module radiation_cloud_generator
 
 contains
@@ -30,7 +30,7 @@ contains
        &  frac, overlap_param, decorrelation_scaling, &
        &  fractional_std, pdf_sampler, &
        &  od_scaling, total_cloud_cover, &
-       &  is_beta_overlap)
+       &  use_beta_overlap, use_vectorizable_generator)
 
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook
@@ -42,6 +42,8 @@ contains
          &       cum_cloud_cover_max_ran, cum_cloud_cover_exp_exp, &
          &       IOverlapMaximumRandom, IOverlapExponentialRandom, &
          &       IOverlapExponential
+
+    use print_matrix_mod, only : print_matrix
 
     implicit none
 
@@ -77,7 +79,11 @@ contains
     ! present and true then the input is interpretted to be the "beta"
     ! overlap parameter of Shonk et al. (2010), and needs to be
     ! converted to alpha.
-    logical, intent(in), optional :: is_beta_overlap
+    logical, intent(in), optional :: use_beta_overlap
+
+    ! Do we use the more vectorizable cloud generator, at the expense
+    ! of more random numbers being needed?
+    logical, intent(in), optional :: use_vectorizable_generator
 
     ! Outputs
 
@@ -117,19 +123,21 @@ contains
     ! next level increases total cloud cover as seen from above
     real(jprb), dimension(nlev-1) :: pair_cloud_cover, overhang
 
+    logical :: use_vec_gen
+
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_generator:cloud_generator',0,hook_handle)
 
     if (i_overlap_scheme == IOverlapExponentialRandom) then
       call cum_cloud_cover_exp_ran(nlev, frac, overlap_param, &
-           &   cum_cloud_cover, pair_cloud_cover, is_beta_overlap)
+           &   cum_cloud_cover, pair_cloud_cover, use_beta_overlap)
     else if (i_overlap_scheme == IOverlapMaximumRandom) then
       call cum_cloud_cover_max_ran(nlev, frac, &
            &   cum_cloud_cover, pair_cloud_cover)
     else if (i_overlap_scheme == IOverlapExponential) then
       call cum_cloud_cover_exp_exp(nlev, frac, overlap_param, &
-           &   cum_cloud_cover, pair_cloud_cover, is_beta_overlap)
+           &   cum_cloud_cover, pair_cloud_cover, use_beta_overlap)
     else
       write(nulerr,'(a)') '*** Error: cloud overlap scheme not recognised'
       call radiation_abort()
@@ -174,7 +182,13 @@ contains
       ! Reset optical depth scaling to clear skies
       od_scaling = 0.0_jprb
 
-      if (.false.) then
+      if (present(use_vectorizable_generator)) then
+        use_vec_gen = use_vectorizable_generator
+      else
+        use_vec_gen = .false.
+      end if
+
+      if (.not. use_vec_gen) then
 
         ! Expensive operation: initialize random number generator for
         ! this column
@@ -209,9 +223,13 @@ contains
         end do
 
       else
+        if (i_overlap_scheme == IOverlapExponential) then
+          write(nulerr,'(a)') '*** Error: vectorizable cloud generator is not available with Exp-Exp overlap'
+          call radiation_abort()
+        end if
 
         call generate_columns_exp_ran(ng, nlev, iseed, pdf_sampler, &
-             &  total_cloud_cover, frac, pair_cloud_cover, &
+             &  total_cloud_cover, frac_threshold, frac, pair_cloud_cover, &
              &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
              &  ibegin, iend, od_scaling)
 
@@ -219,6 +237,7 @@ contains
 
     end if
 
+    !call print_matrix(od_scaling, name='od_scaling', unit=101)
 
     if (lhook) call dr_hook('radiation_cloud_generator:cloud_generator',1,hook_handle)
 
@@ -489,17 +508,18 @@ contains
   !---------------------------------------------------------------------
   ! Generate columns of optical depth scalings using
   ! exponential-random overlap (which includes maximum-random overlap
-  ! as a limiting case)
+  ! as a limiting case).  This version is intended to work better on
+  ! hardware with long vector lengths.
   subroutine generate_columns_exp_ran(ng, nlev, iseed, pdf_sampler, &
-       &  total_cloud_cover, frac, pair_cloud_cover, &
+       &  total_cloud_cover, frac_threshold, frac, pair_cloud_cover, &
        &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
        &  ibegin, iend, od_scaling)
 
     use parkind1,              only : jprb
     use radiation_pdf_sampler, only : pdf_sampler_type
-!    use random_numbers_mix,    only : randomnumberstream, &
-!         initialize_random_numbers, uniform_distribution
-    use radiation_random_numbers, only : rng_type, IRngMinstdParallel, IRngNative
+    use radiation_random_numbers, only : rng_type, IRngMinstdVector, IRngNative
+
+    use print_matrix_mod, only : print_matrix, print_vector
 
     implicit none
 
@@ -520,6 +540,8 @@ contains
 
     ! Total cloud cover using cloud fraction and overlap parameter
     real(jprb), intent(in) :: total_cloud_cover
+
+    real(jprb), intent(in) :: frac_threshold
 
     ! Cloud fraction, cumulative cloud cover and fractional standard
     ! deviation in each layer
@@ -550,55 +572,76 @@ contains
     logical :: do_fill_od_scaling
 
     real(jprb) :: rand_cloud(ng,ibegin:iend)
-    real(jprb) :: rand_inhom(ng,ibegin:iend), rand_inhom2(ng,ibegin:iend)
+    real(jprb) :: rand_inhom(ng,ibegin-1:iend), rand_inhom2(ng,ibegin:iend)
+
+    logical :: is_any_cloud(ibegin:iend)
 
     ! Scaled random number for finding cloud
     real(jprb) :: trigger(ng)
 
     logical, dimension(ng) :: found_cloud, first_cloud, is_cloud, prev_cloud
 
+    is_any_cloud = (frac(ibegin:iend) >= frac_threshold)
 
     ! Expensive operation: initialize random number generator for this
     ! column
-    !call initialize_random_numbers(iseed, random_stream)
-    call random_number_generator%initialize(IRngMinstdParallel, iseed=iseed, nmaxstreams=ng)
+    call random_number_generator%initialize(IRngMinstdVector, iseed=iseed, &
+         &                                  nmaxstreams=ng)
 
     ! Compute ng random numbers to use to locate cloud top
     !call uniform_distribution(trigger, random_stream)
     call random_number_generator%uniform_distribution(trigger)
-    call random_number_generator%uniform_distribution(rand_cloud)
+    call random_number_generator%uniform_distribution(rand_cloud, is_any_cloud)
     call random_number_generator%uniform_distribution(rand_inhom)
-    call random_number_generator%uniform_distribution(rand_inhom2)
+    call random_number_generator%uniform_distribution(rand_inhom2, is_any_cloud)
+
+    call print_vector(trigger, name='trigger', unit=ng)
+!    call print_matrix(rand_cloud, name='rand_cloud', unit=ng)
+    call print_matrix(rand_inhom, name='rand_inhom', unit=ng)
+!    call print_matrix(rand_inhom2, name='rand_inhom2', unit=ng)
 
     trigger = trigger * total_cloud_cover
+
+    print *, rand_cloud(:,ibegin)
 
     found_cloud = .false.
     is_cloud = .false.
     first_cloud = .false.
     do jlev = ibegin,iend
 
-      prev_cloud = is_cloud
-      first_cloud = (trigger <= cum_cloud_cover(jlev) .and. .not. found_cloud)
-      found_cloud = found_cloud .or. first_cloud
-      is_cloud = first_cloud &
-           &  .or. merge(prev_cloud, rand_cloud(:,jlev)*frac(jlev-1) &
-           &                           < frac(jlev)+frac(jlev-1)-pair_cloud_cover(jlev-1), &
-           &                         rand_cloud(:,jlev)*(cum_cloud_cover(jlev-1) - frac(jlev-1)) &
-           &                           < pair_cloud_cover(jlev-1) - overhang(jlev-1) - frac(jlev-1))
-      rand_inhom(:,jlev) = merge(rand_inhom(:,jlev-1), rand_inhom(:,jlev), &
-           &                     rand_inhom2(:,jlev) < overlap_param_inhom(jlev-1))
+      if (is_any_cloud(jlev)) then
 
+        ! The intention is that all these operations are vectorizable
+        prev_cloud = is_cloud
+        first_cloud = (trigger <= cum_cloud_cover(jlev) .and. .not. found_cloud)
+        found_cloud = found_cloud .or. first_cloud
+        is_cloud = first_cloud &
+             &  .or. found_cloud .and. merge(rand_cloud(:,jlev)*frac(jlev-1) &
+             &               < frac(jlev)+frac(jlev-1)-pair_cloud_cover(jlev-1), &
+             &             rand_cloud(:,jlev)*(cum_cloud_cover(jlev-1) - frac(jlev-1)) &
+             &               < pair_cloud_cover(jlev-1) - overhang(jlev-1) - frac(jlev-1), &
+             &             prev_cloud)
+        rand_inhom(:,jlev) = merge(merge(rand_inhom(:,jlev-1), rand_inhom(:,jlev), &
+             &                           rand_inhom2(:,jlev) < overlap_param_inhom(jlev-1) &
+             &                           .and. prev_cloud), &
+             &                     0.0_jprb, is_cloud)
+        print *, jlev, total_cloud_cover, frac(jlev), cum_cloud_cover(jlev), &
+             &  real(count(first_cloud))/real(ng), real(count(found_cloud))/real(ng), real(count(is_cloud))/real(ng), &
+             &  real(count(rand_inhom(:,jlev)>0.0_jprb))/real(ng)
+        
+      else
+        is_cloud = .false.
+      end if
     end do
        
     ! Sample from a lognormal or gamma distribution to obtain the
     ! optical depth scalings, calling the faster masked version and
     ! assuming values outside the range ibegin:iend are already zero
-    call pdf_sampler%block_sample(iend-ibegin+1, ng, &
+    call pdf_sampler%masked_block_sample(iend-ibegin+1, ng, &
          &  fractional_std(ibegin:iend), &
-         &  rand_inhom(:,ibegin:iend), od_scaling(:,ibegin:iend))
-!, &
-!         &  is_cloudy(itrigger:iend))
- 
+         &  rand_inhom(:,ibegin:iend), od_scaling(:,ibegin:iend), &
+         &  is_any_cloud)
+
   end subroutine generate_columns_exp_ran
 
 end module radiation_cloud_generator

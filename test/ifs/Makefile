@@ -5,13 +5,14 @@ DRIVER = ../../bin/ecrad
 
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
-CONFIG = configCY47R1.nam
+#CONFIG = configCY47R1.nam
+CONFIG = configCY47R1cloudgenvec.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
 
-test: test_default test_noaer test_expran test_tripleclouds test_spartacus \
-	test_spartacus_maxentr
+test: test_default test_noaer test_expran test_expran_vec test_tripleclouds \
+	test_spartacus test_spartacus_maxentr
 
 # (a) Default IFS settings for cycle 43R3: McICA solver with
 # exponential-exponential overlap
@@ -59,6 +60,12 @@ test_spartacus_maxentr:
 		sw_entrapment_name='"Maximum"' \
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
+
+# (h) Exponential-random overlap with "vectorizable" solver
+test_expran_vec:
+	./change_namelist.sh $(CONFIG) config_expran_vec.nam \
+		overlap_scheme_name='"Exp-Ran"' use_vectorizable_generator=true
+	$(DRIVER) config_expran_vec.nam $(INPUT).nc $(INPUT)_expran_vec_out.nc
 
 # Clean data files
 clean:
