@@ -25,7 +25,7 @@ program ecrad_driver
   ! Section 1: Declarations
   ! --------------------------------------------------------
 
-  use parkind1,                 only : jprb ! Working precision
+  use parkind1,                 only : jprb, jprd ! Working precision
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
@@ -84,6 +84,7 @@ program ecrad_driver
   ! For parallel processing of multiple blocks
   integer :: jblock, nblock ! Block loop index and number
   integer, external :: omp_get_thread_num
+  double precision, external :: omp_get_wtime
 
   ! Loop index for repeats (for benchmarking)
   integer :: jrepeat
@@ -97,6 +98,9 @@ program ecrad_driver
 
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
+
+  ! timers
+  real(kind=jprd) :: tstart, tstop
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -262,7 +266,8 @@ program ecrad_driver
       ! Compute number of blocks to process
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
-      
+     
+      tstart = omp_get_wtime() 
       !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
       do jblock = 1, nblock
         ! Specify the range of columns to process.
@@ -292,6 +297,8 @@ program ecrad_driver
         
       end do
       !$OMP END PARALLEL DO
+      tstop = omp_get_wtime()
+      write(nulout,*) 'Time: ', tstop-tstart
       
     else
       ! Run radiation scheme serially

@@ -58,8 +58,8 @@ do_surface_sw_spectral_flux = false,  ! Save surface fluxes in each band?
 ! CLOUDS
 !
 ice_model_name      = "Fu-IFS",       ! Can be "Fu-IFS" or "Yi"
-sw_solver_name      = "Tripleclouds", ! "Tripleclouds", "McICA" or "SPARTACUS"
-lw_solver_name      = "Tripleclouds", ! "Tripleclouds", "McICA" or "SPARTACUS"
+sw_solver_name      = "McICA", ! "Tripleclouds", "McICA" or "SPARTACUS"
+lw_solver_name      = "McICA", ! "Tripleclouds", "McICA" or "SPARTACUS"
 overlap_scheme_name = "Exp-Ran",      ! McICA also accepts Max-Ran or Exp-Exp
 do_lw_cloud_scattering = true,        ! Clouds scatter in the longwave?
 !
