@@ -162,7 +162,6 @@ contains
                &                   flux%sw_up_band(:,jcol,:))
           call indexed_sum_profile(flux_dn_direct, config%i_spec_from_reordered_g_sw, &
                &                   flux%sw_dn_band(:,jcol,:))
-          flux%sw_dn_band(:,jcol,:) = cos_sza*flux%sw_dn_band(:,jcol,:)
           if (allocated(flux%sw_dn_direct_band)) then
             flux%sw_dn_direct_band(:,jcol,:) &
                  &  = flux%sw_dn_band(:,jcol,:)

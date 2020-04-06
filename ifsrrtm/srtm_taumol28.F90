@@ -173,6 +173,11 @@ DO I_LAY = 1, I_NLAYERS
           !    SSA(LAY,IG) = TAURAY/TAUG(LAY,IG)
           IF (I_LAY == I_LAYSOLFR) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG,JS) &
            & + Z_FS * (SFLUXREFC(IG,JS+1) - SFLUXREFC(IG,JS))  
+! The following actually improves this band by setting the solar
+! spectrum at each g point equal to what would be computed if
+! molecular oxygen was set to zero. But it is worse overall due to a
+! compensating error with the previous band 27.
+!          IF (I_LAY == I_LAYSOLFR) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG,5)
           P_TAUR(IPLON,I_LAY,IG) = Z_TAURAY
         ENDDO
       ENDIF

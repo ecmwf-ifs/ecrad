@@ -26,7 +26,7 @@ contains
   ! Save fluxes in "flux" to NetCDF file_name, plus pressure from the
   ! thermodynamics object
   subroutine save_fluxes(file_name, config, thermodynamics, flux, &
-       &                 iverbose, is_hdf5_file)
+       &                 iverbose, is_hdf5_file, experiment_name)
 
     use yomhook,                  only : lhook, dr_hook
 
@@ -37,21 +37,19 @@ contains
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_flux,           only : flux_type
 
-    character(len=*), intent(in)         :: file_name
-    type(config_type), intent(in)        :: config
-    type(thermodynamics_type), intent(in):: thermodynamics
-    type(flux_type), intent(in)          :: flux
+    character(len=*),           intent(in) :: file_name
+    type(config_type),          intent(in) :: config
+    type(thermodynamics_type),  intent(in) :: thermodynamics
+    type(flux_type),            intent(in) :: flux
+    integer,          optional, intent(in) :: iverbose
+    logical,          optional, intent(in) :: is_hdf5_file
+    character(len=*), optional, intent(in) :: experiment_name
 
-    type(netcdf_file)                    :: out_file
-    integer                              :: ncol, n_lev_plus1
-
-    character(5), parameter :: default_lw_units_str = 'W m-2'
-    character(5)            :: lw_units_str
-
-    integer, optional, intent(in) :: iverbose
-    integer                       :: i_local_verbose
-
-    logical, optional, intent(in) :: is_hdf5_file
+    type(netcdf_file)                      :: out_file
+    integer                                :: ncol, n_lev_plus1
+    character(5), parameter                :: default_lw_units_str = 'W m-2'
+    character(5)                           :: lw_units_str
+    integer                                :: i_local_verbose
 
     real(jprb) :: hook_handle
 
@@ -129,6 +127,13 @@ contains
          &   references_str="Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation " &
          &   //"scheme for the ECMWF model. J. Adv. Modeling Earth Sys., 10, 1990–2008", &
          &   source_str="ecRad offline radiation model")
+
+    ! Save "experiment" global attribute if present and not empty
+    if (present(experiment_name)) then
+      if (experiment_name /= " ") then
+        call out_file%put_global_attribute("experiment", experiment_name)
+      end if
+    end if
 
     ! Define variables
     call out_file%define_variable("pressure_hl", &

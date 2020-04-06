@@ -79,11 +79,14 @@ help:
 	@echo "  make PROFILE=<prof>"
 	@echo "where <prof> is one of gfortran, pgi etc."
 
-ifdef USE_PSRAD
-build: libifsaux libutilities libpsradrrtm libifsrrtm libradiation libradsurf driver
-else
-build: libifsaux libutilities libifsrrtm libradiation libradsurf driver
-endif
+build: directories libifsaux libutilities libifsrrtm libradiation libradsurf driver symlinks
+
+# git cannot store empty directories so they may need to be created 
+directories: mod lib
+mod:
+	mkdir -p mod
+lib:
+	mkdir -p lib
 
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps
@@ -98,9 +101,6 @@ libifsaux:
 libutilities:
 	cd utilities && $(MAKE)
 
-libpsradrrtm:
-	cd psradrrtm && $(MAKE)
-
 libifsrrtm:
 	cd ifsrrtm && $(MAKE)
 
@@ -113,6 +113,10 @@ libradsurf:
 driver:
 	cd driver && $(MAKE)
 
+symlinks: clean-symlinks
+	cd practical && ln -s ../bin/ecrad
+	cd practical && ln -s ../data
+
 test: test_ifs test_i3rc
 
 test_ifs:
@@ -124,7 +128,7 @@ test_i3rc:
 test_surface:
 	cd test/surface && $(MAKE) test
 
-clean: clean-tests clean-toplevel clean-utilities clean-mods
+clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks
 
 clean-tests:
 	cd test/ifs && $(MAKE) clean
@@ -144,7 +148,12 @@ clean-utilities:
 clean-mods:
 	rm -f mod/*.mod
 
-clean-autosaves:
-	rm -f *~ */*~ */*/*~
+clean-symlinks:
+	rm -f practical/ecrad practical/data
 
-.PHONY: libifsaux libpsradrrtm libifsrrtm libradiation libradsurf driver clean clean-toplevel test
+clean-autosaves:
+	rm -f *~ .gitignore~ */*~ */*/*~
+
+.PHONY: all build help deps clean-deps libifsaux libutilities libifsrrtm \
+	libradiation libradsurf driver symlinks clean clean-toplevel test test_ifs \
+	test_i3rc test_surface clean-tests clean-utilities clean-mods clean-symlinks

@@ -1,0 +1,4 @@
+This directory contains what you need to run the ecRad practical. Have
+a look at ecrad_practical.pdf to see how to get started. The symbolic
+links to the ecrad executable and data directory are only created when
+you type "make" in the top-level directory.

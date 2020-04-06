@@ -12,11 +12,10 @@ module ecrad_driver_config
 
   implicit none
 
+  ! Max length of "experiment" global attribute
+  integer, parameter :: NMaxStringLength = 2000
+
   type driver_config_type
-    
-     ! Use PS-Rad (the Pincus-Stevens code in the rrtm dir_name)
-     ! instead?
-     logical :: use_psrad
 
      ! Parallel settings
      logical :: do_parallel
@@ -84,6 +83,9 @@ module ecrad_driver_config
      ! files?
      logical :: do_write_hdf5 = .false.
 
+     ! Name of the experiment, to save in output file
+     character(len=NMaxStringLength) :: experiment_name = ''
+
      ! Control verbosity in driver routine: 0=none (no output to
      ! standard output; write to standard error only if an error
      ! occurs), 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
@@ -112,9 +114,6 @@ contains
     logical, intent(out), optional    :: is_success
 
     integer :: iosopen ! Status after calling open
-
-    ! Use PS-rad radiation scheme?
-    logical :: use_psrad
 
     ! Override and scaling values
     real(jprb) :: fractional_std
@@ -149,6 +148,7 @@ contains
     real(jprb) :: ccl4_scaling  
     real(jprb) :: no2_scaling   
     character(len=32) :: vmr_suffix_str
+    character(len=NMaxStringLength) :: experiment_name
 
     ! Parallel settings
     logical :: do_parallel
@@ -168,7 +168,7 @@ contains
     ! Are we going to override the effective size?
     logical :: do_override_eff_size
 
-    namelist /radiation_driver/ use_psrad, fractional_std, &
+    namelist /radiation_driver/ fractional_std, &
          &  overlap_decorr_length, inv_effective_size, sw_albedo, &
          &  high_inv_effective_size, middle_inv_effective_size, &
          &  low_inv_effective_size, cloud_inhom_separation_factor, &
@@ -183,14 +183,13 @@ contains
          &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
          &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling, &
-         &  vmr_suffix_str
+         &  vmr_suffix_str, experiment_name
 
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('ecrad_driver_config:read',0,hook_handle)
     
     ! Default values
-    use_psrad = .false.
     do_parallel = .true.
     do_save_inputs = .false.
     do_ignore_inhom_effective_size = .false.
@@ -236,6 +235,7 @@ contains
     nrepeat = 1
     do_correct_unphysical_inputs = .false.
     do_write_hdf5 = .false.
+    experiment_name = ''
 
     ! Open the namelist file and read the radiation_driver namelist
     open(unit=10, iostat=iosopen, file=trim(file_name))
@@ -259,7 +259,6 @@ contains
     end if
 
     ! Copy namelist data into configuration object
-    this%use_psrad = use_psrad
     this%do_parallel = do_parallel
     this%do_save_inputs = do_save_inputs
     this%do_ignore_inhom_effective_size = do_ignore_inhom_effective_size
@@ -337,6 +336,7 @@ contains
     this%ccl4_scaling   = ccl4_scaling
     this%no2_scaling    = no2_scaling
     this%vmr_suffix_str = trim(vmr_suffix_str)
+    this%experiment_name= trim(experiment_name)
 
     if (lhook) call dr_hook('ecrad_driver_config:read',1,hook_handle)
 

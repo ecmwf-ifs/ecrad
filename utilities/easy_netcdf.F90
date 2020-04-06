@@ -1482,7 +1482,7 @@ contains
     !    end if
     !    allocate(character(len=i_attr_len) :: attr_str)
     if (len(attr_str) < i_attr_len) then
-      write(nulerr,'(a,a)') '*** Not enough space to read attribute ', attr_name
+      write(nulerr,'(a,a)') '*** Error: not enough space to read attribute ', attr_name
       call my_abort('Error reading NetCDF file')
     end if
 
@@ -1557,7 +1557,7 @@ contains
     !    end if
     !    allocate(character(len=i_attr_len) :: attr_str)
     if (len(attr_str) < i_attr_len) then
-      write(nulerr,'(a,a)') '*** Not enough space to read global attribute ', attr_name
+      write(nulerr,'(a,a)') '*** Error: not enough space to read global attribute ', attr_name
       call my_abort('Error reading NetCDF file')
     end if
 
@@ -1720,7 +1720,7 @@ contains
       else if (data_type_name == 'float') then
         data_type = NF90_FLOAT
       else
-        write(nulerr,'(a,a,a)') '*** NetCDF data type "', data_type_name, '" not supported'
+        write(nulerr,'(a,a,a)') '*** Error: netCDF data type "', data_type_name, '" not supported'
         call my_abort('Error writing NetCDF file')
       end if
     else if (present(is_double)) then

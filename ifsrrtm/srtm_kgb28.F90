@@ -70,6 +70,9 @@ RAYL = 2.02E-05_JPRB
 STRRAT = 6.67029E-07_JPRB
 
 LAYREFFR = 58
+! The following improves this band (Eli Mlawer, personal
+! communication, confirmed by comparison with LBLRTM)
+!LAYREFFR = 40
 
 !     ------------------------------------------------------------------
 

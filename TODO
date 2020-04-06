@@ -16,7 +16,6 @@ INTERFACE
  - Add deallocate method for config type
  - Column is last array argument for all input and output arrays?
  - Why are the flux%*_band variables dimensioned (g,col,lev) not (g,lev,col)?
- - Fewer dependencies for radiation_io.F90 in offline version
 
 DOCUMENTATION
  - Add chapters on API, internal structure and underpinning science
@@ -30,19 +29,6 @@ DIFFERENCES IN IFS VERSION OF ECRAD
  - radiation_delta_eddington.h contains SIMD routine
  - radiation_mcica_*.F90 contain Intel optimizations
  - radiation_interface.F90 and radiation_ifs_rrtm.F90 take YDERAD arguments
-
-TUTORIAL
-Expand test directories so that ecRad can be used for radiation
-practical classes "out of the box".
-Cases:
- - time evolution at a single point, e.g. from single column model
- - standard atmospheres
- - cloud profiles with various solar zenith angles
- - meridian from ECWMF model
-
-PYTHON PLOTTING SCRIPTS
- - Add some!
-
 
 KNOWN BUGS
  - Incorporate fixes from Daniel Rieger

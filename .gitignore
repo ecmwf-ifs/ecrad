@@ -1,0 +1,6 @@
+*.o
+*.a
+*~
+*_out.nc
+config_*.nam
+*_sza.nc

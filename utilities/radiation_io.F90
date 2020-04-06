@@ -1,6 +1,6 @@
 ! radiation_io.F90 - Provides logging and abort functionality
 !
-! Copyright (C) 2015 ECMWF
+! Copyright (C) 2015-2020 ECMWF
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -31,15 +31,6 @@ module radiation_io
   ! but should be closed as soon as the file is read
   integer :: nulrad = 25
 
-  ! The abor1 subroutine is provided in the IFS and cleans up all MPI
-  ! nodes.  Radiation routines should call radiation_abort instead.
-  interface
-    subroutine abor1(text)
-      character(len=*) :: text
-    end subroutine abor1
-  end interface
-  private :: abor1
-
 contains
 
   ! Abort the program with optional error message. Normally you would
@@ -47,9 +38,18 @@ contains
   subroutine radiation_abort(text)
     character(len=*), intent(in), optional :: text
     if (present(text)) then
-      call abor1(text)
+      write(nulerr,'(a)') text
+#ifdef __PGI
+      stop 1
+#else
+      error stop 1
+#endif
     else
-      call abor1('Error in radiation scheme')
+#ifdef __PGI
+      stop 'Error in radiation scheme'
+#else
+      error stop 'Error in radiation scheme'
+#endif
     end if
   end subroutine radiation_abort
 

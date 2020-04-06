@@ -1,0 +1,17 @@
+# This is a Makefile for the Intel compiler: run "make
+# PROFILE=intel". Need all arrays to be on the heap for it to work,
+# hence -heap-arrays.
+
+FC = ifort
+CPPFLAGS = 
+
+ifndef DEBUG
+OPTFLAGS = -O3
+else
+OPTFLAGS = -O0
+endif
+
+WARNFLAGS = -warn all
+BASICFLAGS = -module ../mod -convert big_endian -heap-arrays 
+DEBUGFLAGS = -g
+OMPFLAG = -qopenmp

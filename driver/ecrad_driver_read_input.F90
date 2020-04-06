@@ -19,7 +19,7 @@ contains
     use radiation_io,             only : nulout
     use radiation_config,         only : config_type, ISolverSPARTACUS
     use ecrad_driver_config,      only : driver_config_type
-    use radsurf_properties, only : surface_type
+    use radsurf_properties,       only : surface_type
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_gas,            only : gas_type, &
@@ -113,7 +113,7 @@ contains
       allocate(single_level%cos_sza(ncol))
       single_level%cos_sza = driver_config%cos_sza_override
       if (driver_config%iverbose >= 2) then
-        write(nulout,'(a,g10.3)') '  Overriding cos_sza with ', &
+        write(nulout,'(a,g10.3)') '  Overriding cosine of the solar zenith angle with ', &
              &  driver_config%cos_sza_override
       end if
     else if (file%exists('cos_solar_zenith_angle')) then
@@ -240,6 +240,11 @@ contains
         if (driver_config%iverbose >= 2) then
           write(nulout,'(a,g10.3)')  '  Scaling overlap decorrelation length by a factor of ', &
                &  driver_config%overlap_decorr_length_scaling
+        end if
+      else if (driver_config%overlap_decorr_length_scaling == 0.0_jprb) then
+        cloud%overlap_param = 0.0_jprb
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a)')  '  Setting overlap decorrelation length to zero (random overlap)'
         end if
       end if
       
