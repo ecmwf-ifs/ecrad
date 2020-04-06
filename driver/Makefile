@@ -13,10 +13,10 @@ EXECUTABLE = ../bin/ecrad
 all: $(EXECUTABLE) $(TEST)
 
 $(EXECUTABLE): $(OBJECTS) ../lib/*.a
-	$(FC) $(OBJECTS) $(LIBS) -o $(EXECUTABLE)
+	$(FC) $(OBJECTS) $(LIBS) $(LDFLAGS) -o $(EXECUTABLE)
 
 $(TEST): $(TEST).F90 ../lib/*.a
-	$(FC) $(FCFLAGS) $(TEST).F90 $(LIBS) -o $(TEST)
+	$(FC) $(FCFLAGS) $(TEST).F90 $(LIBS) $(LDFLAGS) -o $(TEST)
 
 # Note that the dependence on mod files can mean that rerunning "make"
 # recreates the executable

@@ -12,7 +12,7 @@ all: $(LIBIFSAUX)
 deps: includes
 
 $(LIBIFSAUX): $(OBJECTS)
-	ar r $(LIBIFSAUX) $(OBJECTS)
+	ar -r $(LIBIFSAUX) $(OBJECTS)
 
 %.o: %.F90
 	$(FC) $(FCFLAGS) -c $<
