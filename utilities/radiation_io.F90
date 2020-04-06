@@ -1,6 +1,6 @@
 ! radiation_io.F90 - Provides logging and abort functionality
 !
-! Copyright (C) 2015 ECMWF
+! Copyright (C) 2015-2020 ECMWF
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
