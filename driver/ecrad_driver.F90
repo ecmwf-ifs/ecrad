@@ -24,7 +24,6 @@ program ecrad_driver
   ! --------------------------------------------------------
   ! Section 1: Declarations
   ! --------------------------------------------------------
-
   use parkind1,                 only : jprb, jprd ! Working precision
 
   use radiation_io,             only : nulout
@@ -101,6 +100,7 @@ program ecrad_driver
 
   ! timers
   real(kind=jprd) :: tstart, tstop
+ 
 
   ! --------------------------------------------------------
   ! Section 2: Configure

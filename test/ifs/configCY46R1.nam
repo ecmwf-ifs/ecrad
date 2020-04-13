@@ -11,7 +11,7 @@
 !
 &radiation_driver
 do_parallel              = true,   ! Use OpenMP parallelization?
-nblocksize               = 32,      ! Number of columns to process per thread
+nblocksize               = 16,      ! Number of columns to process per thread
 do_save_inputs           = false,   ! Save inputs in "inputs.nc"?
 ! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
 iverbose    	   	= 0, 
