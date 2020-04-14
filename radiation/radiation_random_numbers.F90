@@ -131,7 +131,7 @@ contains
       call random_seed(size=nseed)
       allocate(iseednative(nseed))
       do jseed = 1,nseed
-        iseednative = this%iseed + jseed - 1
+        iseednative(jseed) = this%iseed + jseed - 1
       end do
       call random_seed(put=iseednative)
       
