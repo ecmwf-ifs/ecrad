@@ -77,7 +77,7 @@ module ecrad_driver_config
      integer :: nrepeat
 
      ! Do we correct unphysical inputs (e.g. negative gas concentrations)?
-     logical :: do_correct_unphysical_inputs = .true.
+     logical :: do_correct_unphysical_inputs = .false.
 
      ! Do we write NetCDF4/HDF5 file format, needed for very large
      ! files?
@@ -233,7 +233,7 @@ contains
     istartcol = 0
     iendcol = 0
     nrepeat = 1
-    do_correct_unphysical_inputs = .true.
+    do_correct_unphysical_inputs = .false.
     do_write_hdf5 = .false.
     experiment_name = ''
 
