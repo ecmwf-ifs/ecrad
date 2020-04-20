@@ -25,7 +25,6 @@ LOGICAL :: LLMPI
 INTEGER*8 :: MAXMEM=0
 INTEGER*8 :: GETMAXMEM
 INTEGER*8 GETMAXLOC
-LOGICAL :: LLFINDSUMB=.FALSE.
 REAL(KIND=JPRD) :: ZCLOCK
 REAL(KIND=JPRB) :: ZDIFF
 CHARACTER(LEN=7) CLSTR
@@ -35,8 +34,6 @@ CHARACTER(LEN=3) CHEAP ! For monitoring heap usage
 INTEGER          JHEAP ! For monitoring heap usage
 DATA JHEAP/0/
 
-
-#include "user_clock.h"
 
 !
 ! Florian Suzat (METEO-FRANCE) Sept 2017 : add drHack functionality
@@ -198,29 +195,6 @@ ELSE IF (KCASE == 1) THEN
   CALL C_DRHOOK_END  (CDNAME, IMYTID, PKEY, CDFILENAME, KSIZEINFO)
 ENDIF
 
-
-
-!GM---Code to find gstats SUMB time-------------------------------
-IF( LDETAILED_STATS .AND. LLFINDSUMB )THEN
-  IF( IMYTID==1 .AND. LAST_KNUM>=500 .AND. MYPROC_STATS <= 2 )THEN
-    IF( LAST_KSWITCH==1 .OR. LAST_KSWITCH==2 )THEN
-      CALL USER_CLOCK(PELAPSED_TIME=ZCLOCK)
-      ZDIFF=ZCLOCK-TIME_LAST_CALL
-      IF( ZDIFF > 0.1_JPRB )THEN
-        IF( KCASE == 0 )THEN
-          CLSTR='ENTERED'
-        ELSE
-          CLSTR='EXITED'
-        ENDIF
-        IF( NHOOK_MESSAGES < 100000 )THEN
-          WRITE(0,'("DR_HOOK_UTIL: ",A,2X,A," TIMESUMB=",F10.6)')CDNAME,CLSTR,ZDIFF
-          NHOOK_MESSAGES=NHOOK_MESSAGES+1
-        ENDIF
-      ENDIF
-    ENDIF
-  ENDIF
-ENDIF
-!GM------------ End ---------------------------------------------
 
 END SUBROUTINE DR_HOOK_UTIL
 

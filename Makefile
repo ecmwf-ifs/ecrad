@@ -70,7 +70,6 @@ export LIBS    = $(LDFLAGS) -L../lib -lradsurf -lradiation -lutilities \
 ifdef DR_HOOK
 LIBS += -ldl -lrt
 export CFLAGS = -g -O2
-
 endif
 
 
