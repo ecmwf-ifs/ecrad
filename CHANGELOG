@@ -1,3 +1,7 @@
+version 1.3.1
+	- Functional Dr Hook added by Ioan Hadade, enabled with "make
+	  DR_HOOK=1"
+
 version 1.3.0 (20 March 2020)
 	- Corrected shortwave band fluxes in Cloudless and Homogeneous
 	  solvers, which scaled the direct downwelling spectral flux by the
