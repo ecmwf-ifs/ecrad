@@ -66,7 +66,9 @@ export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradsurf -lradiation -lutilities \
-	-lifsrrtm -lifsaux -ldl -lrt $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+	-lifsrrtm -ldrhook -lifsaux -ldl -lrt $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+export CFLAGS = -g -O2
+
 #############################
 ### --- BUILD TARGETS --- ###
 #############################
@@ -78,7 +80,7 @@ help:
 	@echo "  make PROFILE=<prof>"
 	@echo "where <prof> is one of gfortran, pgi etc."
 
-build: libifsaux libutilities libifsrrtm libradiation libradsurf driver symlinks
+build: libifsaux libdrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
 
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps
@@ -89,6 +91,9 @@ clean-deps:
 
 libifsaux:
 	cd ifsaux && $(MAKE)
+
+libdrhook:
+	cd drhook && $(MAKE)
 
 libutilities:
 	cd utilities && $(MAKE)
