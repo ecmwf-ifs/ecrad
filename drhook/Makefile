@@ -35,6 +35,11 @@ include drhook/.depend
 includes:
 	LOC_INTFBDIR=$(INCLUDE_DIR) INTFBDIR=$(INCLUDE_DIR) $(MAKE_INCLUDES) $(SOURCES)
 
+# Dummy version of Dr Hook creates the YOMHOOK module but the DR_HOOK
+# routine does nothing
+dummy: yomhook_dummy.o
+	ar -r $(LIBDRHOOK) yomhook_dummy.o
+
 clean:
 	rm -f *.o drhook/*.o mpi_serial/*.o $(LIBDRHOOK)
 
