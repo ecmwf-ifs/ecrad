@@ -24,7 +24,7 @@ program ecrad_driver
   ! --------------------------------------------------------
   ! Section 1: Declarations
   ! --------------------------------------------------------
-  use parkind1,                 only : jprb, jprd ! Working precision
+  use parkind1,                 only : jprb, jprd ! Working/double precision
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
@@ -98,7 +98,7 @@ program ecrad_driver
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
-  ! timers
+  ! Start/stop time in seconds
   real(kind=jprd) :: tstart, tstop
  
 
@@ -298,7 +298,7 @@ program ecrad_driver
       end do
       !$OMP END PARALLEL DO
       tstop = omp_get_wtime()
-      write(nulout,*) 'Time: ', tstop-tstart
+      write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
       
     else
       ! Run radiation scheme serially
