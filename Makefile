@@ -91,10 +91,17 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifdef DR_HOOK
-build: libifsaux libdrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
+build: directories libifsaux libdrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
 else
-build: libifsaux libdummydrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
+build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
 endif
+
+# git cannot store empty directories so they may need to be created 
+directories: mod lib
+mod:
+	mkdir -p mod
+lib:
+	mkdir -p lib
 
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps

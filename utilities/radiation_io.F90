@@ -1,6 +1,6 @@
 ! radiation_io.F90 - Provides logging and abort functionality
 !
-! Copyright (C) 2015 ECMWF
+! Copyright (C) 2015-2020 ECMWF
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -39,9 +39,17 @@ contains
     character(len=*), intent(in), optional :: text
     if (present(text)) then
       write(nulerr,'(a)') text
+#ifdef __PGI
+      stop 1
+#else
       error stop 1
+#endif
     else
+#ifdef __PGI
+      stop 'Error in radiation scheme'
+#else
       error stop 'Error in radiation scheme'
+#endif
     end if
   end subroutine radiation_abort
 

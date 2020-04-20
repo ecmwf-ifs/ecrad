@@ -11,10 +11,15 @@ IF (NULOUT >= 0) WRITE(NULOUT,'(1X,A)') CDTEXT
 IF (NULERR >= 0) WRITE(NULERR,'(1X,A,A)') 'ABORT! ', CDTEXT
 
 IF (NULOUT >= 0) THEN
-  CALL FLUSH(NULOUT)
+  ! FLUSH not understood by NAG compiler
+  !CALL FLUSH(NULOUT)
   IF (NULOUT /= 0 .and. NULOUT /= 6) CLOSE(NULOUT)
 ENDIF
 
-CALL ABORT
+#ifdef __PGI
+      stop 1
+#else
+      error stop 1
+#endif
 
 END SUBROUTINE ABOR1

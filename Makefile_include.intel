@@ -1,13 +1,13 @@
 # This is a Makefile for the Intel compiler: run "make
-# PROFILE=intel". It will compile but unfortunately crashes at a call
-# to single_level%get_albedos... still needs debugging.
+# PROFILE=intel". Need all arrays to be on the heap for it to work,
+# hence -heap-arrays.
 
 FC = ifort
 CC = icc
 CPPFLAGS = 
 
 ifndef DEBUG
-OPTFLAGS = -O3 
+OPTFLAGS = -O3
 else
 OPTFLAGS = -O0
 endif
