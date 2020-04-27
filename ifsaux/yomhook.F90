@@ -1,5 +1,7 @@
 module yomhook
 
+  public
+
   save
 
   logical :: lhook = .false.

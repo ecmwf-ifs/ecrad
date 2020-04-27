@@ -12,6 +12,8 @@ module ecrad_driver_config
 
   implicit none
 
+  public
+
   ! Max length of "experiment" global attribute
   integer, parameter :: NMaxStringLength = 2000
 
