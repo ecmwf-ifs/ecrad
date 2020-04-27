@@ -17,6 +17,7 @@ module radiation_flux
   use parkind1, only : jprb
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! This derived type contains the output from the radiation

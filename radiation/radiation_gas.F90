@@ -15,6 +15,7 @@ module radiation_gas
   use parkind1, only : jprb
 
   implicit none
+  public
 
   ! Gas codes; these indices match those of RRTM-LW up to 7
   integer, parameter :: IGasNotPresent = 0

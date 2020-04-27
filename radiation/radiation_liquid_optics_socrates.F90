@@ -10,6 +10,7 @@
 module radiation_liquid_optics_socrates
 
   implicit none
+  public
 
   ! SOCRATES (Edwards-Slingo) parameterizes info on the dependence of
   ! the scattering properties in each band on effective radius in

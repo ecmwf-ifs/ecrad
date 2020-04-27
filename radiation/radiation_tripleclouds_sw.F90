@@ -15,6 +15,8 @@
 
 module radiation_tripleclouds_sw
 
+  public
+
 contains
   ! Provides elemental function "delta_eddington"
 #include "radiation_delta_eddington.h"

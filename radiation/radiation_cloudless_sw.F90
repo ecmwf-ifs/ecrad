@@ -9,6 +9,8 @@
 
 module radiation_cloudless_sw
 
+public :: solver_cloudless_sw
+
 contains
 
   ! Provides elemental function "delta_eddington"

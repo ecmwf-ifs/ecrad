@@ -15,6 +15,7 @@ module radiation_aerosol
   use parkind1, only : jprb
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! Type describing the aerosol content in the atmosphere

@@ -10,6 +10,7 @@
 module radiation_ice_optics_fu
 
   implicit none
+  public
 
   ! The number of ice coefficients depends on the parameterization
   integer, parameter :: NIceOpticsCoeffsFuSW  = 10

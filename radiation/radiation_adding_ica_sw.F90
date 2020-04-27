@@ -11,6 +11,8 @@
 
 module radiation_adding_ica_sw
 
+  public
+
 contains
 
   subroutine adding_ica_sw(ncol, nlev, incoming_toa, &

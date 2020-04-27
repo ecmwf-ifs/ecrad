@@ -13,6 +13,8 @@ module radiation_cloud_cover
 
   use parkind1, only           : jprb
 
+  public
+
   ! Three overlap schemes.  Note that "Exponential" means that
   ! clear-sky regions have no special significance for computing the
   ! cumulative cloud cover: non-contiguous clouds are exponentially

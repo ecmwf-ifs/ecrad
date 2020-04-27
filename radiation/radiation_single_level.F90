@@ -15,6 +15,7 @@ module radiation_single_level
   use parkind1, only : jprb
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! Derived type to contain variables that don't vary with height;

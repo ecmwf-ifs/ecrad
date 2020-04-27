@@ -15,6 +15,7 @@ module radiation_cloud
   use parkind1, only : jprb
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! The intention is that all variables describing clouds and

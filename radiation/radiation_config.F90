@@ -36,6 +36,7 @@ module radiation_config
        & IOverlapMaximumRandom, IOverlapExponentialRandom, IOverlapExponential
 
   implicit none
+  public
 
   ! Configuration codes: use C-style enumerators to avoid having to
   ! remember the numbers

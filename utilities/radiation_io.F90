@@ -26,6 +26,7 @@ module radiation_io
   use yomlun_ifsaux, only : nulout, nulerr
 
   implicit none
+  public
 
   ! This unit may be used for reading radiation configuration files,
   ! but should be closed as soon as the file is read

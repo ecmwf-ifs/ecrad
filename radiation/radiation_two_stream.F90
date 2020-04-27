@@ -17,6 +17,7 @@ module radiation_two_stream
   use parkind1, only : jprb, jprd
 
   implicit none
+  public
 
   ! Elsasser's factor: the effective factor by which the zenith
   ! optical depth needs to be multiplied to account for longwave

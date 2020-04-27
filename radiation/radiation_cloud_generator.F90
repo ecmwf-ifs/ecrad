@@ -14,6 +14,8 @@
 
 module radiation_cloud_generator
 
+  public
+
 contains
 
   !---------------------------------------------------------------------

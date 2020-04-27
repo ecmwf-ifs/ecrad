@@ -13,6 +13,7 @@ module radiation_constants
 !  use yomcst,   only : RPI, RSIGMA, RG, RD, RMV, RMO3, RHPLA
 
   implicit none
+  public
 
   ! Rename some constants from their cryptic IFS names
   real(jprb), parameter :: Pi                 = 3.14159265358979323846_jprb

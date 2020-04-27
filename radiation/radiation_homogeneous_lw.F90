@@ -14,6 +14,8 @@
 
 module radiation_homogeneous_lw
 
+  public
+
 contains
 
   !---------------------------------------------------------------------

@@ -22,6 +22,7 @@ module easy_netcdf
   use radiation_io,  only : nulout, nulerr, my_abort => radiation_abort
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! An object of this type provides convenient read or write access to

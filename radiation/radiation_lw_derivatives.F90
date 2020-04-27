@@ -27,6 +27,8 @@
 
 module radiation_lw_derivatives
 
+  public
+
 contains
 
   !---------------------------------------------------------------------

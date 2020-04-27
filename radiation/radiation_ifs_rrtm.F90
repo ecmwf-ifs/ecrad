@@ -19,7 +19,7 @@ module radiation_ifs_rrtm
 
   implicit none
 
-  public  :: setup_gas_optics, gas_optics, planck_function
+  public  :: setup_gas_optics, gas_optics, planck_function, set_gas_units
 
 contains
 

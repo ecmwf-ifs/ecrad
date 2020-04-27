@@ -10,6 +10,7 @@
 module radiation_ice_optics_baran
 
   implicit none
+  public
 
   ! The number of ice coefficients depends on the parameterization
   integer, parameter :: NIceOpticsCoeffsBaran = 9

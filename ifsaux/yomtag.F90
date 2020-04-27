@@ -4,6 +4,8 @@ USE PARKIND1  ,ONLY : JPIM
 
 IMPLICIT NONE
 
+PUBLIC
+
 SAVE
 
 ! MTAGRAD : tag for communications done in SUECRAD (ECMWF physics)

@@ -6,6 +6,8 @@ USE PARRRTM,  ONLY : JPG, JPBAND, JPGMAX
 
 IMPLICIT NONE
 
+PUBLIC
+
 SAVE
 
 !    -------------------------------------------------------------------

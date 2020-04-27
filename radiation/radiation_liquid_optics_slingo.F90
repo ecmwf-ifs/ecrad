@@ -10,6 +10,7 @@
 module radiation_liquid_optics_slingo
 
   implicit none
+  public
 
   integer, parameter :: NLiqOpticsCoeffsSlingoSW = 6
   integer, parameter :: NLiqOpticsCoeffsLindnerLiLW = 13

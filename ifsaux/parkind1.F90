@@ -3,6 +3,7 @@ MODULE PARKIND1
 !     *** Define usual kinds for strong typing ***
 !
 IMPLICIT NONE
+PUBLIC
 SAVE
 !
 !     Integer Kinds

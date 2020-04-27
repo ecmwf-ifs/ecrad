@@ -13,6 +13,8 @@
 
 module radiation_mcica_sw
 
+  public
+
 contains
 
   ! Provides elemental function "delta_eddington"

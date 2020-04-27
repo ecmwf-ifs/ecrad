@@ -22,6 +22,7 @@ module radiation_matrix
   use parkind1, only : jprb
 
   implicit none
+  public
 
   ! Codes to describe sparseness pattern, where the SHORTWAVE
   ! pattern is of the form:

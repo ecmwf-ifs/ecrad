@@ -14,6 +14,8 @@
 
 module radiation_homogeneous_sw
 
+  public
+
 contains
 
   ! Provides elemental function "delta_eddington"

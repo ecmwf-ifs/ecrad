@@ -15,6 +15,8 @@
 
 module radiation_spartacus_lw
 
+  public
+
 contains
 
   ! Small routine for scaling cloud optical depth in the cloudy
