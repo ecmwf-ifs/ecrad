@@ -1,0 +1,1 @@
+void MPI_Initialized() { }

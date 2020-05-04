@@ -3,6 +3,7 @@
 # hence -heap-arrays.
 
 FC = ifort
+CC = icc
 CPPFLAGS = 
 
 ifndef DEBUG
@@ -11,7 +12,8 @@ else
 OPTFLAGS = -O0
 endif
 
+LDFLAGS = -lrt
 WARNFLAGS = -warn all
-BASICFLAGS = -module ../mod -convert big_endian -heap-arrays 
+BASICFLAGS = -module ../mod -convert big_endian -fpe0 -fp-model precise -ftz -fp-speculation safe
 DEBUGFLAGS = -g
-OMPFLAG = -qopenmp
+OMPFLAG = -qopenmp -qopenmp-lib=compat

@@ -76,6 +76,8 @@ The subdirectories are as follows:
   utilities - source code for useful utilities, such as reading NetCDF
        files
 
+  drhook - source code for the Dr Hook profiling system
+
   driver - the source code for the offline driver program
 
   ifs - source files from the IFS that are used to provide inputs to
