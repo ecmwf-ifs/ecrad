@@ -18,7 +18,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_ice_optics_baran2017.F90 radiation_ice_optics_yi.F90 \
 	radiation_liquid_optics_socrates.F90 radiation_liquid_optics_slingo.F90 \
 	radiation_tripleclouds_sw.F90 radiation_tripleclouds_lw.F90 \
-	radiation_regions.F90 \
+	radiation_regions.F90 radiation_ecckd.F90 \
 	radiation_cloudless_lw.F90 radiation_cloudless_sw.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
@@ -90,3 +90,4 @@ radiation_spartacus_sw.o radiation_spartacus_lw.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o: \
 	radiation_optical_depth_scaling.h radiation_overlap.o \
 	radiation_matrix.o radiation_flux.o radiation_regions.o
+radiation_ecckd.o: radiation_gas.o
