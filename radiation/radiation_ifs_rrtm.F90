@@ -82,6 +82,10 @@ contains
       call SRTM_INIT(directory)
     end if
 
+    ! Cloud and aerosol properties can only be defined per band
+    config%do_cloud_aerosol_per_sw_g_point = .false.
+    config%do_cloud_aerosol_per_lw_g_point = .false.
+
     config%n_g_sw = jpgsw
     config%n_g_lw = jpglw
     config%n_bands_sw = 14

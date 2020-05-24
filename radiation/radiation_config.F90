@@ -35,6 +35,7 @@ module radiation_config
   use radiation_pdf_sampler,         only : pdf_sampler_type
   use radiation_cloud_cover,         only : OverlapName, &
        & IOverlapMaximumRandom, IOverlapExponentialRandom, IOverlapExponential
+  use radiation_ecckd,               only : ckd_model_type
 
   implicit none
 
@@ -87,10 +88,11 @@ module radiation_config
 
   ! Gas models
   enum, bind(c) 
-     enumerator IGasModelMonochromatic, IGasModelIFSRRTMG
+     enumerator IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
   end enum
-  character(len=*), parameter :: GasModelName(0:1) = (/ 'Monochromatic', &
-       &                                                'RRTMG-IFS    ' /)
+  character(len=*), parameter :: GasModelName(0:2) = (/ 'Monochromatic', &
+       &                                                'RRTMG-IFS    ', &
+       &                                                'ECCKD        '/)
 
   ! Hydrometeor scattering models
   enum, bind(c) 
@@ -413,9 +415,11 @@ module radiation_config
     ! then that will be used instead. If the user assigns one and it
     ! doesn't start with a '/' character then it will be prepended by
     ! the contents of directory_name.
-    character(len=511) :: ice_optics_override_file_name = ''
-    character(len=511) :: liq_optics_override_file_name = ''
+    character(len=511) :: ice_optics_override_file_name     = ''
+    character(len=511) :: liq_optics_override_file_name     = ''
     character(len=511) :: aerosol_optics_override_file_name = ''
+    character(len=511) :: gas_optics_sw_override_file_name  = ''
+    character(len=511) :: gas_optics_lw_override_file_name  = ''
 
     ! Optionally override the look-up table file for the cloud-water
     ! PDF used by the McICA solver
@@ -483,6 +487,10 @@ module radiation_config
     integer :: n_canopy_bands_sw = 1
     integer :: n_canopy_bands_lw = 1
 
+    ! Data structures containing gas optics description in the case of
+    ! ecCKD
+    type(ckd_model_type)         :: gas_optics_sw, gas_optics_lw
+
     ! Data structure containing cloud scattering data
     type(cloud_optics_type)      :: cloud_optics
 
@@ -495,7 +503,9 @@ module radiation_config
     ! Optics file names
     character(len=511) :: ice_optics_file_name, &
          &                liq_optics_file_name, &
-         &                aerosol_optics_file_name
+         &                aerosol_optics_file_name, &
+         &                gas_optics_sw_file_name, &
+         &                gas_optics_lw_file_name
     
     ! McICA PDF look-up table file name
     character(len=511) :: cloud_pdf_file_name
@@ -523,6 +533,11 @@ module radiation_config
     ! If the solvers are both "Cloudless" then we don't need to do any
     ! cloud processing
     logical :: do_clouds = .true.
+
+    ! Do we compute cloud and aerosol optical properties per g point?
+    ! Not available with RRTMG gas optics model
+    logical :: do_cloud_aerosol_per_sw_g_point = .true.
+    logical :: do_cloud_aerosol_per_lw_g_point = .true.
 
    contains
      procedure :: read => read_config_from_namelist
@@ -943,6 +958,39 @@ contains
          & .and. this%i_overlap_scheme /= IOverlapExponentialRandom) then
       write(nulerr,'(a)') '*** Error: SPARTACUS/Tripleclouds solvers can only do Exponential-Random overlap'
       call radiation_abort('Radiation configuration error')
+
+    end if
+
+    ! If ecCKD gas optics model is being used set relevant file names
+    if (this%i_gas_model == IGasModelECCKD) then
+
+      if (len_trim(this%gas_optics_sw_override_file_name) > 0) then
+        if (this%gas_optics_sw_override_file_name(1:1) == '/') then
+          this%gas_optics_sw_file_name = trim(this%gas_optics_sw_override_file_name)
+        else
+          this%gas_optics_sw_file_name = trim(this%directory_name) &
+               &  // '/' // trim(this%gas_optics_sw_override_file_name)
+        end if
+      else
+        ! In the IFS, the gas optics files should be specified in
+        ! ifs/module/radiation_setup.F90, not here
+        this%gas_optics_sw_file_name = trim(this%directory_name) &
+             &  // "/ecckd-0.6_sw_climate_wide-38_spectral-definition.nc"
+      end if
+
+      if (len_trim(this%gas_optics_lw_override_file_name) > 0) then
+        if (this%gas_optics_lw_override_file_name(1:1) == '/') then
+          this%gas_optics_lw_file_name = trim(this%gas_optics_lw_override_file_name)
+        else
+          this%gas_optics_lw_file_name = trim(this%directory_name) &
+               &  // '/' // trim(this%gas_optics_lw_override_file_name)
+        end if
+      else
+        ! In the IFS, the gas optics files should be specified in
+        ! ifs/module/radiation_setup.F90, not here
+        this%gas_optics_lw_file_name = trim(this%directory_name) &
+             &  // "/ecckd-0.6_lw_climate_fsck-27_spectral-definition.nc"
+      end if
 
     end if
 
