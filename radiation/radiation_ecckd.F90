@@ -11,7 +11,7 @@ module radiation_ecckd
 
   use parkind1, only : jprb
   use easy_netcdf
-  use radiation_gas
+  use radiation_gas_constants
 
   implicit none
 
@@ -30,8 +30,8 @@ module radiation_ecckd
   ! representation of an individual gas (including composite gases)
   type ckd_gas_type
 
-    ! Code identifying the gas, from the codes in the radiation_gas
-    ! module
+    ! Code identifying the gas, from the codes in the
+    ! radiation_gas_constants module
     integer :: i_gas_code
 
     ! One of the IConcDependence* enumerators
@@ -77,9 +77,9 @@ module radiation_ecckd
     integer :: ngas = 0
     ! Array of individual-gas data objects
     type(ckd_gas_type), allocatable :: single_gas(:)
-    ! Mapping from the "gas codes" in the radiation_gas module to an
-    ! index to the single_gas array, where zero means gas not present
-    ! (or part of a composite gas)
+    ! Mapping from the "gas codes" in the radiation_gas_constants
+    ! module to an index to the single_gas array, where zero means gas
+    ! not present (or part of a composite gas)
     integer :: i_gas_mapping(0:NMaxGases)
 
     ! Coordinates of main look-up table for absorption coeffts
