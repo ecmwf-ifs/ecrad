@@ -363,10 +363,10 @@ contains
       if (this%is_present(igas)) then
         if (iunits == IMassMixingRatio &
              &   .and. this%iunits(igas) == IVolumeMixingRatio) then
-          sf = sf * IGasMolarMass(igas) / IAirMolarMass
+          sf = sf * GasMolarMass(igas) / AirMolarMass
         else if (iunits == IVolumeMixingRatio &
              &   .and. this%iunits(igas) == IMassMixingRatio) then
-          sf = sf * IAirMolarMass / IGasMolarMass(igas)
+          sf = sf * AirMolarMass / GasMolarMass(igas)
         end if
         sf = sf * this%scale_factor(igas)
         
@@ -490,10 +490,10 @@ contains
     else 
       if (iunits == IMassMixingRatio &
            &   .and. this%iunits(igas) == IVolumeMixingRatio) then
-        sf = sf * IGasMolarMass(igas) / IAirMolarMass
+        sf = sf * GasMolarMass(igas) / AirMolarMass
       else if (iunits == IVolumeMixingRatio &
            &   .and. this%iunits(igas) == IMassMixingRatio) then
-        sf = sf * IAirMolarMass / IGasMolarMass(igas)
+        sf = sf * AirMolarMass / GasMolarMass(igas)
       end if
       sf = sf * this%scale_factor(igas)
         

@@ -32,8 +32,8 @@ module radiation_gas_constants
   integer, parameter :: NMaxGases = 12
 
   ! Molar masses (g mol-1) of dry air and the various gases above
-  real(jprb), parameter :: IAirMolarMass = 28.970
-  real(jprb), parameter, dimension(0:NMaxGases) :: IGasMolarMass = (/ &
+  real(jprb), parameter :: AirMolarMass = 28.970
+  real(jprb), parameter, dimension(0:NMaxGases) :: GasMolarMass = (/ &
        & 0.0_jprb,        & ! Gas not present
        & 18.0152833_jprb, & ! H2O
        & 44.011_jprb,     & ! CO2
