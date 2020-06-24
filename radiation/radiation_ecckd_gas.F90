@@ -70,6 +70,9 @@ module radiation_ecckd_gas
 
 contains
 
+  !---------------------------------------------------------------------
+  ! Read information about the representation of a single gas from a
+  ! NetCDF file, identifying it with code i_gas_code
   subroutine read_ckd_gas(this, file, gas_name, i_gas_code)
 
     class(ckd_gas_type), intent(inout) :: this

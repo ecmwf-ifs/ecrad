@@ -95,7 +95,9 @@ module radiation_ecckd
 
 contains
 
-
+  !---------------------------------------------------------------------
+  ! Read a complete ecCKD gas optics model from a NetCDF file
+  ! "filename"
   subroutine read_ckd_model(this, filename, iverbose)
 
     use easy_netcdf, only : netcdf_file
@@ -199,5 +201,93 @@ contains
 
   end subroutine read_ckd_model
 
+
+  !---------------------------------------------------------------------
+  ! Compute layerwise optical depth for each g point for ncol columns
+  ! at nlev layers
+  subroutine calc_optical_depth_ckd_model(this, ncol, nlev, nmaxgas, &
+       &  pressure_hl, temperature_fl, mole_fraction_fl, &
+       &  optical_depth_fl, rayleigh_od_fl)
+
+    ! Input variables
+
+    class(ckd_model_type), intent(in)  :: this
+    ! Number of columns, levels and input gases
+    integer,               intent(in)  :: ncol, nlev, nmaxgas
+    ! Pressure at half levels (Pa)
+    real(jprb),            intent(in)  :: pressure_hl(nlev+1,ncol)
+    ! Temperature at full levels (K)
+    real(jprb),            intent(in)  :: temperature_fl(nlev,ncol)
+    ! Gas mole fractions at full levels (mol mol-1)
+    real(jprb),            intent(in)  :: mole_fraction_fl(nlev,ncol,nmaxgas)
+    
+    ! Output variables
+
+    ! Layer absorption optical depth for each g point
+    real(jprb),            intent(out) :: optical_depth_fl(this%ng,nlev,ncol)
+    ! In the shortwave only, the Rayleigh scattering optical depth
+    real(jprb),  optional, intent(out) :: rayleigh_od_fl(this%ng,nlev,ncol)
+
+    ! Local variables
+
+    ! Natural logarithm of pressure at full levels
+    real(jprb) :: log_pressure_fl(nlev)
+
+    ! Indices and weights in temperature and pressure interpolation
+    real(jprb) :: pindex1, tindex1
+    real(jprb) :: pweight1, pweight2
+    real(jprb) :: tweight1, tweight2
+    integer    :: ip1, it1
+
+    integer :: jcol, jlev
+
+    real(jprb)         :: hook_handle
+
+    if (lhook) call dr_hook('radiation_ecckd:calc_optical_depth',0,hook_handle)
+
+    optical_depth_fl = 0.0_jprb
+
+    global_multiplier = 1.0 / (AccelDueToGravity * 0.001_jprb * AirMolarMass)
+
+    do jcol = 1,ncol
+
+      log_pressure_fl = log(0.5 * (pressure_hl(1:nlev,jcol)+pressure_hl(2:nlev+1,jcol)))
+
+      do jlev = 1,nlev
+        ! Find interpolation points in pressure
+        pindex1 = (log_pressure_fl(jlev)-this%log_pressure1) &
+             &    / this%d_log_pressure
+        pindex1 = 1.0_jprb + max(0.0_jprb, min(pindex1, this%npress-1.0001))
+        ip1 = aint(pindex1)
+        pweight2 = pindex1 - ip1
+        pweight1 = 1.0_jprb - pweight2
+
+        ! Find interpolation points in temperature
+        temperature1 = pweight1*this%temperature1(ip1) &
+             &       + pweight2*this%temperature1(ip1+1)
+        tindex1 = (temperature_fl(jlev,jcol) - temperature1) &
+             &    / this%d_temperature
+        tindex1 = 1.0_jprb + max(0.0_jprb, min(tindex1, this%ntemp-1.0001))
+        it1 = aint(tindex1)
+        tweight2 = tindex1 - it1
+        tweight1 = 1.0_jprb - tweight2
+
+        ! Concentration multiplier
+        simple_multiplier = global_multiplier &
+             &  * (pressure_hl(jlev+1,jcol) - pressure_hl(jlev,jcol))
+        
+        do jgas = 1,this%ngas
+
+          
+
+        end do
+
+      end do
+
+    end do
+
+    if (lhook) call dr_hook('radiation_ecckd:calc_optical_depth',1,hook_handle)
+
+  end subroutine calc_optical_depth_ckd_model
 
 end module radiation_ecckd
