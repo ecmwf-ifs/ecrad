@@ -36,8 +36,8 @@ module radiation_ecckd
     ! Number of pressure and temperature points
     integer :: npress = 0
     integer :: ntemp  = 0
-    ! Natural logarithm of pressure (Pa), dimensioned (npress)
-    real(jprb), allocatable :: log_pressure(:)
+    ! Natural logarithm of first (lowest) pressure (Pa) and increment
+    real(jprb) :: log_pressure1, d_log_pressure
     ! First temperature profile (K), dimensioned (npress)
     real(jprb), allocatable :: temperature1(:)
     ! Temperature increment (K)
@@ -109,6 +109,7 @@ contains
 
     type(netcdf_file) :: file
 
+    real(jprb), allocatable :: pressure_lut(:)
     real(jprb), allocatable :: temperature_full(:,:)
     real(jprb), allocatable :: temperature_planck(:)
 
@@ -134,9 +135,10 @@ contains
     call file%open(trim(filename), iverbose=iverbose_local)
 
     ! Read temperature and pressure coordinate variables
-    call file%get('pressure', this%log_pressure)
-    this%log_pressure = log(this%log_pressure)
-    this%npress = size(this%log_pressure)
+    call file%get('pressure', pressure_lut)
+    this%log_pressure1 = log(pressure_lut(1))
+    this%npress = size(pressure_lut)
+    this%d_log_pressure = log(pressure_lut(2)) - this%log_pressure1
     call file%get('temperature', temperature_full)
     allocate(this%temperature1(this%npress));
     this%temperature1 = temperature_full(1,:)
@@ -209,6 +211,9 @@ contains
        &  pressure_hl, temperature_fl, mole_fraction_fl, &
        &  optical_depth_fl, rayleigh_od_fl)
 
+    use yomhook,  only           : lhook, dr_hook
+    use radiation_constants, only : AccelDueToGravity
+
     ! Input variables
 
     class(ckd_model_type), intent(in)  :: this
@@ -233,13 +238,15 @@ contains
     ! Natural logarithm of pressure at full levels
     real(jprb) :: log_pressure_fl(nlev)
 
+    real(jprb) :: simple_multiplier, global_multiplier, temperature1
+
     ! Indices and weights in temperature and pressure interpolation
     real(jprb) :: pindex1, tindex1
     real(jprb) :: pweight1, pweight2
     real(jprb) :: tweight1, tweight2
     integer    :: ip1, it1
 
-    integer :: jcol, jlev
+    integer :: jcol, jlev, jgas
 
     real(jprb)         :: hook_handle
 
@@ -258,7 +265,7 @@ contains
         pindex1 = (log_pressure_fl(jlev)-this%log_pressure1) &
              &    / this%d_log_pressure
         pindex1 = 1.0_jprb + max(0.0_jprb, min(pindex1, this%npress-1.0001))
-        ip1 = aint(pindex1)
+        ip1 = int(pindex1)
         pweight2 = pindex1 - ip1
         pweight1 = 1.0_jprb - pweight2
 
@@ -268,7 +275,7 @@ contains
         tindex1 = (temperature_fl(jlev,jcol) - temperature1) &
              &    / this%d_temperature
         tindex1 = 1.0_jprb + max(0.0_jprb, min(tindex1, this%ntemp-1.0001))
-        it1 = aint(tindex1)
+        it1 = int(tindex1)
         tweight2 = tindex1 - it1
         tweight1 = 1.0_jprb - tweight2
 
