@@ -12,6 +12,8 @@ module radsurf_flux
 
   implicit none
 
+  public
+
   !---------------------------------------------------------------------
   ! This derived type contains the output from the surface radiation
   ! calculation.  

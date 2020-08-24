@@ -1,4 +1,4 @@
-# Fortran compiler executable
+# Fortran compiler executable -*- Makefile -*-
 FC = gfortran
 
 # Tell the compiler to accept C-preprocessor directives
@@ -6,7 +6,7 @@ CPPFLAGS = -cpp
 
 # Basic flags such as where to write module files, and an instruction
 #  to read Fortran unformatted data files as big endian 
-BASICFLAGS = -J../mod -fconvert=big-endian
+BASICFLAGS = -J../mod -fconvert=big-endian -fno-range-check
 
 # OpenMP flag
 OMPFLAG = -fopenmp
@@ -28,6 +28,6 @@ else
 # --DEBUGGING CONFIGURATION--
 OPTFLAGS = -O0
 WARNFLAGS = -Wall
-DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan
+DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan -fbacktrace
 
 endif

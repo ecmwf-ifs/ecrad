@@ -1,0 +1,16 @@
+# This is a Makefile for the Cray compiler: run "make PROFILE=cray". 
+
+FC = ftn
+CPPFLAGS = 
+
+ifndef DEBUG
+OPTFLAGS = -hflex_mp=conservative -hfp1 -hadd_paren -hnocaf
+else
+OPTFLAGS = -O0 -hfp1 
+endif
+
+WARNFLAGS =
+BASICFLAGS = -emf -J../mod -p../mod
+LDFLAGS = -hbyteswapio -Ktrap=fp -Wl,--as-needed -dynamic
+DEBUGFLAGS =
+OMPFLAG = -homp

@@ -16,6 +16,7 @@ module radiation_gas
   use radiation_gas_constants
 
   implicit none
+  public
 
   ! Available units
   enum, bind(c)

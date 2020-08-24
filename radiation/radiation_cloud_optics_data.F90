@@ -12,6 +12,7 @@ module radiation_cloud_optics_data
   use parkind1, only : jprb
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! This type holds the configuration information to compute

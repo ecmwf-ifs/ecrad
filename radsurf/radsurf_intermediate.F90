@@ -13,6 +13,8 @@ module radsurf_intermediate
 
   implicit none
 
+  public
+
   !---------------------------------------------------------------------
   ! Derived type storing a description of radiative properties at the
   ! level of individual facets

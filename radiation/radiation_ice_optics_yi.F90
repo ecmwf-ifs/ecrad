@@ -16,6 +16,7 @@
 module radiation_ice_optics_yi
 
   implicit none
+  public
 
   ! The number of ice coefficients depends on the parameterization
   integer, parameter :: NIceOpticsCoeffsYiSW  = 69

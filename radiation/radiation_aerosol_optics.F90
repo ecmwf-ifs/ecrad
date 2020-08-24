@@ -12,6 +12,7 @@
 module radiation_aerosol_optics
 
   implicit none
+  public
 
 contains
 

@@ -52,7 +52,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
 !- from PRECISE             
 !- from PROFDATA             
 !- from SELF             
-INTEGER(KIND=JPIM) :: IG, IND0, IND1, JS, I_LAY, I_LAYSOLFR, I_NLAYERS, IPLON
+INTEGER(KIND=JPIM) :: IG, IND0, IND1, JS, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
 
 REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
  & Z_FAC110, Z_FAC111, Z_FS, Z_SPECCOMB, Z_SPECMULT, Z_SPECPARM, &
@@ -121,14 +121,14 @@ DO I_LAY = 1, I_NLAYERS
   ENDDO
 ENDDO
 
-I_LAYSOLFR = I_NLAYERS
+I_LAYSOLFR(:) = I_NLAYERS
 
 DO I_LAY = 1, I_NLAYERS
   DO IPLON = KIDIA, KFDIA
     IF (PRMU0(IPLON) > 0.0_JPRB) THEN
       IF (I_LAY >= K_LAYTROP(IPLON)+1) THEN
         IF (K_JP(IPLON,I_LAY-1) < LAYREFFR .AND. K_JP(IPLON,I_LAY) >= LAYREFFR) &
-         & I_LAYSOLFR = I_LAY  
+         & I_LAYSOLFR(IPLON) = I_LAY  
         Z_SPECCOMB = P_COLO3(IPLON,I_LAY) + STRRAT*P_COLO2(IPLON,I_LAY)
         Z_SPECPARM = P_COLO3(IPLON,I_LAY)/Z_SPECCOMB 
         IF (Z_SPECPARM >= P_ONEMINUS(IPLON)) Z_SPECPARM = P_ONEMINUS(IPLON)
@@ -171,7 +171,7 @@ DO I_LAY = 1, I_NLAYERS
            & ) 
           !     &           + TAURAY
           !    SSA(LAY,IG) = TAURAY/TAUG(LAY,IG)
-          IF (I_LAY == I_LAYSOLFR) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG,JS) &
+          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG,JS) &
            & + Z_FS * (SFLUXREFC(IG,JS+1) - SFLUXREFC(IG,JS))  
 ! The following actually improves this band by setting the solar
 ! spectrum at each g point equal to what would be computed if

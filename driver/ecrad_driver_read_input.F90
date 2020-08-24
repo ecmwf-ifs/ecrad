@@ -8,6 +8,8 @@
 !
 
 module ecrad_driver_read_input
+
+  public
   
 contains
 

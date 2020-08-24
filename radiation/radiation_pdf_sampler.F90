@@ -12,6 +12,7 @@ module radiation_pdf_sampler
   use parkind1, only : jprb
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! Derived type for sampling from a lognormal distribution, used to

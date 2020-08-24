@@ -4,6 +4,8 @@ USE PARKIND1  ,ONLY : JPIM     ,JPRB
 
 IMPLICIT NONE
 
+PUBLIC
+
 SAVE
 
 !     -----------------------------------------------------------------

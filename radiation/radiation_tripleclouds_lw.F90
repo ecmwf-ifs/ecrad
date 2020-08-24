@@ -14,6 +14,8 @@
 
 module radiation_tripleclouds_lw
 
+  public
+
 contains
   ! Small routine for scaling cloud optical depth in the cloudy
   ! regions

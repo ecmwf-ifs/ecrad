@@ -9,6 +9,8 @@
 
 module radiation_cloudless_lw
 
+public :: solver_cloudless_lw
+
 contains
 
   !---------------------------------------------------------------------

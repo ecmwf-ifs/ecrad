@@ -13,6 +13,8 @@ module radsurf_properties
 
   implicit none
 
+  public
+
   ! Number of tile types
   integer(kind=jpim), parameter :: NTileTypes = 3
 

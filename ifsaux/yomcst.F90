@@ -4,6 +4,8 @@ USE PARKIND1  ,ONLY : JPRB
 
 IMPLICIT NONE
 
+PUBLIC
+
 SAVE
 
 ! * RPI          : number Pi

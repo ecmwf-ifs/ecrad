@@ -1,6 +1,5 @@
-SOURCES = parkind1.F90 yomlun_ifsaux.F90 yomcst.F90 abor1.F90 yomhook.F90 \
-	yomtag.F90 mpl_module.F90 yommp0.F90 yomdyncore.F90 yomlun.F90 \
-	random_numbers_mix.F90
+SOURCES = parkind1.F90 yomlun_ifsaux.F90 yomcst.F90 abor1.F90 \
+	yomtag.F90 mpl_module.F90 yommp0.F90 yomdyncore.F90 yomlun.F90
 MAKE_INCLUDES = ../bin/make_intfbl.1.pl
 INCLUDE_DIR = ../include
 

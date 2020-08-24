@@ -17,6 +17,7 @@ module radiation_aerosol_optics_data
   use radiation_io,  only : nulerr, radiation_abort
 
   implicit none
+  public
 
   private :: get_line
 

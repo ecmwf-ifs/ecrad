@@ -13,6 +13,8 @@
 
 module radiation_adding_ica_lw
 
+  public
+
 contains
 
   !---------------------------------------------------------------------

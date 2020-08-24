@@ -38,6 +38,7 @@ module radiation_config
   use radiation_ecckd,               only : ckd_model_type
 
   implicit none
+  public
 
   ! Configuration codes: use C-style enumerators to avoid having to
   ! remember the numbers

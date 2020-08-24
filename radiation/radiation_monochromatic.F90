@@ -16,7 +16,8 @@ module radiation_monochromatic
   implicit none
 
   public  :: setup_gas_optics, gas_optics, set_gas_units, &
-       &     setup_cloud_optics, cloud_optics
+       &     setup_cloud_optics, cloud_optics,            &
+       &     setup_aerosol_optics, add_aerosol_optics
 
 contains
 

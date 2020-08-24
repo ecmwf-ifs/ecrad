@@ -6,6 +6,8 @@ USE PARKIND1  ,ONLY : JPIM
 
 IMPLICIT NONE
 
+PUBLIC
+
 SAVE
 
 !     ------------------------------------------------------------------

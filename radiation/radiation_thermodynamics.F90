@@ -16,6 +16,7 @@ module radiation_thermodynamics
   use parkind1, only : jprb
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! Derived type for storing pressure and temperature at half levels
