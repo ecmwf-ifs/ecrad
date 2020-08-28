@@ -433,12 +433,20 @@ module radiation_config
     ! Users of this library should not edit these parameters directly;
     ! they are set by the "consolidate" routine
 
-    ! Wavenumber range for each band, in cm-1, which will be allocated
-    ! to be of length n_bands_sw or n_bands_lw
+    ! Bounds of the wavenumber intervals used to describe
+    ! g_frac_[l|s]w, in cm-1, of length n_wav_frac_[l|s]w. If
+    ! do_cloud_aerosol_per_[l|s]w_g_point is false then these
+    ! intervals are identical to the bands, and n_wav_frac_[l|s]w =
+    ! n_bands_[l|s]w. If do_cloud_aerosol_per_[l|s]w_g_point is true
+    ! then they are not the same as bands.
     real(jprb), allocatable, dimension(:) :: wavenumber1_sw
     real(jprb), allocatable, dimension(:) :: wavenumber2_sw
     real(jprb), allocatable, dimension(:) :: wavenumber1_lw
     real(jprb), allocatable, dimension(:) :: wavenumber2_lw
+
+    ! Fraction of each g point in each wavenumber interval,
+    ! dimensioned (n_wav_frac_[l|s]w, n_g_[l|s]w)
+    real(jprb), allocatable, dimension(:,:) :: g_frac_sw, g_frac_lw
 
     ! If the nearest surface albedo/emissivity interval is to be used
     ! for each SW/LW band then the following arrays will be allocated
@@ -519,6 +527,10 @@ module radiation_config
     ! Number of spectral points to save (equal either to the number of
     ! g points or the number of bands
     integer :: n_spec_sw = 0, n_spec_lw = 0
+
+    ! Number of wavenumber intervals used to describe the mapping from
+    ! g-points to wavenumber space
+    integer :: n_wav_frac_sw = 0, n_wav_frac_lw = 0
 
     ! Dimensions to store variables that are only needed if longwave
     ! scattering is included. "n_g_lw_if_scattering" is equal to
@@ -1700,14 +1712,32 @@ contains
           write(nulout, '(a,i0,a,i0,a)') 'Weighting of ', nvalue, ' emissivity values in ', &
              &  nband, ' longwave bands (wavenumber ranges in cm-1):'
         end if
-        do jband = 1,nband
-          write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
-               &                        nint(wavenumber2(jband)), ':'
+        if (nband <= 20) then
+          do jband = 1,nband
+            write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
+                 &                        nint(wavenumber2(jband)), ':'
+            do iinterval = 1,nvalue
+              write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+            end do
+            write(nulout, '()')
+          end do
+        else
+          do jband = 1,15
+            write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
+                 &                        nint(wavenumber2(jband)), ':'
+            do iinterval = 1,nvalue
+              write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+            end do
+            write(nulout, '()')
+          end do
+          write(nulout,'(a)') '  ...'
+          write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(nband)), ' to', &
+               &                        nint(wavenumber2(nband)), ':'
           do iinterval = 1,nvalue
-            write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+            write(nulout,'(f5.2)',advance='no') weights(iinterval,nband)
           end do
           write(nulout, '()')
-        end do
+        end if
       else if (ninterval <= 1) then
         if (is_sw) then
           write(nulout, '(a)') 'All shortwave bands will use the same albedo'

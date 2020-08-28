@@ -60,6 +60,12 @@ test_spartacus_maxentr:
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
 
+test_ecckd:
+	./change_namelist.sh $(CONFIG) config_ecckd.nam \
+		gas_model_name='"ECCKD"' use_aerosols=false \
+		sw_solver_name='"Cloudless"' lw_solver_name='"Cloudless"'
+	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
+
 # Clean data files
 clean:
 	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc \

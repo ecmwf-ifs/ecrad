@@ -123,7 +123,7 @@ contains
       if (config%do_save_spectral_flux) then
         if (config%n_spec_lw == 0) then
           write(nulerr,'(a)') '*** Error: number of LW spectral points to save not yet defined ' &
-               & // 'so cannot allocated spectral flux arrays'
+               & // 'so cannot allocate spectral flux arrays'
           call radiation_abort()
         end if
         
