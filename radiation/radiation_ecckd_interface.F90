@@ -9,7 +9,9 @@
 
 module radiation_ecckd_interface
 
-  public  :: setup_gas_optics, gas_optics, planck_function
+  implicit none
+
+  public  :: setup_gas_optics, set_gas_units, gas_optics, planck_function
 
 contains
 
@@ -19,8 +21,6 @@ contains
 
     use parkind1, only : jprb
     use radiation_config
-
-    implicit none
 
     type(config_type), intent(inout), target :: config
 
@@ -141,7 +141,19 @@ contains
       nullify(config%i_spec_from_reordered_g_lw)
     end if
 
-end subroutine setup_gas_optics
+  end subroutine setup_gas_optics
+
+
+  !---------------------------------------------------------------------
+  ! Scale gas mixing ratios according to required units
+  subroutine set_gas_units(gas)
+
+    use radiation_gas,           only : gas_type, IVolumeMixingRatio
+    type(gas_type),    intent(inout) :: gas
+
+    call gas%set_units(IVolumeMixingRatio)
+
+  end subroutine set_gas_units
 
 
   !---------------------------------------------------------------------
@@ -158,8 +170,6 @@ end subroutine setup_gas_optics
     use radiation_single_level,   only : single_level_type
     use radiation_gas_constants,  only : NMaxGases
     use radiation_gas
-
-    implicit none
 
     integer,                  intent(in) :: ncol               ! number of columns
     integer,                  intent(in) :: nlev               ! number of levels
@@ -195,13 +205,28 @@ end subroutine setup_gas_optics
     real(jprb), dimension(config%n_g_sw,istartcol:iendcol), &
          &   intent(out), optional :: incoming_sw
 
+    ! Temperature at full levels (K)
+    real(jprb) :: temperature_fl(istartcol:iendcol,nlev)
+
     integer :: jcol
 
+    !temperature_fl(istartcol:iendcol,:) &
+    !     &  = 0.5_jprb * (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
+    !     &               +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1))
+ 
+    temperature_fl(istartcol:iendcol,:) &
+         &  = (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
+         &     *thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
+         &    +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1) &
+         &     *thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1)) &
+         &  / (thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
+         &    +thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1))
+ 
     if (config%do_sw) then
 
       call config%gas_optics_sw%calc_optical_depth(iendcol-istartcol+1, nlev, &
            &  NMaxGases, transpose(thermodynamics%pressure_hl(istartcol:iendcol,:)), &
-           &  transpose(thermodynamics%temperature_hl(istartcol:iendcol,:)), &
+           &  transpose(temperature_fl), &
            &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
            &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
            &  od_sw, rayleigh_od_fl=ssa_sw)
@@ -221,7 +246,7 @@ end subroutine setup_gas_optics
 
       call config%gas_optics_lw%calc_optical_depth(iendcol-istartcol+1, nlev, &
            &  NMaxGases, transpose(thermodynamics%pressure_hl(istartcol:iendcol,:)), &
-           &  transpose(thermodynamics%temperature_hl(istartcol:iendcol,:)), &
+           &  transpose(temperature_fl), &
            &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
            &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
            &  od_lw)

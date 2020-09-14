@@ -143,15 +143,18 @@ contains
   subroutine set_gas_units(config, gas)
     
     use radiation_config
-    use radiation_gas,           only : gas_type
-    use radiation_monochromatic, only : set_gas_units_mono  => set_gas_units
-    use radiation_ifs_rrtm,      only : set_gas_units_ifs   => set_gas_units
+    use radiation_gas,             only : gas_type
+    use radiation_monochromatic,   only : set_gas_units_mono  => set_gas_units
+    use radiation_ifs_rrtm,        only : set_gas_units_ifs   => set_gas_units
+    use radiation_ecckd_interface, only : set_gas_units_ecckd => set_gas_units
 
     type(config_type), intent(in)    :: config
     type(gas_type),    intent(inout) :: gas
 
     if (config%i_gas_model == IGasModelMonochromatic) then
       call set_gas_units_mono(gas)
+    elseif (config%i_gas_model == IGasModelECCKD) then
+      call set_gas_units_ecckd(gas)
     else
       call set_gas_units_ifs(gas)
     end if

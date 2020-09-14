@@ -66,6 +66,12 @@ test_ecckd:
 		sw_solver_name='"Cloudless"' lw_solver_name='"Cloudless"'
 	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
 
+test_cloudless:
+	./change_namelist.sh $(CONFIG) config_cloudless.nam \
+		use_aerosols=false \
+		sw_solver_name='"Cloudless"' lw_solver_name='"Cloudless"'
+	$(DRIVER) config_cloudless.nam $(INPUT).nc $(INPUT)_cloudless_out.nc
+
 # Clean data files
 clean:
 	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc \
