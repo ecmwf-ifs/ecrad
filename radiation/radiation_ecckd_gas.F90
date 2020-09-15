@@ -93,7 +93,7 @@ contains
       this%log_mole_frac1  = log(mole_fraction(1))
       this%n_mole_frac     = size(mole_fraction)
       this%d_log_mole_frac = (log(mole_fraction(size(mole_fraction))) &
-           &                  - this%log_mole_frac1) / this%n_mole_frac
+           &                  - this%log_mole_frac1) / (this%n_mole_frac-1)
       deallocate(mole_fraction)
     else
       call file%get(gas_name // "_molar_absorption_coeff", &

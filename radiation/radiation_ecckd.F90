@@ -363,12 +363,6 @@ contains
         simple_multiplier = global_multiplier &
              &  * (pressure_hl(jlev+1,jcol) - pressure_hl(jlev,jcol))
       
-        if (jcol == 1) then
-          print *,jlev,log_pressure_fl(jlev),pindex1,ip1,pw1,pw2,temperature1,tindex1,it1,tw1,tw2, simple_multiplier
-          print *,'  ', temperature_fl(jlev,jcol), this%d_temperature, this%ntemp
-
-        end if
-  
         do jgas = 1,this%ngas
 
           associate (igascode => this%single_gas(jgas)%i_gas_code, &
@@ -387,7 +381,6 @@ contains
               od_single_gas = od_single_gas * simple_multiplier
               ! Or for logarithmic interpolation:
               ! od_single_gas = exp(od_single_gas) * simple_multiplier
-!              od_single_gas = 0.0_jprb
 
             case (IConcDependenceLinear)
               od_single_gas = tw1 * (pw1 * molar_abs(:,ip1,it1) &
@@ -395,7 +388,6 @@ contains
                    &        + tw2 * (pw1 * molar_abs(:,ip1,it1+1) &
                    &                +pw2 * molar_abs(:,ip1+1,it1+1))
               od_single_gas = od_single_gas * (simple_multiplier * mole_fraction_fl(jlev,jcol,igascode))
-!              od_single_gas = 0.0_jprb
 
             case (IConcDependenceRelativeLinear)
               od_single_gas = tw1 * (pw1 * molar_abs(:,ip1,it1) &
@@ -405,14 +397,13 @@ contains
               od_single_gas = od_single_gas * (simple_multiplier &
                    &                         * (mole_fraction_fl(jlev,jcol,igascode) &
                    &                            - single_gas%reference_mole_frac))
-!              od_single_gas = 0.0_jprb
 
             case (IConcDependenceLUT)
               ! Logarithmic interpolation in concentration space
               if (mole_fraction_fl(jlev,jcol,igascode) > 0.0_jprb) then
                 log_conc = log(mole_fraction_fl(jlev,jcol,igascode))
                 cindex1  = (log_conc - single_gas%log_mole_frac1) / single_gas%d_log_mole_frac
-                cindex1  = 1.0_jprb + max(0.0_jprb, min(cindex1, single_gas%n_mole_frac-1.0001))
+                cindex1  = 1.0_jprb + max(0.0_jprb, min(cindex1, single_gas%n_mole_frac-1.0001_jprb))
                 ic1 = int(cindex1)
                 cw2 = cindex1 - ic1
                 cw1 = 1.0_jprb - cw2
@@ -425,8 +416,8 @@ contains
                      &                +tw2 * (pw1 * molar_abs_conc(:,ip1,it1+1,ic1+1) &
                      &                       +pw2 * molar_abs_conc(:,ip1+1,it1+1,ic1+1)))
                 od_single_gas = od_single_gas * (simple_multiplier * mole_fraction_fl(jlev,jcol,igascode))
+
               end if
-!              od_single_gas = 0.0_jprb
           end select
 
           ! Add to any other gases that may be present
