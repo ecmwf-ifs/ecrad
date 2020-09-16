@@ -44,6 +44,7 @@ contains
     use radiation_ifs_rrtm,       only :  setup_gas_optics_rrtmg => setup_gas_optics
     use radiation_ecckd_interface,only :  setup_gas_optics_ecckd => setup_gas_optics
     use radiation_cloud_optics,   only :  setup_cloud_optics
+    use radiation_general_cloud_optics, only :  setup_general_cloud_optics
     use radiation_aerosol_optics, only :  setup_aerosol_optics
 
     type(config_type), intent(inout) :: config
@@ -110,6 +111,8 @@ contains
     if (config%do_clouds) then
       if (config%i_gas_model == IGasModelMonochromatic) then
         !      call setup_cloud_optics_mono(config)
+      elseif (config%i_gas_model == IGasModelECCKD) then
+        call setup_general_cloud_optics(config)
       else
         call setup_cloud_optics(config)
       end if
@@ -210,6 +213,7 @@ contains
     use radiation_ifs_rrtm,       only : gas_optics_rrtmg => gas_optics
     use radiation_ecckd_interface,only : gas_optics_ecckd => gas_optics
     use radiation_cloud_optics,   only : cloud_optics
+    use radiation_general_cloud_optics, only : general_cloud_optics
     use radiation_aerosol_optics, only : add_aerosol_optics
 
     ! Inputs
@@ -337,6 +341,11 @@ contains
         if (config%i_gas_model == IGasModelMonochromatic) then
           call cloud_optics_mono(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, &
+               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+        elseif (config%i_gas_model == IGasModelECCKD) then
+          call general_cloud_optics(nlev, istartcol, iendcol, &
+               &  config, thermodynamics, cloud, & 
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
         else

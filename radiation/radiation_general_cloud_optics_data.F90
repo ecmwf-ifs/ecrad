@@ -13,6 +13,8 @@ module radiation_general_cloud_optics_data
 
   implicit none
 
+  public
+
   !---------------------------------------------------------------------
   ! This type holds the configuration information to compute optical
   ! properties for a particular type of cloud or hydrometeor in one of
@@ -45,6 +47,7 @@ module radiation_general_cloud_optics_data
 
    contains
      procedure :: setup => setup_general_cloud_optics
+     procedure :: add_optical_properties
 
   end type general_cloud_optics_type
 
@@ -169,10 +172,10 @@ contains
     this%d_effective_radius = effective_radius(2) - effective_radius(1)
 
     ! Set up weighting
-    if (.not. present(weighting_temperature)) then
-      write(nulerr, '(a)') '*** Error: weighting_temperature not provided'
-      call radiation_abort('Radiation configuration error')
-    end if
+!    if (.not. present(weighting_temperature)) then
+!      write(nulerr, '(a)') '*** Error: weighting_temperature not provided'
+!      call radiation_abort('Radiation configuration error')
+!    end if
 
     nwav = size(wavenumber)
 
@@ -205,6 +208,9 @@ contains
         ! wavenum0 and wavenum2, peaking at wavenum1
         wavenum1 = wavenumber(jwav)
         isd1 = specdef%find(wavenum1)
+        if (isd1 < 1) then
+          cycle
+        end if
         if (jwav > 1) then
           wavenum0 = wavenumber(jwav-1)
 
@@ -217,28 +223,38 @@ contains
             weight(isd0) = 0.5_jprb*(wavenum1-wavenum0) &
                  &       / (specdef%wavenumber2(isd0)-specdef%wavenumber1(isd0))
           else
-            ! Left part of triangle
-            weight(isd0) = 0.5_jprb * (specdef%wavenumber2(isd0)-wavenum0)**2 &
-                 &       / ((specdef%wavenumber2(isd0)-specdef%wavenumber1(isd0)) &
-                 &         *(wavenum1-wavenum0))
+            if (isd0 >= 1) then
+              ! Left part of triangle
+              weight(isd0) = 0.5_jprb * (specdef%wavenumber2(isd0)-wavenum0)**2 &
+                   &       / ((specdef%wavenumber2(isd0)-specdef%wavenumber1(isd0)) &
+                   &         *(wavenum1-wavenum0))
+            end if
             ! Right part of triangle (trapezium)
-            weight(isd1) = 0.5_jprb * (wavenum1-specdef%wavenumber1(isd1)) &
-                 &       * (wavenum1 + specdef%wavenumber1(isd1) - 2.0_jprb*wavenum0) &
-                 &       / (wavenum1-wavenum0)
-            do isd = isd0+1,isd1-1
-              ! Intermediate trapezia
-              weight(isd) = 0.5_jprb * (specdef%wavenumber1(isd)+specdef%wavenumber2(isd) &
-                   &                    - 2.0_jprb*wavenum0) &
-                   &      / (wavenum1-wavenum0)
-            end do
+!            weight(isd1) = 0.5_jprb * (wavenum1-specdef%wavenumber1(isd1)) &
+!                 &       * (wavenum1 + specdef%wavenumber1(isd1) - 2.0_jprb*wavenum0) &
+!                 &       / (wavenum1-wavenum0)
+            weight(isd1) = 0.5_jprb * (1.0_jprb &
+                 &  + (specdef%wavenumber1(isd1)-wavenum1)/(wavenum1-wavenum0)) &
+                 &  * (wavenum1-specdef%wavenumber1(isd1)) &
+                 &  / (specdef%wavenumber2(isd1)-specdef%wavenumber1(isd1))
+            if (isd1-isd0 > 1) then
+              do isd = isd0+1,isd1-1
+                ! Intermediate trapezia
+                weight(isd) = 0.5_jprb * (specdef%wavenumber1(isd)+specdef%wavenumber2(isd) &
+                     &                    - 2.0_jprb*wavenum0) &
+                     &      / (wavenum1-wavenum0)
+              end do
+            end if
           end if
 
         else
           ! First cloud wavenumber: all wavenumbers in the spectral
           ! definition below this will use the first one
-          weight(1:isd1-1) = 1.0_jprb
-          weight(isd1) = (wavenum1-specdef%wavenumber1(isd1)) &
-               &       / (specdef%wavenumber2(isd1)-specdef%wavenumber1(isd1))
+          if (isd1 >= 1) then
+            weight(1:isd1-1) = 1.0_jprb
+            weight(isd1) = (wavenum1-specdef%wavenumber1(isd1)) &
+                 &       / (specdef%wavenumber2(isd1)-specdef%wavenumber1(isd1))
+          end if
         end if
 
         if (jwav < nwav) then
@@ -254,28 +270,38 @@ contains
             weight(isd1) = weight(isd1) + 0.5_jprb*(wavenum2-wavenum1) &
                  &       / (specdef%wavenumber2(isd1)-specdef%wavenumber1(isd1))
           else
-            ! Right part of triangle
-            weight(isd2) = weight(isd2) + 0.5_jprb * (wavenum2-specdef%wavenumber1(isd2))**2 &
-                 &       / ((specdef%wavenumber2(isd2)-specdef%wavenumber1(isd2)) &
-                 &         *(wavenum2-wavenum1))
-            ! Right part of triangle (trapezium)
-            weight(isd1) = weight(isd1) + 0.5_jprb * (specdef%wavenumber2(isd1)-wavenum1) &
-                 &       * (wavenum1 + specdef%wavenumber2(isd1) - 2.0_jprb*wavenum2) &
-                 &       / (wavenum2-wavenum1)
-            do isd = isd1+1,isd2-1
-              ! Intermediate trapezia
-              weight(isd) = weight(isd) + 0.5_jprb * (specdef%wavenumber1(isd)+specdef%wavenumber2(isd) &
-                   &                    - 2.0_jprb*wavenum2) &
-                   &      / (wavenum2-wavenum1)
-            end do
+            if (isd2 >= 1 .and. isd2 <= specdef%nwav) then
+              ! Right part of triangle
+              weight(isd2) = weight(isd2) + 0.5_jprb * (wavenum2-specdef%wavenumber1(isd2))**2 &
+                   &       / ((specdef%wavenumber2(isd2)-specdef%wavenumber1(isd2)) &
+                   &         *(wavenum2-wavenum1))
+            end if
+            ! Left part of triangle (trapezium)
+!            weight(isd1) = weight(isd1) + 0.5_jprb * (specdef%wavenumber2(isd1)-wavenum1) &
+!                 &       * (wavenum1 + specdef%wavenumber2(isd1) - 2.0_jprb*wavenum2) &
+!                 &       / (wavenum2-wavenum1)
+            weight(isd1) = weight(isd1) + 0.5_jprb * (1.0_jprb &
+                 &  + (wavenum2-specdef%wavenumber2(isd1)) / (wavenum2-wavenum1)) &
+                 &  * (specdef%wavenumber2(isd1)-wavenum1) &
+                 &  / (specdef%wavenumber2(isd1)-specdef%wavenumber1(isd1))
+            if (isd2-isd1 > 1) then
+              do isd = isd1+1,isd2-1
+                ! Intermediate trapezia
+                weight(isd) = weight(isd) + 0.5_jprb * (2.0_jprb*wavenum2 &
+                     & - specdef%wavenumber1(isd) - specdef%wavenumber2(isd)) &
+                     &      / (wavenum2-wavenum1)
+              end do
+            end if
           end if
 
         else
           ! Last cloud wavenumber: all wavenumbers in the spectral
           ! definition above this will use the last one
-          weight(isd1+1) = 1.0_jprb
-          weight(isd1) = (specdef%wavenumber2(isd1)-wavenum1) &
-               &       / (specdef%wavenumber2(isd1)-specdef%wavenumber1(isd1))
+          if (isd1 <= specdef%nwav) then
+            weight(isd1+1:specdef%nwav) = 1.0_jprb
+            weight(isd1) = (specdef%wavenumber2(isd1)-wavenum1) &
+                 &       / (specdef%wavenumber2(isd1)-specdef%wavenumber1(isd1))
+          end if
         end if
 
         do jg = 1,specdef%ng
@@ -287,6 +313,8 @@ contains
       deallocate(weight)
 
     end if
+
+    print *, 'sum(mapping) = ', sum(mapping,2)
 
     ! Thin averaging
     this%mass_ext  = matmul(mapping, mass_ext)
@@ -319,5 +347,81 @@ contains
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup',1,hook_handle)
 
   end subroutine setup_general_cloud_optics
+
+  subroutine add_optical_properties(this, ng, nlev, ncol, &
+       &                            water_path, effective_radius, &
+       &                            od, scat_od, scat_asymmetry)
+
+    use yomhook, only : lhook, dr_hook
+
+    class(general_cloud_optics_type), intent(in) :: this
+
+    ! Number of g points, levels and columns
+    integer, intent(in) :: ng, nlev, ncol
+
+    ! Properties of present cloud type, dimensioned (ncol,nlev)
+    real(jprb), intent(in) :: water_path(:,:) ! kg m-2
+    real(jprb), intent(in) :: effective_radius(:,:) ! m
+
+    ! Optical properties which are additive per cloud type,
+    ! dimensioned (ng,nlev,ncol)
+    real(jprb), intent(inout), dimension(ng,nlev,ncol) &
+         &  :: od             ! Optical depth of layer
+    real(jprb), intent(inout), dimension(ng,nlev,ncol), optional &
+         &  :: scat_od, &     ! Scattering optical depth of layer
+         &     scat_asymmetry ! Scattering optical depth x asymmetry factor
+
+    real(jprb) :: od_local(ng)
+
+    real(jprb) :: re_index, weight1, weight2
+    integer :: ire
+
+    integer :: jcol, jlev
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',0,hook_handle)
+
+    if (present(scat_od)) then
+      do jcol = 1,ncol
+        do jlev = 1,nlev
+          if (water_path(jcol, jlev) > 0.0_jprb) then
+            re_index = max(0.0, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+                 &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
+            ire = int(re_index)
+            weight2 = re_index - ire
+            weight1 = 1.0_jprb - weight2
+            od_local = water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
+                 &                              +weight2*this%mass_ext(:,ire+1))
+            od(:,jlev,jcol) = od(:,jlev,jcol) + od_local
+            od_local = od_local * (weight1*this%ssa(:,ire) &
+                 &                +weight2*this%ssa(:,ire+1))
+            scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
+            scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
+                 & + od_local * (weight1*this%asymmetry(:,ire) &
+                 &              +weight2*this%asymmetry(:,ire+1))
+          end if
+        end do
+      end do
+    else
+      do jcol = 1,ncol
+        do jlev = 1,nlev
+          if (water_path(jcol, jlev) > 0.0_jprb) then
+            re_index = max(0.0, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+                 &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
+            ire = int(re_index)
+            weight2 = re_index - ire
+            weight1 = 1.0_jprb - weight2
+            od(:,jlev,jcol) = od(:,jlev,jcol) &
+                 &  + water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
+                 &                             +weight2*this%mass_ext(:,ire+1))
+          end if
+        end do
+      end do
+    end if
+
+    if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',1,hook_handle)
+
+  end subroutine add_optical_properties
 
 end module radiation_general_cloud_optics_data

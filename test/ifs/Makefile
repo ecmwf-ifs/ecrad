@@ -63,7 +63,7 @@ test_spartacus_maxentr:
 test_ecckd:
 	./change_namelist.sh $(CONFIG) config_ecckd.nam \
 		gas_model_name='"ECCKD"' use_aerosols=false \
-		sw_solver_name='"Cloudless"' lw_solver_name='"Cloudless"'
+		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"'
 	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
 
 test_cloudless:

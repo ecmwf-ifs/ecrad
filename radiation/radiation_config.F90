@@ -31,6 +31,7 @@ module radiation_config
   use parkind1,                      only : jprb
 
   use radiation_cloud_optics_data,   only : cloud_optics_type
+  use radiation_general_cloud_optics_data,   only : general_cloud_optics_type
   use radiation_aerosol_optics_data, only : aerosol_optics_type
   use radiation_pdf_sampler,         only : pdf_sampler_type
   use radiation_cloud_cover,         only : OverlapName, &
@@ -125,6 +126,9 @@ module radiation_config
 
   ! Maximum number of different aerosol types that can be provided
   integer, parameter :: NMaxAerosolTypes = 256
+
+  ! Maximum number of different cloud types that can be provided
+  integer, parameter :: NMaxCloudTypes = 12
 
   ! Maximum number of shortwave albedo and longwave emissivity
   ! intervals
@@ -273,7 +277,7 @@ module radiation_config
     ! between input surface albedo/emissivity intervals. Implicitly
     ! the first interval starts at zero and the last ends at infinity.
     real(jprb) :: sw_albedo_wavelength_bound(NMaxAlbedoIntervals-1) = -1.0_jprb
-    real(jprb) :: lw_emiss_wavelength_bound( NMaxAlbedoIntervals-1)  = -1.0_jprb
+    real(jprb) :: lw_emiss_wavelength_bound( NMaxAlbedoIntervals-1) = -1.0_jprb
 
     ! The index to the surface albedo/emissivity intervals for each of
     ! the wavelength bounds specified in sw_albedo_wavelength_bound
@@ -292,6 +296,11 @@ module radiation_config
     ! Do we include 3D effects?
     logical :: do_3d_effects = .true.
     
+    character(len=511) :: cloud_type_name(NMaxCloudTypes) = ["","","","","","","","","","","",""]
+! &
+!         &   = ["mie_liquid                    ", &
+!         &      "baum-general-habit-mixture_ice"]
+
     ! To what extent do we include "entrapment" effects in the
     ! SPARTACUS solver? This essentially means that in a situation
     ! like this
@@ -426,12 +435,12 @@ module radiation_config
     ! PDF used by the McICA solver
     character(len=511) :: cloud_pdf_override_file_name = ''
 
-    ! Has "consolidate" been called?  
-    logical :: is_consolidated = .false.
-
     ! COMPUTED PARAMETERS
     ! Users of this library should not edit these parameters directly;
     ! they are set by the "consolidate" routine
+
+    ! Has "consolidate" been called?  
+    logical :: is_consolidated = .false.
 
     ! Bounds of the wavenumber intervals used to describe
     ! g_frac_[l|s]w, in cm-1, of length n_wav_frac_[l|s]w. If
@@ -502,6 +511,14 @@ module radiation_config
 
     ! Data structure containing cloud scattering data
     type(cloud_optics_type)      :: cloud_optics
+
+    ! Number of general cloud types, default liquid and ice
+    integer :: n_cloud_types = 2
+
+    ! List of data structures (one per cloud type) containing cloud
+    ! scattering data
+    type(general_cloud_optics_type), allocatable :: cloud_optics_sw(:)
+    type(general_cloud_optics_type), allocatable :: cloud_optics_lw(:)
 
     ! Data structure containing aerosol scattering data
     type(aerosol_optics_type)    :: aerosol_optics
