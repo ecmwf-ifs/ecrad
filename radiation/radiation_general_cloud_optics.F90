@@ -31,6 +31,9 @@ contains
     use radiation_io,     only : nulerr, radiation_abort
     use radiation_config, only : config_type, NMaxCloudTypes
 
+    real(jprb), parameter :: SolarReferenceTemperature = 5777.0_jprb ! K
+    real(jprb), parameter :: TerrestrialReferenceTemperature = 273.15_jprb ! K
+
     type(config_type), intent(inout) :: config
 
     character(len=511) :: file_name
@@ -85,12 +88,18 @@ contains
 
       if (config%do_sw) then
         call config%cloud_optics_sw(jtype)%setup(file_name, &
-             &  config%gas_optics_sw%spectral_def, iverbose=config%iverbosesetup)
+             &  config%gas_optics_sw%spectral_def, &
+             &  use_thick_averaging=.true., &
+             &  weighting_temperature=SolarReferenceTemperature, &
+             &  iverbose=config%iverbosesetup)
       end if
 
       if (config%do_lw) then
         call config%cloud_optics_lw(jtype)%setup(file_name, &
-             &  config%gas_optics_lw%spectral_def, iverbose=config%iverbosesetup)
+             &  config%gas_optics_lw%spectral_def, &
+             &  use_thick_averaging=.true., &
+             &  weighting_temperature=TerrestrialReferenceTemperature, &
+             &  iverbose=config%iverbosesetup)
       end if
 
     end do
@@ -174,6 +183,10 @@ contains
       end do
 
       if (config%do_lw_cloud_scattering) then
+        ! Note that original cloud optics does not do delta-Eddington
+        ! scaling for liquid clouds in longwave
+        call delta_eddington_extensive(od_lw_cloud, ssa_lw_cloud, g_lw_cloud)
+
         ! Scale to get asymmetry factor and single scattering albedo
         g_lw_cloud   = g_lw_cloud   / max(ssa_lw_cloud, 1.0e-15_jprb)
         ssa_lw_cloud = ssa_lw_cloud / max(od_lw_cloud,  1.0e-15_jprb)
@@ -205,6 +218,10 @@ contains
              &  iendcol+1-istartcol, cloud%mixing_ratio(:,:,jtype), &
              &  cloud%effective_radius(:,:,jtype), od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
       end do
+
+      if (.not. config%do_sw_delta_scaling_with_gases) then
+        call delta_eddington_extensive(od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+      end if
 
       ! Scale to get asymmetry factor and single scattering albedo
       g_sw_cloud   = g_sw_cloud   / max(ssa_sw_cloud, 1.0e-15_jprb)

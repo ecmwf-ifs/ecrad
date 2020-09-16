@@ -86,7 +86,7 @@ contains
     real(jprb), dimension(:), allocatable :: effective_radius ! m
 
     ! Spectral weights to apply, same length as wavenumber above
-    real(jprb), dimension(:), allocatable :: weight
+    real(jprb), dimension(:), allocatable :: weight, planck_weight
 
     ! Matrix mapping optical properties in the file to values per
     ! g-point or band, such that in the thin-averaging case,
@@ -172,10 +172,10 @@ contains
     this%d_effective_radius = effective_radius(2) - effective_radius(1)
 
     ! Set up weighting
-!    if (.not. present(weighting_temperature)) then
-!      write(nulerr, '(a)') '*** Error: weighting_temperature not provided'
-!      call radiation_abort('Radiation configuration error')
-!    end if
+    if (.not. present(weighting_temperature)) then
+      write(nulerr, '(a)') '*** Error: weighting_temperature not provided'
+      call radiation_abort('Radiation configuration error')
+    end if
 
     nwav = size(wavenumber)
 
@@ -195,11 +195,18 @@ contains
       allocate(this%asymmetry(specdef%ng, nre))
 
       allocate(weight(specdef%nwav))
+      allocate(planck_weight(specdef%nwav))
+
+      planck_weight = calc_planck_function_wavenumber(0.5_jprb &
+           &  * (specdef%wavenumber1 + specdef%wavenumber2), &
+           &  weighting_temperature)
 
       mapping = 0.0_jprb
       ! Loop over wavenumbers representing cloud
       do jwav = 1,nwav
-        ! Clear the weights
+        ! Clear the weights. The weight says for one wavenumber in the
+        ! cloud file, what is its fractional contribution to each of
+        ! the spectral-definition intervals
         weight = 0.0_jprb
 
         ! Cloud properties are linearly interpolated between each of
@@ -304,6 +311,8 @@ contains
           end if
         end if
 
+        weight = weight * planck_weight
+
         do jg = 1,specdef%ng
           mapping(jg, jwav) = sum(weight * specdef%gpoint_fraction(:,jg))
         end do
@@ -311,10 +320,13 @@ contains
       end do
 
       deallocate(weight)
+      deallocate(planck_weight)
 
     end if
 
-    print *, 'sum(mapping) = ', sum(mapping,2)
+    do jg = 1,specdef%ng
+      mapping(jg,:) = mapping(jg,:) * (1.0_jprb/sum(mapping(jg,:)))
+    end do
 
     ! Thin averaging
     this%mass_ext  = matmul(mapping, mass_ext)
@@ -325,9 +337,9 @@ contains
       ! Thick averaging as described by Edwards and Slingo (1996),
       ! modifying only the single-scattering albedo
       if (use_bands_local) then
-        allocate(ref_inf(specdef%nband, nre))
+        allocate(ref_inf(nwav, nre))
       else
-        allocate(ref_inf(specdef%ng, nre))
+        allocate(ref_inf(nwav, nre))
       end if
 
       ! Eqs. 18 and 17 of Edwards & Slingo (1996)
@@ -404,6 +416,7 @@ contains
         end do
       end do
     else
+      ! No scattering: return the absorption optical depth
       do jcol = 1,ncol
         do jlev = 1,nlev
           if (water_path(jcol, jlev) > 0.0_jprb) then
@@ -414,7 +427,8 @@ contains
             weight1 = 1.0_jprb - weight2
             od(:,jlev,jcol) = od(:,jlev,jcol) &
                  &  + water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
-                 &                             +weight2*this%mass_ext(:,ire+1))
+                 &                             +weight2*this%mass_ext(:,ire+1)) &
+                 &  * (1.0_jprb - (weight1*this%ssa(:,ire)+weight2*this%ssa(:,ire+1)))
           end if
         end do
       end do
@@ -423,5 +437,21 @@ contains
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',1,hook_handle)
 
   end subroutine add_optical_properties
+
+  elemental function calc_planck_function_wavenumber(wavenumber, temperature)
+
+    use radiation_constants, only : SpeedOfLight, BoltzmannConstant, PlanckConstant
+
+    real(jprb), intent(in) :: wavenumber  ! cm-1
+    real(jprb), intent(in) :: temperature ! K
+    real(jprb) :: calc_planck_function_wavenumber
+
+    real(jprb) :: freq
+    freq = wavenumber * 100.0_jprb * SpeedOfLight
+    calc_planck_function_wavenumber = (2.0_jprb * PlanckConstant * freq**3 * SpeedOfLight**-2) &
+         &  / (exp(PlanckConstant*freq/(BoltzmannConstant*temperature)) - 1.0_jprb)
+    calc_planck_function_wavenumber = calc_planck_function_wavenumber * 100.0_jprb * SpeedOfLight
+
+  end function calc_planck_function_wavenumber
 
 end module radiation_general_cloud_optics_data
