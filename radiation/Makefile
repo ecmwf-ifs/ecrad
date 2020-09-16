@@ -22,7 +22,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_cloudless_lw.F90 radiation_cloudless_sw.F90 \
 	radiation_check.F90   radiation_ecckd_interface.F90 \
 	radiation_gas_constants.F90 radiation_ecckd_gas.F90 \
-	radiation_spectral_definition.F90
+	radiation_spectral_definition.F90 radiation_general_cloud_optics_data.F90
 
 
 OBJECTS := $(SOURCES:.F90=.o)
@@ -103,3 +103,5 @@ radiation_gas.o radiation_single_level.o radiation_thermodynamics.o \
 	radiation_flux.o radiation_aerosol.o: radiation_check.o
 
 radiation_gas.o: radiation_gas_constants.o
+
+radiation_general_cloud_optics_data.o: radiation_spectral_definition.o

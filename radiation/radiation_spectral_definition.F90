@@ -43,6 +43,7 @@ module radiation_spectral_definition
 
   contains
     procedure :: read => read_spectral_definition
+    procedure :: find => find_wavenumber
 
   end type spectral_definition_type
 
@@ -82,5 +83,24 @@ contains
 
   end subroutine read_spectral_definition
 
+
+  pure function find_wavenumber(this, wavenumber)
+    class(spectral_definition_type), intent(in) :: this
+    real(jprb),                      intent(in) :: wavenumber ! cm-1
+    integer                                     :: find_wavenumber
+
+    integer :: iwav
+
+    if (wavenumber < this%wavenumber1(1) .or. wavenumber > this%wavenumber2(this%nwav)) then
+      ! Wavenumber not present
+      find_wavenumber = 0
+    else
+      find_wavenumber = 1
+      do while (wavenumber > this%wavenumber2(find_wavenumber) &
+           &    .and. find_wavenumber < this%nwav)
+        find_wavenumber = find_wavenumber + 1
+      end do
+    end if
+  end function find_wavenumber
 
 end module radiation_spectral_definition
