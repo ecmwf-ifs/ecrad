@@ -258,6 +258,7 @@ program ecrad_driver
   
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
+  tstart = omp_get_wtime() 
   do jrepeat = 1,driver_config%nrepeat
     
     if (driver_config%do_parallel) then
@@ -267,7 +268,6 @@ program ecrad_driver
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
      
-      tstart = omp_get_wtime() 
       !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
       do jblock = 1, nblock
         ! Specify the range of columns to process.
@@ -297,8 +297,6 @@ program ecrad_driver
         
       end do
       !$OMP END PARALLEL DO
-      tstop = omp_get_wtime()
-      write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
       
     else
       ! Run radiation scheme serially
@@ -323,6 +321,9 @@ program ecrad_driver
     end if
     
   end do
+
+  tstop = omp_get_wtime()
+  write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
 
   ! --------------------------------------------------------
   ! Section 5: Check and save output

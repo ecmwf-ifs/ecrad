@@ -224,11 +224,12 @@ contains
  
     if (config%do_sw) then
 
-      call config%gas_optics_sw%calc_optical_depth(iendcol-istartcol+1, nlev, &
-           &  NMaxGases, transpose(thermodynamics%pressure_hl(istartcol:iendcol,:)), &
-           &  transpose(temperature_fl), &
-           &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
-           &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
+      call config%gas_optics_sw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
+           &  NMaxGases, thermodynamics%pressure_hl, &
+           &  temperature_fl, &
+           &  gas%mixing_ratio, &
+!           &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
+!           &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
            &  od_sw, rayleigh_od_fl=ssa_sw)
       ! At this point od_sw = absorption optical depth and ssa_sw =
       ! rayleigh optical depth: convert to total optical depth and
@@ -244,11 +245,12 @@ contains
 
     if (config%do_lw) then
 
-      call config%gas_optics_lw%calc_optical_depth(iendcol-istartcol+1, nlev, &
-           &  NMaxGases, transpose(thermodynamics%pressure_hl(istartcol:iendcol,:)), &
-           &  transpose(temperature_fl), &
-           &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
-           &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
+      call config%gas_optics_lw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
+           &  NMaxGases, thermodynamics%pressure_hl, &
+           &  temperature_fl, &
+           &  gas%mixing_ratio, &
+!           &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
+!           &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
            &  od_lw)
 
       ! Calculate the Planck function for each g point

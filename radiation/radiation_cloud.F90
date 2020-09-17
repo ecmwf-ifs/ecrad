@@ -612,7 +612,7 @@ contains
     do jlev = 1,nlev
       do jcol = istartcol,iendcol
         if (this%fraction(jcol,jlev) < cloud_fraction_threshold &
-             &  .or. this%q_liq(jcol,jlev)+this%q_ice(jcol,jlev) &
+             &  .or. sum(this%mixing_ratio(jcol,jlev,:)) &
              &        < cloud_mixing_ratio_threshold) then
           this%fraction(jcol,jlev) = 0.0_jprb
         end if

@@ -151,7 +151,10 @@ contains
     real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol), intent(out) :: &
          &   od_sw_cloud, ssa_sw_cloud, g_sw_cloud
 
-    integer :: jtype
+    ! In-cloud water path of one cloud type (kg m-2)
+    real(jprb), dimension(istartcol:iendcol,nlev) :: water_path
+
+    integer :: jtype, jcol, jlev
 
     real(jprb) :: hook_handle
 
@@ -171,82 +174,96 @@ contains
       g_lw_cloud   = 0.0_jprb
     end if
 
-    if (config%do_lw) then
-      ! For the moment, we use od_lw_cloud, ssa_lw_cloud and
-      ! g_lw_cloud as containers for mass extinction coefficient, mass
-      ! scattering coefficient and mass scattering coefficient x
-      ! asymmetry factor, then scale after
-      do jtype = 1,config%n_cloud_types
+    ! Loop over cloud types
+    do jtype = 1,config%n_cloud_types
+      ! Compute in-cloud water path
+      if (config%is_homogeneous) then
+        water_path = cloud%mixing_ratio(istartcol:iendcol,:,jtype) &
+             &  *  (thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
+             &     -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
+             &  * (1.0_jprb / AccelDueToGravity)
+      else
+        water_path = cloud%mixing_ratio(istartcol:iendcol,:,jtype) &
+             &  *  (thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
+             &     -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
+             &  * (1.0_jprb / (AccelDueToGravity &
+             &                 * max(config%cloud_fraction_threshold, &
+             &                       cloud%fraction(istartcol:iendcol,:))))
+      end if
+
+      ! Add optical properties to the cumulative total for the
+      ! longwave and shortwave
+      if (config%do_lw) then
+        ! For the moment, we use ssa_lw_cloud and g_lw_cloud as
+        ! containers for scattering optical depth and scattering
+        ! coefficient x asymmetry factor, then scale after
         if (config%do_lw_cloud_scattering) then
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
-               &  iendcol+1-istartcol, cloud%mixing_ratio(istartcol:iendcol,:,jtype), &
-               &  cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud, ssa_lw_cloud, g_lw_cloud)
+               &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
+               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
+               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud)
         else
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
-               &  iendcol+1-istartcol, cloud%mixing_ratio(istartcol:iendcol,:,jtype), &
-               &  cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud)
+               &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
+               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud)
         end if
-      end do
-
-      if (config%do_lw_cloud_scattering) then
-        ! Note that original cloud optics does not do delta-Eddington
-        ! scaling for liquid clouds in longwave
-        call delta_eddington_extensive(od_lw_cloud, ssa_lw_cloud, g_lw_cloud)
-
-        ! Scale to get asymmetry factor and single scattering albedo
-        g_lw_cloud   = g_lw_cloud   / max(ssa_lw_cloud, 1.0e-15_jprb)
-        ssa_lw_cloud = ssa_lw_cloud / max(od_lw_cloud,  1.0e-15_jprb)
-      end if
-
-      ! Scale mass extinction coefficient to obtain optical depth
-      if (config%is_homogeneous) then
-        od_lw_cloud = od_lw_cloud &
-             &  * spread(transpose(thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
-             &             -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
-             &  * (1.0_jprb / AccelDueToGravity),1,config%n_bands_lw)
-      else
-        od_lw_cloud = od_lw_cloud &
-             &  * spread(transpose((thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
-             &              -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
-             &    / max(config%cloud_fraction_threshold, cloud%fraction(istartcol:iendcol,:))) &
-             &  * (1.0_jprb / AccelDueToGravity),1,config%n_bands_lw)
       end if
       
-    end if
-
-    if (config%do_sw) then
-      ! For the moment, we use od_sw_cloud, ssa_sw_cloud and
-      ! g_sw_cloud as containers for mass extinction coefficient, mass
-      ! scattering coefficient and mass scattering coefficient x
-      ! asymmetry factor, then scale after
-      do jtype =1,config%n_cloud_types
+      if (config%do_sw) then
+        ! For the moment, we use ssa_sw_cloud and g_sw_cloud as
+        ! containers for scattering optical depth and scattering
+        ! coefficient x asymmetry factor, then scale after
         call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
-             &  iendcol+1-istartcol, cloud%mixing_ratio(istartcol:iendcol,:,jtype), &
-             &  cloud%effective_radius(istartcol:iendcol,:,jtype), od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+             &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
+             &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
+             &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+      end if
+    end do
+
+    ! Scale the combined longwave optical properties
+    if (config%do_lw_cloud_scattering) then
+      do jcol = istartcol, iendcol
+        do jlev = 1,nlev
+          if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+            ! Note that original cloud optics does not do
+            ! delta-Eddington scaling for liquid clouds in longwave
+            call delta_eddington_extensive(od_lw_cloud(:,jlev,jcol), &
+                 &  ssa_lw_cloud(:,jlev,jcol), g_lw_cloud(:,jlev,jcol))
+            
+            ! Scale to get asymmetry factor and single scattering albedo
+            g_lw_cloud(:,jlev,jcol) = g_lw_cloud(:,jlev,jcol) &
+                 &  / max(ssa_lw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+            ssa_lw_cloud(:,jlev,jcol) = ssa_lw_cloud(:,jlev,jcol) &
+                 &  / max(od_lw_cloud(:,jlev,jcol),  1.0e-15_jprb)
+          end if
+        end do
       end do
-
+    end if
+    
+    ! Scale the combined shortwave optical properties
+    if (config%do_sw) then
       if (.not. config%do_sw_delta_scaling_with_gases) then
-        call delta_eddington_extensive(od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+        do jcol = istartcol, iendcol
+          do jlev = 1,nlev
+            if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+              call delta_eddington_extensive(od_sw_cloud(:,jlev,jcol), &
+                   &  ssa_sw_cloud(:,jlev,jcol), g_sw_cloud(:,jlev,jcol))
+            end if
+          end do
+        end do
       end if
 
-      ! Scale to get asymmetry factor and single scattering albedo
-      g_sw_cloud   = g_sw_cloud   / max(ssa_sw_cloud, 1.0e-15_jprb)
-      ssa_sw_cloud = ssa_sw_cloud / max(od_sw_cloud,  1.0e-15_jprb)
-
-      ! Scale mass extinction coefficient to obtain optical depth
-      if (config%is_homogeneous) then
-        od_sw_cloud = od_sw_cloud &
-             &  * spread(transpose(thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
-             &             -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
-             &  * (1.0_jprb / AccelDueToGravity),1,config%n_bands_sw)
-      else
-        od_sw_cloud = od_sw_cloud &
-             &  * spread(transpose((thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
-             &              -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
-             &    / max(config%cloud_fraction_threshold, cloud%fraction(istartcol:iendcol,:))) &
-             &  * (1.0_jprb / AccelDueToGravity),1,config%n_bands_sw)
-      end if
-      
+      do jcol = istartcol, iendcol
+        do jlev = 1,nlev
+          if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+            ! Scale to get asymmetry factor and single scattering albedo
+            g_sw_cloud(:,jlev,jcol) = g_sw_cloud(:,jlev,jcol) &
+                 &  / max(ssa_sw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+            ssa_sw_cloud(:,jlev,jcol) = ssa_sw_cloud(:,jlev,jcol) &
+                 &  / max(od_sw_cloud(:,jlev,jcol),  1.0e-15_jprb)
+          end if
+        end do
+      end do
     end if
 
     if (lhook) call dr_hook('radiation_general_cloud_optics:general_cloud_optics',1,hook_handle)
