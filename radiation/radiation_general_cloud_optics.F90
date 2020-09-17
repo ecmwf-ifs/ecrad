@@ -28,7 +28,7 @@ contains
     use parkind1,         only : jprb
     use yomhook,          only : lhook, dr_hook
 
-    use radiation_io,     only : nulerr, radiation_abort
+    use radiation_io,     only : nulout, nulerr, radiation_abort
     use radiation_config, only : config_type, NMaxCloudTypes
 
     real(jprb), parameter :: SolarReferenceTemperature = 5777.0_jprb ! K
@@ -87,6 +87,9 @@ contains
       end if
 
       if (config%do_sw) then
+        if (config%iverbosesetup >= 2) then
+          write(nulout,'(a,i0,a)') 'Shortwave cloud type ', jtype, ':'
+        end if
         call config%cloud_optics_sw(jtype)%setup(file_name, &
              &  config%gas_optics_sw%spectral_def, &
              &  use_thick_averaging=.true., &
@@ -95,6 +98,9 @@ contains
       end if
 
       if (config%do_lw) then
+        if (config%iverbosesetup >= 2) then
+          write(nulout,'(a,i0,a)') 'Longwave cloud type ', jtype, ':'
+        end if
         call config%cloud_optics_lw(jtype)%setup(file_name, &
              &  config%gas_optics_lw%spectral_def, &
              &  use_thick_averaging=.true., &
@@ -173,12 +179,12 @@ contains
       do jtype = 1,config%n_cloud_types
         if (config%do_lw_cloud_scattering) then
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
-               &  iendcol+1-istartcol, cloud%mixing_ratio(:,:,jtype), &
-               &  cloud%effective_radius(:,:,jtype), od_lw_cloud, ssa_lw_cloud, g_lw_cloud)
+               &  iendcol+1-istartcol, cloud%mixing_ratio(istartcol:iendcol,:,jtype), &
+               &  cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud, ssa_lw_cloud, g_lw_cloud)
         else
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
-               &  iendcol+1-istartcol, cloud%mixing_ratio(:,:,jtype), &
-               &  cloud%effective_radius(:,:,jtype), od_lw_cloud)
+               &  iendcol+1-istartcol, cloud%mixing_ratio(istartcol:iendcol,:,jtype), &
+               &  cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud)
         end if
       end do
 
@@ -213,10 +219,10 @@ contains
       ! g_sw_cloud as containers for mass extinction coefficient, mass
       ! scattering coefficient and mass scattering coefficient x
       ! asymmetry factor, then scale after
-      do jtype = 1,config%n_cloud_types
+      do jtype =1,config%n_cloud_types
         call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
-             &  iendcol+1-istartcol, cloud%mixing_ratio(:,:,jtype), &
-             &  cloud%effective_radius(:,:,jtype), od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+             &  iendcol+1-istartcol, cloud%mixing_ratio(istartcol:iendcol,:,jtype), &
+             &  cloud%effective_radius(istartcol:iendcol,:,jtype), od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
       end do
 
       if (.not. config%do_sw_delta_scaling_with_gases) then

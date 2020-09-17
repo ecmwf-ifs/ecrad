@@ -63,7 +63,7 @@ contains
     use yomhook,                       only : lhook, dr_hook
     use easy_netcdf,                   only : netcdf_file
     use radiation_spectral_definition, only : spectral_definition_type
-    use radiation_io,                  only : nulerr, radiation_abort
+    use radiation_io,                  only : nulout, nulerr, radiation_abort
 
     class(general_cloud_optics_type), intent(inout)    :: this
     character(len=*), intent(in)               :: file_name
@@ -356,9 +356,30 @@ contains
 
     deallocate(mapping)
 
+    if (iverb >= 2) then
+      write(nulout,'(a,a)') '  File: ', trim(file_name)
+      write(nulout,'(a,f7.1)') '  Weighting temperature: ', weighting_temperature
+      if (use_thick_averaging_local) then
+        write(nulout,'(a)') '  SSA averaging: optically thick limit'
+      else
+        write(nulout,'(a)') '  SSA averaging: optically thin limit'
+      end if
+      if (use_bands_local) then
+        write(nulout,'(a,i0,a)') '  Spectral discretization: ', specdef%nband, ' bands'
+      else
+        write(nulout,'(a,i0,a)') '  Spectral discretization: ', specdef%ng, ' g-points'
+      end if
+      write(nulout,'(a,i0,a,f6.1,a,f6.1,a)') '  Effective radius look-up: ', nre, ' points in range ', &
+           &  effective_radius(1)*1.0e6_jprb, '-', effective_radius(nre)*1.0e6_jprb, ' um'
+      write(nulout,'(a,i0,a,i0,a)') '  Wavenumber range: ', int(specdef%wavenumber1(1)), '-', &
+           &  int(specdef%wavenumber2(specdef%nwav)), ' cm-1'
+    end if
+
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup',1,hook_handle)
 
   end subroutine setup_general_cloud_optics
+
+
 
   subroutine add_optical_properties(this, ng, nlev, ncol, &
        &                            water_path, effective_radius, &
@@ -437,6 +458,7 @@ contains
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',1,hook_handle)
 
   end subroutine add_optical_properties
+
 
   elemental function calc_planck_function_wavenumber(wavenumber, temperature)
 
