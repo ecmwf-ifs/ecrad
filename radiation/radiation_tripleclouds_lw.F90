@@ -1,6 +1,6 @@
 ! radiation_tripleclouds_lw.F90 - Longwave "Tripleclouds" solver
 !
-! Copyright (C) 2016-2018 ECMWF
+! Copyright (C) 2016-2020 ECMWF
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -11,6 +11,7 @@
 !   2017-04-22  R. Hogan  Store surface fluxes at all g-points
 !   2017-10-23  R. Hogan  Renamed single-character variables
 !   2018-10-08  R. Hogan  Call calc_region_properties
+!   2020-09-18  R. Hogan  Replaced some array expressions with loops
 
 module radiation_tripleclouds_lw
 
@@ -347,29 +348,33 @@ contains
           ! For clear-skies there is no need to consider "above" and
           ! "below" quantities since with no cloud overlap to worry
           ! about, these are the same
-          inv_denom(:,1) = 1.0_jprb &
-               &  / (1.0_jprb - total_albedo_clear(:,jlev+1)*reflectance(:,1,jlev))
-          total_albedo_clear(:,jlev) = reflectance(:,1,jlev) &
-               &  + transmittance(:,1,jlev)*transmittance(:,1,jlev)*total_albedo_clear(:,jlev+1) &
-               &  * inv_denom(:,1)
-          total_source_clear(:,jlev) = Sup_clear(:,jlev) &
-               &  + transmittance(:,1,jlev)*(total_source_clear(:,jlev+1) &
-               &  + total_albedo_clear(:,jlev+1)*Sdn_clear(:,jlev)) &
-               &  * inv_denom(:,1)
+          do jg = 1,ng
+            inv_denom(jg,1) = 1.0_jprb &
+                 &  / (1.0_jprb - total_albedo_clear(jg,jlev+1)*reflectance(jg,1,jlev))
+            total_albedo_clear(jg,jlev) = reflectance(jg,1,jlev) &
+                 &  + transmittance(jg,1,jlev)*transmittance(jg,1,jlev)*total_albedo_clear(jg,jlev+1) &
+                 &  * inv_denom(jg,1)
+            total_source_clear(jg,jlev) = Sup_clear(jg,jlev) &
+                 &  + transmittance(jg,1,jlev)*(total_source_clear(jg,jlev+1) &
+                 &  + total_albedo_clear(jg,jlev+1)*Sdn_clear(jg,jlev)) &
+                 &  * inv_denom(jg,1)
+          end do
         end if
 
         if (is_clear_sky_layer(jlev)) then
-          inv_denom(:,1) = 1.0_jprb &
-               &  / (1.0_jprb - total_albedo(:,1,jlev+1)*reflectance(:,1,jlev))
           total_albedo_below = 0.0_jprb
-          total_albedo_below(:,1) = reflectance(:,1,jlev) &
-               &  + transmittance(:,1,jlev)*transmittance(:,1,jlev)*total_albedo(:,1,jlev+1) &
-               &  * inv_denom(:,1)
           total_source_below = 0.0_jprb
-          total_source_below(:,1) = Sup(:,1,jlev) &
-               &  + transmittance(:,1,jlev)*(total_source(:,1,jlev+1) &
-               &  + total_albedo(:,1,jlev+1)*Sdn(:,1,jlev)) &
-               &  * inv_denom(:,1)
+          do jg = 1,ng
+            inv_denom(jg,1) = 1.0_jprb &
+                 &  / (1.0_jprb - total_albedo(jg,1,jlev+1)*reflectance(jg,1,jlev))
+            total_albedo_below(jg,1) = reflectance(jg,1,jlev) &
+                 &  + transmittance(jg,1,jlev)*transmittance(jg,1,jlev)*total_albedo(jg,1,jlev+1) &
+                 &  * inv_denom(jg,1)
+            total_source_below(jg,1) = Sup(jg,1,jlev) &
+                 &  + transmittance(jg,1,jlev)*(total_source(jg,1,jlev+1) &
+                 &  + total_albedo(jg,1,jlev+1)*Sdn(jg,1,jlev)) &
+                 &  * inv_denom(jg,1)
+          end do
         else
           inv_denom = 1.0_jprb / (1.0_jprb - total_albedo(:,:,jlev+1)*reflectance(:,:,jlev))
           total_albedo_below = reflectance(:,:,jlev) &
@@ -444,19 +449,23 @@ contains
       ! Final loop back down through the atmosphere to compute fluxes
       do jlev = 1,nlev
         if (config%do_clear) then
-          flux_dn_clear = (transmittance(:,1,jlev)*flux_dn_clear &
-               &  + reflectance(:,1,jlev)*total_source_clear(:,jlev+1) + Sdn_clear(:,jlev) ) &
-               &  / (1.0_jprb - reflectance(:,1,jlev)*total_albedo_clear(:,jlev+1))
-          flux_up_clear = total_source_clear(:,jlev+1) &
-               &        + flux_dn_clear*total_albedo_clear(:,jlev+1)
+          do jg = 1,ng
+            flux_dn_clear(jg) = (transmittance(jg,1,jlev)*flux_dn_clear(jg) &
+                 &  + reflectance(jg,1,jlev)*total_source_clear(jg,jlev+1) + Sdn_clear(jg,jlev) ) &
+                 &  / (1.0_jprb - reflectance(jg,1,jlev)*total_albedo_clear(jg,jlev+1))
+            flux_up_clear(jg) = total_source_clear(jg,jlev+1) &
+                 &        + flux_dn_clear(jg)*total_albedo_clear(jg,jlev+1)
+          end do
         end if
 
         if (is_clear_sky_layer(jlev)) then
-          flux_dn(:,1) = (transmittance(:,1,jlev)*flux_dn(:,1) &
-               &       + reflectance(:,1,jlev)*total_source(:,1,jlev+1) + Sdn(:,1,jlev) ) &
-               &  / (1.0_jprb - reflectance(:,1,jlev)*total_albedo(:,1,jlev+1))
+          do jg = 1,ng
+            flux_dn(jg,1) = (transmittance(jg,1,jlev)*flux_dn(jg,1) &
+                 &       + reflectance(jg,1,jlev)*total_source(jg,1,jlev+1) + Sdn(jg,1,jlev) ) &
+                 &  / (1.0_jprb - reflectance(jg,1,jlev)*total_albedo(jg,1,jlev+1))
+            flux_up(jg,1) = total_source(jg,1,jlev+1) + flux_dn(jg,1)*total_albedo(jg,1,jlev+1)
+          end do
           flux_dn(:,2:)  = 0.0_jprb
-          flux_up(:,1) = total_source(:,1,jlev+1) + flux_dn(:,1)*total_albedo(:,1,jlev+1)
           flux_up(:,2:)  = 0.0_jprb
         else
           flux_dn = (transmittance(:,:,jlev)*flux_dn &
