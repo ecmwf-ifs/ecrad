@@ -82,7 +82,7 @@ radiation_mcica_sw.o radiation_homogeneous_sw.o: radiation_adding_ica_sw.o radia
 radiation_mcica_lw.o radiation_homogeneous_lw.o: radiation_adding_ica_lw.o radiation_cloud_generator.o \
 	radiation_lw_derivatives.o
 radiation_cloudless_sw.o: radiation_adding_ica_sw.o
-radiation_cloudless_lw.o: radiation_adding_ica_lw.o radiation_lw_derivatives.o
+radiation_cloudless_lw.o, radiation_tripleclouds_lw.o: radiation_adding_ica_lw.o radiation_lw_derivatives.o
 radiation_aerosol_optics.o radiation_cloud_optics.o: \
 	radiation_config.o
 radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
