@@ -477,7 +477,7 @@ contains
       if (config%do_save_spectral_flux) then
         call indexed_sum(flux_up(:,1), &
              &           config%i_spec_from_reordered_g_lw, &
-             &           flux%lw_up_band(:,jcol,jlev))
+             &           flux%lw_up_band(:,jcol,i_cloud_top))
       end if
       do jlev = i_cloud_top-1,1,-1
         flux_up(:,1) = trans_clear(:,jlev)*flux_up(:,1) + source_up_clear(:,jlev)
