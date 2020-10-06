@@ -1,10 +1,16 @@
 ! radiation_homogeneous_sw.F90 - Shortwave homogeneous-column (no cloud fraction) solver
 !
-! Copyright (C) 2016-2019 ECMWF
+! (C) Copyright 2016- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-04-11  R. Hogan  Receive albedos at g-points

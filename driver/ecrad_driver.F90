@@ -1,10 +1,16 @@
 ! ecrad_driver.F90 - Driver for offline ECRAD radiation scheme
 !
-! Copyright (C) 2014-2020 European Centre for Medium-Range Weather Forecasts
+! (C) Copyright 2014- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! ECRAD is the radiation scheme used in the ECMWF Integrated
 ! Forecasting System in cycle 43R3 and later. Several solvers are
@@ -125,7 +131,7 @@ program ecrad_driver
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
-    write(nulout,'(a)') 'Copyright (C) 2014-2020 European Centre for Medium-Range Weather Forecasts'
+    write(nulout,'(a)') 'Copyright (C) 2014- ECMWF'
     write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
 #ifdef SINGLE_PRECISION
     write(nulout,'(a)') 'Floating-point precision: single'
