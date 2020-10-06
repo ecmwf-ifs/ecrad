@@ -1,4 +1,13 @@
-#ifdef RS6K
+C (C) Copyright 2014- ECMWF.
+C
+C This software is licensed under the terms of the Apache Licence Version 2.0
+C which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+C
+C In applying this licence, ECMWF does not waive the privileges and immunities
+C granted to it by virtue of its status as an intergovernmental organisation
+C nor does it submit to any jurisdiction.
+
+ #ifdef RS6K
 
 !-- Thanks to John Hague (IBM) and Deborah Salmond (ECMWF) -- 2002
 !   real --> real*8 by Sami Saarinen, ECMWF, 16-Jan-2004
