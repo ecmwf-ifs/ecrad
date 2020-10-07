@@ -31,4 +31,3 @@ DIFFERENCES IN IFS VERSION OF ECRAD
  - radiation_interface.F90 and radiation_ifs_rrtm.F90 take YDERAD arguments
 
 KNOWN BUGS
- - Incorporate fixes from Daniel Rieger

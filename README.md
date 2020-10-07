@@ -1,6 +1,6 @@
 # ECRAD - ECMWF atmospheric radiation scheme
 
-This document last updated 21 Sep 2020
+This document last updated 7 October 2020
 
 Robin Hogan <r.j.hogan@ecmwf.int>
 
@@ -133,7 +133,8 @@ Fortran compiler.
        make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"
    
    To compile in single precision add SINGLE_PRECISION=1 to the "make"
-   command line
+   command line.  To compile with the Dr Hook profiling system, add
+   DR_HOOK=1 to the "make" command line.
 
 
 ## TO TEST

@@ -7,7 +7,7 @@ C In applying this licence, ECMWF does not waive the privileges and immunities
 C granted to it by virtue of its status as an intergovernmental organisation
 C nor does it submit to any jurisdiction.
 
- #if defined ( VPP )
+#if defined ( VPP )
       FUNCTION TIMEF()
       DATA IFIRST/0/
       SAVE IFIRST,ZFIRST
