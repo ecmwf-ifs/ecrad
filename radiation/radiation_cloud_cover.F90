@@ -14,6 +14,9 @@
 !
 ! Generate profiles of the cumulative cloud cover as seen from TOA,
 ! used in the McICA cloud generator.
+!
+! Modifications
+!   2020-10-07  R. Hogan  Ensure iobj1 initialized in case of alpha_obj==0
 
 module radiation_cloud_cover
 
@@ -489,6 +492,12 @@ contains
       do while (nobj > 1)
         ! Find the most correlated adjacent pair of objects
         alpha_max = 0.0_jprb
+
+        ! Need to re-initialize iobj1 here in case alpha_obj(:)==0.0,
+        ! which would mean that the "if" statement in the following
+        ! loop would never get triggered
+        iobj1 = 1
+
         jobj = 1
         do while (jobj < nobj)
           if (alpha_obj(jobj) > alpha_max) then
