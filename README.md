@@ -210,25 +210,25 @@ the gas optics part of the Rapid Radiative Transfer Model for GCMS
 
 The ecRad radiation scheme itself is described here:
 
-Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation
+ - Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation
 scheme for the ECMWF model.  J. Adv. Modeling Earth Syst., 10
 doi:10.1029/2018MS001364.
 
 and here:
 
-Hogan, R. J., and A. Bozzo, 2016: ECRAD: A new radiation scheme for
+ - Hogan, R. J., and A. Bozzo, 2016: ECRAD: A new radiation scheme for
 the IFS. ECMWF Technical Memorandum number 787, 35pp:
 http://www.ecmwf.int/en/elibrary/16901-ecrad-new-radiation-scheme-ifs
 
 A two-part paper is published in Journal of Geophysics Research
 describing the SPARTACUS technique:
 
-Schäfer, S. A. K., R. J. Hogan, C. Klinger, J.-C. Chiu and B. Mayer,
+ - Schäfer, S. A. K., R. J. Hogan, C. Klinger, J.-C. Chiu and B. Mayer,
 2016: Representing 3D cloud-radiation effects in two-stream schemes: 1. Longwave considerations and effective cloud edge length.
 J. Geophys. Res., 121, 8567-8582.
 http://www.met.reading.ac.uk/~swrhgnrj/publications/spartacus_part1.pdf
 
-Hogan, R. J., S. A. K. Schäfer, C. Klinger, J.-C. Chiu and B. Mayer,
+ - Hogan, R. J., S. A. K. Schäfer, C. Klinger, J.-C. Chiu and B. Mayer,
 2016: Representing 3D cloud-radiation effects in two-stream schemes: 2. Matrix formulation and broadband evaluation. J. Geophys. Res., 121,
 8583-8599.
 http://www.met.reading.ac.uk/~swrhgnrj/publications/spartacus_part2.pdf
@@ -236,7 +236,7 @@ http://www.met.reading.ac.uk/~swrhgnrj/publications/spartacus_part2.pdf
 More recent developments on the shortwave SPARTACUS solver, available
 since ecRad 1.1.10, are described here:
 
-Hogan, R. J., M. D. Fielding, H. W. Barker, N. Villefranque and
+ - Hogan, R. J., M. D. Fielding, H. W. Barker, N. Villefranque and
 S. A. K. Schäfer, 2019: Entrapment: An important mechanism to explain
 the shortwave 3D radiative effect of clouds. J. Atmos. Sci., 76,
 2123–2141.
