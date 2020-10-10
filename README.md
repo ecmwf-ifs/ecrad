@@ -1,6 +1,6 @@
 # ECRAD - ECMWF atmospheric radiation scheme
 
-This document last updated 7 October 2020
+This document last updated 10 October 2020
 
 Robin Hogan <r.j.hogan@ecmwf.int>
 
@@ -61,119 +61,119 @@ other gas optics models could be added in future.
 
 The subdirectories are as follows:
 
-- radiation - the ecRad souce code; the radiation/CONVENTIONS file
+- `radiation` - the ecRad souce code; the `radiation/CONVENTIONS` file
        lists the programming conventions for this part of the code
 
-- radsurf - source code for radiative transfer in complex surfaces
+- `radsurf` - source code for radiative transfer in complex surfaces
        such as vegetation and urban areas - this is UNDER DEVELOPMENT
        and is likely to be removed as these features will be put in a
        separate package
 
-- ifsaux - source code providing a (sometimes dummy) IFS environment
+- `ifsaux` - source code providing a (sometimes dummy) IFS environment
 
-- ifsrrtm - the IFS implementation of RRTMG
+- `ifsrrtm` - the IFS implementation of the RRTMG gas optics scheme
 
-- utilities - source code for useful utilities, such as reading NetCDF
+- `utilities` - source code for useful utilities, such as reading netCDF
        files
 
-- drhook - source code for the Dr Hook profiling system
+- `drhook` - source code for the Dr Hook profiling system
 
-- driver - the source code for the offline driver program
+- `driver` - the source code for the offline driver program
 
-- ifs - source files from the IFS that are used to provide inputs to
+- `ifs` - source files from the IFS that are used to provide inputs to
         ecRad (but not used in this offline version)
 
-- mod - where Fortran module files are written
+- `mod` - where Fortran module files are written
 
-- lib - where the static libraries are written
+- `lib` - where the static libraries are written
 
-- bin - where the executable ecrad is written
+- `bin` - where the executable ecrad is written
 
-- data - contains configuration data read at run-time
+- `data` - contains configuration data read at run-time
 
-- test - test cases including Matlab code to plot the outputs
+- `test` - test cases including Matlab code to plot the outputs
 
-- include - automatically generated interface blocks for non-module routines
+- `include` - automatically generated interface blocks for non-module routines
 
-- practical - exercises to get started with ecRad 
+- `practical` - exercises to get started with ecRad 
 
 
 ## TO COMPILE
 
 1. Ensure you have a reasonably recent Fortran compiler - it needs to
-support modules with "contains" and "procedure" statements for
-example.  Ensure you have the Fortran NetCDF library installed
+support modules with `contains` and `procedure` statements for
+example.  Ensure you have the Fortran netCDF library installed
 (versions 3 or 4) and that the module file is compatible with your
 Fortran compiler.
 
 2. You can compile the code using 
 
-       make PROFILE=<prof>
+       `make PROFILE=<prof>`
 
-   where `<prof>` is one of gfortran or pgi.  This will read the
-   system-specific configurations from the file Makefile_include.<prof>.
-   If you omit the PROFILE= option then gfortran will be assumed. If you
+   where `<prof>` is one of `gfortran` or `pgi`.  This will read the
+   system-specific configurations from the file `Makefile_include.<prof>`.
+   If you omit the `PROFILE=` option then `gfortran` will be assumed. If you
    have a compiler other than gfortran or PGI Fortran then create such a
    file for your compiler following the example in
-   Makefile_include.gfortran. Two additional profiles are provided,
-   "ecmwf" which builds on the gfortran profile and "uor" (University of
-   Reading) which is built on the "pgi" profile.
+   `Makefile_include.gfortran`. Two additional profiles are provided,
+   `ecmwf` which builds on the `gfortran` profile and `uor` (University of
+   Reading) which is built on the `pgi` profile.
    
    If the compile is successful then static libraries should appear in
-   the lib directory, and then the executable bin/ecrad.
+   the `lib` directory, and then the executable `bin/ecrad`.
 
-3. To clean-up, type "make clean".  To build an unoptimized version
+3. To clean-up, type `make clean`.  To build an unoptimized version
    for debugging, you can do
    
-       make PROFILE=<prof> DEBUG=1
+       `make PROFILE=<prof> DEBUG=1`
    
-   or you can specifically override the variables in Makefile_include.<prof>
+   or you can specifically override the variables in `Makefile_include.<prof>`
    using, for example
    
-       make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"
+       `make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"`
    
-   To compile in single precision add SINGLE_PRECISION=1 to the "make"
+   To compile in single precision add `SINGLE_PRECISION=1` to the `make`
    command line.  To compile with the Dr Hook profiling system, add
-   DR_HOOK=1 to the "make" command line.
+   `DR_HOOK=1` to the `make` command line.
 
 
 ## TO TEST
 
 The offline driver is run via
 
-    ecrad <namelist.nam> <input_file.nc> <output_file.nc>
+    `ecrad <namelist.nam> <input_file.nc> <output_file.nc>`
 
 where the radiation scheme is configured using the Fortran namelist
-`<namelist.nam>`, and the inputs and outputs are in NetCDF format.  
+`<namelist.nam>`, and the inputs and outputs are in netCDF format.  
 
-The "practical" directory contains a set of practical exercises to
+The `practical` directory contains a set of practical exercises to
 help new users become familiar with the capabilities of ecRad. Start
 by reading the instructions in `practical/ecrad_practical.pdf`.
 
-The "test/ifs" directory contains a pole-to-pole slice of
+The `test/ifs` directory contains a pole-to-pole slice of
 low-resolution IFS model data in a form to use as input to the offline
 version of ecRad. It includes aerosols extracted from the CAMS
-climatology used operationally in IFS Cycle 43R3. Typing "make test"
+climatology used operationally in IFS Cycle 43R3. Typing `make test`
 in this directory runs a number of configurations of ecRad described
-in the Makefile. The Matlab script plot_ifs.m can be used to visualize
-the results. The file "ecrad_meridian_default_out_REFERENCE.nc"
+in the Makefile. The Matlab script `plot_ifs.m` can be used to visualize
+the results. The file `ecrad_meridian_default_out_REFERENCE.nc`
 contains a reference version of the output file
-"ecrad_meridian_default_out.nc" (case "a"), which you can compare to
+`ecrad_meridian_default_out.nc` (case "a"), which you can compare to
 be sure your compilation is working as expected. This case has
-essentially be superceded by the slice in the "practical" directory.q
+essentially be superceded by the slice in the `practical` directory.
 
-The "test/i3rc" directory contains the 1D profile of the I3RC cumulus
-test case used by Hogan et al. (2016). Typing "make test" in this
+The `test/i3rc` directory contains the 1D profile of the I3RC cumulus
+test case used by Hogan et al. (2016). Typing `make test` in this
 directory runs the various 1D and 3D configurations of ecRad. The
-Matlab script plot_i3rc.m can then be used to visualize the results,
+Matlab script `plot_i3rc.m` can then be used to visualize the results,
 reproducing three of the figures from Hogan et al. (2016). Note that
 you will need to ensure that a reasonably up-to-date version of the
-"nco" tools are available and in your path.  This test involves
+`nco` tools are available and in your path.  This test involves
 running the duplicate_profiles.sh script, which duplicates the single
-profile in i3rc_mls_cumulus.nc, each with a different solar zenith
+profile in `i3rc_mls_cumulus.nc`, each with a different solar zenith
 angle.
 
-The "test/surface" directory contains tests of the surface tile types,
+The `test/surface` directory contains tests of the surface tile types,
 although this is under development and so nothing here is guaranteed
 to work.
 
@@ -182,7 +182,7 @@ cases.
 
 In addition to writing the output file, a file containing the
 intermediate radiative properties of the atmosphere for each g-point
-can be stored in radiative_properties.nc (edit the config namelist to
+can be stored in `radiative_properties.nc` (edit the config namelist to
 enable this), but note that the g-points have been reordered in
 approximate order of optical depth if the SPARTACUS solver is chosen.
 
@@ -246,4 +246,6 @@ the shortwave 3D radiative effect of clouds. J. Atmos. Sci., 76,
 
 ## CONTACT
 
-Any queries or bug fixes, please email Robin Hogan <r.j.hogan@ecmwf.int>
+Please email Robin Hogan <r.j.hogan@ecmwf.int> with any queries or bug
+fixes, but note that ECMWF does not commit to providing support for
+users of this software.
