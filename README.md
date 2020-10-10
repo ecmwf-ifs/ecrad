@@ -61,8 +61,7 @@ other gas optics models could be added in future.
 
 The subdirectories are as follows:
 
-- `radiation` - the ecRad souce code; the `radiation/CONVENTIONS` file
-       lists the programming conventions for this part of the code
+- `radiation` - the ecRad souce code
 
 - `radsurf` - source code for radiative transfer in complex surfaces
        such as vegetation and urban areas - this is UNDER DEVELOPMENT
@@ -108,7 +107,7 @@ Fortran compiler.
 
 2. You can compile the code using 
 
-       `make PROFILE=<prof>`
+       make PROFILE=<prof>
 
    where `<prof>` is one of `gfortran` or `pgi`.  This will read the
    system-specific configurations from the file `Makefile_include.<prof>`.
@@ -125,12 +124,12 @@ Fortran compiler.
 3. To clean-up, type `make clean`.  To build an unoptimized version
    for debugging, you can do
    
-       `make PROFILE=<prof> DEBUG=1`
+       make PROFILE=<prof> DEBUG=1
    
    or you can specifically override the variables in `Makefile_include.<prof>`
    using, for example
    
-       `make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"`
+       make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"
    
    To compile in single precision add `SINGLE_PRECISION=1` to the `make`
    command line.  To compile with the Dr Hook profiling system, add
@@ -141,10 +140,11 @@ Fortran compiler.
 
 The offline driver is run via
 
-    `ecrad <namelist.nam> <input_file.nc> <output_file.nc>`
+    ecrad <namelist.nam> <input_file.nc> <output_file.nc>
 
 where the radiation scheme is configured using the Fortran namelist
-`<namelist.nam>`, and the inputs and outputs are in netCDF format.  
+file `<namelist.nam>`, and the inputs and outputs are in netCDF
+format.
 
 The `practical` directory contains a set of practical exercises to
 help new users become familiar with the capabilities of ecRad. Start
@@ -211,10 +211,8 @@ the gas optics part of the Rapid Radiative Transfer Model for GCMS
 The ecRad radiation scheme itself is described here:
 
  - Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation
-scheme for the ECMWF model.  J. Adv. Modeling Earth Syst., 10
+scheme for the ECMWF model.  J. Adv. Modeling Earth Syst., 10, 1990-2008,
 doi:10.1029/2018MS001364.
-
-and here:
 
  - Hogan, R. J., and A. Bozzo, 2016: ECRAD: A new radiation scheme for
 the IFS. ECMWF Technical Memorandum number 787, 35pp:
@@ -245,5 +243,5 @@ the shortwave 3D radiative effect of clouds. J. Atmos. Sci., 76,
 ## CONTACT
 
 Please email Robin Hogan <r.j.hogan@ecmwf.int> with any queries or bug
-fixes, but note that ECMWF does not commit to providing support for
+fixes, but note that ECMWF does not commit to providing support to
 users of this software.
