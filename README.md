@@ -224,14 +224,12 @@ A two-part paper is published in Journal of Geophysics Research
 describing the SPARTACUS technique:
 
 Schäfer, S. A. K., R. J. Hogan, C. Klinger, J.-C. Chiu and B. Mayer,
-2016: Representing 3D cloud-radiation effects in two-stream schemes:
-1. Longwave considerations and effective cloud edge length.
+2016: Representing 3D cloud-radiation effects in two-stream schemes: 1. Longwave considerations and effective cloud edge length.
 J. Geophys. Res., 121, 8567-8582.
 http://www.met.reading.ac.uk/~swrhgnrj/publications/spartacus_part1.pdf
 
 Hogan, R. J., S. A. K. Schäfer, C. Klinger, J.-C. Chiu and B. Mayer,
-2016: Representing 3D cloud-radiation effects in two-stream schemes:
-2. Matrix formulation and broadband evaluation. J. Geophys. Res., 121,
+2016: Representing 3D cloud-radiation effects in two-stream schemes: 2. Matrix formulation and broadband evaluation. J. Geophys. Res., 121,
 8583-8599.
 http://www.met.reading.ac.uk/~swrhgnrj/publications/spartacus_part2.pdf
 
