@@ -1482,7 +1482,7 @@ contains
       call my_abort('Error reading NetCDF file')
     end if
 
-    ! Allocatable character strings not supported one enough compilers
+    ! Allocatable character strings not supported on enough compilers
     ! yet
     !    if (allocated(attr_str)) then
     !      deallocate(attr_str)
