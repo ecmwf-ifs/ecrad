@@ -56,7 +56,7 @@ contains
     end do
 
     if (config%n_cloud_types == 0) then
-      config%cloud_type_name(1) = "mie_liquid"
+      config%cloud_type_name(1) = "mie_droplet"
       config%cloud_type_name(2) = "baum-general-habit-mixture_ice"
       config%n_cloud_types = 2
     end if

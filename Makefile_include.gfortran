@@ -9,7 +9,7 @@ CPPFLAGS = -cpp
 BASICFLAGS = -J../mod -fconvert=big-endian -fno-range-check
 
 # OpenMP flag
-OMPFLAG = -fopenmp -pg
+OMPFLAG = -fopenmp
 
 ifndef DEBUG
 # --NORMAL CONFIGURATION--

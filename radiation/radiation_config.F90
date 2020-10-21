@@ -298,7 +298,7 @@ module radiation_config
     
     character(len=511) :: cloud_type_name(NMaxCloudTypes) = ["","","","","","","","","","","",""]
 ! &
-!         &   = ["mie_liquid                    ", &
+!         &   = ["mie_droplet                   ", &
 !         &      "baum-general-habit-mixture_ice"]
 
     ! To what extent do we include "entrapment" effects in the
@@ -637,6 +637,7 @@ contains
     character(63)  :: liquid_model_name, ice_model_name, gas_model_name
     character(63)  :: sw_solver_name, lw_solver_name, overlap_scheme_name
     character(63)  :: sw_entrapment_name, sw_encroachment_name, cloud_pdf_shape_name
+    character(len=511) :: cloud_type_name(NMaxCloudTypes) = ["","","","","","","","","","","",""]
     integer :: i_aerosol_type_map(NMaxAerosolTypes) ! More than 256 is an error
 
     logical :: do_nearest_spectral_sw_albedo = .true.
@@ -673,7 +674,7 @@ contains
          &  mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od, &
          &  mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo, &
          &  mono_lw_asymmetry_factor, mono_sw_asymmetry_factor, &
-         &  cloud_pdf_shape_name, &
+         &  cloud_pdf_shape_name, cloud_type_name, &
          &  do_nearest_spectral_sw_albedo, do_nearest_spectral_lw_emiss, &
          &  sw_albedo_wavelength_bound, lw_emiss_wavelength_bound, &
          &  i_sw_albedo_index, i_lw_emiss_index
@@ -855,6 +856,7 @@ contains
     this%max_cloud_od = max_cloud_od
     this%max_3d_transfer_rate = max_3d_transfer_rate
     this%min_cloud_effective_size = max(1.0e-6_jprb, min_cloud_effective_size)
+    this%cloud_type_name = cloud_type_name
     if (encroachment_scaling >= 0.0_jprb) then
       this%overhang_factor = encroachment_scaling
       if (iverbose >= 1) then

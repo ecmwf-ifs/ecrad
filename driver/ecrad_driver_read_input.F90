@@ -150,8 +150,8 @@ contains
       ! generically, in which case they have dimensions (ncol, nlev,
       ! ntype)
       if (file%exists('q_hydrometeor')) then
-        call file%get('q_hydrometeor',  cloud%mixing_ratio)     ! kg/kg
-        call file%get('re_hydrometeor', cloud%effective_radius) ! m
+        call file%get('q_hydrometeor',  cloud%mixing_ratio, ipermute=[2,1,3])     ! kg/kg
+        call file%get('re_hydrometeor', cloud%effective_radius, ipermute=[2,1,3]) ! m
       else
         ! Ice and liquid properties provided in separate arrays
         allocate(cloud%mixing_ratio(ncol,nlev,2))
@@ -584,7 +584,7 @@ contains
 
     if (config%use_aerosols) then
       ! Load aerosol data
-      call file%get('aerosol_mmr', aerosol%mixing_ratio, ipermute=(/2,3,1/));
+      call file%get('aerosol_mmr', aerosol%mixing_ratio, ipermute=[2,3,1]);
       ! Store aerosol level bounds
       aerosol%istartlev = lbound(aerosol%mixing_ratio, 2)
       aerosol%iendlev   = ubound(aerosol%mixing_ratio, 2)
