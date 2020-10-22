@@ -266,7 +266,7 @@ contains
                        &     *  od_cloud_new) & 
                        &     / od_total
                 end where
-                where (ssa_total > 0.0_jprb)
+                where (ssa_total > 0.0_jprb .and. od_total > 0.0_jprb)
                   g_total = (g(:,jlev,jcol)*ssa(:,jlev,jcol)*od(:,jlev,jcol) &
                        &     +   g_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
                        &     * ssa_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
@@ -278,7 +278,7 @@ contains
                   ssa_total = ssa_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
                        &     * od_cloud_new / od_total
                 end where
-                where (ssa_total > 0.0_jprb)
+                where (ssa_total > 0.0_jprb .and. od_total > 0.0_jprb)
                   g_total = g_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
                        &     * ssa_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
                        &     *  od_cloud_new / (ssa_total*od_total)

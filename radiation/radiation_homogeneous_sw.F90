@@ -243,7 +243,7 @@ contains
                      &     *  od_cloud_g) & 
                      &     / od_total
               end where
-              where (ssa_total > 0.0_jprb)
+              where (ssa_total > 0.0_jprb .and. od_total > 0.0_jprb)
                 g_total = (g(:,jlev,jcol)*ssa(:,jlev,jcol)*od(:,jlev,jcol) &
                      &     +   g_cloud(config%i_band_from_reordered_g_sw,jlev,jcol) &
                      &     * ssa_cloud(config%i_band_from_reordered_g_sw,jlev,jcol) &
