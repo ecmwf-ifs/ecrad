@@ -13,8 +13,8 @@ all: test
 test: test_default test_noaer test_expran test_tripleclouds test_spartacus \
 	test_spartacus_maxentr
 
-# (a) Default IFS settings for cycle 43R3: McICA solver with
-# exponential-exponential overlap
+# (a) Default IFS settings: McICA solver with exponential-exponential
+# overlap
 test_default:
 	$(DRIVER) $(CONFIG) $(INPUT).nc $(INPUT)_default_out.nc
 
