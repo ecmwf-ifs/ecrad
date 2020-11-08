@@ -1,10 +1,16 @@
 ! radiation_mcica_sw.F90 - Monte-Carlo Independent Column Approximation shortwave solver
 !
-! Copyright (C) 2015-2017 ECMWF
+! (C) Copyright 2015- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-04-11  R. Hogan  Receive albedos at g-points
@@ -100,6 +106,9 @@ contains
     ! albedo and asymmetry factor
     real(jprb), dimension(config%n_g_sw) :: od_total, ssa_total, g_total
 
+    ! Combined scattering optical depth
+    real(jprb) :: scat_od
+
     ! Two-stream coefficients
     real(jprb), dimension(config%n_g_sw) :: gamma1, gamma2, gamma3
 
@@ -117,8 +126,8 @@ contains
     ! Number of g points
     integer :: ng
 
-    ! Loop indices for level and column
-    integer :: jlev, jcol
+    ! Loop indices for level, column and g point
+    integer :: jlev, jcol, jg
 
     real(jprb) :: hook_handle
 
@@ -216,19 +225,24 @@ contains
               od_total  = od(:,jlev,jcol) + od_cloud_new
               ssa_total = 0.0_jprb
               g_total   = 0.0_jprb
-              where (od_total > 0.0_jprb)
-                ssa_total = (ssa(:,jlev,jcol)*od(:,jlev,jcol) &
-                     &     + ssa_cloud(config%i_band_from_reordered_g_sw,jlev,jcol) &
-                     &     *  od_cloud_new) & 
-                     &     / od_total
-              end where
-              where (ssa_total > 0.0_jprb)
-                g_total = (g(:,jlev,jcol)*ssa(:,jlev,jcol)*od(:,jlev,jcol) &
-                     &     +   g_cloud(config%i_band_from_reordered_g_sw,jlev,jcol) &
-                     &     * ssa_cloud(config%i_band_from_reordered_g_sw,jlev,jcol) &
-                     &     *  od_cloud_new) &
-                     &     / (ssa_total*od_total)
-              end where
+              ! In single precision we need to protect against the
+              ! case that od_total > 0.0 and ssa_total > 0.0 but
+              ! od_total*ssa_total == 0 due to underflow
+              do jg = 1,ng
+                if (od_total(jg) > 0.0_jprb) then
+                  scat_od = ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
+                       &     + ssa_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &
+                       &     *  od_cloud_new(jg)
+                  ssa_total(jg) = scat_od / od_total(jg)
+                  if (scat_od > 0.0_jprb) then
+                    g_total(jg) = (g(jg,jlev,jcol)*ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
+                         &     +   g_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &
+                         &     * ssa_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &
+                         &     *  od_cloud_new(jg)) &
+                         &     / scat_od
+                  end if
+                end if
+              end do
 
               ! Apply delta-Eddington scaling to the cloud-aerosol-gas
               ! mixture

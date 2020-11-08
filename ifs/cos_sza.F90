@@ -1,7 +1,16 @@
 SUBROUTINE COS_SZA(KSTART,KEND,KCOL,PGEMU,PGELAM,LDRADIATIONTIMESTEP,PMU0)
 
 !**** *COS_SZA*   
-
+!
+! (C) Copyright 2015- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 !     Purpose.
 !     --------
 !        Compute the cosine of the solar zenith angle.  Note that this

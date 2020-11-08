@@ -3,14 +3,12 @@ low-resolution IFS model data in a form to use as input to the offline
 version of ecRad. It includes aerosols extracted from the CAMS
 climatology used operationally in IFS Cycle 43R3.
 
-
 Up to ecRad version 1.1.6, the file included a modification for Earth
 curvature effects within the IFS such that the online radiation scheme
 never sees a solar zenith angle greater than 90 degrees. However, it
 is important to test the offline ecRad for such conditions, so from
 version 1.1.7, the cos_solar_zenith_angle variable has been modified
-to allow the sun to go below the horizon.  The original file is in
-ecrad_meridian_ORIG.nc.
+to allow the sun to go below the horizon.
 
 Typing "make" in this directory runs four configurations of ECRAD in a
 configuration similar to forthcoming cycle 46R1:

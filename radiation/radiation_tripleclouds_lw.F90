@@ -1,10 +1,16 @@
 ! radiation_tripleclouds_lw.F90 - Longwave "Tripleclouds" solver
 !
-! Copyright (C) 2016-2020 ECMWF
+! (C) Copyright 2016- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-04-28  R. Hogan  Receive emission/albedo rather than planck/emissivity
@@ -327,7 +333,7 @@ contains
                        &     *  od_cloud_new) & 
                        &     / od_total
                 end where
-                where (ssa_total > 0.0_jprb)
+                where (ssa_total > 0.0_jprb .and. od_total > 0.0_jprb)
                   g_total = (g(:,jlev,jcol)*ssa(:,jlev,jcol)*od(:,jlev,jcol) &
                        &     +   g_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
                        &     * ssa_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
@@ -339,7 +345,7 @@ contains
                   ssa_total = ssa_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
                        &     * od_cloud_new / od_total
                 end where
-                where (ssa_total > 0.0_jprb)
+                where (ssa_total > 0.0_jprb .and. od_total > 0.0_jprb)
                   g_total = g_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
                        &     * ssa_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
                        &     *  od_cloud_new / (ssa_total*od_total)

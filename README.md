@@ -1,21 +1,21 @@
-ECRAD - ECMWF atmospheric radiation scheme
+# ECRAD - ECMWF atmospheric radiation scheme
 
-This document last updated 20 March 2020
+This document last updated 10 October 2020
 
 Robin Hogan <r.j.hogan@ecmwf.int>
 
 For more complete information about compilation and usage of ecRad,
-please see the documentation on the ecRad web site:
-  https://confluence.ecmwf.int/display/ECRAD
+please see the documentation on the
+[ecRad web site](https://confluence.ecmwf.int/display/ECRAD).
 
 
-INTRODUCTION
+## INTRODUCTION
 
 This package contains the offline version of a radiation scheme
 suitable for use in atmospheric weather and climate models.  The code
 is designed to be extensible and flexible.  For example, the gas
 optics, cloud optics and solver are completely separated (see
-radiation/radiation_interface.F90 where they are called in sequence),
+`radiation/radiation_interface.F90` where they are called in sequence),
 thereby facilitating future changes where different gas models or
 solvers may be switched in and out independently. The offline code is
 parallelized using OpenMP.
@@ -57,144 +57,147 @@ Integrated Forecasting System (IFS). The code is designed so that
 other gas optics models could be added in future.
 
 
-PACKAGE OVERVIEW
+## PACKAGE OVERVIEW
 
 The subdirectories are as follows:
 
-  radiation - the ecRad souce code; the radiation/CONVENTIONS file
-       lists the programming conventions for this part of the code
+- `radiation` - the ecRad souce code
 
-  radsurf - source code for radiative transfer in complex surfaces
+- `radsurf` - source code for radiative transfer in complex surfaces
        such as vegetation and urban areas - this is UNDER DEVELOPMENT
        and is likely to be removed as these features will be put in a
        separate package
 
-  ifsaux - source code providing a (sometimes dummy) IFS environment
+- `ifsaux` - source code providing a (sometimes dummy) IFS environment
 
-  ifsrrtm - the IFS implementation of RRTMG
+- `ifsrrtm` - the IFS implementation of the RRTMG gas optics scheme
 
-  utilities - source code for useful utilities, such as reading NetCDF
+- `utilities` - source code for useful utilities, such as reading netCDF
        files
 
-  drhook - source code for the Dr Hook profiling system
+- `drhook` - source code for the Dr Hook profiling system
 
-  driver - the source code for the offline driver program
+- `driver` - the source code for the offline driver program
 
-  ifs - source files from the IFS that are used to provide inputs to
+- `ifs` - source files from the IFS that are used to provide inputs to
         ecRad (but not used in this offline version)
 
-  mod - where Fortran module files are written
+- `mod` - where Fortran module files are written
 
-  lib - where the static libraries are written
+- `lib` - where the static libraries are written
 
-  bin - where the executable ecrad is written
+- `bin` - where the executable ecrad is written
 
-  data - contains configuration data read at run-time
+- `data` - contains configuration data read at run-time
 
-  test - test cases including Matlab code to plot the outputs
+- `test` - test cases including Matlab code to plot the outputs
 
-  include - automatically generated interface blocks for non-module routines
+- `include` - automatically generated interface blocks for non-module routines
 
-  practical - exercises to get started with ecRad 
+- `practical` - exercises to get started with ecRad 
 
-TO COMPILE
+
+## TO COMPILE
 
 1. Ensure you have a reasonably recent Fortran compiler - it needs to
-support modules with "contains" and "procedure" statements for
-example.  Ensure you have the Fortran NetCDF library installed
+support modules with `contains` and `procedure` statements for
+example.  Ensure you have the Fortran netCDF library installed
 (versions 3 or 4) and that the module file is compatible with your
 Fortran compiler.
 
 2. You can compile the code using 
 
-  make PROFILE=<prof>
+       make PROFILE=<prof>
 
-where <prof> is one of gfortran or pgi.  This will read the
-system-specific configurations from the file Makefile_include.<prof>.
-If you omit the PROFILE= option then gfortran will be assumed. If you
-have a compiler other than gfortran or PGI Fortran then create such a
-file for your compiler following the example in
-Makefile_include.gfortran. Two additional profiles are provided,
-"ecmwf" which builds on the gfortran profile and "uor" (University of
-Reading) which is built on the "pgi" profile.
+   where `<prof>` is one of `gfortran` or `pgi`.  This will read the
+   system-specific configurations from the file `Makefile_include.<prof>`.
+   If you omit the `PROFILE=` option then `gfortran` will be assumed. If you
+   have a compiler other than gfortran or PGI Fortran then create such a
+   file for your compiler following the example in
+   `Makefile_include.gfortran`. Two additional profiles are provided,
+   `ecmwf` which builds on the `gfortran` profile and `uor` (University of
+   Reading) which is built on the `pgi` profile.
+   
+   If the compile is successful then static libraries should appear in
+   the `lib` directory, and then the executable `bin/ecrad`.
 
-If the compile is successful then static libraries should appear in
-the lib directory, and then the executable bin/ecrad.
-
-3. To clean-up, type "make clean".  To build an unoptimized version
-for debugging, you can do
-
-  make PROFILE=<prof> DEBUG=1
-
-or you can specifically override the variables in Makefile_include.<prof>
-using, for example
-
-  make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"
-
-To compile in single precision add SINGLE_PRECISION=1 to the "make"
-command line
+3. To clean-up, type `make clean`.  To build an unoptimized version
+   for debugging, you can do
+   
+       make PROFILE=<prof> DEBUG=1
+   
+   or you can specifically override the variables in `Makefile_include.<prof>`
+   using, for example
+   
+       make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"
+   
+   To compile in single precision add `SINGLE_PRECISION=1` to the `make`
+   command line.  To compile with the Dr Hook profiling system, add
+   `DR_HOOK=1` to the `make` command line.
 
 
-TO TEST
+## TO TEST
 
 The offline driver is run via
 
     ecrad <namelist.nam> <input_file.nc> <output_file.nc>
 
 where the radiation scheme is configured using the Fortran namelist
-<namelist.nam>, and the inputs and outputs are in NetCDF format.  
+file `<namelist.nam>`, and the inputs and outputs are in netCDF
+format.
 
-The "practical" directory contains a set of practical exercises to
+The `practical` directory contains a set of practical exercises to
 help new users become familiar with the capabilities of ecRad. Start
-by reading the instructions in practical/ecrad_practical.pdf.
+by reading the instructions in `practical/ecrad_practical.pdf`.
 
-The "test/ifs" directory contains a pole-to-pole slice of
+The `test/ifs` directory contains a pole-to-pole slice of
 low-resolution IFS model data in a form to use as input to the offline
 version of ecRad. It includes aerosols extracted from the CAMS
-climatology used operationally in IFS Cycle 43R3. Typing "make test"
+climatology used operationally in IFS Cycle 43R3. Typing `make test`
 in this directory runs a number of configurations of ecRad described
-in the Makefile. The Matlab script plot_ifs.m can be used to visualize
-the results. The file "ecrad_meridian_default_out_REFERENCE.nc"
+in the Makefile. The Matlab script `plot_ifs.m` can be used to visualize
+the results. The file `ecrad_meridian_default_out_REFERENCE.nc`
 contains a reference version of the output file
-"ecrad_meridian_default_out.nc" (case "a"), which you can compare to
+`ecrad_meridian_default_out.nc` (case "a"), which you can compare to
 be sure your compilation is working as expected. This case has
-essentially be superceded by the slice in the "practical" directory.q
+essentially be superceded by the slice in the `practical` directory.
 
-The "test/i3rc" directory contains the 1D profile of the I3RC cumulus
-test case used by Hogan et al. (2016). Typing "make test" in this
+The `test/i3rc` directory contains the 1D profile of the I3RC cumulus
+test case used by Hogan et al. (2016). Typing `make test` in this
 directory runs the various 1D and 3D configurations of ecRad. The
-Matlab script plot_i3rc.m can then be used to visualize the results,
+Matlab script `plot_i3rc.m` can then be used to visualize the results,
 reproducing three of the figures from Hogan et al. (2016). Note that
 you will need to ensure that a reasonably up-to-date version of the
-"nco" tools are available and in your path.  This test involves
+`nco` tools are available and in your path.  This test involves
 running the duplicate_profiles.sh script, which duplicates the single
-profile in i3rc_mls_cumulus.nc, each with a different solar zenith
+profile in `i3rc_mls_cumulus.nc`, each with a different solar zenith
 angle.
 
-The "test/surface" directory contains tests of the surface tile types,
+The `test/surface` directory contains tests of the surface tile types,
 although this is under development and so nothing here is guaranteed
 to work.
 
-Alternatively, type "make test" in the top-level directory to run all
+Alternatively, type `make test` in the top-level directory to run all
 cases.
 
 In addition to writing the output file, a file containing the
 intermediate radiative properties of the atmosphere for each g-point
-can be stored in radiative_properties.nc (edit the config namelist to
+can be stored in `radiative_properties.nc` (edit the config namelist to
 enable this), but note that the g-points have been reordered in
 approximate order of optical depth if the SPARTACUS solver is chosen.
 
 
-LICENSE
+## LICENCE
 
-This software may be used and modified under the terms of the OpenIFS
-license, described in 20150304_OpenIFS_terms.pdf. Note that before it
-can be used, an authoritative signature from your institute is
-required as described at
-https://confluence.ecmwf.int/display/OIFS/OpenIFS+Licensing. Copyright
-statements are given in the file NOTICE. This code may NOT BE
-REDISTRIBUTED outside your institute without explicit permission from
-ECMWF.
+(C) Copyright 2014- ECMWF.
+
+This software is licensed under the terms of the Apache Licence Version 2.0
+which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+
+In applying this licence, ECMWF does not waive the privileges and immunities
+granted to it by virtue of its status as an intergovernmental organisation
+nor does it submit to any jurisdiction.
+Copyright statements are given in the file NOTICE.
 
 The ifsrrtm directory of this package includes a modified version of
 the gas optics part of the Rapid Radiative Transfer Model for GCMS
@@ -203,44 +206,42 @@ the gas optics part of the Rapid Radiative Transfer Model for GCMS
 "3-clause BSD" license; for details, see ifsrrtm/AER-BSD3-LICENSE.
 
 
-PUBLICATIONS
+## PUBLICATIONS
 
 The ecRad radiation scheme itself is described here:
 
-Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation
-scheme for the ECMWF model.  J. Adv. Modeling Earth Syst., 10
+ - Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation
+scheme for the ECMWF model.  J. Adv. Modeling Earth Syst., 10, 1990-2008,
 doi:10.1029/2018MS001364.
 
-and here:
-
-Hogan, R. J., and A. Bozzo, 2016: ECRAD: A new radiation scheme for
+ - Hogan, R. J., and A. Bozzo, 2016: ECRAD: A new radiation scheme for
 the IFS. ECMWF Technical Memorandum number 787, 35pp:
 http://www.ecmwf.int/en/elibrary/16901-ecrad-new-radiation-scheme-ifs
 
 A two-part paper is published in Journal of Geophysics Research
 describing the SPARTACUS technique:
 
-Schäfer, S. A. K., R. J. Hogan, C. Klinger, J.-C. Chiu and B. Mayer,
-2016: Representing 3D cloud-radiation effects in two-stream schemes:
-1. Longwave considerations and effective cloud edge length.
+ - Schäfer, S. A. K., R. J. Hogan, C. Klinger, J.-C. Chiu and B. Mayer,
+2016: Representing 3D cloud-radiation effects in two-stream schemes: 1. Longwave considerations and effective cloud edge length.
 J. Geophys. Res., 121, 8567-8582.
 http://www.met.reading.ac.uk/~swrhgnrj/publications/spartacus_part1.pdf
 
-Hogan, R. J., S. A. K. Schäfer, C. Klinger, J.-C. Chiu and B. Mayer,
-2016: Representing 3D cloud-radiation effects in two-stream schemes:
-2. Matrix formulation and broadband evaluation. J. Geophys. Res., 121,
+ - Hogan, R. J., S. A. K. Schäfer, C. Klinger, J.-C. Chiu and B. Mayer,
+2016: Representing 3D cloud-radiation effects in two-stream schemes: 2. Matrix formulation and broadband evaluation. J. Geophys. Res., 121,
 8583-8599.
 http://www.met.reading.ac.uk/~swrhgnrj/publications/spartacus_part2.pdf
 
 More recent developments on the shortwave SPARTACUS solver, available
 since ecRad 1.1.10, are described here:
 
-Hogan, R. J., M. D. Fielding, H. W. Barker, N. Villefranque and
+ - Hogan, R. J., M. D. Fielding, H. W. Barker, N. Villefranque and
 S. A. K. Schäfer, 2019: Entrapment: An important mechanism to explain
 the shortwave 3D radiative effect of clouds. J. Atmos. Sci., 76,
 2123–2141.
 
 
-CONTACT
+## CONTACT
 
-Any queries or bug fixes, please email Robin Hogan <r.j.hogan@ecmwf.int>
+Please email Robin Hogan <r.j.hogan@ecmwf.int> with any queries or bug
+fixes, but note that ECMWF does not commit to providing support to
+users of this software.
