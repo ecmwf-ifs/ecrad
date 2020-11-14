@@ -1,7 +1,9 @@
 version 1.5
-	- Added ecCKD gas optics model and generalized cloud description
+	- Added ecCKD gas optics scheme and generalized cloud description
 	- Optimized the LW Tripleclouds solver for cloud but not aerosol
 	  scattering
+	- Added general spectral description of aerosol, compatible with
+	  ecCKD gas optics model
 
 version 1.4.0 (5 November 2020)
 	- Replaced OpenIFS license with Apache License (version 2.0) and
