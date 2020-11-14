@@ -11,7 +11,7 @@ CONFIG = configCY47R1.nam
 all: test
 
 test: test_default test_noaer test_expran test_tripleclouds test_spartacus \
-	test_spartacus_maxentr
+	test_spartacus_maxentr test_ecckd
 
 # (a) Default IFS settings: McICA solver with exponential-exponential
 # overlap
@@ -62,9 +62,10 @@ test_spartacus_maxentr:
 
 test_ecckd:
 	./change_namelist.sh $(CONFIG) config_ecckd.nam \
-		gas_model_name='"ECCKD"' use_aerosols=false \
-		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"'
+		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"'
 	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
+#use_aerosols=false 
+#		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"'
 
 test_cloudless:
 	./change_namelist.sh $(CONFIG) config_cloudless.nam \

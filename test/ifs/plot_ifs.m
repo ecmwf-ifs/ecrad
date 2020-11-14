@@ -4,6 +4,7 @@ code = 'ecrad_meridian';
 in = loadnc([code '.nc']);
 cases = {[code '_noaer_out.nc'],
 	 [code '_default_out.nc'],
+	 [code '_ecckd_out.nc'],
 	 [code '_expran_out.nc'],
 	 [code '_tc_out.nc'],
 	 [code '_spartacus_out.nc'],
@@ -15,12 +16,13 @@ end
 case_list = [1 2 3 4 5 6];
 leg = {'McICA Exp-Exp no aerosols',...
        'McICA Exp-Exp',...
+       'ecCKD McICA Exp-Exp',...
        'McICA Exp-Ran',...
        'Tripleclouds Exp-Ran',...
        'SPARTACUS Exp-Ran',...
        'Classic SPARTACUS Exp-Ran'};
 
-styles = {'b','r','g','m','c','k'};
+styles = {'b','r','r--','g','m','c','k'};
 
 p = 0.01.*0.5.*median(in.pressure_hl(1:end-1,:)+in.pressure_hl(2:end,:),2);
 
