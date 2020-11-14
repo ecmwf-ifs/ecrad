@@ -120,6 +120,8 @@ module radiation_aerosol_optics_data
 
    contains
      procedure :: setup => setup_aerosol_optics
+     procedure :: allocate
+     procedure :: initialize_types
      procedure :: set_hydrophobic_type
      procedure :: set_hydrophilic_type
      procedure :: set_empty_type
@@ -134,7 +136,7 @@ contains
 
   !---------------------------------------------------------------------
   ! Setup aerosol optics coefficients by reading them from a file
-  subroutine setup_aerosol_optics(this, file_name, ntype, iverbose)
+  subroutine setup_aerosol_optics(this, file_name, iverbose)
 
     use yomhook,              only : lhook, dr_hook
     use easy_netcdf,          only : netcdf_file
@@ -142,7 +144,6 @@ contains
 
     class(aerosol_optics_type), intent(inout) :: this
     character(len=*), intent(in)              :: file_name
-    integer, intent(in)                       :: ntype
     integer, intent(in), optional             :: iverbose
 
     ! The NetCDF file containing the aerosol optics data
@@ -249,6 +250,18 @@ contains
       this%nrh           = 0
     end if
 
+    if (lhook) call dr_hook('radiation_aerosol_optics_data:setup',1,hook_handle)
+
+  end subroutine setup_aerosol_optics
+
+
+  !---------------------------------------------------------------------
+  ! Initialize the arrays describing the user's aerosol types
+  subroutine initialize_types(this, ntype)
+
+    class(aerosol_optics_type), intent(inout) :: this
+    integer,                    intent(in)    :: ntype
+    
     ! Allocate memory for mapping arrays
     this%ntype = ntype
     allocate(this%iclass(ntype))
@@ -257,10 +270,73 @@ contains
     this%iclass = IAerosolClassUndefined
     this%itype  = 0
 
-    if (lhook) call dr_hook('radiation_aerosol_optics_data:setup',1,hook_handle)
+  end subroutine initialize_types
 
-  end subroutine setup_aerosol_optics
+  !---------------------------------------------------------------------
+  ! Allocate arrays for aerosol optics data type
+  subroutine allocate(this, n_type_phobic, n_type_philic, nrh, &
+       &              n_bands_lw, n_bands_sw, n_mono_wl)
 
+    use yomhook,     only : lhook, dr_hook
+
+    class(aerosol_optics_type), intent(inout) :: this
+    integer, intent(in) :: n_type_phobic, n_type_philic, nrh
+    integer, intent(in) :: n_bands_lw, n_bands_sw, n_mono_wl
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_aerosol_optics_data:allocate',0,hook_handle)
+
+    this%n_type_phobic = n_type_phobic
+    this%n_type_philic = n_type_philic
+    this%nrh           = nrh
+    this%n_bands_lw    = n_bands_lw
+    this%n_bands_sw    = n_bands_sw
+    this%n_mono_wl     = n_mono_wl
+
+    if (n_type_philic > 0) then
+      this%use_hydrophilic = .true.
+    else
+      this%use_hydrophilic = .false.
+    end if
+
+    if (n_bands_sw > 0) then
+      allocate(this%mass_ext_sw_phobic(n_bands_sw, n_type_phobic))
+      allocate(this%ssa_sw_phobic(n_bands_sw, n_type_phobic))
+      allocate(this%g_sw_phobic(n_bands_sw, n_type_phobic))
+    end if
+    if (n_bands_lw > 0) then
+      allocate(this%mass_ext_lw_phobic(n_bands_lw, n_type_phobic))
+      allocate(this%ssa_lw_phobic(n_bands_lw, n_type_phobic))
+      allocate(this%g_lw_phobic(n_bands_lw, n_type_phobic))
+    end if
+    if (n_mono_wl > 0) then
+      allocate(this%mass_ext_mono_phobic(n_mono_wl, n_type_phobic))
+      allocate(this%ssa_mono_phobic(n_mono_wl, n_type_phobic))
+      allocate(this%g_mono_phobic(n_mono_wl, n_type_phobic))
+    end if
+
+    if (n_type_philic > 0 .and. nrh > 0) then
+      if (n_bands_sw > 0) then
+        allocate(this%mass_ext_sw_philic(n_bands_sw, nrh, n_type_philic))
+        allocate(this%ssa_sw_philic(n_bands_sw, nrh, n_type_philic))
+        allocate(this%g_sw_philic(n_bands_sw, nrh, n_type_philic))
+      end if
+      if (n_bands_lw > 0) then
+        allocate(this%mass_ext_lw_philic(n_bands_lw, nrh, n_type_philic))
+        allocate(this%ssa_lw_philic(n_bands_lw, nrh, n_type_philic))
+        allocate(this%g_lw_philic(n_bands_lw, nrh, n_type_philic))
+      end if
+      if (n_mono_wl > 0) then
+        allocate(this%mass_ext_mono_philic(n_mono_wl, nrh, n_type_philic))
+        allocate(this%ssa_mono_philic(n_mono_wl, nrh, n_type_philic))
+        allocate(this%g_mono_philic(n_mono_wl, nrh, n_type_philic))
+      end if
+    end if
+
+    if (lhook) call dr_hook('radiation_aerosol_optics_data:allocate',0,hook_handle)
+
+  end subroutine allocate
 
   !---------------------------------------------------------------------
   ! Map user type "itype" onto stored hydrophobic type "i_type_phobic"

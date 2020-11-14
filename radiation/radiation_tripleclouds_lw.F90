@@ -296,8 +296,18 @@ contains
       ! Section 4: Loop over cloudy layers to compute reflectance and transmittance
       ! --------------------------------------------------------
       ! In this section the reflectance, transmittance and sources
-      ! are computed for each layer 
-      do jlev = i_cloud_top,nlev ! Start at top-of-atmosphere
+      ! are computed for each layer
+      
+      ! Firstly, ensure clear-sky transmittance is valid for whole
+      ! depth of the atmosphere, because even above cloud it is used
+      ! by the LW derivatives
+      transmittance(:,1,:) = trans_clear(:,:)
+      ! Dummy values in cloudy regions above cloud top
+      if (i_cloud_top > 0) then
+        transmittance(:,2:,1:min(i_cloud_top,nlev)) = 1.0_jprb
+      end if
+
+      do jlev = i_cloud_top,nlev ! Start at cloud top and work down
 
         ! Array-wise assignments
         gamma1 = 0.0_jprb
@@ -305,16 +315,15 @@ contains
 
         ! Copy over clear-sky properties
         reflectance(:,1,jlev)    = ref_clear(:,jlev)
-        transmittance(:,1,jlev)  = trans_clear(:,jlev)
         source_up(:,1,jlev)      = source_up_clear(:,jlev) ! Scaled later by region size
         source_dn(:,1,jlev)      = source_dn_clear(:,jlev) ! Scaled later by region size
         nreg = nregions
         if (is_clear_sky_layer(jlev)) then
           nreg = 1
-          reflectance(:,2:,jlev) = 0.0_jprb
-          reflectance(:,2:,jlev) = 0.0_jprb
-          source_up(:,2:,jlev)   = 0.0_jprb
-          source_dn(:,2:,jlev)   = 0.0_jprb
+          reflectance(:,2:,jlev)   = 0.0_jprb
+          transmittance(:,2:,jlev) = 1.0_jprb
+          source_up(:,2:,jlev)     = 0.0_jprb
+          source_dn(:,2:,jlev)     = 0.0_jprb
         else
           do jreg = 2,nreg
             ! Cloudy sky

@@ -37,9 +37,8 @@ contains
 
     use radiation_io,     only : nulout, nulerr, radiation_abort
     use radiation_config, only : config_type, NMaxCloudTypes
-
-    real(jprb), parameter :: SolarReferenceTemperature = 5777.0_jprb ! K
-    real(jprb), parameter :: TerrestrialReferenceTemperature = 273.15_jprb ! K
+    use radiation_spectral_definition, only : SolarReferenceTemperature, &
+         &                                    TerrestrialReferenceTemperature
 
     type(config_type), intent(inout) :: config
 

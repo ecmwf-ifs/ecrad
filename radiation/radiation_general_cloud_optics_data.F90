@@ -469,6 +469,9 @@ contains
   end subroutine add_optical_properties
 
 
+  !---------------------------------------------------------------------
+  ! Return the Planck function (in W m-2 (cm-1)-1) for a given
+  ! wavenumber (cm-1) and temperature (K)
   elemental function calc_planck_function_wavenumber(wavenumber, temperature)
 
     use radiation_constants, only : SpeedOfLight, BoltzmannConstant, PlanckConstant
