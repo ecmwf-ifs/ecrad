@@ -1,8 +1,13 @@
 % This matlab scripts plots some of the inputs to the radiation scheme
 % in Fig. 1 and the outputs in Fig. 2
+
+% Location of loadnc.m
+path(path, '../common')
+
 code = 'ecrad_meridian';
 in = loadnc([code '.nc']);
 cases = {[code '_noaer_out.nc'],
+	 [code '_ecckd_noaer_out.nc'],
 	 [code '_default_out.nc'],
 	 [code '_ecckd_out.nc'],
 	 [code '_expran_out.nc'],
@@ -15,6 +20,7 @@ for icase = 1:length(cases)
 end
 case_list = [1 2 3 4 5 6];
 leg = {'McICA Exp-Exp no aerosols',...
+       'ecCKD McICA Exp-Exp no aerosols',...
        'McICA Exp-Exp',...
        'ecCKD McICA Exp-Exp',...
        'McICA Exp-Ran',...
@@ -22,7 +28,7 @@ leg = {'McICA Exp-Exp no aerosols',...
        'SPARTACUS Exp-Ran',...
        'Classic SPARTACUS Exp-Ran'};
 
-styles = {'b','r','r--','g','m','c','k'};
+styles = {'b','b--','r','r--','g','m','c','k'};
 
 p = 0.01.*0.5.*median(in.pressure_hl(1:end-1,:)+in.pressure_hl(2:end,:),2);
 

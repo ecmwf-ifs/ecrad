@@ -2,6 +2,7 @@ INPUT = ecrad_meridian
 
 #DRIVER = totalview ../../bin/ecrad -a
 DRIVER = ../../bin/ecrad
+CHANGENAM = ../common/change_namelist.sh
 
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
@@ -20,32 +21,32 @@ test_default:
 
 # (b) Turn off aerosols
 test_noaer:
-	./change_namelist.sh $(CONFIG) config_noaer.nam \
+	$(CHANGENAM) $(CONFIG) config_noaer.nam \
 		use_aerosols=false
 	$(DRIVER) config_noaer.nam $(INPUT).nc $(INPUT)_noaer_out.nc
 
 # (c) Exponential-random overlap
 test_expran:
-	./change_namelist.sh $(CONFIG) config_expran.nam \
+	$(CHANGENAM) $(CONFIG) config_expran.nam \
 		overlap_scheme_name='"Exp-Ran"'
 	$(DRIVER) config_expran.nam $(INPUT).nc $(INPUT)_expran_out.nc
 
 # (d) Tripleclouds solver with exponential-random overlap 
 test_tripleclouds:
-	./change_namelist.sh $(CONFIG) config_tc.nam \
+	$(CHANGENAM) $(CONFIG) config_tc.nam \
 		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"' \
 		overlap_scheme_name='"Exp-Ran"'
 	$(DRIVER) config_tc.nam $(INPUT).nc $(INPUT)_tc_out.nc
 
 # (e) Longwave scattering; since 46R1 this is the default
 test_lwscat:
-	./change_namelist.sh $(CONFIG) config_lwscat.nam \
+	$(CHANGENAM) $(CONFIG) config_lwscat.nam \
 		do_lw_cloud_scattering="true"
 	$(DRIVER) config_lwscat.nam $(INPUT).nc $(INPUT)_lwscat_out.nc
 
 # (f) 3D radiative transfer
 test_spartacus:
-	./change_namelist.sh $(CONFIG) config_spartacus.nam \
+	$(CHANGENAM) $(CONFIG) config_spartacus.nam \
 		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
 		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
 		do_sw_delta_scaling_with_gases="false"
@@ -53,7 +54,7 @@ test_spartacus:
 
 # (g) 3D radiative transfer using the older "maximum entrapment"
 test_spartacus_maxentr:
-	./change_namelist.sh $(CONFIG) config_spartacus_maxentr.nam \
+	$(CHANGENAM) $(CONFIG) config_spartacus_maxentr.nam \
 		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
 		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
 		sw_entrapment_name='"Maximum"' \
@@ -61,14 +62,18 @@ test_spartacus_maxentr:
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
 
 test_ecckd:
-	./change_namelist.sh $(CONFIG) config_ecckd.nam \
+	$(CHANGENAM) $(CONFIG) config_ecckd.nam \
 		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"'
 	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
-#use_aerosols=false 
 #		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"'
 
+test_ecckd_noaer:
+	$(CHANGENAM) $(CONFIG) config_ecckd_noaer.nam \
+		gas_model_name='"ECCKD"' use_aerosols=false 
+	$(DRIVER) config_ecckd_noaer.nam $(INPUT).nc $(INPUT)_ecckd_noaer_out.nc
+
 test_cloudless:
-	./change_namelist.sh $(CONFIG) config_cloudless.nam \
+	$(CHANGENAM) $(CONFIG) config_cloudless.nam \
 		use_aerosols=false \
 		sw_solver_name='"Cloudless"' lw_solver_name='"Cloudless"'
 	$(DRIVER) config_cloudless.nam $(INPUT).nc $(INPUT)_cloudless_out.nc
