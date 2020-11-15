@@ -138,13 +138,16 @@ symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
 	cd practical && ln -s ../data
 
-test: test_ifs test_i3rc
+test: test_ifs test_i3rc test_ckdmip
 
 test_ifs:
 	cd test/ifs && $(MAKE) test
 
 test_i3rc:
 	cd test/i3rc && $(MAKE) test
+
+test_ckdmip:
+	cd test/ckdmip && $(MAKE) test
 
 test_surface:
 	cd test/surface && $(MAKE) test
