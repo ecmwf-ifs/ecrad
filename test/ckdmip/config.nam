@@ -40,7 +40,8 @@ iverbosesetup           = 3,
 use_aerosols		= false,           ! Include aerosols in radiation calculations?
 do_save_spectral_flux   = false,            ! Save spectral fluxes in output file?
 do_save_gpoint_flux     = false,           ! Save fluxes per g-point in output file?
+do_surface_sw_spectral_flux = false,
 do_lw_derivatives       = false,           ! Hogan-Bozzo style derivatives for approx updates
-gas_model_name          = "RRTMG-IFS",     ! Gas model
-do_surface_sw_spectral_flux = true,
+!gas_model_name          = "RRTMG-IFS",     ! Gas model
+gas_model_name          = "ECCKD",     ! Gas model
 /
