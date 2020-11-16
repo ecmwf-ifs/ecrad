@@ -3,8 +3,8 @@ This file contains
 clear-sky atmospheric profiles of the CKDMIP "Evaluation-1" dataset
 described by Hogan and Matricard (GMDD 2020), and the corresponding
 line-by-line fluxes in
-"ckdmip_evaluation1_lw_fluxes_present_reduced.h5" and
-"ckdmip_evaluation1_sw_fluxes_present_reduced.h5".
+"ckdmip_evaluation1_lw_fluxes_present_reduced.nc" and
+"ckdmip_evaluation1_sw_fluxes_present_reduced.nc".
 
 Type "make" in this directory to run ecRad on these profiles.  You
 will need the nco tools.

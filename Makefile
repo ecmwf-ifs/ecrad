@@ -158,6 +158,7 @@ clean-tests:
 	cd test/ifs && $(MAKE) clean
 	cd test/i3rc && $(MAKE) clean
 	cd test/surface && $(MAKE) clean
+	cd test/ckdmip && $(MAKE) clean
 
 clean-toplevel:
 	cd radiation && $(MAKE) clean
