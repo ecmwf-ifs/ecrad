@@ -25,6 +25,11 @@ module radiation_spectral_definition
   real(jprb), parameter :: SolarReferenceTemperature = 5777.0_jprb ! K
   real(jprb), parameter :: TerrestrialReferenceTemperature = 273.15_jprb ! K
 
+  !---------------------------------------------------------------------
+  ! A derived type describing the contribution of the g points of a
+  ! correlated k-distribution gas-optics model from each part of the
+  ! spectrum. This is used primarily to map the cloud and aerosol
+  ! optical properties on to the gas g points.
   type spectral_definition_type
     
     ! Spectral mapping of g points
@@ -96,6 +101,9 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Find the index to the highest wavenumber in the spectral
+  ! definition that is lower than or equal to "wavenumber", used for
+  ! implementing look-up tables
   pure function find_wavenumber(this, wavenumber)
     class(spectral_definition_type), intent(in) :: this
     real(jprb),                      intent(in) :: wavenumber ! cm-1

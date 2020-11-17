@@ -94,6 +94,7 @@ module radiation_single_level
 contains
   
   !---------------------------------------------------------------------
+  ! Allocate the arrays of a single-level type
   subroutine allocate_single_level(this, ncol, nalbedobands, nemisbands, &
        &                           use_sw_albedo_direct, is_simple_surface)
 
@@ -141,6 +142,7 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Deallocate the arrays of a single-level type
   subroutine deallocate_single_level(this)
 
     use yomhook, only : lhook, dr_hook

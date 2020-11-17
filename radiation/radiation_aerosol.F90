@@ -127,7 +127,7 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Deallocate array
+  ! Deallocate arrays
   subroutine deallocate_aerosol_arrays(this)
 
     use yomhook,     only : lhook, dr_hook

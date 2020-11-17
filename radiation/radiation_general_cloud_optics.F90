@@ -29,7 +29,6 @@ contains
   !---------------------------------------------------------------------
   ! Load cloud scattering data; this subroutine delegates to one
   ! in radiation_general_cloud_optics_data.F90
-
   subroutine setup_general_cloud_optics(config)
 
     use parkind1,         only : jprb

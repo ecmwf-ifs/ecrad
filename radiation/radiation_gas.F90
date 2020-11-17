@@ -79,6 +79,8 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Allocate a derived type for holding gas mixing ratios given the
+  ! number of columns and levels
   subroutine allocate_gas(this, ncol, nlev)
 
     use yomhook, only : lhook, dr_hook
@@ -302,7 +304,6 @@ contains
   ! double CO2.  Note that this does not perform the scaling
   ! immediately, but changes the scale factor for the specified gas,
   ! ready to be used in set_units_gas.
-
   subroutine scale_gas(this, igas, scale_factor, lverbose)
 
     use radiation_io, only : nulout

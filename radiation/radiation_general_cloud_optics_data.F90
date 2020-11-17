@@ -239,7 +239,9 @@ contains
   end subroutine setup_general_cloud_optics
 
 
-
+  !---------------------------------------------------------------------
+  ! Add the optical properties of a particular cloud type to the
+  ! accumulated optical properties of all cloud types
   subroutine add_optical_properties(this, ng, nlev, ncol, &
        &                            cloud_fraction, &
        &                            water_path, effective_radius, &

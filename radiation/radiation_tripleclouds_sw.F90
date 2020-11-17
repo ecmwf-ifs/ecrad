@@ -32,12 +32,12 @@ contains
   ! regions
 #include "radiation_optical_depth_scaling.h"
 
+  !---------------------------------------------------------------------
   ! This module contains just one subroutine, the shortwave
   ! "Tripleclouds" solver in which cloud inhomogeneity is treated by
   ! dividing each model level into three regions, one clear and two
   ! cloudy (with differing optical depth). This approach was described
   ! by Shonk and Hogan (2008).
-
   subroutine solver_tripleclouds_sw(nlev,istartcol,iendcol, &
        &  config, single_level, cloud, & 
        &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, &

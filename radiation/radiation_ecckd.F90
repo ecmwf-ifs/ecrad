@@ -25,6 +25,10 @@ module radiation_ecckd
 
   public
 
+  !---------------------------------------------------------------------
+  ! This derived type contains all the data needed to describe a
+  ! correlated k-distribution gas optics model created using the ecCKD
+  ! tool
   type ckd_model_type
 
     ! Gas information
@@ -238,6 +242,8 @@ contains
   end subroutine read_ckd_model
 
   !---------------------------------------------------------------------
+  ! Print a description of the correlated k-distribution model to the
+  ! "nulout" unit
   subroutine print_ckd_model(this)
 
     use radiation_io, only : nulout
@@ -471,12 +477,16 @@ contains
   end subroutine calc_optical_depth_ckd_model
 
   !---------------------------------------------------------------------
+  ! Calculate the Planck function integrated across each of the g
+  ! points of this correlated k-distribution model, for a given
+  ! temperature, where Planck function is defined as the flux emitted
+  ! by a black body (rather than radiance)
   subroutine calc_planck_function(this, nt, temperature, planck)
 
     class(ckd_model_type), intent(in)  :: this
     integer,    intent(in)  :: nt
-    real(jprb), intent(in)  :: temperature(:)
-    real(jprb), intent(out) :: planck(this%ng,nt)
+    real(jprb), intent(in)  :: temperature(:) ! K
+    real(jprb), intent(out) :: planck(this%ng,nt) ! W m-2
 
     real(jprb) :: tindex1, tw1, tw2
     integer    :: it1, jt
@@ -503,14 +513,19 @@ contains
   
 
   !---------------------------------------------------------------------
-  subroutine calc_incoming_sw(this, solar_irradiance, spectral_solar_irradiance)
+  ! Return the spectral solar irradiance integrated over each g point
+  ! of a solar correlated k-distribution model, given the
+  ! total_solar_irradiance
+  subroutine calc_incoming_sw(this, total_solar_irradiance, &
+       &                      spectral_solar_irradiance)
 
     class(ckd_model_type), intent(in)    :: this
-    real(jprb),            intent(in)    :: solar_irradiance
-    real(jprb),            intent(inout) :: spectral_solar_irradiance(:,:)
+    real(jprb),            intent(in)    :: total_solar_irradiance ! W m-2
+    real(jprb),            intent(inout) :: spectral_solar_irradiance(:,:) ! W m-2
  
-    spectral_solar_irradiance = spread(solar_irradiance * this%norm_solar_irradiance, &
-         &                             2, size(spectral_solar_irradiance,2))
+    spectral_solar_irradiance &
+         &  = spread(total_solar_irradiance * this%norm_solar_irradiance, &
+         &           2, size(spectral_solar_irradiance,2))
 
   end subroutine calc_incoming_sw
 
