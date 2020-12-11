@@ -30,6 +30,7 @@
 !   2018-10-15  R. Hogan  Added call to fast_expm_exchange instead of expm
 !   2019-01-12  R. Hogan  Use inv_inhom_effective_size if allocated
 !   2019-02-10  R. Hogan  Renamed "encroachment" to "entrapment"
+!   2020-12-xx  P. Ukkonen Performance increase by restructuring code and optimized expm
 
 module radiation_spartacus_sw
 
@@ -78,12 +79,12 @@ contains
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_cloud, only          : cloud_type
     use radiation_regions, only        : calc_region_properties
-    use radiation_overlap, only        : calc_overlap_matrices
+    use radiation_overlap, only        : calc_overlap_matrices, calc_overlap_matrices_nocol
     use radiation_flux, only           : flux_type, &
          &                               indexed_sum, add_indexed_sum
     use radiation_matrix
     use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
-         &  calc_reflectance_transmittance_sw, calc_frac_scattered_diffuse_sw, &
+         &  calc_reflectance_transmittance_sw_opt, calc_frac_scattered_diffuse_sw, &
          &  SwDiffusivity
     use radiation_constants, only      : Pi, GasConstantDryAir, &
          &                               AccelDueToGravity
@@ -142,8 +143,8 @@ contains
     ! Optical depth, single scattering albedo and asymmetry factor in
     ! each region and (except for asymmetry) at each g-point
     real(jprb), dimension(config%n_g_sw, config%nregions) &
-         &  :: od_region, ssa_region
-    real(jprb), dimension(config%nregions) :: g_region
+         &  :: od_region, ssa_region, g_region
+    !real(jprb), dimension(config%nregions) :: g_region
 
     ! Scattering optical depths of gases and clouds
     real(jprb) :: scat_od, scat_od_cloud
@@ -170,8 +171,9 @@ contains
 
     ! Directional overlap matrices defined at all layer interfaces
     ! including top-of-atmosphere and the surface
-    real(jprb), dimension(config%nregions,config%nregions,nlev+1, &
-         &                istartcol:iendcol) :: u_matrix, v_matrix
+!     real(jprb), dimension(config%nregions,config%nregions,nlev+1, &
+!          &                istartcol:iendcol) :: u_matrix, v_matrix
+    real(jprb), dimension(config%nregions,config%nregions,nlev+1) :: u_matrix, v_matrix
 
     ! Two-stream variables
     real(jprb), dimension(config%n_g_sw, config%nregions) &
@@ -180,7 +182,8 @@ contains
     ! Matrix Gamma multiplied by the layer thickness z1, so units
     ! metres.  After calling expm, this array contains the matrix
     ! exponential of the original.
-    real(jprb) :: Gamma_z1(config%n_g_sw,3*config%nregions,3*config%nregions)
+!     real(jprb) :: Gamma_z1(config%n_g_sw,3*config%nregions,3*config%nregions)
+     real(jprb), dimension(:,:,:), allocatable :: Gamma_z1
 
     ! Diffuse reflection and transmission matrices of each layer
     real(jprb), dimension(config%n_g_sw, config%nregions, &
@@ -196,7 +199,9 @@ contains
     ! along with the direct unscattered transmission matrix
     ! (trans_dir_dir).
     real(jprb), dimension(config%n_g_sw, config%nregions, config%nregions, nlev) &
-         &  :: ref_dir, trans_dir_diff, trans_dir_dir
+         &  :: trans_dir_diff, trans_dir_dir
+    real(jprb), dimension(config%n_g_sw, config%nregions, config%nregions) &
+         &  :: ref_dir
     ! ...clear-sky equivalents
     real(jprb), dimension(config%n_g_sw, nlev) &
          &  :: ref_dir_clear, trans_dir_diff_clear, trans_dir_dir_clear
@@ -298,6 +303,9 @@ contains
     ! --------------------------------------------------------
     ! Section 1: Prepare general variables and arrays
     ! --------------------------------------------------------
+    
+    !print *, "SHAPE gamma", shape(Gamma_z1)
+    !           112           9           9
 
     ! Copy array dimensions to local variables for convenience
     nreg = config%nregions
@@ -316,12 +324,12 @@ contains
          &  od_scaling, config%cloud_fraction_threshold)
 
     ! Compute wavelength-independent overlap matrices u_matrix and v_matrix
-    call calc_overlap_matrices(nlev,nreg,istartcol,iendcol, &
-         &  region_fracs, cloud%overlap_param, &
-         &  u_matrix, v_matrix, decorrelation_scaling=config%cloud_inhom_decorr_scaling, &
-         &  cloud_fraction_threshold=config%cloud_fraction_threshold, &
-         &  use_beta_overlap=config%use_beta_overlap, &
-         &  cloud_cover=flux%cloud_cover_sw)
+!     call calc_overlap_matrices(nlev,nreg,istartcol,iendcol, &
+!          &  region_fracs, cloud%overlap_param, &
+!          &  u_matrix, v_matrix, decorrelation_scaling=config%cloud_inhom_decorr_scaling, &
+!          &  cloud_fraction_threshold=config%cloud_fraction_threshold, &
+!          &  use_beta_overlap=config%use_beta_overlap, &
+!          &  cloud_cover=flux%cloud_cover_sw)
 
     if (config%iverbose >= 3) then
       write(nulout,'(a)',advance='no') '  Processing columns'
@@ -329,6 +337,14 @@ contains
 
     ! Main loop over columns
     do jcol = istartcol, iendcol
+
+     call calc_overlap_matrices_nocol(nlev,nreg, &
+     &  region_fracs(:,:,jcol), cloud%overlap_param(jcol,:), &
+     &  u_matrix, v_matrix, decorrelation_scaling=config%cloud_inhom_decorr_scaling, &
+     &  cloud_fraction_threshold=config%cloud_fraction_threshold, &
+     &  use_beta_overlap=config%use_beta_overlap, &
+     &  cloud_cover=flux%cloud_cover_sw(jcol))
+
       ! --------------------------------------------------------
       ! Section 2: Prepare column-specific variables and arrays
       ! --------------------------------------------------------
@@ -409,15 +425,80 @@ contains
           is_clear_sky_layer(jlev) = .false.
           i_cloud_top = jlev
         end if
+
+        if (config%do_3d_effects .and. &
+          &  allocated(cloud%inv_cloud_effective_size) .and. &
+          &  .not. (nreg == 2 .and. cloud%fraction(jcol,jlev) &
+          &  > 1.0-config%cloud_fraction_threshold)) then
+          if (cloud%inv_cloud_effective_size(jcol,jlev) > 0.0_jprb) then
+
+               ! Compute cloud edge length per unit area of gridbox
+               ! from rearranging Hogan & Shonk (2013) Eq. 45, but
+               ! adding a factor of (1-frac) so that a region that
+               ! fully occupies the gridbox (frac=1) has an edge of
+               ! zero. We can therefore use the fraction of clear sky,
+               ! region_fracs(1,jlev,jcol) for convenience instead. The
+               ! pi on the denominator means that this is actually edge
+               ! length with respect to a light ray with a random
+               ! azimuthal direction.
+               edge_length(1,jlev) = four_over_pi &
+                    &  * region_fracs(1,jlev,jcol)*(1.0_jprb-region_fracs(1,jlev,jcol)) &
+                    &  * min(cloud%inv_cloud_effective_size(jcol,jlev), &
+                    &        1.0_jprb / config%min_cloud_effective_size)
+               if (nreg > 2) then
+                    ! The corresponding edge length between the two cloudy
+                    ! regions is computed in the same way but treating the
+                    ! optically denser of the two regions (region 3) as
+                    ! the cloud; note that the fraction of this region may
+                    ! be less than that of the optically less dense of the
+                    ! two regions (region 2).  For increased flexibility,
+                    ! the user may specify the effective size of
+                    ! inhomogeneities separately from the cloud effective
+                    ! size.
+                    if (allocated(cloud%inv_inhom_effective_size)) then
+                         edge_length(2,jlev) = four_over_pi &
+                              &  * region_fracs(3,jlev,jcol)*(1.0_jprb-region_fracs(3,jlev,jcol)) &
+                              &  * min(cloud%inv_inhom_effective_size(jcol,jlev), &
+                              &        1.0_jprb / config%min_cloud_effective_size)
+                    else
+                         edge_length(2,jlev) = four_over_pi &
+                              &  * region_fracs(3,jlev,jcol)*(1.0_jprb-region_fracs(3,jlev,jcol)) &
+                              &  * min(cloud%inv_cloud_effective_size(jcol,jlev), &
+                              &        1.0_jprb / config%min_cloud_effective_size)
+                    end if
+
+                    ! In the case of three regions, some of the cloud
+                    ! boundary may go directly to the "thick" region
+                    if (config%clear_to_thick_fraction > 0.0_jprb) then
+                         edge_length(3,jlev) = config%clear_to_thick_fraction &
+                              &  * min(edge_length(1,jlev), edge_length(2,jlev))
+                         edge_length(1,jlev) = edge_length(1,jlev) - edge_length(3,jlev)
+                         edge_length(2,jlev) = edge_length(2,jlev) - edge_length(3,jlev)
+                    else 
+                         edge_length(3,jlev) = 0.0_jprb
+                    end if
+               end if
+          end if
+
+        end if
+        
       end do
+
+      ! Horizontal migration distances of reflected radiation at the
+      ! surface are zero
+      x_diffuse = 0.0_jprb
+      x_direct  = 0.0_jprb
 
       ! --------------------------------------------------------
       ! Section 3: First loop over layers
       ! --------------------------------------------------------
       ! In this section the reflectance, transmittance and sources
       ! are computed for each layer
-      do jlev = 1,nlev ! Start at top-of-atmosphere
-        ! --------------------------------------------------------
+
+      !do jlev = 1,nlev ! Start at top-of-atmosphere
+      do jlev = nlev,1,-1 ! Start at the surface. This allows section 3 and section 4 computations
+                          ! to be inside the same loop (loop order does not matter for section 3)
+     ! --------------------------------------------------------
         ! Section 3.1: Layer-specific initialization
         ! --------------------------------------------------------
 
@@ -425,10 +506,15 @@ contains
         gamma1 = 0.0_jprb
         gamma2 = 0.0_jprb
         gamma3 = 0.0_jprb
-        Gamma_z1= 0.0_jprb
         transfer_rate_direct(:,:)  = 0.0_jprb
         transfer_rate_diffuse(:,:) = 0.0_jprb
-        edge_length(:,jlev) = 0.0_jprb
+
+     !    trans_dir_dir(:,:,:,jlev)  = 0.0_jprb
+     !    reflectance(:,:,:,jlev)    = 0.0_jprb
+     !    transmittance(:,:,:,jlev)  = 0.0_jprb
+     !    ref_dir(:,:,:)             = 0.0_jprb
+     !    trans_dir_diff(:,:,:,jlev) = 0.0_jprb
+   
 
         ! The following is from the hydrostatic equation
         ! and ideal gas law: dz = dp * R * T / (p * g)
@@ -450,13 +536,14 @@ contains
 
           ! Copy optical depth and single-scattering albedo of
           ! clear-sky region
-          od_region(1:ng,1) = od(1:ng,jlev,jcol)
-          ssa_region(1:ng,1) = ssa(1:ng,jlev,jcol)
+          od_region(:,1) = od(:,jlev,jcol)
+          ssa_region(:,1) = ssa(:,jlev,jcol)
 
           ! Compute two-stream variables gamma1-gamma3 (gamma4=1-gamma3)
+
           call calc_two_stream_gammas_sw(ng, &
-               &  mu0, ssa(1:ng,jlev,jcol), g(1:ng,jlev,jcol), &
-               &  gamma1(1:ng,1), gamma2(1:ng,1), gamma3(1:ng,1))
+               &  mu0, ssa(:,jlev,jcol), g(:,jlev,jcol), &
+               &  gamma1(:,1), gamma2(:,1), gamma3(:,1))
 
           if (config%use_expm_everywhere) then
             ! Treat cloud-free layer as 3D: the matrix exponential
@@ -505,53 +592,6 @@ contains
 
               ! Depth of current layer
               dz = layer_depth(jlev)
-
-              ! Compute cloud edge length per unit area of gridbox
-              ! from rearranging Hogan & Shonk (2013) Eq. 45, but
-              ! adding a factor of (1-frac) so that a region that
-              ! fully occupies the gridbox (frac=1) has an edge of
-              ! zero. We can therefore use the fraction of clear sky,
-              ! region_fracs(1,jlev,jcol) for convenience instead. The
-              ! pi on the denominator means that this is actually edge
-              ! length with respect to a light ray with a random
-              ! azimuthal direction.
-              edge_length(1,jlev) = four_over_pi &
-                   &  * region_fracs(1,jlev,jcol)*(1.0_jprb-region_fracs(1,jlev,jcol)) &
-                   &  * min(cloud%inv_cloud_effective_size(jcol,jlev), &
-                   &        1.0_jprb / config%min_cloud_effective_size)
-              if (nreg > 2) then
-                ! The corresponding edge length between the two cloudy
-                ! regions is computed in the same way but treating the
-                ! optically denser of the two regions (region 3) as
-                ! the cloud; note that the fraction of this region may
-                ! be less than that of the optically less dense of the
-                ! two regions (region 2).  For increased flexibility,
-                ! the user may specify the effective size of
-                ! inhomogeneities separately from the cloud effective
-                ! size.
-                if (allocated(cloud%inv_inhom_effective_size)) then
-                  edge_length(2,jlev) = four_over_pi &
-                       &  * region_fracs(3,jlev,jcol)*(1.0_jprb-region_fracs(3,jlev,jcol)) &
-                       &  * min(cloud%inv_inhom_effective_size(jcol,jlev), &
-                       &        1.0_jprb / config%min_cloud_effective_size)
-                else
-                  edge_length(2,jlev) = four_over_pi &
-                       &  * region_fracs(3,jlev,jcol)*(1.0_jprb-region_fracs(3,jlev,jcol)) &
-                       &  * min(cloud%inv_cloud_effective_size(jcol,jlev), &
-                       &        1.0_jprb / config%min_cloud_effective_size)
-                end if
-
-                ! In the case of three regions, some of the cloud
-                ! boundary may go directly to the "thick" region
-                if (config%clear_to_thick_fraction > 0.0_jprb) then
-                  edge_length(3,jlev) = config%clear_to_thick_fraction &
-                       &  * min(edge_length(1,jlev), edge_length(2,jlev))
-                  edge_length(1,jlev) = edge_length(1,jlev) - edge_length(3,jlev)
-                  edge_length(2,jlev) = edge_length(2,jlev) - edge_length(3,jlev)
-                else 
-                  edge_length(3,jlev) = 0.0_jprb
-                end if
-              end if
 
               do jreg = 1, nreg-1
                 ! Compute lateral transfer rates from region jreg to
@@ -615,6 +655,7 @@ contains
           ! Compute scattering properties of the regions at each
           ! g-point, mapping from the cloud properties
           ! defined in each band.
+
           do jg = 1,ng
             ! Mapping from g-point to band
             iband = config%i_band_from_reordered_g_sw(jg)
@@ -626,7 +667,7 @@ contains
             ! over
             od_region(jg,1)  = od(jg, jlev, jcol)
             ssa_region(jg,1) = ssa(jg, jlev, jcol)
-            g_region(1)      = g(jg, jlev, jcol)
+            g_region(jg,1)      = g(jg, jlev, jcol)
 
             ! Loop over cloudy regions
             do jreg = 2,nreg
@@ -639,7 +680,7 @@ contains
               ! factor of gas-cloud combination
               ssa_region(jg,jreg) = (scat_od+scat_od_cloud) &
                    &  / od_region(jg,jreg)
-              g_region(jreg) = (scat_od*g(jg,jlev,jcol) &
+              g_region(jg,jreg) = (scat_od*g(jg,jlev,jcol) &
                    &  + scat_od_cloud * g_cloud(iband,jlev,jcol)) &
                    &  / (scat_od + scat_od_cloud)
 
@@ -651,12 +692,6 @@ contains
 
             end do
 
-            ! Calculate two-stream variables gamma1-gamma3 of all
-            ! regions at once
-            call calc_two_stream_gammas_sw(nreg, &
-                 &  mu0, ssa_region(jg,:), g_region, &
-                 &  gamma1(jg,:), gamma2(jg,:), gamma3(jg,:))
-
             ! Loop is in order of g-points with typically
             ! increasing optical depth: if optical depth of
             ! clear-sky region exceeds a threshold then turn off
@@ -666,12 +701,25 @@ contains
               ng3D = jg-1
             end if
           end do ! Loop over g points
+
+          do jreg = 1,nreg
+               ! Calculate two-stream variables gamma1-gamma3 
+               call calc_two_stream_gammas_sw(ng, &
+               &  mu0, ssa_region(:,jreg), g_region(:,jreg), &
+               &  gamma1(:,jreg), gamma2(:,jreg), gamma3(:,jreg))
+          end do
+
         end if ! Cloudy level
 
         ! --------------------------------------------------------
         ! Section 3.3: Compute reflection, transmission and emission
         ! --------------------------------------------------------
+
         if (ng3D > 0) then
+ 
+          allocate(Gamma_z1(ng3D,3*nreg,3*nreg))
+          Gamma_z1= 0.0_jprb
+
           ! --- Section 3.3a: g-points with 3D effects ----------
 
           ! 3D effects need to be represented in "ng3D" of the g
@@ -681,109 +729,122 @@ contains
           ! transmission/reflectance matrices from that.
           do jreg = 1,nregactive
             ! Write the diagonal elements of -Gamma1*z1
-            Gamma_z1(1:ng3D,jreg,jreg) &
+            Gamma_z1(:,jreg,jreg) &
                  &  = od_region(1:ng3D,jreg)*gamma1(1:ng3D,jreg)
             ! Write the diagonal elements of +Gamma2*z1
-            Gamma_z1(1:ng3D,jreg+nreg,jreg) &
+            Gamma_z1(:,jreg+nreg,jreg) &
                  &  = od_region(1:ng3D,jreg)*gamma2(1:ng3D,jreg)
             ! Write the diagonal elements of -Gamma3*z1
-            Gamma_z1(1:ng3D,jreg,jreg+2*nreg) &
+            Gamma_z1(:,jreg,jreg+2*nreg) &
                  &  = -od_region(1:ng3D,jreg)*ssa_region(1:ng3D,jreg) &
                  &  * gamma3(1:ng3D,jreg)
 
             ! Write the diagonal elements of +Gamma4*z1
-            Gamma_z1(1:ng3D,jreg+nreg,jreg+2*nreg) &
+            Gamma_z1(:,jreg+nreg,jreg+2*nreg) &
                  &  = od_region(1:ng3D,jreg)*ssa_region(1:ng3D,jreg) &
                  &  * (1.0_jprb - gamma3(1:ng3D,jreg))
 
             ! Write the diagonal elements of +Gamma0*z1
-            Gamma_z1(1:ng3D,jreg+2*nreg,jreg+2*nreg) &
+            Gamma_z1(:,jreg+2*nreg,jreg+2*nreg) &
                  &  = -od_region(1:ng3D,jreg)*one_over_mu0
           end do
 
           do jreg = 1,nregactive-1
             ! Write the elements of -Gamma1*z1 concerned with 3D
             ! transport
-            Gamma_z1(1:ng3D,jreg,jreg) = Gamma_z1(1:ng3D,jreg,jreg) &
+            Gamma_z1(:,jreg,jreg) = Gamma_z1(:,jreg,jreg) &
                  &  + transfer_rate_diffuse(jreg,jreg+1)
-            Gamma_z1(1:ng3D,jreg+1,jreg+1) = Gamma_z1(1:ng3D,jreg+1,jreg+1) &
+            Gamma_z1(:,jreg+1,jreg+1) = Gamma_z1(:,jreg+1,jreg+1) &
                  &  + transfer_rate_diffuse(jreg+1,jreg)
-            Gamma_z1(1:ng3D,jreg+1,jreg) = -transfer_rate_diffuse(jreg,jreg+1)
-            Gamma_z1(1:ng3D,jreg,jreg+1) = -transfer_rate_diffuse(jreg+1,jreg)
+            Gamma_z1(:,jreg+1,jreg) = -transfer_rate_diffuse(jreg,jreg+1)
+            Gamma_z1(:,jreg,jreg+1) = -transfer_rate_diffuse(jreg+1,jreg)
             ! Write the elements of +Gamma0*z1 concerned with 3D
             ! transport
-            Gamma_z1(1:ng3D,jreg+2*nreg,jreg+2*nreg) &
-                 &  = Gamma_z1(1:ng3D,jreg+2*nreg,jreg+2*nreg) &
+            Gamma_z1(:,jreg+2*nreg,jreg+2*nreg) &
+                 &  = Gamma_z1(:,jreg+2*nreg,jreg+2*nreg) &
                  &  - transfer_rate_direct(jreg,jreg+1)
-            Gamma_z1(1:ng3D,jreg+2*nreg+1,jreg+2*nreg+1) &
-                 &  = Gamma_z1(1:ng3D,jreg+2*nreg+1,jreg+2*nreg+1) &
+            Gamma_z1(:,jreg+2*nreg+1,jreg+2*nreg+1) &
+                 &  = Gamma_z1(:,jreg+2*nreg+1,jreg+2*nreg+1) &
                  &  - transfer_rate_direct(jreg+1,jreg)
-            Gamma_z1(1:ng3D,jreg+2*nreg+1,jreg+2*nreg) &
+            Gamma_z1(:,jreg+2*nreg+1,jreg+2*nreg) &
                  &  = transfer_rate_direct(jreg,jreg+1)
-            Gamma_z1(1:ng3D,jreg+2*nreg,jreg+2*nreg+1) &
+            Gamma_z1(:,jreg+2*nreg,jreg+2*nreg+1) &
                  &  = transfer_rate_direct(jreg+1,jreg)
           end do
 
           ! Possible flow between regions a and c
           if (edge_length(3,jlev) > 0.0_jprb) then
             ! Diffuse transport
-            Gamma_z1(1:ng3D,1,1) = Gamma_z1(1:ng3D,1,1) &
+            Gamma_z1(:,1,1) = Gamma_z1(:,1,1) &
                  &  + transfer_rate_diffuse(1,3)
-            Gamma_z1(1:ng3D,3,3) = Gamma_z1(1:ng3D,3,3) &
+            Gamma_z1(:,3,3) = Gamma_z1(:,3,3) &
                  &  + transfer_rate_diffuse(3,1)
-            Gamma_z1(1:ng3D,3,1) = -transfer_rate_diffuse(1,3)
-            Gamma_z1(1:ng3D,1,3) = -transfer_rate_diffuse(3,1)
+            Gamma_z1(:,3,1) = -transfer_rate_diffuse(1,3)
+            Gamma_z1(:,1,3) = -transfer_rate_diffuse(3,1)
             ! Direct transport
-            Gamma_z1(1:ng3D,1+2*nreg,1+2*nreg) = Gamma_z1(1:ng3D,1+2*nreg,1+2*nreg) &
+            Gamma_z1(:,1+2*nreg,1+2*nreg) = Gamma_z1(:,1+2*nreg,1+2*nreg) &
                  &  - transfer_rate_direct(1,3)
-            Gamma_z1(1:ng3D,3+2*nreg,3+2*nreg) = Gamma_z1(1:ng3D,3+2*nreg,3+2*nreg) &
+            Gamma_z1(:,3+2*nreg,3+2*nreg) = Gamma_z1(:,3+2*nreg,3+2*nreg) &
                  &  - transfer_rate_direct(3,1)
-            Gamma_z1(1:ng3D,3+2*nreg,1+2*nreg) = transfer_rate_direct(1,3)
-            Gamma_z1(1:ng3D,1+2*nreg,3+2*nreg) = transfer_rate_direct(3,1)
+            Gamma_z1(:,3+2*nreg,1+2*nreg) = transfer_rate_direct(1,3)
+            Gamma_z1(:,1+2*nreg,3+2*nreg) = transfer_rate_direct(3,1)
           end if
 
           ! Copy Gamma1*z1
-          Gamma_z1(1:ng3D,nreg+1:nreg+nregactive,nreg+1:nreg+nregactive) &
-               &  = -Gamma_z1(1:ng3D,1:nregactive,1:nregactive)
+          Gamma_z1(:,nreg+1:nreg+nregactive,nreg+1:nreg+nregactive) &
+               &  = -Gamma_z1(:,1:nregactive,1:nregactive)
           ! Copy Gamma2*z1
-          Gamma_z1(1:ng3D,1:nregactive,nreg+1:nreg+nregactive) &
-               &  = -Gamma_z1(1:ng3D,nreg+1:nreg+nregactive,1:nregactive)
+          Gamma_z1(:,1:nregactive,nreg+1:nreg+nregactive) &
+               &  = -Gamma_z1(:,nreg+1:nreg+nregactive,1:nregactive)
 
           ! Compute the matrix exponential of Gamma_z1, returning the
           ! result in-place
-          call expm(ng, ng3D, 3*nreg, Gamma_z1, IMatrixPatternShortwave)
+          if (nreg==3) then
+               call expm_opt(ng3D,  Gamma_z1)
+          else 
+               call expm(ng,ng3D, 3*nreg, Gamma_z1,IMatrixPatternShortwave)
+          end if
 
           ! Update count of expm calls
           n_calls_expm = n_calls_expm + ng3D
 
+          ! Initialization - only required for non-3D g-points, but more memory friendly to do all?
+          trans_dir_dir(:,:,:,jlev)  = 0.0_jprb
+          reflectance(:,:,:,jlev)    = 0.0_jprb
+          transmittance(:,:,:,jlev)  = 0.0_jprb
+          ref_dir(:,:,:)             = 0.0_jprb
+          trans_dir_diff(:,:,:,jlev) = 0.0_jprb
+
           ! Direct transmission matrix
           trans_dir_dir(1:ng3D,:,:,jlev) = min(1.0_jprb,max(0.0_jprb, &
-               &  Gamma_z1(1:ng3D,2*nreg+1:3*nreg, 2*nreg+1:3*nreg)))
+               &  Gamma_z1(:,2*nreg+1:3*nreg, 2*nreg+1:3*nreg)))
           ! Diffuse reflectance matrix; security on negative values
           ! necessary occasionally for very low cloud fraction and very high
           ! in-cloud optical depth
           reflectance(1:ng3D,:,:,jlev) = min(1.0_jprb,max(0.0_jprb, &
-               &  -solve_mat(ng,ng3D,nreg,Gamma_z1(1:ng3D,1:nreg,1:nreg), &
-               &             Gamma_z1(1:ng3D,1:nreg,nreg+1:2*nreg))))
+               &  -solve_mat(ng,ng3D,nreg,Gamma_z1(:,1:nreg,1:nreg), &
+               &             Gamma_z1(:,1:nreg,nreg+1:2*nreg))))
           ! Diffuse transmission matrix
           transmittance(1:ng3D,:,:,jlev) = min(1.0_jprb,max(0.0_jprb, &
-               &  mat_x_mat(ng,ng3D,nreg,Gamma_z1(1:ng3D,nreg+1:2*nreg,1:nreg), &
+               &  mat_x_mat(ng,ng3D,nreg,Gamma_z1(:,nreg+1:2*nreg,1:nreg), &
                &            reflectance(1:ng3D,:,:,jlev)) &
-               &  + Gamma_z1(1:ng3D,nreg+1:2*nreg,nreg+1:2*nreg)))
+               &  + Gamma_z1(:,nreg+1:2*nreg,nreg+1:2*nreg)))
           ! Transfer matrix between downward direct and upward
           ! diffuse
-          ref_dir(1:ng3D,:,:,jlev) = min(mu0,max(0.0_jprb, &
-               &  -solve_mat(ng,ng3D,nreg,Gamma_z1(1:ng3D,1:nreg,1:nreg), &
-               &             Gamma_z1(1:ng3D,1:nreg,2*nreg+1:3*nreg))))
+          ref_dir(1:ng3D,:,:) = min(mu0,max(0.0_jprb, &
+               &  -solve_mat(ng,ng3D,nreg,Gamma_z1(:,1:nreg,1:nreg), &
+               &             Gamma_z1(:,1:nreg,2*nreg+1:3*nreg))))
           ! Transfer matrix between downward direct and downward
           ! diffuse in layer interface below.  Include correction for
           ! trans_dir_diff out of plausible bounds (note that Meador &
           ! Weaver has the same correction in radiation_two_stream.F90
           ! - this is not just an expm thing)
           trans_dir_diff(1:ng3D,:,:,jlev) = min(mu0,max(0.0_jprb, &
-               &  mat_x_mat(ng,ng3D,nreg,Gamma_z1(1:ng3D,nreg+1:2*nreg,1:nreg), &
-               &            ref_dir(1:ng3D,:,:,jlev)) &
-               &  + Gamma_z1(1:ng3D,nreg+1:2*nreg,2*nreg+1:3*nreg)))
+               &  mat_x_mat(ng,ng3D,nreg,Gamma_z1(:,nreg+1:2*nreg,1:nreg), &
+               &            ref_dir(1:ng3D,:,:)) &
+               &  + Gamma_z1(:,nreg+1:2*nreg,2*nreg+1:3*nreg)))
+
+          deallocate(Gamma_z1)
 
         end if ! we are treating 3D effects for some g points
 
@@ -791,12 +852,12 @@ contains
 
         ! Compute reflectance, transmittance and associated terms for
         ! clear skies, using the Meador-Weaver formulas
-        call calc_reflectance_transmittance_sw(ng, &
-             &  mu0, od_region(1:ng,1), ssa_region(1:ng,1), &
-             &  gamma1(1:ng,1), gamma2(1:ng,1), gamma3(1:ng,1), &
-             &  ref_clear(1:ng,jlev), trans_clear(1:ng,jlev), &
-             &  ref_dir_clear(1:ng,jlev), trans_dir_diff_clear(1:ng,jlev), &
-             &  trans_dir_dir_clear(1:ng,jlev) )
+       call calc_reflectance_transmittance_sw_opt(ng, &
+             &  mu0, od_region(:,1), ssa_region(:,1), &
+             &  gamma1(:,1), gamma2(:,1), gamma3(:,1), &
+             &  ref_clear(:,jlev), trans_clear(:,jlev), &
+             &  ref_dir_clear(:,jlev), trans_dir_diff_clear(:,jlev), &
+             &  trans_dir_dir_clear(:,jlev) )
 
         n_calls_meador_weaver = n_calls_meador_weaver + ng
 
@@ -804,78 +865,74 @@ contains
           ! Some of the g points are to be treated using the
           ! conventional plane-parallel method.  First zero the
           ! relevant parts of the matrices
-          trans_dir_dir (ng3D+1:ng,:,:,jlev) = 0.0_jprb
-          reflectance   (ng3D+1:ng,:,:,jlev) = 0.0_jprb
-          transmittance (ng3D+1:ng,:,:,jlev) = 0.0_jprb
-          ref_dir       (ng3D+1:ng,:,:,jlev) = 0.0_jprb
-          trans_dir_diff(ng3D+1:ng,:,:,jlev) = 0.0_jprb
-
+          ! Already zero'd earlier
+          
           ! Since there is no lateral transport, the clear-sky parts
           ! of the arrays can be copied from the clear-sky arrays
           trans_dir_dir (ng3D+1:ng,1,1,jlev) = trans_dir_dir_clear (ng3D+1:ng,jlev)
           reflectance   (ng3D+1:ng,1,1,jlev) = ref_clear           (ng3D+1:ng,jlev)
           transmittance (ng3D+1:ng,1,1,jlev) = trans_clear         (ng3D+1:ng,jlev)
-          ref_dir       (ng3D+1:ng,1,1,jlev) = ref_dir_clear       (ng3D+1:ng,jlev)
+          ref_dir       (ng3D+1:ng,1,1)      = ref_dir_clear       (ng3D+1:ng,jlev)
           trans_dir_diff(ng3D+1:ng,1,1,jlev) = trans_dir_diff_clear(ng3D+1:ng,jlev)
 
           ! Compute reflectance, transmittance and associated terms
           ! for each cloudy region, using the Meador-Weaver formulas
+
           do jreg = 2, nregactive
-            call calc_reflectance_transmittance_sw(ng-ng3D, &
-                 &  mu0, &
-                 &  od_region(ng3D+1:ng,jreg), ssa_region(ng3D+1:ng,jreg), &
-                 &  gamma1(ng3D+1:ng,jreg), gamma2(ng3D+1:ng,jreg), &
-                 &  gamma3(ng3D+1:ng,jreg), &
-                 &  reflectance(ng3D+1:ng,jreg,jreg,jlev), &
-                 &  transmittance(ng3D+1:ng,jreg,jreg,jlev), &
-                 &  ref_dir(ng3D+1:ng,jreg,jreg,jlev), &
-                 &  trans_dir_diff(ng3D+1:ng,jreg,jreg,jlev), &
-                 &  trans_dir_dir(ng3D+1:ng,jreg,jreg,jlev) )
+               call calc_reflectance_transmittance_sw_opt(ng-ng3D, &
+                    &  mu0, &
+                    &  od_region(ng3D+1:ng,jreg), ssa_region(ng3D+1:ng,jreg), &
+                    &  gamma1(ng3D+1:ng,jreg), gamma2(ng3D+1:ng,jreg), &
+                    &  gamma3(ng3D+1:ng,jreg), &
+                    &  reflectance(ng3D+1:ng,jreg,jreg,jlev), &
+                    &  transmittance(ng3D+1:ng,jreg,jreg,jlev), &
+                    &  ref_dir(ng3D+1:ng,jreg,jreg), &
+                    &  trans_dir_diff(ng3D+1:ng,jreg,jreg,jlev), &
+                    &  trans_dir_dir(ng3D+1:ng,jreg,jreg,jlev) )
           end do
+
           n_calls_meador_weaver &
                &  = n_calls_meador_weaver + (ng-ng3D)*(nregactive-1)
         end if
 
-      end do ! Loop over levels
+     !  end do ! Loop over levels
 
       ! --------------------------------------------------------
       ! Section 4: Compute total albedos
       ! --------------------------------------------------------
 
-      total_albedo(:,:,:,:)        = 0.0_jprb
-      total_albedo_direct(:,:,:,:) = 0.0_jprb
 
-      if (config%do_clear) then
-        total_albedo_clear(:,:)        = 0.0_jprb
-        total_albedo_clear_direct(:,:) = 0.0_jprb
-      end if
+     if (jlev == nlev) then
 
-      ! Calculate the upwelling radiation scattered from the direct
-      ! beam incident on the surface, and copy the surface albedo
-      ! into total_albedo
-      do jreg = 1,nreg
-        do jg = 1,ng
-          total_albedo(jg,jreg,jreg,nlev+1) = albedo_diffuse(jg,jcol)
-          total_albedo_direct(jg,jreg,jreg,nlev+1) &
-               &  = mu0 * albedo_direct(jg,jcol)
-        end do
-      end do
+          total_albedo(:,:,:,nlev+1)        = 0.0_jprb
+          total_albedo_direct(:,:,:,nlev+1) = 0.0_jprb
 
-      if (config%do_clear) then
-        ! Surface albedo is the same
-        total_albedo_clear(1:ng,nlev+1) = total_albedo(1:ng,1,1,nlev+1)
-        total_albedo_clear_direct(1:ng,nlev+1) &
-             &  = total_albedo_direct(1:ng,1,1,nlev+1)
-      end if
+          if (config%do_clear) then
+               total_albedo_clear(:,:)        = 0.0_jprb
+               total_albedo_clear_direct(:,:) = 0.0_jprb
+          end if
 
-      ! Horizontal migration distances of reflected radiation at the
-      ! surface are zero
-      x_diffuse = 0.0_jprb
-      x_direct  = 0.0_jprb
+          ! Calculate the upwelling radiation scattered from the direct
+          ! beam incident on the surface, and copy the surface albedo
+          ! into total_albedo
+          do jreg = 1,nreg
+               total_albedo(:,jreg,jreg,nlev+1) = albedo_diffuse(:,jcol)
+               total_albedo_direct(:,jreg,jreg,nlev+1) &
+                    &  = mu0 * albedo_direct(:,jcol)
+          end do
+
+          if (config%do_clear) then
+               ! Surface albedo is the same
+               total_albedo_clear(:,nlev+1) = total_albedo(1:ng,1,1,nlev+1)
+               total_albedo_clear_direct(:,nlev+1) &
+                    &  = total_albedo_direct(1:ng,1,1,nlev+1)
+           end if
+
+     end if
 
       ! Work back up through the atmosphere computing the total albedo
       ! of the atmosphere below that point using the adding method
-      do jlev = nlev,1,-1
+     !  do jlev = nlev,1,-1
 
         ! --------------------------------------------------------
         ! Section 4.1: Adding method
@@ -900,32 +957,34 @@ contains
         if (is_clear_sky_layer(jlev)) then
           ! Clear-sky layer: use scalar adding method
           inv_denom_scalar(:) = 1.0_jprb &
-               &  / (1.0_jprb - total_albedo(:,1,1,jlev+1)*reflectance(:,1,1,jlev))
+               &  / (1.0_jprb - total_albedo(:,1,1,jlev+1)*ref_clear(:,jlev))
           total_albedo_below = 0.0_jprb
-          total_albedo_below(:,1,1) = reflectance(:,1,1,jlev) &
-               &  + transmittance(:,1,1,jlev)  * transmittance(:,1,1,jlev) &
+          total_albedo_below(:,1,1) = ref_clear(:,jlev) &
+               &  + trans_clear(:,jlev)  * trans_clear(:,jlev) &
                &  * total_albedo(:,1,1,jlev+1) * inv_denom_scalar(:)
           total_albedo_below_direct = 0.0_jprb
-          total_albedo_below_direct(:,1,1) = ref_dir(:,1,1,jlev) &
-               &  + (trans_dir_dir(:,1,1,jlev)*total_albedo_direct(:,1,1,jlev+1) &
-               &    +trans_dir_diff(:,1,1,jlev)*total_albedo(:,1,1,jlev+1)) &
-               &  * transmittance(:,1,1,jlev) * inv_denom_scalar(:)
+          total_albedo_below_direct(:,1,1) = ref_dir_clear(:,jlev) &
+               &  + (trans_dir_dir_clear(:,jlev)*total_albedo_direct(:,1,1,jlev+1) &
+               &    +trans_dir_diff_clear(:,jlev)*total_albedo(:,1,1,jlev+1)) &
+               &  * trans_clear(:,jlev) * inv_denom_scalar(:)
         else 
+
           ! Cloudy layer: use matrix adding method
           denominator = identity_minus_mat_x_mat(ng,ng,nreg, &
                &  total_albedo(:,:,:,jlev+1), reflectance(:,:,:,jlev))
           total_albedo_below = reflectance(:,:,:,jlev) &
-               &  + mat_x_mat(ng,ng,nreg,transmittance(:,:,:,jlev), &
+               &  + mat_x_mat_dense(ng,nreg,transmittance(:,:,:,jlev), &
                &  solve_mat(ng,ng,nreg,denominator, &
-               &  mat_x_mat(ng,ng,nreg,total_albedo(:,:,:,jlev+1), &
+               &  mat_x_mat_dense(ng,nreg,total_albedo(:,:,:,jlev+1), &
                &  transmittance(:,:,:,jlev))))
-          total_albedo_below_direct = ref_dir(:,:,:,jlev) &
-               &  + mat_x_mat(ng,ng,nreg,transmittance(:,:,:,jlev), &
+          total_albedo_below_direct = ref_dir(:,:,:) &
+               &  + mat_x_mat_dense(ng,nreg,transmittance(:,:,:,jlev), &
                &  solve_mat(ng,ng,nreg,denominator, &
-               &    mat_x_mat(ng,ng,nreg,total_albedo_direct(:,:,:,jlev+1), &
+               &    mat_x_mat_dense(ng,nreg,total_albedo_direct(:,:,:,jlev+1), &
                &                       trans_dir_dir(:,:,:,jlev)) &
-               &   +mat_x_mat(ng,ng,nreg,total_albedo(:,:,:,jlev+1), &
+               &   +mat_x_mat_dense(ng,nreg,total_albedo(:,:,:,jlev+1), &
                &                       trans_dir_diff(:,:,:,jlev))))
+
         end if
 
         ! --------------------------------------------------------
@@ -943,10 +1002,11 @@ contains
           !  "Explicit entrapment": we have the horizontal migration
           !  distances just above the base of the layer, and need to
           !  step them to just below the top of the same layer
+
           call step_migrations(ng, nreg, cloud%fraction(jcol,jlev), &
                & layer_depth(jlev), tan_diffuse_angle_3d, tan_sza, &
                &  reflectance(:,:,:,jlev), transmittance(:,:,:,jlev), &
-               &  ref_dir(:,:,:,jlev), trans_dir_dir(:,:,:,jlev), &
+               &  ref_dir(:,:,:), trans_dir_dir(:,:,:,jlev), &
                &  trans_dir_diff(:,:,:,jlev), total_albedo(:,:,:,jlev+1), &
                &  total_albedo_direct(:,:,:,jlev+1), &
                &  x_diffuse, x_direct)
@@ -981,13 +1041,13 @@ contains
           ! "Maximum entrapment": use the overlap matrices u_matrix and v_matrix
           ! (this is the original SPARTACUS method)
           total_albedo(:,:,:,jlev) = singlemat_x_mat(ng,ng,nreg,&
-               &  u_matrix(:,:,jlev,jcol), &
+               &  u_matrix(:,:,jlev), &
                &  mat_x_singlemat(ng,ng,nreg,total_albedo_below,&
-               &  v_matrix(:,:,jlev,jcol)))
+               &  v_matrix(:,:,jlev)))
           total_albedo_direct(:,:,:,jlev) = singlemat_x_mat(ng,ng,nreg,&
-               &  u_matrix(:,:,jlev,jcol), &
+               &  u_matrix(:,:,jlev), &
                &  mat_x_singlemat(ng,ng,nreg,total_albedo_below_direct,&
-               &  v_matrix(:,:,jlev,jcol)))
+               &  v_matrix(:,:,jlev)))
 
         else if (config%i_3d_sw_entrapment == IEntrapmentZero) then
           ! "Zero entrapment": even radiation transported
@@ -999,7 +1059,7 @@ contains
             do jreg2 = 1,nreg ! Current layer (jlev)
               total_albedo(:,jreg,jreg,jlev) = total_albedo(:,jreg,jreg,jlev) &
                    &  + sum(total_albedo_below(:,:,jreg2),2) &
-                   &  * v_matrix(jreg2,jreg,jlev,jcol)
+                   &  * v_matrix(jreg2,jreg,jlev)
             end do
           end do
           ! ...then direct radiation:
@@ -1008,7 +1068,7 @@ contains
             do jreg2 = 1,nreg ! Current layer (jlev)
               total_albedo_direct(:,jreg,jreg,jlev) = total_albedo_direct(:,jreg,jreg,jlev) &
                    &  + sum(total_albedo_below_direct(:,:,jreg2),2) &
-                   &  * v_matrix(jreg2,jreg,jlev,jcol)
+                   &  * v_matrix(jreg2,jreg,jlev)
             end do
           end do
 
@@ -1035,23 +1095,23 @@ contains
             albedo_part(:,jreg,jreg) = 0.0_jprb
           end do
           total_albedo(:,:,:,jlev) = singlemat_x_mat(ng,ng,nreg,&
-               &  u_matrix(:,:,jlev,jcol), &
+               &  u_matrix(:,:,jlev), &
                &  mat_x_singlemat(ng,ng,nreg,albedo_part,&
-               &  v_matrix(:,:,jlev,jcol)))
+               &  v_matrix(:,:,jlev)))
           ! ...then direct radiation:
           albedo_part = total_albedo_below_direct
           do jreg = 1,nreg
             albedo_part(:,jreg,jreg) = 0.0_jprb
           end do
           total_albedo_direct(:,:,:,jlev) = singlemat_x_mat(ng,ng,nreg,&
-               &  u_matrix(:,:,jlev,jcol), &
+               &  u_matrix(:,:,jlev), &
                &  mat_x_singlemat(ng,ng,nreg,albedo_part,&
-               &  v_matrix(:,:,jlev,jcol)))
+               &  v_matrix(:,:,jlev)))
 
 #ifdef EXPLICIT_EDGE_ENTRAPMENT
-end if
+          end if
 #endif
-          
+
           ! Now the contribution from the diagonals of the albedo
           ! matrix in the lower layer
           if (config%i_3d_sw_entrapment == IEntrapmentEdgeOnly &
@@ -1064,11 +1124,11 @@ end if
                 total_albedo(:,jreg,jreg,jlev) &
                      &  = total_albedo(:,jreg,jreg,jlev) &
                      &  + total_albedo_below(:,jreg2,jreg2) &
-                     &  * v_matrix(jreg2,jreg,jlev,jcol)
+                     &  * v_matrix(jreg2,jreg,jlev)
                 total_albedo_direct(:,jreg,jreg,jlev) &
                      &  = total_albedo_direct(:,jreg,jreg,jlev) &
                      &  + total_albedo_below_direct(:,jreg2,jreg2) &
-                     &  * v_matrix(jreg2,jreg,jlev,jcol)
+                     &  * v_matrix(jreg2,jreg,jlev)
               end do
             end do
 
@@ -1119,19 +1179,19 @@ end if
                   ! u_matrix(upper_region, lower_region, level,
                   ! column).
                   transfer_rate_diffuse(jreg,jreg+1) = transfer_scaling &
-                       &  * edge_length(jreg,jlev-1) / max(u_matrix(jreg,jreg2,jlev,jcol),1.0e-5_jprb)
+                       &  * edge_length(jreg,jlev-1) / max(u_matrix(jreg,jreg2,jlev),1.0e-5_jprb)
                   ! Compute transfer rates from region jreg+1 to jreg
                   transfer_rate_diffuse(jreg+1,jreg) = transfer_scaling &
-                       &  * edge_length(jreg,jlev-1) / max(u_matrix(jreg+1,jreg2,jlev,jcol),1.0e-5_jprb)
+                       &  * edge_length(jreg,jlev-1) / max(u_matrix(jreg+1,jreg2,jlev),1.0e-5_jprb)
                 end do
               
                 ! Compute transfer rates directly between regions 1
                 ! and 3 (not used below)
                 if (edge_length(3,jlev) > 0.0_jprb) then
                   transfer_rate_diffuse(1,3) = transfer_scaling &
-                       &  * edge_length(3,jlev-1) / max(u_matrix(1,jreg2,jlev,jcol),1.0e-5_jprb)
+                       &  * edge_length(3,jlev-1) / max(u_matrix(1,jreg2,jlev),1.0e-5_jprb)
                   transfer_rate_diffuse(3,1) = transfer_scaling &
-                       &  * edge_length(3,jlev-1) / max(u_matrix(3,jreg2,jlev,jcol),1.0e-5_jprb)
+                       &  * edge_length(3,jlev-1) / max(u_matrix(3,jreg2,jlev),1.0e-5_jprb)
                 end if
               end if
 
@@ -1145,6 +1205,10 @@ end if
                 if (config%i_3d_sw_entrapment == IEntrapmentExplicit) then
                   fractal_factor = 1.0_jprb / sqrt(max(1.0_jprb, 2.5_jprb*x_diffuse(:,jreg2) &
                        &                                         * inv_effective_size))
+               ! print *, "FRAC", fractal_factor(28)
+               ! print *, "x_dif", x_diffuse(:, jreg2)
+                ! X_DIFFUSE SOMETIMES VERY LARGE, CAUSING FPE LATER 
+                       
                   entrapment(:,jreg+1,jreg) = entrapment(:,jreg+1,jreg) &
                        &  + transfer_rate_diffuse(jreg,jreg+1)*x_diffuse(:,jreg2) &
                        &  * fractal_factor
@@ -1167,6 +1231,7 @@ end if
               ! floating point exception, even if it tends towards a
               ! trival limit, so we cap the maximum input to expm by
               ! scaling down if necessary
+
               do jg = 1,ng
                 max_entr = -min(entrapment(jg,1,1),entrapment(jg,2,2))
                 if (max_entr > config%max_cloud_od) then
@@ -1175,16 +1240,19 @@ end if
                 end if
               end do
 
+          !     print *, "entr", minval(entrapment)
+
               ! Since the matrix to be exponentiated has a simple
               ! structure we may use a faster method described in the
               ! appendix of Hogan et al. (GMD 2018)
+
 #define USE_FAST_EXPM_EXCHANGE 1
 #ifdef USE_FAST_EXPM_EXCHANGE
               if (nreg == 2) then
-                call fast_expm_exchange(ng, ng, entrapment(:,2,1), entrapment(:,1,2), &
+                call fast_expm_exchange(ng, entrapment(:,2,1), entrapment(:,1,2), &
                      &                  albedo_part)
               else
-                call fast_expm_exchange(ng, ng, entrapment(:,2,1), entrapment(:,1,2), &
+                call fast_expm_exchange(ng, entrapment(:,2,1), entrapment(:,1,2), &
                      &                          entrapment(:,3,2), entrapment(:,2,3), &
                      &                  albedo_part)
               end if
@@ -1197,12 +1265,12 @@ end if
 
 #ifndef EXPLICIT_EDGE_ENTRAPMENT
               ! Scale to get the contribution to the diffuse albedo
-              do jreg3 = 1,nreg
-                do jreg = 1,nreg
+              do jreg = 1,nreg
+                do jreg3 = 1,nreg
                   albedo_part(:,jreg3,jreg) = albedo_part(:,jreg3,jreg) &
-                       &  * v_matrix(jreg2,jreg,jlev,jcol) * total_albedo_below(:,jreg2,jreg2)
+                       &  * v_matrix(jreg2,jreg,jlev) * total_albedo_below(:,jreg2,jreg2)
                 end do
-              end do
+              end do           
 #else
               ! The following is an experimental treatment that tries
               ! to explicitly account for the horizontal distance
@@ -1219,10 +1287,10 @@ end if
                   do jreg4 = 1,nreg ! VIA first lower region (jreg2 is second lower region)
                     if (.not. (jreg4 == jreg .and. jreg4 /= jreg2)) then
                       albedo_part(:,jreg3,jreg) = albedo_part(:,jreg3,jreg) + entrapment(:,jreg3,jreg) &
-                           &  * v_matrix(jreg4,jreg,jlev,jcol) * total_albedo_below(:,jreg2,jreg4)
+                           &  * v_matrix(jreg4,jreg,jlev) * total_albedo_below(:,jreg2,jreg4)
                     else
                       albedo_part(:,jreg3,jreg) = albedo_part(:,jreg3,jreg) &
-                           &  + v_matrix(jreg4,jreg,jlev,jcol) * total_albedo_below(:,jreg2,jreg4) &
+                           &  + v_matrix(jreg4,jreg,jlev) * total_albedo_below(:,jreg2,jreg4) &
                            &  * (transfer_scaling * entrapment(:,jreg3,jreg) &
                            &    +((1.0_jprb-transfer_scaling) * entrapment(:,jreg3,jreg2)))
                     end if
@@ -1272,13 +1340,12 @@ end if
                 end if
               end do
 
-
 #ifdef USE_FAST_EXPM_EXCHANGE
               if (nreg == 2) then
-                call fast_expm_exchange(ng, ng, entrapment(:,2,1), entrapment(:,1,2), &
+                call fast_expm_exchange(ng, entrapment(:,2,1), entrapment(:,1,2), &
                      &                  albedo_part)
               else
-                call fast_expm_exchange(ng, ng, entrapment(:,2,1), entrapment(:,1,2), &
+                call fast_expm_exchange(ng, entrapment(:,2,1), entrapment(:,1,2), &
                      &                          entrapment(:,3,2), entrapment(:,2,3), &
                      &                  albedo_part)
               end if
@@ -1292,7 +1359,7 @@ end if
               do jreg3 = 1,nreg
                 do jreg = 1,nreg
                   albedo_part(:,jreg3,jreg) = albedo_part(:,jreg3,jreg) &
-                       &  * v_matrix(jreg2,jreg,jlev,jcol) * total_albedo_below_direct(:,jreg2,jreg2)
+                       &  * v_matrix(jreg2,jreg,jlev) * total_albedo_below_direct(:,jreg2,jreg2)
                 end do
               end do
 #else
@@ -1307,10 +1374,10 @@ end if
                   do jreg4 = 1,nreg
                     if (.not. (jreg4 == jreg .and. jreg4 /= jreg2)) then
                      albedo_part(:,jreg3,jreg) = albedo_part(:,jreg3,jreg) + entrapment(:,jreg3,jreg) &
-                           &  * v_matrix(jreg4,jreg,jlev,jcol) * total_albedo_below_direct(:,jreg2,jreg4)
+                           &  * v_matrix(jreg4,jreg,jlev) * total_albedo_below_direct(:,jreg2,jreg4)
                     else
                       albedo_part(:,jreg3,jreg) = albedo_part(:,jreg3,jreg) &
-                           &  + v_matrix(jreg4,jreg,jlev,jcol) * total_albedo_below_direct(:,jreg2,jreg4) &
+                           &  + v_matrix(jreg4,jreg,jlev) * total_albedo_below_direct(:,jreg2,jreg4) &
                            &  * (transfer_scaling * entrapment(:,jreg3,jreg) &
                            &    +((1.0_jprb-transfer_scaling) * entrapment(:,jreg3,jreg2)))
                     end if
@@ -1346,16 +1413,16 @@ end if
           do jreg = 1,nreg          ! Target layer (jlev-1)
             do jreg2 = 1,nregactive ! Current layer (jlev)
               x_direct_above(:,jreg) = x_direct_above(:,jreg) &
-                   &  + x_direct(:,jreg2) * v_matrix(jreg2,jreg,jlev,jcol)
+                   &  + x_direct(:,jreg2) * v_matrix(jreg2,jreg,jlev)
               x_diffuse_above(:,jreg) = x_diffuse_above(:,jreg) &
-                   &  + x_diffuse(:,jreg2) * v_matrix(jreg2,jreg,jlev,jcol)
+                   &  + x_diffuse(:,jreg2) * v_matrix(jreg2,jreg,jlev)
             end do
           end do
           
           !... then copy out of the temporary arrays
           x_direct = x_direct_above
           x_diffuse = x_diffuse_above
-        end if
+        end if   
 
       end do ! Reverse loop over levels
 
@@ -1377,9 +1444,9 @@ end if
       flux_up_above = mat_x_vec(ng,ng,nreg,total_albedo_direct(:,:,:,1),direct_dn_below)
 
       if (config%do_clear) then
-        flux_dn_clear = 0.0_jprb
-        direct_dn_clear(:) = incoming_sw(:,jcol)
-        flux_up_clear = direct_dn_clear*total_albedo_clear_direct(:,1)
+        flux_dn_clear    = 0.0_jprb
+        direct_dn_clear  = incoming_sw(:,jcol)
+        flux_up_clear    = direct_dn_clear*total_albedo_clear_direct(:,1)
       end if
 
       ! Store the TOA broadband fluxes
@@ -1427,7 +1494,7 @@ end if
         if (config%i_3d_sw_entrapment == IEntrapmentExplicitNonFractal &
              &  .or. config%i_3d_sw_entrapment == IEntrapmentExplicit) then
           ! Save downwelling direct and diffuse fluxes at the top of
-          ! layer "jlev" in each of the regions of layer "jlev"
+          ! layer "jlev" in each of the regions of layer "jlev" 
           if (nreg == 2) then
             write(102,'(i4,i4,4e14.6)') jcol, jlev, direct_dn_below(1,:), flux_dn_below(1,:)
           else
@@ -1436,19 +1503,16 @@ end if
         end if
 #endif
 
-        ! Compute the solar downwelling "source" at the base of the
-        ! layer due to scattering of the direct beam within it
         if (config%do_clear) then
+          ! Compute the solar downwelling "source" at the base of the
+          ! layer due to scattering of the direct beam within it
           source_dn_clear = trans_dir_diff_clear(:,jlev)*direct_dn_clear
+          ! Compute direct downwelling flux in each region at base of
+          ! current layer
+          direct_dn_clear = trans_dir_dir_clear(:,jlev)*direct_dn_clear
         end if
         source_dn(:,:) = mat_x_vec(ng,ng,nreg,trans_dir_diff(:,:,:,jlev),direct_dn_below, &
              &  is_clear_sky_layer(jlev))
-
-        ! Compute direct downwelling flux in each region at base of
-        ! current layer
-        if (config%do_clear) then
-          direct_dn_clear = trans_dir_dir_clear(:,jlev)*direct_dn_clear
-        end if
         direct_dn_above = mat_x_vec(ng,ng,nreg,trans_dir_dir(:,:,:,jlev),direct_dn_below, &
              &  is_clear_sky_layer(jlev))
 
@@ -1501,10 +1565,10 @@ end if
 
         if (is_clear_sky_layer(jlev)) then
           ! Scalar operations for clear-sky layer
-          flux_dn_above(:,1) = (transmittance(:,1,1,jlev)*flux_dn_below(:,1) &
-               &  + reflectance(:,1,1,jlev)*total_albedo_direct(:,1,1,jlev+1)*direct_dn_above(:,1) &
+          flux_dn_above(:,1) = (trans_clear(:,jlev)*flux_dn_below(:,1) &
+               &  + ref_clear(:,jlev)*total_albedo_direct(:,1,1,jlev+1)*direct_dn_above(:,1) &
                &  + source_dn(:,1)) &
-               &  / (1.0_jprb - reflectance(:,1,1,jlev)*total_albedo(:,1,1,jlev+1))
+               &  / (1.0_jprb - ref_clear(:,jlev)*total_albedo(:,1,1,jlev+1))     
           flux_dn_above(:,2:nreg) = 0.0_jprb
           flux_up_above(:,1) = total_albedo_direct(:,1,1,jlev+1)*direct_dn_above(:,1) &
                &  + total_albedo(:,1,1,jlev+1)*flux_dn_above(:,1)
@@ -1534,9 +1598,9 @@ end if
           ! Apply downward overlap matrix to compute direct
           ! downwelling flux entering the top of each region in the
           ! layer below
-          flux_dn_below = singlemat_x_vec(ng,ng,nreg,v_matrix(:,:,jlev+1,jcol), &
+          flux_dn_below = singlemat_x_vec(ng,ng,nreg,v_matrix(:,:,jlev+1), &
                &  flux_dn_above)
-          direct_dn_below = singlemat_x_vec(ng,ng,nreg,v_matrix(:,:,jlev+1,jcol), &
+          direct_dn_below = singlemat_x_vec(ng,ng,nreg,v_matrix(:,:,jlev+1), &
                &  direct_dn_above)
         end if
 
@@ -1581,6 +1645,7 @@ end if
       end if
 
     end do ! Loop over columns
+    
     if (config%iverbose >= 3) then
       write(nulout,*)
     end if
@@ -1683,7 +1748,8 @@ end if
            &  / (1.0_jprb - reflectance(:,jreg,jreg)*total_albedo_diff(:,jreg,jreg))
       ! ...and the distance enhancement is approximately equal to the
       ! limit of T*[1+sqrt(2)*RA+sqrt(3)*(RA)^2+sqrt(4)*(RA)^3+...]
-      x_enhancement = (1.0_jprb - reflectance(:,jreg,jreg)*total_albedo_diff(:,jreg,jreg))**(-1.5_jprb)
+           
+     x_enhancement = (1.0_jprb - reflectance(:,jreg,jreg)*total_albedo_diff(:,jreg,jreg))**(-1.5_jprb)
 
       ! Horizontal migration of direct downwelling radiation
       top_albedo = max(1.0e-8_jprb, ref_dir(:,jreg,jreg) + ms_enhancement &
