@@ -23,7 +23,7 @@
 
 module radiation_two_stream
 
-  use parkind1, only : jprb, jprd
+  use parkind1, only : jprb
 
   implicit none
   public
@@ -33,7 +33,7 @@ module radiation_two_stream
   ! transmission at all angles through the atmosphere.  Alternatively
   ! think of acos(1/lw_diffusivity) to be the effective zenith angle
   ! of longwave radiation.
-  real(jprd), parameter :: LwDiffusivity = 1.66_jprd
+  real(jprb), parameter :: LwDiffusivity = 1.66_jprb
 
   ! Shortwave diffusivity factor assumes hemispheric isotropy, assumed
   ! by Zdunkowski's scheme and most others; note that for efficiency
