@@ -56,6 +56,7 @@ module easy_netcdf
     procedure :: close => close_netcdf_file
     procedure :: get_real_scalar
     procedure :: get_real_vector
+    procedure :: get_integer_vector
     procedure :: get_real_matrix
     procedure :: get_real_array3
     procedure :: get_real_scalar_indexed
@@ -65,7 +66,7 @@ module easy_netcdf
     procedure :: get_real_array4
     generic   :: get => get_real_scalar, get_real_vector, &
          &              get_real_matrix, get_real_array3, &
-         &              get_real_array4, &
+         &              get_real_array4, get_integer_vector, &
          &              get_real_scalar_indexed, get_real_vector_indexed, &
          &              get_real_matrix_indexed, get_real_array3_indexed
     procedure :: get_real_scalar_attribute
@@ -729,6 +730,64 @@ contains
     end if
 
   end subroutine get_real_vector
+
+
+  !---------------------------------------------------------------------
+  ! Read a 1D integer array into "vector", which must be allocatable
+  ! and will be reallocated if necessary
+  subroutine get_integer_vector(this, var_name, vector)
+    class(netcdf_file)           :: this
+    character(len=*), intent(in) :: var_name
+    integer, allocatable, intent(out) :: vector(:)
+
+    integer                      :: n  ! Length of vector
+    integer                      :: istatus
+    integer                      :: ivarid, ndims
+    integer                      :: ndimlens(NF90_MAX_VAR_DIMS)
+    integer                      :: j
+
+    call this%get_variable_id(var_name, ivarid)
+    call this%get_array_dimensions(ivarid, ndims, ndimlens)
+
+    ! Ensure variable has only one dimension in the file
+    n = 1
+    do j = 1, ndims
+      n = n * ndimlens(j)
+      if (j > 1 .and. ndimlens(j) > 1) then
+        write(nulerr,'(a,a,a)') '*** Error reading NetCDF variable ', &
+             & var_name, &
+             & ' as a vector: all dimensions above the first must be singletons'
+        call my_abort('Error reading NetCDF file')
+      end if
+    end do
+
+    ! Reallocate if necessary
+    if (allocated(vector)) then
+      if (size(vector) /= n) then
+        if (this%iverbose >= 1) then
+          write(nulout,'(a,a)') '  Warning: resizing vector to read ', var_name
+        end if
+        deallocate(vector)
+        allocate(vector(n))
+      end if
+    else
+      allocate(vector(n))
+    end if
+
+    if (this%iverbose >= 3) then
+      write(nulout,'(a,a,a,i0,a)',advance='no') '  Reading ', var_name, '(', n, ')'
+      call this%print_variable_attributes(ivarid,nulout)
+    end if
+
+    ! Read variable
+    istatus = nf90_get_var(this%ncid, ivarid, vector)
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
+           &  var_name, ' as an integer vector: ', trim(nf90_strerror(istatus))
+      call my_abort('Error reading NetCDF file')
+    end if
+
+  end subroutine get_integer_vector
 
 
   !---------------------------------------------------------------------
