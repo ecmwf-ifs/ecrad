@@ -30,7 +30,7 @@
 !   2018-10-15  R. Hogan  Added call to fast_expm_exchange instead of expm
 !   2019-01-12  R. Hogan  Use inv_inhom_effective_size if allocated
 !   2019-02-10  R. Hogan  Renamed "encroachment" to "entrapment"
-!   2020-12-xx  P. Ukkonen Performance increase by restructuring code and optimized expm
+!   2020-12-15  P. Ukkonen Performance increase by restructuring code and optimized expm
 
 module radiation_spartacus_sw
 
@@ -84,7 +84,7 @@ contains
          &                               indexed_sum, add_indexed_sum
     use radiation_matrix
     use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
-         &  calc_reflectance_transmittance_sw_opt, calc_frac_scattered_diffuse_sw, &
+         &  calc_reflectance_transmittance_sw, calc_frac_scattered_diffuse_sw, &
          &  SwDiffusivity
     use radiation_constants, only      : Pi, GasConstantDryAir, &
          &                               AccelDueToGravity
@@ -508,14 +508,7 @@ contains
         gamma3 = 0.0_jprb
         transfer_rate_direct(:,:)  = 0.0_jprb
         transfer_rate_diffuse(:,:) = 0.0_jprb
-
-     !    trans_dir_dir(:,:,:,jlev)  = 0.0_jprb
-     !    reflectance(:,:,:,jlev)    = 0.0_jprb
-     !    transmittance(:,:,:,jlev)  = 0.0_jprb
-     !    ref_dir(:,:,:)             = 0.0_jprb
-     !    trans_dir_diff(:,:,:,jlev) = 0.0_jprb
    
-
         ! The following is from the hydrostatic equation
         ! and ideal gas law: dz = dp * R * T / (p * g)
         layer_depth(jlev) = R_over_g &
@@ -852,7 +845,7 @@ contains
 
         ! Compute reflectance, transmittance and associated terms for
         ! clear skies, using the Meador-Weaver formulas
-       call calc_reflectance_transmittance_sw_opt(ng, &
+       call calc_reflectance_transmittance_sw(ng, &
              &  mu0, od_region(:,1), ssa_region(:,1), &
              &  gamma1(:,1), gamma2(:,1), gamma3(:,1), &
              &  ref_clear(:,jlev), trans_clear(:,jlev), &
@@ -879,7 +872,7 @@ contains
           ! for each cloudy region, using the Meador-Weaver formulas
 
           do jreg = 2, nregactive
-               call calc_reflectance_transmittance_sw_opt(ng-ng3D, &
+               call calc_reflectance_transmittance_sw(ng-ng3D, &
                     &  mu0, &
                     &  od_region(ng3D+1:ng,jreg), ssa_region(ng3D+1:ng,jreg), &
                     &  gamma1(ng3D+1:ng,jreg), gamma2(ng3D+1:ng,jreg), &

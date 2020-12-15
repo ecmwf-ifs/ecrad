@@ -14,7 +14,7 @@
 !
 ! Modifications
 !   2018-10-15  R. Hogan    Added fast_expm_exchange_[23]
-!   2020-12-xx  P. Ukkonen  Added an optimized expm routine for shortwave when nreg=3,
+!   2020-12-15  P. Ukkonen  Added an optimized expm routine for shortwave when nreg=3,
 !                           and related kernels
 !
 ! This module provides the neccessary mathematical functions for the
@@ -248,7 +248,7 @@ contains
       do j2 = 1,m
         do j1 = 1,m
           mat_x_mat_dense(:,j1,j2) = A(:,j1,1)*B(:,1,j2) &
-          &  + A(:,j1,2)*B(:,2,j2) + A(:,j1,3)*B(:,3,j2) 
+              &       + A(:,j1,2)*B(:,2,j2) + A(:,j1,3)*B(:,3,j2) 
         end do
       end do
 
@@ -261,7 +261,7 @@ contains
         do j1 = 1,m
           do j3 = 1,m
             mat_x_mat_dense(:,j1,j2) = mat_x_mat_dense(:,j1,j2) &
-                  &                  + A(:,j1,j3)*B(:,j3,j2)
+                &       + A(:,j1,j3)*B(:,j3,j2)
           end do
         end do
       end do
@@ -856,9 +856,6 @@ contains
     real(jprb), intent(out), dimension(iend,m,m)  :: C
     integer    :: j1, j2, j3
     integer    :: mblock, m2block
-
-    ! Array-wise assignment
-    ! C = 0.0_jprb
 
     ! Matrix has a sparsity pattern
     !     (C D E)

@@ -51,7 +51,7 @@ contains
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type
     use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
-         &                               calc_reflectance_transmittance_sw_opt
+         &                               calc_reflectance_transmittance_sw
     use radiation_adding_ica_sw, only  : adding_ica_sw
     use radiation_cloud_generator, only: cloud_generator
 
@@ -155,7 +155,7 @@ contains
             call calc_two_stream_gammas_sw(ng, &
                  &  cos_sza, ssa(:,jlev,jcol), g(:,jlev,jcol), &
                  &  gamma1, gamma2, gamma3)
-            call calc_reflectance_transmittance_sw_opt(ng, &
+            call calc_reflectance_transmittance_sw(ng, &
                  &  cos_sza, od(:,jlev,jcol), ssa(:,jlev,jcol), &
                  &  gamma1, gamma2, gamma3, &
                  &  ref_clear(:,jlev), trans_clear(:,jlev), &
@@ -172,7 +172,7 @@ contains
             call calc_two_stream_gammas_sw(ng, &
                  &  cos_sza, ssa_total, g_total, &
                  &  gamma1, gamma2, gamma3)
-            call calc_reflectance_transmittance_sw_opt(ng, &
+            call calc_reflectance_transmittance_sw(ng, &
                  &  cos_sza, od_total, ssa_total, &
                  &  gamma1, gamma2, gamma3, &
                  &  ref_clear(:,jlev), trans_clear(:,jlev), &
@@ -256,7 +256,7 @@ contains
                    &  cos_sza, ssa_total, g_total, &
                    &  gamma1, gamma2, gamma3)
 
-              call calc_reflectance_transmittance_sw_opt(ng, &
+              call calc_reflectance_transmittance_sw(ng, &
                    &  cos_sza, od_total, ssa_total, &
                    &  gamma1, gamma2, gamma3, &
                    &  reflectance(:,jlev), transmittance(:,jlev), &
