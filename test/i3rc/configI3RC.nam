@@ -25,6 +25,8 @@ effective_size_scaling = 1.0,
 ! radiation code
 !
 &radiation
+use_general_cloud_optics = false,
+use_general_aerosol_optics = false,
 do_3d_effects		= true,           ! Represent 3D effects?
 do_lw_side_emissivity   = true,
 n_regions 		= 3,              ! Number of regions (2=clear+cloudy, 3=clear+2cloudy)

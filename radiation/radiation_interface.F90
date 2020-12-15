@@ -117,7 +117,7 @@ contains
     if (config%do_clouds) then
       if (config%i_gas_model == IGasModelMonochromatic) then
         !      call setup_cloud_optics_mono(config)
-      elseif (config%i_gas_model == IGasModelECCKD) then
+      elseif (config%use_general_cloud_optics) then
         call setup_general_cloud_optics(config)
       else
         call setup_cloud_optics(config)
@@ -190,7 +190,6 @@ contains
     use radiation_io,             only : nulout
     use radiation_config,         only : config_type, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, &
-         &   IGasModelECCKD, &
          &   ISolverMcICA, ISolverSpartacus, ISolverHomogeneous, &
          &   ISolverTripleclouds
     use radiation_single_level,   only : single_level_type
@@ -349,7 +348,7 @@ contains
                &  config, thermodynamics, cloud, &
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
-        elseif (config%i_gas_model == IGasModelECCKD) then
+        elseif (config%use_general_cloud_optics) then
           call general_cloud_optics(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, & 
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &

@@ -161,6 +161,18 @@ module radiation_config
     ! found
     character(len=511) :: directory_name = '.'
 
+    ! If this is true then support arbitrary hydrometeor types (not
+    ! just ice and liquid) and arbitrary spectral discretization (not
+    ! just RRTMG). It is required that this is true if the ecCKD gas
+    ! optics model is selected. General cloud optics has only been
+    ! available from ecRad version 1.5.
+    logical :: use_general_cloud_optics = .true.
+
+    ! If this is true then support aerosol properties at an arbitrary
+    ! spectral discretization (not just RRTMG). It is required that
+    ! this is true if the ecCKD gas optics model is selected.
+    logical :: use_general_aerosol_optics = .true.
+
     ! Cloud is deemed to be present in a layer if cloud fraction
     ! exceeds this value
     real(jprb) :: cloud_fraction_threshold = 1.0e-6_jprb
@@ -442,6 +454,7 @@ module radiation_config
     character(len=511) :: cloud_pdf_override_file_name = ''
 
     ! COMPUTED PARAMETERS
+
     ! Users of this library should not edit these parameters directly;
     ! they are set by the "consolidate" routine
 
@@ -618,6 +631,7 @@ contains
     ! To be read from the radiation_config namelist 
     logical :: do_sw, do_lw, do_clear, do_sw_direct
     logical :: do_3d_effects, use_expm_everywhere, use_aerosols
+    logical :: use_general_cloud_optics, use_general_aerosol_optics
     logical :: do_lw_side_emissivity
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
@@ -670,6 +684,7 @@ contains
          &  use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw, &
          &  do_canopy_fluxes_sw, do_canopy_fluxes_lw, &
          &  do_canopy_gases_sw, do_canopy_gases_lw, &
+         &  use_general_cloud_optics, use_general_aerosol_optics, &
          &  do_sw_delta_scaling_with_gases, overlap_scheme_name, &
          &  sw_solver_name, lw_solver_name, use_beta_overlap, &
          &  use_expm_everywhere, iverbose, iverbosesetup, &
@@ -722,6 +737,8 @@ contains
     do_surface_sw_spectral_flux = this%do_surface_sw_spectral_flux
     iverbose = this%iverbose
     iverbosesetup = this%iverbosesetup
+    use_general_cloud_optics = this%use_general_cloud_optics
+    use_general_aerosol_optics = this%use_general_aerosol_optics
     cloud_fraction_threshold = this%cloud_fraction_threshold
     cloud_mixing_ratio_threshold = this%cloud_mixing_ratio_threshold
     use_beta_overlap = this%use_beta_overlap
@@ -876,6 +893,8 @@ contains
     this%liq_optics_override_file_name = liq_optics_override_file_name
     this%ice_optics_override_file_name = ice_optics_override_file_name
     this%aerosol_optics_override_file_name = aerosol_optics_override_file_name
+    this%use_general_cloud_optics      = use_general_cloud_optics
+    this%use_general_aerosol_optics    = use_general_aerosol_optics
     this%cloud_fraction_threshold = cloud_fraction_threshold
     this%cloud_mixing_ratio_threshold = cloud_mixing_ratio_threshold
     this%n_aerosol_types = n_aerosol_types
@@ -1001,6 +1020,17 @@ contains
 
     ! If ecCKD gas optics model is being used set relevant file names
     if (this%i_gas_model == IGasModelECCKD) then
+
+      ! This gas optics model requires the general cloud and
+      ! aerosol optics settings
+      if (.not. this%use_general_cloud_optics) then
+        write(nulerr,'(a)') '*** Error: ecCKD gas optics model requires general cloud optics'
+        call radiation_abort('Radiation configuration error')
+      end if
+      if (.not. this%use_general_aerosol_optics) then
+        write(nulerr,'(a)') '*** Error: ecCKD gas optics model requires general aerosol optics'
+        call radiation_abort('Radiation configuration error')
+      end if
 
       if (len_trim(this%gas_optics_sw_override_file_name) > 0) then
         if (this%gas_optics_sw_override_file_name(1:1) == '/') then
@@ -1263,13 +1293,17 @@ contains
              &   'cloud_fraction_threshold', this%cloud_fraction_threshold)
         call print_real('  Cloud mixing-ratio threshold', &
              &   'cloud_mixing_ratio_threshold', this%cloud_mixing_ratio_threshold)
-        call print_enum('  Liquid optics scheme is', LiquidModelName, &
-             &          'i_liq_model',this%i_liq_model)
-        call print_enum('  Ice optics scheme is', IceModelName, &
-             &          'i_ice_model',this%i_ice_model)
-        if (this%i_ice_model == IIceModelFu) then
-          call print_logical('  Longwave ice optics bug in Fu scheme is', &
-               &   'do_fu_lw_ice_optics_bug',this%do_fu_lw_ice_optics_bug)
+        call print_logical('  General cloud optics', &
+             &             'use_general_cloud_optics', this%use_general_cloud_optics)
+        if (.not. this%use_general_cloud_optics) then
+          call print_enum('  Liquid optics scheme is', LiquidModelName, &
+               &          'i_liq_model',this%i_liq_model)
+          call print_enum('  Ice optics scheme is', IceModelName, &
+               &          'i_ice_model',this%i_ice_model)
+          if (this%i_ice_model == IIceModelFu) then
+            call print_logical('  Longwave ice optics bug in Fu scheme is', &
+                 &   'do_fu_lw_ice_optics_bug',this%do_fu_lw_ice_optics_bug)
+          end if
         end if
         call print_enum('  Cloud overlap scheme is', OverlapName, &
              &          'i_overlap_scheme',this%i_overlap_scheme)

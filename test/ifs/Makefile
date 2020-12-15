@@ -63,13 +63,15 @@ test_spartacus_maxentr:
 
 test_ecckd:
 	$(CHANGENAM) $(CONFIG) config_ecckd.nam \
-		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"'
+		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"' \
+		use_general_cloud_optics=true use_general_aerosol_optics=true
 	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
 #		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"'
 
 test_ecckd_noaer:
 	$(CHANGENAM) $(CONFIG) config_ecckd_noaer.nam \
-		gas_model_name='"ECCKD"' use_aerosols=false 
+		gas_model_name='"ECCKD"' use_aerosols=false \
+		use_general_cloud_optics=true use_general_aerosol_optics=true
 	$(DRIVER) config_ecckd_noaer.nam $(INPUT).nc $(INPUT)_ecckd_noaer_out.nc
 
 test_cloudless:

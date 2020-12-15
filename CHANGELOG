@@ -5,6 +5,8 @@ version 1.5
 	- Added general spectral description of aerosol, compatible with
 	  ecCKD gas optics model
 	- Added 50 CKDMIP test profiles in test/ckdmip directory
+	- General cloud and aerosol optics controlled with
+	  use_general_cloud_optics and use_general_aerosol_optics
 
 version 1.4.0 (5 November 2020)
 	- Replaced OpenIFS license with Apache License (version 2.0) and

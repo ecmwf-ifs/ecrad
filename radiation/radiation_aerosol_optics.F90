@@ -33,7 +33,7 @@ contains
 
     use parkind1,                      only : jprb
     use yomhook,                       only : lhook, dr_hook
-    use radiation_config,              only : config_type, IGasModelECCKD
+    use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type
     use radiation_io,                  only : nulerr, radiation_abort
 
@@ -46,7 +46,7 @@ contains
     if (config%n_aerosol_types > 0) then
       ! Load data from file and prepare to map config%n_aerosol_types
       ! aerosol types
-      if (config%i_gas_model == IGasModelECCKD) then
+      if (config%use_general_aerosol_optics) then
         ! Read file containing high spectral resolution optical
         ! properties and average to the spectral intervals of the
         ! current gas-optics scheme
