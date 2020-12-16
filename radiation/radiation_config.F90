@@ -318,6 +318,9 @@ module radiation_config
 ! &
 !         &   = ["mie_droplet                   ", &
 !         &      "baum-general-habit-mixture_ice"]
+    logical :: use_thick_cloud_spectral_averaging(NMaxCloudTypes) &
+         &  = [.false.,.false.,.false.,.false.,.false.,.false., &
+         &     .false.,.false.,.false.,.false.,.false.,.false.]
 
     ! To what extent do we include "entrapment" effects in the
     ! SPARTACUS solver? This essentially means that in a situation
@@ -453,6 +456,11 @@ module radiation_config
     ! PDF used by the McICA solver
     character(len=511) :: cloud_pdf_override_file_name = ''
 
+    ! Do we compute cloud and aerosol optical properties per g point?
+    ! Not available with RRTMG gas optics model
+    logical :: do_cloud_aerosol_per_sw_g_point = .true.
+    logical :: do_cloud_aerosol_per_lw_g_point = .true.
+
     ! COMPUTED PARAMETERS
 
     ! Users of this library should not edit these parameters directly;
@@ -583,11 +591,6 @@ module radiation_config
     ! cloud processing
     logical :: do_clouds = .true.
 
-    ! Do we compute cloud and aerosol optical properties per g point?
-    ! Not available with RRTMG gas optics model
-    logical :: do_cloud_aerosol_per_sw_g_point = .true.
-    logical :: do_cloud_aerosol_per_lw_g_point = .true.
-
    contains
      procedure :: read => read_config_from_namelist
      procedure :: consolidate => consolidate_config
@@ -642,6 +645,8 @@ contains
     logical :: do_canopy_fluxes_sw, do_canopy_fluxes_lw
     logical :: use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw
     logical :: do_canopy_gases_sw, do_canopy_gases_lw
+    logical :: do_cloud_aerosol_per_sw_g_point
+    logical :: do_cloud_aerosol_per_lw_g_point
     integer :: n_regions, iverbose, iverbosesetup, n_aerosol_types
     real(jprb):: mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od
     real(jprb):: mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo
@@ -658,6 +663,9 @@ contains
     character(63)  :: sw_solver_name, lw_solver_name, overlap_scheme_name
     character(63)  :: sw_entrapment_name, sw_encroachment_name, cloud_pdf_shape_name
     character(len=511) :: cloud_type_name(NMaxCloudTypes) = ["","","","","","","","","","","",""]
+    logical :: use_thick_cloud_spectral_averaging(NMaxCloudTypes) &
+         &  = [.false.,.false.,.false.,.false.,.false.,.false., &
+         &     .false.,.false.,.false.,.false.,.false.,.false.]
     integer :: i_aerosol_type_map(NMaxAerosolTypes) ! More than 256 is an error
 
     logical :: do_nearest_spectral_sw_albedo = .true.
@@ -695,11 +703,13 @@ contains
          &  mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od, &
          &  mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo, &
          &  mono_lw_asymmetry_factor, mono_sw_asymmetry_factor, &
-         &  cloud_pdf_shape_name, cloud_type_name, &
+         &  cloud_pdf_shape_name, cloud_type_name, use_thick_cloud_spectral_averaging, &
          &  do_nearest_spectral_sw_albedo, do_nearest_spectral_lw_emiss, &
          &  sw_albedo_wavelength_bound, lw_emiss_wavelength_bound, &
-         &  i_sw_albedo_index, i_lw_emiss_index
-
+         &  i_sw_albedo_index, i_lw_emiss_index, &
+         &  do_cloud_aerosol_per_lw_g_point, &
+         &  do_cloud_aerosol_per_sw_g_point
+         
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_config:read',0,hook_handle)
@@ -749,6 +759,9 @@ contains
     max_cloud_od = this%max_cloud_od
     max_3d_transfer_rate = this%max_3d_transfer_rate
     min_cloud_effective_size = this%min_cloud_effective_size
+    cloud_type_name = this%cloud_type_name
+    use_thick_cloud_spectral_averaging = this%use_thick_cloud_spectral_averaging
+
     overhang_factor = this%overhang_factor
     encroachment_scaling = -1.0_jprb
     gas_model_name = '' !DefaultGasModelName
@@ -775,6 +788,8 @@ contains
     lw_emiss_wavelength_bound     = this%lw_emiss_wavelength_bound
     i_sw_albedo_index             = this%i_sw_albedo_index
     i_lw_emiss_index              = this%i_lw_emiss_index
+    do_cloud_aerosol_per_lw_g_point = this%do_cloud_aerosol_per_lw_g_point
+    do_cloud_aerosol_per_sw_g_point = this%do_cloud_aerosol_per_sw_g_point
 
     if (present(file_name) .and. present(unit)) then
       write(nulerr,'(a)') '*** Error: cannot specify both file_name and unit in call to config_type%read'
@@ -880,6 +895,7 @@ contains
     this%max_3d_transfer_rate = max_3d_transfer_rate
     this%min_cloud_effective_size = max(1.0e-6_jprb, min_cloud_effective_size)
     this%cloud_type_name = cloud_type_name
+    this%use_thick_cloud_spectral_averaging = use_thick_cloud_spectral_averaging
     if (encroachment_scaling >= 0.0_jprb) then
       this%overhang_factor = encroachment_scaling
       if (iverbose >= 1) then
@@ -908,6 +924,8 @@ contains
     this%lw_emiss_wavelength_bound     = lw_emiss_wavelength_bound
     this%i_sw_albedo_index             = i_sw_albedo_index
     this%i_lw_emiss_index              = i_lw_emiss_index
+    this%do_cloud_aerosol_per_lw_g_point = do_cloud_aerosol_per_lw_g_point
+    this%do_cloud_aerosol_per_sw_g_point = do_cloud_aerosol_per_sw_g_point
 
     if (do_save_gpoint_flux) then
       ! Saving the fluxes every g-point overrides saving as averaged
@@ -965,6 +983,20 @@ contains
     else
       this%do_clouds = .false.
     end if
+
+    if (this%i_gas_model == IGasModelIFSRRTMG &
+         & .and. (this%use_general_cloud_optics &
+         &        .or. this%use_general_aerosol_optics)) then
+      if (this%do_sw .and. this%do_cloud_aerosol_per_sw_g_point) then
+        write(nulout,'(a)') 'Warning: RRTMG SW only supports cloud/aerosol optical properties per band, not per g-point'
+        this%do_cloud_aerosol_per_sw_g_point = .false.
+      end if
+      if (this%do_lw .and. this%do_cloud_aerosol_per_lw_g_point) then
+        write(nulout,'(a)') 'Warning: RRTMG LW only supports cloud/aerosol optical properties per band, not per g-point'
+        this%do_cloud_aerosol_per_lw_g_point = .false.
+      end if
+    end if
+
 
     ! Normal subroutine exit
     if (present(is_success)) then
@@ -1073,8 +1105,13 @@ contains
     else
       ! In the IFS, the aerosol optics file should be specified in
       ! ifs/module/radiation_setup.F90, not here
-      this%aerosol_optics_file_name &
-           &   = trim(this%directory_name) // "/aerosol_ifs_rrtm_45R2.nc"
+      if (this%use_general_aerosol_optics) then
+         this%aerosol_optics_file_name &
+             &   = trim(this%directory_name) // "/aerosol_ifs_48R1.nc"       
+      else
+        this%aerosol_optics_file_name &
+             &   = trim(this%directory_name) // "/aerosol_ifs_rrtm_45R2.nc"
+      end if
     end if
 
     ! Set liquid optics file name

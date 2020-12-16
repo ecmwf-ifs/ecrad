@@ -185,7 +185,7 @@ contains
 
     ! Define the mapping matrix
     call specdef%calc_mapping(weighting_temperature, &
-         &                    wavenumber, mapping)
+         &                    wavenumber, mapping, use_bands=use_bands)
 
     ! Thin averaging
     this%mass_ext  = matmul(mapping, mass_ext)
@@ -195,11 +195,7 @@ contains
     if (use_thick_averaging_local) then
       ! Thick averaging as described by Edwards and Slingo (1996),
       ! modifying only the single-scattering albedo
-      if (use_bands_local) then
-        allocate(ref_inf(nwav, nre))
-      else
-        allocate(ref_inf(nwav, nre))
-      end if
+      allocate(ref_inf(nwav, nre))
 
       ! Eqs. 18 and 17 of Edwards & Slingo (1996)
       ref_inf = sqrt((1.0_jprb - ssa) / (1.0_jprb - ssa*asymmetry))
@@ -217,7 +213,7 @@ contains
 
     if (iverb >= 2) then
       write(nulout,'(a,a)') '  File: ', trim(file_name)
-      write(nulout,'(a,f7.1)') '  Weighting temperature: ', weighting_temperature
+      write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', weighting_temperature, ' K'
       if (use_thick_averaging_local) then
         write(nulout,'(a)') '  SSA averaging: optically thick limit'
       else
@@ -230,8 +226,8 @@ contains
       end if
       write(nulout,'(a,i0,a,f6.1,a,f6.1,a)') '  Effective radius look-up: ', nre, ' points in range ', &
            &  effective_radius(1)*1.0e6_jprb, '-', effective_radius(nre)*1.0e6_jprb, ' um'
-      write(nulout,'(a,i0,a,i0,a)') '  Wavenumber range: ', int(specdef%wavenumber1(1)), '-', &
-           &  int(specdef%wavenumber2(specdef%nwav)), ' cm-1'
+      write(nulout,'(a,i0,a,i0,a)') '  Wavenumber range: ', int(specdef%min_wavenumber()), '-', &
+           &  int(specdef%max_wavenumber()), ' cm-1'
     end if
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup',1,hook_handle)

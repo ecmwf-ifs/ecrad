@@ -60,9 +60,13 @@ contains
       end if
     end do
 
+    ! If cloud_type_name has not been provided then assume liquid,ice
+    ! using thick,thin spectral averaging
     if (config%n_cloud_types == 0) then
       config%cloud_type_name(1) = "mie_droplet"
       config%cloud_type_name(2) = "baum-general-habit-mixture_ice"
+      config%use_thick_cloud_spectral_averaging(1) = .true.
+      config%use_thick_cloud_spectral_averaging(2) = .false.
       config%n_cloud_types = 2
     end if
 
@@ -97,7 +101,8 @@ contains
         end if
         call config%cloud_optics_sw(jtype)%setup(file_name, &
              &  config%gas_optics_sw%spectral_def, &
-             &  use_thick_averaging=.true., &
+             &  use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point), &
+             &  use_thick_averaging=config%use_thick_cloud_spectral_averaging(jtype), &
              &  weighting_temperature=SolarReferenceTemperature, &
              &  iverbose=config%iverbosesetup)
       end if
@@ -108,7 +113,8 @@ contains
         end if
         call config%cloud_optics_lw(jtype)%setup(file_name, &
              &  config%gas_optics_lw%spectral_def, &
-             &  use_thick_averaging=.true., &
+             &  use_bands=(.not. config%do_cloud_aerosol_per_lw_g_point), &
+             &  use_thick_averaging=config%use_thick_cloud_spectral_averaging(jtype), &
              &  weighting_temperature=TerrestrialReferenceTemperature, &
              &  iverbose=config%iverbosesetup)
       end if

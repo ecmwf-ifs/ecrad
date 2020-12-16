@@ -58,8 +58,11 @@ module radiation_spectral_definition
 
   contains
     procedure :: read => read_spectral_definition
+    procedure :: allocate_bands_only
+    procedure :: deallocate
     procedure :: find => find_wavenumber
     procedure :: calc_mapping
+    procedure :: min_wavenumber, max_wavenumber
 
   end type spectral_definition_type
 
@@ -74,8 +77,8 @@ contains
     use yomhook,     only : lhook, dr_hook
 
     class(spectral_definition_type), intent(inout) :: this
-    type(netcdf_file),                   intent(inout) :: file
-    integer,                   optional, intent(in)    :: iverbose
+    type(netcdf_file),               intent(inout) :: file
+    integer,               optional, intent(in)    :: iverbose
 
     real(jprb) :: hook_handle
 
@@ -91,6 +94,9 @@ contains
     call file%get('wavenumber2_band', this%wavenumber2_band)
     call file%get('band_number', this%i_band_number)
 
+    ! Band number is 0-based: add 1
+    this%i_band_number = this%i_band_number + 1
+
     this%nwav  = size(this%wavenumber1)
     this%ng    = size(this%gpoint_fraction, 2);
     this%nband = size(this%wavenumber1_band)
@@ -98,6 +104,53 @@ contains
     if (lhook) call dr_hook('radiation_spectral_definition:read',1,hook_handle)
 
   end subroutine read_spectral_definition
+
+
+  !---------------------------------------------------------------------
+  ! Store a simple band description by copying over the lower and
+  ! upper wavenumbers of each band
+  subroutine allocate_bands_only(this, wavenumber1, wavenumber2)
+
+    use yomhook,     only : lhook, dr_hook
+
+    class(spectral_definition_type), intent(inout) :: this
+    real(jprb),        dimension(:), intent(in)    :: wavenumber1, wavenumber2
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_spectral_definition:allocate_bands_only',0,hook_handle)
+
+    call this%deallocate()
+
+    this%nband = size(wavenumber1)
+    allocate(this%wavenumber1_band(this%nband))
+    allocate(this%wavenumber2_band(this%nband))
+    this%wavenumber1_band = wavenumber1
+    this%wavenumber2_band = wavenumber2
+
+    if (lhook) call dr_hook('radiation_spectral_definition:allocate_bands_only',1,hook_handle)
+
+  end subroutine allocate_bands_only
+
+
+  !---------------------------------------------------------------------
+  ! Deallocate memory inside a spectral definition object
+  subroutine deallocate(this)
+
+    class(spectral_definition_type), intent(inout) :: this
+    
+    this%nwav  = 0
+    this%ng    = 0
+    this%nband = 0
+
+    if (allocated(this%wavenumber1))      deallocate(this%wavenumber1)
+    if (allocated(this%wavenumber2))      deallocate(this%wavenumber2)
+    if (allocated(this%wavenumber1_band)) deallocate(this%wavenumber1_band)
+    if (allocated(this%wavenumber2_band)) deallocate(this%wavenumber2_band)
+    if (allocated(this%gpoint_fraction))  deallocate(this%gpoint_fraction)
+    if (allocated(this%i_band_number))    deallocate(this%i_band_number)
+
+  end subroutine deallocate
 
 
   !---------------------------------------------------------------------
@@ -133,7 +186,8 @@ contains
   ! function to weight each wavenumber appropriately.
   subroutine calc_mapping(this, temperature, wavenumber, mapping, use_bands)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook
+    use radiation_io, only : nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
     real(jprb),                      intent(in)    :: temperature   ! K
@@ -154,7 +208,7 @@ contains
     integer    :: isd, isd0, isd1, isd2
 
     ! Loop indices
-    integer    :: jg, jwav
+    integer    :: jg, jwav, jband
 
     logical    :: use_bands_local
 
@@ -177,8 +231,54 @@ contains
     ! Define the mapping matrix
     if (use_bands_local) then
       ! Cloud properties per band
+
       allocate(mapping(this%nband, nwav))
+      allocate(weight(nwav))
+
+      ! Planck weight uses the wavenumbers of the cloud points
+      allocate(planck_weight(nwav))
+      planck_weight = calc_planck_function_wavenumber(wavenumber, &
+           &                                          temperature)
+
+      do jband = 1,this%nband
+        weight = 0.0_jprb
+        do jwav = 1,nwav
+          ! Work out wavenumber range for which this cloud wavenumber
+          ! will be applicable
+          if (wavenumber(jwav) >= this%wavenumber1_band(jband) &
+               & .and. wavenumber(jwav) <= this%wavenumber2_band(jband)) then
+            if (jwav > 1) then
+              wavenum1 = max(this%wavenumber1_band(jband), &
+                   &  0.5_jprb*(wavenumber(jwav-1)+wavenumber(jwav)))
+            else
+              wavenum1 = this%wavenumber1_band(jband)
+            end if
+            if (jwav < nwav) then
+              wavenum2 = min(this%wavenumber2_band(jband), &
+                   &  0.5_jprb*(wavenumber(jwav)+wavenumber(jwav+1)))
+            else
+              wavenum2 = this%wavenumber2_band(jband)
+            end if
+            ! This cloud wavenumber is weighted by the wavenumber
+            ! range of its applicability multiplied by the Planck
+            ! function at an appropriate temperature
+            weight(jwav) = (wavenum2-wavenum1) * planck_weight(jwav)
+          end if
+        end do
+        mapping(jband,:) = weight / sum(weight)
+      end do
+
+      deallocate(weight)
+      deallocate(planck_weight)
+
     else
+      ! Cloud properties per g-point
+
+      if (this%ng == 0) then
+        write(nulerr,'(a)') '*** Error: requested cloud/aerosol mapping per g-point but only available per band'
+        call radiation_abort('Radiation configuration error')
+      end if
+
       allocate(mapping(this%ng, nwav))
       allocate(weight(this%nwav))
       allocate(planck_weight(this%nwav))
@@ -308,16 +408,48 @@ contains
       deallocate(weight)
       deallocate(planck_weight)
 
-    end if
+      ! Normalize mapping matrix
+      do jg = 1,this%ng
+        mapping(jg,:) = mapping(jg,:) * (1.0_jprb/sum(mapping(jg,:)))
+      end do
 
-    ! Normalize mapping matrix
-    do jg = 1,this%ng
-      mapping(jg,:) = mapping(jg,:) * (1.0_jprb/sum(mapping(jg,:)))
-    end do
+    end if
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping',1,hook_handle)
 
   end subroutine calc_mapping
+
+
+  !---------------------------------------------------------------------
+  ! Return the minimum wavenumber of this object in cm-1
+  pure function min_wavenumber(this)
+
+    class(spectral_definition_type), intent(in)    :: this
+    real(jprb) :: min_wavenumber
+
+    if (this%nwav > 0) then
+      min_wavenumber = this%wavenumber1(1)
+    else
+      min_wavenumber = minval(this%wavenumber1_band)
+    end if
+
+  end function min_wavenumber
+
+
+  !---------------------------------------------------------------------
+  ! Return the maximum wavenumber of this object in cm-1
+  pure function max_wavenumber(this)
+
+    class(spectral_definition_type), intent(in)    :: this
+    real(jprb) :: max_wavenumber
+
+    if (this%nwav > 0) then
+      max_wavenumber = this%wavenumber1(this%nwav)
+    else
+      max_wavenumber = maxval(this%wavenumber2_band)
+    end if
+
+  end function max_wavenumber
 
 
   !---------------------------------------------------------------------

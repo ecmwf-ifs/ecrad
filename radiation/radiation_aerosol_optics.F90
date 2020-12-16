@@ -124,6 +124,10 @@ contains
     ! Pointer to the aerosol optics coefficients for brevity of access
     type(aerosol_optics_type), pointer :: ao
 
+    ! Number of spectral points describing aerosol properties in the
+    ! shortwave and longwave
+    integer    :: nspecsw, nspeclw
+
     integer    :: n_type_philic, n_type_phobic, nrh
     integer    :: jtype
 
@@ -176,13 +180,23 @@ contains
       nrh = 0
     end if
 
-    call ao%allocate(n_type_phobic, n_type_philic, nrh, &
-         &  config%gas_optics_lw%spectral_def%ng, &
-         &  config%gas_optics_sw%spectral_def%ng, 0)
+    if (config%do_cloud_aerosol_per_sw_g_point) then
+      nspecsw = config%gas_optics_sw%spectral_def%ng
+    else
+      nspecsw = config%gas_optics_sw%spectral_def%nband
+    end if
+
+    if (config%do_cloud_aerosol_per_lw_g_point) then
+      nspeclw = config%gas_optics_lw%spectral_def%ng
+    else
+      nspeclw = config%gas_optics_lw%spectral_def%nband
+    end if
+
+    call ao%allocate(n_type_phobic, n_type_philic, nrh, nspeclw, nspecsw, 0)
 
     if (config%do_sw) then
       call config%gas_optics_sw%spectral_def%calc_mapping(SolarReferenceTemperature, &
-           &  wavenumber, mapping)
+           &  wavenumber, mapping, use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point))
 
       ao%mass_ext_sw_phobic = matmul(mapping, mass_ext_phobic)
       ao%ssa_sw_phobic = matmul(mapping, mass_ext_phobic*ssa_phobic) &
@@ -205,7 +219,7 @@ contains
 
     if (config%do_lw) then
       call config%gas_optics_lw%spectral_def%calc_mapping(TerrestrialReferenceTemperature, &
-           &  wavenumber, mapping)
+           &  wavenumber, mapping, use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point))
 
       ao%mass_ext_lw_phobic = matmul(mapping, mass_ext_phobic)
       ao%ssa_lw_phobic = matmul(mapping, mass_ext_phobic*ssa_phobic) &
