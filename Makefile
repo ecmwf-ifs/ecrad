@@ -44,6 +44,12 @@ ifdef SINGLE_PRECISION
 CPPFLAGS += -DSINGLE_PRECISION
 endif
 
+# Use shortwave reflectance-transmittance routine from ecRAD,
+# which uses the same equations but should be faster
+ifdef USE_RTE_REFTRANS_SW
+CPPFLAGS += -DUSE_RTE_REFTRANS_SW
+endif
+
 # If PRINT_ENTRAPMENT_DATA=1 was given on the "make" command line
 # then the SPARTACUS shortwave solver will write data to fort.101 and
 # fort.102
