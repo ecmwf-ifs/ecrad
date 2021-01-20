@@ -41,7 +41,7 @@ module radiation_two_stream
   ! The routines in this module can be called millions of times, so
   !calling Dr Hook for each one may be a significant overhead.
   !Uncomment the following to turn Dr Hook on.
-!#define DO_DR_HOOK_TWO_STREAM
+#define DO_DR_HOOK_TWO_STREAM
 
 contains
 
