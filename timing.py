@@ -24,6 +24,9 @@ def cli(ref_file, cur_file):
     cur = cur.sort_values(by=["time"], ascending=False)
     ref = ref.sort_values(by=["time"], ascending=False)
 
+    cur = cur.rename(index=lambda s: s.replace("_lr", ""))
+    cur = cur.rename(index=lambda s: s.replace("_acc", ""))
+
     selection = set(
         [
             "radiation_two_stream:calc_two_stream_gammas_lw",
@@ -35,23 +38,22 @@ def cli(ref_file, cur_file):
             "radiation_adding_ica_lw:fast_adding_ica_lw",
             "radiation_lw_derivatives:modify_lw_derivatives_ica",
             "radiation_lw_derivatives:calc_lw_derivatives_ica",
+            "radiation_mcica_lw:solver_mcica_lw",
         ]
     )
 
     selection = selection.intersection(set(cur.index)).intersection(set(ref.index))
 
-    print(selection)
+    a = cur.loc[selection, "time"]
+    b = ref.loc[selection, "time"]
 
-    a = cur.loc[selection, "time"].values
-    b = ref.loc[selection, "time"].values
+    print("\ncurrent time")
+    print("-------------------------------------")
+    print(a)
 
-    diff = np.abs((a - b) / a) * 100
-
-    fig, ax = plt.subplots(ncols=1, nrows=1)
-
-    ax.barh(range(len(selection)), diff)
-
-    plt.show()
+    print("\nreference time")
+    print("-------------------------------------")
+    print(b)
 
 
 if __name__ == "__main__":
