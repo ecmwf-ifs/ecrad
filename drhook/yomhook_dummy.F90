@@ -89,7 +89,7 @@ contains
 
     do idx = 1,1000
       if(total_time(idx) > 0.0) then
-        write(1, '(A80,E10.3,I10)'), names(idx), total_time(idx), ncalls(idx)
+        write(1, '(A80,E10.3,I10)') names(idx), total_time(idx), ncalls(idx)
       end if
     end do
 
