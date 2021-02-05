@@ -24,7 +24,7 @@
 module easy_netcdf
 
   use netcdf
-  use parkind1,      only : jprb, jpib
+  use parkind1,      only : jprb, jpib, jprm, jprd
   use radiation_io,  only : nulout, nulerr, my_abort => radiation_abort
 
   implicit none
@@ -1830,9 +1830,9 @@ contains
     if (present(fill_value)) then
 #ifdef NC_NETCDF4
       if (data_type == NF90_DOUBLE) then
-        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,8))
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,jprd))
       else if (data_type == NF90_FLOAT) then
-        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,4))
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,jprm))
       else if (data_type == NF90_INT) then
         istatus = nf90_def_var_fill(this%ncid, ivarid, 0, int(fill_value,4))
       else if (data_type == NF90_SHORT) then
@@ -1842,9 +1842,9 @@ contains
       end if
 #else
       if (data_type == NF90_DOUBLE) then
-        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,8))
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,jprd))
       else if (data_type == NF90_FLOAT) then
-        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,4))
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,jprm))
       else if (data_type == NF90_INT) then
         istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", int(fill_value,4))
       else if (data_type == NF90_SHORT) then
