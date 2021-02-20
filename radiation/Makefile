@@ -63,7 +63,8 @@ radiation_single_level.o: radiation_config.o
 radiation_monochromatic.o radiation_aerosol_optics.o radiation_cloud_optics.o \
 	radiation_homogeneous_sw.o radiation_spartacus_lw.o \
 	radiation_cloudless_sw.o radiation_cloudless_lw.o \
-	radiation_spartacus_sw.o radiation_thermodynamics.o: radiation_constants.o
+	radiation_spartacus_sw.o radiation_thermodynamics.o \
+	radiation_flux.o: radiation_constants.o
 radiation_cloud_optics.o radiation_config.o: \
 	radiation_cloud_optics_data.o
 radiation_cloud_optics.o: radiation_ice_optics_baran.o radiation_ice_optics_fu.o \
