@@ -91,9 +91,9 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifdef DR_HOOK
-build: directories libifsaux libdrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
+build: directories libifsaux libdrhook libutilities libifsrrtm libmultiregion libradiation libradsurf driver symlinks
 else
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
+build: directories libifsaux libdummydrhook libutilities libifsrrtm libmultiregion libradiation libradsurf driver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -124,6 +124,9 @@ libutilities:
 
 libifsrrtm:
 	cd ifsrrtm && $(MAKE)
+
+libmultiregion:
+	cd multiregion && $(MAKE)
 
 libradiation:
 	cd radiation && $(MAKE)
@@ -177,5 +180,6 @@ clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
+	libmultiregion \
 	libradiation libradsurf driver symlinks clean clean-toplevel test test_ifs \
 	test_i3rc test_surface clean-tests clean-utilities clean-mods clean-symlinks
