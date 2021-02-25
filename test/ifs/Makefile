@@ -11,7 +11,7 @@ CONFIG = configCY47R1.nam
 all: test
 
 test: test_default test_noaer test_expran test_tripleclouds test_spartacus \
-	test_spartacus_maxentr
+	test_spartacus_maxentr test_tcrad
 
 # (a) Default IFS settings: McICA solver with exponential-exponential
 # overlap
@@ -59,6 +59,13 @@ test_spartacus_maxentr:
 		sw_entrapment_name='"Maximum"' \
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
+
+# (d) Tripleclouds solver with exponential-random overlap 
+test_tcrad:
+	./change_namelist.sh $(CONFIG) config_tcrad.nam \
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"TCRAD"' \
+		overlap_scheme_name='"Exp-Ran"'
+	$(DRIVER) config_tcrad.nam $(INPUT).nc $(INPUT)_tcrad_out.nc
 
 # Clean data files
 clean:

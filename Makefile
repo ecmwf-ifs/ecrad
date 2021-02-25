@@ -65,7 +65,7 @@ endif
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
-export LIBS    = $(LDFLAGS) -L../lib -lradsurf -lradiation -lutilities \
+export LIBS    = $(LDFLAGS) -L../lib -lradsurf -lradiation -ltcrad -lutilities \
 	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
 ifdef DR_HOOK
 LIBS += -ldl -lrt

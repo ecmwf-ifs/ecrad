@@ -18,7 +18,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_ice_optics_baran2017.F90 radiation_ice_optics_yi.F90 \
 	radiation_liquid_optics_socrates.F90 radiation_liquid_optics_slingo.F90 \
 	radiation_tripleclouds_sw.F90 radiation_tripleclouds_lw.F90 \
-	radiation_regions.F90 \
+	radiation_regions.F90 radiation_tcrad_lw.F90 \
 	radiation_cloudless_lw.F90 radiation_cloudless_sw.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
@@ -45,7 +45,8 @@ radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_ifs_rrtm.o radiation_mcica_sw.o radiation_mcica_lw.o \
 	radiation_homogeneous_lw.o radiation_homogeneous_sw.o \
 	radiation_cloudless_lw.o radiation_cloudless_sw.o \
-	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o 
+	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o \
+	radiation_tcrad_lw.o
 radiation_ifs_rrtm.o radiation_monochromatic.o: radiation_config.o \
 	radiation_thermodynamics.o radiation_gas.o
 radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_mcica_sw.o \
@@ -82,9 +83,8 @@ radiation_aerosol_optics.o radiation_cloud_optics.o: \
 radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
 	radiation_cloud_cover.o
 radiation_lw_derivatives.o: radiation_matrix.o
-
 radiation_config.o: radiation_cloud_generator.o
-
+radiation_tcrad_lw.o: radiation_config.o radiation_cloud.o radiation_flux.o
 radiation_aerosol_optics.F90 radiation_cloud_optics.F90 radiation_homogeneous_sw.F90 \
 	radiation_mcica_sw.F90 radiation_cloudless_sw.o: radiation_delta_eddington.h
 radiation_spartacus_sw.o radiation_spartacus_lw.o \

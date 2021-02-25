@@ -52,13 +52,14 @@ module radiation_config
   ! for both
   enum, bind(c) 
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
-          &     ISolverSpartacus, ISolverTripleclouds 
+          &     ISolverSpartacus, ISolverTripleclouds, ISolverTcrad
   end enum
-  character(len=*), parameter :: SolverName(0:4) = (/ 'Cloudless   ', &
+  character(len=*), parameter :: SolverName(0:5) = (/ 'Cloudless   ', &
        &                                              'Homogeneous ', &
        &                                              'McICA       ', &
        &                                              'SPARTACUS   ', &
-       &                                              'Tripleclouds' /)
+       &                                              'Tripleclouds', &
+       &                                              'TCRAD       ' /)
 
   ! SPARTACUS shortwave solver can treat the reflection of radiation
   ! back up into different regions in various ways
@@ -317,6 +318,10 @@ module radiation_config
     ! Do we account for the effective emissivity of the side of
     ! clouds?
     logical :: do_lw_side_emissivity = .true.
+
+    ! Number of streams per hemisphere in longwave TCRAD solver, where
+    ! more than one will use the fast method of Fu et al. (1997)
+    integer :: n_stream_per_hem_lw = 1
 
     ! The 3D transfer rate "X" is such that if transport out of a
     ! region was the only process occurring then by the base of a
@@ -945,9 +950,10 @@ contains
     if ((       this%i_solver_sw == ISolverSPARTACUS &
          & .or. this%i_solver_lw == ISolverSPARTACUS &
          & .or. this%i_solver_sw == ISolverTripleclouds &
-         & .or. this%i_solver_lw == ISolverTripleclouds) &
+         & .or. this%i_solver_lw == ISolverTripleclouds &
+         & .or. this%i_solver_lw == ISolverTCRAD) &
          & .and. this%i_overlap_scheme /= IOverlapExponentialRandom) then
-      write(nulerr,'(a)') '*** Error: SPARTACUS/Tripleclouds solvers can only do Exponential-Random overlap'
+      write(nulerr,'(a)') '*** Error: SPARTACUS/Tripleclouds/TCRAD solvers can only do Exponential-Random overlap'
       call radiation_abort('Radiation configuration error')
 
     end if

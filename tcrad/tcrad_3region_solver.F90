@@ -16,6 +16,7 @@
 module tcrad_3region_solver
 
   use parkind1, only : jpim
+  use tcrad_two_stream, only : calc_reflectance_transmittance
 
   integer(jpim), parameter :: NREGION = 3
 
@@ -169,11 +170,11 @@ contains
 
   subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
        &  cloud_fraction, fractional_std, od_gas, od_cloud, ssa_cloud, asymmetry_cloud, &
-       &  overlap_param, flux_up, flux_dn, do_d24s, do_3d)
+       &  overlap_param, flux_up, flux_dn, n_stream_per_hem, do_3d)
     
     use parkind1, only           : jpim, jprb
     use yomhook,  only           : lhook, dr_hook
-    use multiregion_two_stream, only : calc_reflectance_transmittance
+    use tcrad_two_stream, only   : calc_reflectance_transmittance
 
     implicit none
 
@@ -195,9 +196,10 @@ contains
 
     real(jprb), intent(out), dimension(nspec,nlev+1) :: flux_up, flux_dn
 
-    logical,    intent(in), optional :: do_d24s, do_3d
+    integer,    intent(in), optional :: n_stream_per_hem
+    logical,    intent(in), optional :: do_3d
 
-    real(jprb), dimension(nspec,NREGION,nlev) :: od
+    real(jprb), dimension(nspec,NREGION,nlev)   :: od
     real(jprb), dimension(nspec,2:NREGION,nlev) :: ssa
 
     real(jprb), dimension(nspec,NREGION,nlev) :: reflectance, transmittance
@@ -219,14 +221,15 @@ contains
 
     real(jprb) :: cloud_cover
 
-    logical :: do_d24s_local, do_3d_local
+    integer(jpim) :: n_stream_per_hem_local
+    logical :: do_3d_local
 
     integer(jpim) :: jreg
 
-    if (present(do_d24s)) then
-      do_d24s_local = do_d24s
+    if (present(n_stream_per_hem)) then
+      n_stream_per_hem_local = n_stream_per_hem
     else
-      do_d24s_local = .false.
+      n_stream_per_hem_local = 1
     end if
 
     if (present(do_3d)) then
@@ -267,7 +270,7 @@ contains
            &  * spread(od_scaling(jreg,:),1,nspec) / od(:,jreg,:)
     end do
 
-    call calc_reflectance_transmittance_lw(nspec, nlev, NREGION, &
+    call calc_reflectance_transmittance(nspec, nlev, NREGION, &
          &  is_cloud_free_layer, planck_hl, od, ssa, asymmetry_cloud, &
          &  reflectance, transmittance, source_up, source_dn)
 
@@ -276,7 +279,7 @@ contains
          &  is_cloud_free_layer, u_overlap, v_overlap, &
          &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top)
 
-    if (do_d24s_local) then
+    if (n_stream_per_hem_local > 1) then
       ! Fu et al. (1997) method: pass four beams through the
       ! atmosphere using the two-stream solution as the scattering
       ! source function
