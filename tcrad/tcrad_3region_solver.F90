@@ -1,4 +1,4 @@
-! tripleclouds_solver.F90 - Solve for longwave fluxes or radiances with the Tripleclouds assumption
+! tcrad_3region_solver.F90 - Solve for longwave fluxes or radiances with the Tripleclouds assumption
 !
 ! (C) Copyright 2021- ECMWF.
 !
@@ -13,7 +13,7 @@
 ! Email:   r.j.hogan@ecmwf.int
 !
 
-module tripleclouds_solver
+module tcrad_3region_solver
 
   use parkind1, only : jpim
 
@@ -169,7 +169,7 @@ contains
 
   subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
        &  cloud_fraction, fractional_std, od_gas, od_cloud, ssa_cloud, asymmetry_cloud, &
-       &  overlap_param, flux_up, flux_dn, nstream, do_3d)
+       &  overlap_param, flux_up, flux_dn, do_d24s, do_3d)
     
     use parkind1, only           : jpim, jprb
     use yomhook,  only           : lhook, dr_hook
@@ -195,8 +195,7 @@ contains
 
     real(jprb), intent(out), dimension(nspec,nlev+1) :: flux_up, flux_dn
 
-    integer(jpim), intent(in), optional :: nstream
-    logical,       intent(in), optional :: do_3d
+    logical,    intent(in), optional :: do_d24s, do_3d
 
     real(jprb), dimension(nspec,NREGION,nlev) :: od
     real(jprb), dimension(nspec,2:NREGION,nlev) :: ssa
@@ -220,7 +219,22 @@ contains
 
     real(jprb) :: cloud_cover
 
+    logical :: do_d24s_local, do_3d_local
+
     integer(jpim) :: jreg
+
+    if (present(do_d24s)) then
+      do_d24s_local = do_d24s
+    else
+      do_d24s_local = .false.
+    end if
+
+    if (present(do_3d)) then
+      do_3d_local = do_3d
+    else
+      do_3d_local = .false.
+    end if
+
 
     ! Compute the wavelength-independent region fractions and
     ! optical-depth scalings
@@ -262,7 +276,19 @@ contains
          &  is_cloud_free_layer, u_overlap, v_overlap, &
          &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top)
 
+    if (do_d24s_local) then
+      ! Fu et al. (1997) method: pass four beams through the
+      ! atmosphere using the two-stream solution as the scattering
+      ! source function
+
+    else
+      ! Simply take the existing two-stream fluxes
+      flux_up(:,1:nlev) = sum(flux_up_top,2)
+      flux_up(:,nlev+1) = sum(flux_up_base(:,2,nlev))
+      flux_dn(:,1:nlev) = sum(flux_dn_top,2)
+      flux_dn(:,nlev+1) = sum(flux_dn_base(:,2,nlev))
+    end if
 
   end subroutine calc_flux
 
-end module tripleclouds_solver
+end module tcrad_3region_solver

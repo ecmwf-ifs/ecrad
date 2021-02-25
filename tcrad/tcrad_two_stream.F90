@@ -1,4 +1,4 @@
-! multiregion_two_stream.F90 - Two-stream and related layer solutions 
+! tcrad_two_stream.F90 - Two-stream and related layer solutions for TCRAD package
 !
 ! (C) Copyright 2021- ECMWF.
 !
@@ -13,7 +13,7 @@
 ! Email:   r.j.hogan@ecmwf.int
 !
 
-module multiregion_two_stream
+module tcrad_two_stream
 
   use parkind1, only : jprb
 
@@ -87,7 +87,8 @@ contains
               ! Linear limit at low optical depth
               coeff = LW_DIFFUSIVITY*od(jspec,jreg,jlev)
               transmittance(jspec,jreg,jlev) = 1.0_jprb - coeff
-              source_up(jspec,jreg,jlev) = coeff * 0.5_jprb * (planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1))
+              source_up(jspec,jreg,jlev) = coeff * 0.5_jprb &
+                   &  * (planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1))
               source_dn(jspec,jreg,jlev) = source_up(jspec,jreg,jlev)
             end if
           end do
@@ -103,11 +104,14 @@ contains
             if (od(jspec,jreg,jlev) > 1.0e-3_jprb) then
               exponential = exp(-k_exponent*od(jspec,jreg,jlev))
               exponential2 = exponential*exponential
-              reftrans_factor = 1.0 / (k_exponent + gamma1 + (k_exponent - gamma1)*exponential2)
+              reftrans_factor = 1.0 / (k_exponent + gamma1&
+                   &  + (k_exponent - gamma1)*exponential2)
               ! Meador & Weaver (1980) Eq. 25
-              reflectance(jspec,jreg,jlev) = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
+              reflectance(jspec,jreg,jlev) = gamma2 &
+                   &  * (1.0_jprb - exponential2) * reftrans_factor
               ! Meador & Weaver (1980) Eq. 26
-              transmittance(jspec,jreg,jlev) = 2.0_jprb * k_exponent * exponential * reftrans_factor
+              transmittance(jspec,jreg,jlev) = 2.0_jprb * k_exponent &
+                   &  * exponential * reftrans_factor
       
               ! Compute upward and downward emission assuming the
               ! Planck function to vary linearly with optical depth
@@ -144,4 +148,4 @@ contains
 
   end subroutine calc_reflectance_transmittance
 
-end module multiregion_two_stream
+end module tcrad_two_stream
