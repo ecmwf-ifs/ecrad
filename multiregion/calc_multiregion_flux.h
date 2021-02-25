@@ -20,7 +20,7 @@
 
 subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
      &  reflectance, transmittance, source_up, source_dn, &
-     &  region_fracs, u_overlap, v_overlap, &
+     &  is_cloud_free_layer, u_overlap, v_overlap, &
      &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top)
 
 
@@ -41,9 +41,9 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
   real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: source_up
   real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: source_dn
 
-  real(jprb), intent(in),  dimension(NREGION,nlev) :: region_fracs
+  logical,    intent(in) :: is_cloud_free_layer(0:nlev+1)
 
-  real(jprb), intent(in),  dimension(NREGION,NREGION,nlev) :: u_overlap, v_overlap
+  real(jprb), intent(in),  dimension(NREGION,NREGION,nlev+1) :: u_overlap, v_overlap
   
   ! Outputs
 
@@ -75,8 +75,6 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
   ! Loop indices for spectral interval, level and region
   integer(jpim) :: jspec, jlev, jreg, jreg2
 
-  logical :: is_cloud_free_layer(0:nlev+1)
-
   real(jprb) :: hook_handle
 
   if (lhook) call dr_hook('calc_multiregion_flux',0,hook_handle)
@@ -84,9 +82,6 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
   ! --------------------------------------------------------
   ! Section 1: Prepare variables and arrays
   ! --------------------------------------------------------
-
-  is_cloud_free_layer = .true.
-  is_cloud_free_layer(1:nlev) = (region_fracs(1,1:nlev) == 1.0_jprb);
 
   ! Find cloud top
   icloudtop = nlev
@@ -126,9 +121,7 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
   ! the surface albedo into total_albedo
   do jreg = 1,NREGION
     do jspec = 1,nspec
-      ! region_fracs(jreg,nlev) is the fraction of each region in the
-      ! lowest model level
-      total_source(jspec,jreg,nlev+1) = region_fracs(jreg,nlev)*surf_emission(jspec)
+      total_source(jspec,jreg,nlev+1) = u_overlap(jreg,1,nlev+1)*surf_emission(jspec)
       total_albedo(jspec,jreg,nlev+1) = surf_albedo(jspec)
     end do
   end do
