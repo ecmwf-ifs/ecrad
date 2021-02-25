@@ -27,7 +27,7 @@ module tcrad_two_stream
 contains
 
   subroutine calc_reflectance_transmittance(nspec, nlev, nreg, &
-       &  is_cloud_free_layer, planck_hl, od, ssa, asymmetry, &
+       &  region_fracs, planck_hl, od, ssa, asymmetry, &
        &  reflectance, transmittance, source_up, source_dn)
         
     use parkind1, only           : jpim, jprb
@@ -40,7 +40,7 @@ contains
     ! Number of spectral intervals, levels and regions
     integer(jpim), intent(in) :: nspec, nlev, nreg
 
-    logical,    intent(in), dimension(nlev)         :: is_cloud_free_layer
+    real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
 
     real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
 
@@ -62,43 +62,53 @@ contains
 
     if (lhook) call dr_hook('multiregion_two_stream:calc_reflectance_transmittance',0,hook_handle)
 
-    do jlev = 1,nlev
-      do jreg = 1,nreg
-        if (jreg == 1 .or. is_cloud_free_layer(jlev)) then
-          ! No-scattering solution: compute upward and downward
-          ! emission assuming the Planck function to vary linearly
-          ! with optical depth within the layer (e.g. Wiscombe , JQSRT
-          ! 1976).
-          do jspec = 1,nspec
-            reflectance(jspec,jreg,jlev) = 0.0_jprb
-            if (od(jspec,jreg,jlev) > 1.0e-3_jprb) then
-              coeff = LW_DIFFUSIVITY*od(jspec,jreg,jlev)
-              transmittance(jspec,jreg,jlev) = exp(-coeff)
-              coeff = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) / coeff
-              coeff_up_top  =  coeff + planck_hl(jspec,jlev)
-              coeff_up_base =  coeff + planck_hl(jspec,jlev+1)
-              coeff_dn_top  = -coeff + planck_hl(jspec,jlev)
-              coeff_dn_base = -coeff + planck_hl(jspec,jlev+1)
-              source_up(jspec,jreg,jlev) = coeff_up_top &
-                   &  - transmittance(jspec,jreg,jlev) * coeff_up_base
-              source_dn(jspec,jreg,jlev) = coeff_dn_base &
-                   &  - transmittance(jspec,jreg,jlev) * coeff_dn_top
-            else
-              ! Linear limit at low optical depth
-              coeff = LW_DIFFUSIVITY*od(jspec,jreg,jlev)
-              transmittance(jspec,jreg,jlev) = 1.0_jprb - coeff
-              source_up(jspec,jreg,jlev) = coeff * 0.5_jprb &
-                   &  * (planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1))
-              source_dn(jspec,jreg,jlev) = source_up(jspec,jreg,jlev)
-            end if
-          end do
-        else
-          ! Scattering solution
-          factor = (LW_DIFFUSIVITY * 0.5_jprb) * ssa(jspec,jreg,jlev)
-          gamma1 = LW_DIFFUSIVITY - factor*(1.0_jprb + asymmetry(jspec,jlev))
-          gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
+    ! Set cloudy regions to default values
+    reflectance(:,2:,:)   = 0.0_jprb
+    transmittance(:,2:,:) = 1.0_jprb
+    source_up(:,2:,:)     = 0.0_jprb
+    source_dn(:,2:,:)     = 0.0_jprb
 
+    do jlev = 1,nlev
+      ! No-scattering solution in clear-sky region: compute upward and
+      ! downward emission assuming the Planck function to vary
+      ! linearly with optical depth within the layer (e.g. Wiscombe ,
+      ! JQSRT 1976).
+      do jspec = 1,nspec
+        reflectance(jspec,1,jlev) = 0.0_jprb
+        if (od(jspec,1,jlev) > 1.0e-3_jprb) then
+          coeff = LW_DIFFUSIVITY*od(jspec,1,jlev)
+          transmittance(jspec,1,jlev) = exp(-coeff)
+          coeff = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) / coeff
+          coeff_up_top  =  coeff + planck_hl(jspec,jlev)
+          coeff_up_base =  coeff + planck_hl(jspec,jlev+1)
+          coeff_dn_top  = -coeff + planck_hl(jspec,jlev)
+          coeff_dn_base = -coeff + planck_hl(jspec,jlev+1)
+          source_up(jspec,1,jlev) = coeff_up_top &
+               &  - transmittance(jspec,1,jlev) * coeff_up_base
+          source_dn(jspec,1,jlev) = coeff_dn_base &
+               &  - transmittance(jspec,1,jlev) * coeff_dn_top
+        else
+          ! Linear limit at low optical depth
+          coeff = LW_DIFFUSIVITY*od(jspec,1,jlev)
+          transmittance(jspec,1,jlev) = 1.0_jprb - coeff
+          source_up(jspec,1,jlev) = coeff * 0.5_jprb &
+               &  * (planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1))
+          source_dn(jspec,1,jlev) = source_up(jspec,1,jlev)
+        end if
+        ! Scale the sources by the area fraction of the region
+        source_up(jspec,1,jlev) = region_fracs(1,jlev)*source_up(jspec,1,jlev)
+        source_dn(jspec,1,jlev) = region_fracs(1,jlev)*source_dn(jspec,1,jlev)
+      end do
+
+      if (region_fracs(1,jlev) < 1.0_jprb) then
+        ! We have some cloud
+        do jreg = 2,nreg
+          ! Scattering solution
           do jspec = 1,nspec
+            factor = (LW_DIFFUSIVITY * 0.5_jprb) * ssa(jspec,jreg,jlev)
+            gamma1 = LW_DIFFUSIVITY - factor*(1.0_jprb + asymmetry(jspec,jlev))
+            gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
+
             k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
                  1.E-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
             if (od(jspec,jreg,jlev) > 1.0e-3_jprb) then
@@ -139,9 +149,12 @@ contains
                    &       * 0.5 * (planck_hl(jspec,jlev) + planck_hl(jspec,jlev+1))
               source_dn(jspec,jreg,jlev) = source_up(jspec,jreg,jlev)
             end if
+            ! Scale the sources by the area fraction of the region
+            source_up(jspec,jreg,jlev) = region_fracs(jreg,jlev)*source_up(jspec,jreg,jlev)
+            source_dn(jspec,jreg,jlev) = region_fracs(jreg,jlev)*source_dn(jspec,jreg,jlev)
           end do
-        end if
-      end do
+        end do
+      end if
     end do
 
     if (lhook) call dr_hook('multiregion_two_stream:calc_reflectance_transmittance',1,hook_handle)

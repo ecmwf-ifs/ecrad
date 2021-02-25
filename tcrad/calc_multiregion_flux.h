@@ -227,6 +227,8 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
              &  / (1.0_jprb - reflectance(jspec,1,jlev)*total_albedo(jspec,1,jlev+1))
         flux_up_base(jspec,1,jlev) = total_source(jspec,1,jlev+1) &
              &  + flux_dn_base(jspec,1,jlev)*total_albedo(jspec,1,jlev+1)
+        flux_up_top(jspec,1,jlev) = flux_up_base(jspec,1,jlev)*transmittance(jspec,1,jlev) &
+             &  + source_up(jspec,1,jlev) + flux_dn_top(jspec,1,jlev)*reflectance(jspec,1,jlev)
       end do
     else
       flux_dn_base(:,:,jlev) = (transmittance(:,:,jlev)*flux_dn_top(:,:,jlev) &
@@ -234,16 +236,20 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
            &  / (1.0_jprb - reflectance(:,:,jlev)*total_albedo(:,:,jlev+1))
       flux_up_base(:,:,jlev) = total_source(:,:,jlev+1) &
            &  + flux_dn_base(:,:,jlev)*total_albedo(:,:,jlev+1)
+      flux_up_top(:,:,jlev) = flux_up_base(:,:,jlev)*transmittance(:,:,jlev) &
+           &  + source_up(:,:,jlev) + flux_dn_top(:,:,jlev)*reflectance(:,:,jlev)
     end if
     
-    if (.not. (is_cloud_free_layer(jlev) &
-         &    .and. is_cloud_free_layer(jlev+1)) &
-         & .and. jlev < nlev) then
-      ! Account for overlap rules in translating fluxes just above a
-      ! layer interface to the values just below
-      flux_dn_top(:,:,jlev+1) = singlemat_x_vec(nspec, &
-           &  v_overlap(:,:,jlev+1), flux_dn_base(:,:,jlev))
-      ! else fluxes in each region are the same so nothing to do
+    if (jlev < nlev) then
+      if (.not. (is_cloud_free_layer(jlev) .and. is_cloud_free_layer(jlev+1))) then
+        ! Account for overlap rules in translating fluxes just above a
+        ! layer interface to the values just below
+        flux_dn_top(:,:,jlev+1) = singlemat_x_vec(nspec, &
+             &  v_overlap(:,:,jlev+1), flux_dn_base(:,:,jlev))
+      else 
+        ! Two clear-sky layers: copy the fluxes
+        flux_dn_top(:,1,jlev+1) = flux_dn_base(:,1,jlev)
+      end if
     end if
 
   end do

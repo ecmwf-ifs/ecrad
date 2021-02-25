@@ -270,8 +270,12 @@ contains
            &  * spread(od_scaling(jreg,:),1,nspec) / od(:,jreg,:)
     end do
 
+    is_cloud_free_layer(0) = .true.
+    is_cloud_free_layer(1:nlev) = (region_fracs(1,:) == 1.0_jprb)
+    is_cloud_free_layer(nlev+1) = .true.
+
     call calc_reflectance_transmittance(nspec, nlev, NREGION, &
-         &  is_cloud_free_layer, planck_hl, od, ssa, asymmetry_cloud, &
+         &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
          &  reflectance, transmittance, source_up, source_dn)
 
     call calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
@@ -287,9 +291,9 @@ contains
     else
       ! Simply take the existing two-stream fluxes
       flux_up(:,1:nlev) = sum(flux_up_top,2)
-      flux_up(:,nlev+1) = sum(flux_up_base(:,2,nlev))
+      flux_up(:,nlev+1) = sum(flux_up_base(:,:,nlev),2)
       flux_dn(:,1:nlev) = sum(flux_dn_top,2)
-      flux_dn(:,nlev+1) = sum(flux_dn_base(:,2,nlev))
+      flux_dn(:,nlev+1) = sum(flux_dn_base(:,:,nlev),2)
     end if
 
   end subroutine calc_flux
