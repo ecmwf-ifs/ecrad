@@ -345,9 +345,11 @@ contains
             end if
 
             if (.not. config%do_sw_delta_scaling_with_gases) then
-              ! Delta-Eddington scaling in the shortwave only
               call delta_eddington_scat_od(od_sw_liq, scat_od_sw_liq, g_sw_liq)
             end if
+            ! Delta-Eddington scaling for liquid clouds in the
+            ! shortwave - low impact
+            call delta_eddington_scat_od(od_lw_liq, scat_od_lw_liq, g_lw_liq)
           else
             ! Liquid not present: set properties to zero
             od_lw_liq = 0.0_jprb

@@ -1,4 +1,4 @@
-! calc_multiregion_flux.h - Fluxes in multi-region atmospheric profile -*- f90 -*-
+! tcrad_flux.h - Fluxes in multi-region atmospheric profile -*- f90 -*-
 !
 ! (C) Copyright 2021- ECMWF.
 !

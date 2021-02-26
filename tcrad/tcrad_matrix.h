@@ -1,4 +1,4 @@
-! matrix_functions.h - Batched matrix operations for multi-region solver -*- f90 -*-
+! tcrad_matrix.h - Batched matrix operations for TCRAD solver -*- f90 -*-
 !
 ! (C) Copyright 2021- ECMWF.
 !

@@ -1,4 +1,4 @@
-! calc_overlap_matrices.h - Calculate cloud overlap quantities -*- f90 -*-
+! tcrad_overlap.h - Calculate cloud overlap quantities -*- f90 -*-
 !
 ! (C) Copyright 2014- ECMWF.
 !

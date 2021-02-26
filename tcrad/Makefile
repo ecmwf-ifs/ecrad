@@ -16,4 +16,4 @@ clean:
 
 tcrad_3region_solver.o: tcrad_two_stream.o
 
-tcrad_3region_solver.o: matrix_functions.h calc_multiregion_flux.h calc_multiregion_radiance_up.h
+tcrad_3region_solver.o: tcrad_matrix.h tcrad_flux.h tcrad_radiance.h

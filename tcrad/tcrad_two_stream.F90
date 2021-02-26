@@ -60,7 +60,7 @@ contains
 
     real(jprb) :: hook_handle
 
-    if (lhook) call dr_hook('multiregion_two_stream:calc_reflectance_transmittance',0,hook_handle)
+    if (lhook) call dr_hook('tcrad_two_stream:calc_reflectance_transmittance',0,hook_handle)
 
     ! Set cloudy regions to default values
     reflectance(:,2:,:)   = 0.0_jprb
@@ -71,7 +71,7 @@ contains
     do jlev = 1,nlev
       ! No-scattering solution in clear-sky region: compute upward and
       ! downward emission assuming the Planck function to vary
-      ! linearly with optical depth within the layer (e.g. Wiscombe ,
+      ! linearly with optical depth within the layer (e.g. Wiscombe,
       ! JQSRT 1976).
       do jspec = 1,nspec
         reflectance(jspec,1,jlev) = 0.0_jprb
@@ -157,8 +157,240 @@ contains
       end if
     end do
 
-    if (lhook) call dr_hook('multiregion_two_stream:calc_reflectance_transmittance',1,hook_handle)
+    if (lhook) call dr_hook('tcrad_two_stream:calc_reflectance_transmittance',1,hook_handle)
 
   end subroutine calc_reflectance_transmittance
+
+  subroutine calc_radiance_source(nspec, nlev, nreg, &
+       &  mu, &
+       &  region_fracs, planck_hl, od, ssa, asymmetry, &
+       &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+       &  transmittance, source_up, source_dn)
+  
+    
+    use parkind1, only           : jpim, jprb
+    use yomhook,  only           : lhook, dr_hook
+
+    implicit none
+
+    ! Inputs
+
+    ! Number of spectral intervals, levels and regions
+    integer(jpim), intent(in) :: nspec, nlev, nreg
+
+    real(jprb) :: mu
+
+    real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
+
+    real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
+
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
+    real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa
+    real(jprb), intent(in), dimension(nspec,nlev) :: asymmetry
+
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: flux_up_base, flux_dn_base
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: flux_up_top, flux_dn_top
+  
+    ! Outputs
+
+    real(jprb), intent(out), dimension(nspec,nreg,nlev) :: transmittance
+    real(jprb), intent(out), dimension(nspec,nreg,nlev), optional &
+         &  :: source_up, source_dn
+
+
+    real(jprb), dimension(nspec,nreg) :: planck_top, planck_base
+    real(jprb), dimension(nspec,nreg) :: source_top, source_base
+
+    real(jprb) :: secant, factor, coeff
+
+    integer(jpim) :: jlev, jspec, jreg, max_reg
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('tcrad_two_stream:calc_radiance_source',0,hook_handle)
+
+    secant = 1.0_jprb / mu
+
+    ! 0.5: half the scattering goes up and half down
+    factor = 0.5_jprb * 3.0_jprb * mu / LW_DIFFUSIVITY
+
+    do jlev = 1,nlev
+
+      if (region_fracs(1,jlev) < 1.0_jprb) then
+        max_reg = nreg
+        planck_top(:,1) = planck_hl(:,jlev) * region_fracs(1,jlev)
+        planck_top(:,2:nreg) = spread(planck_hl(:,jlev),2,nreg-1) &
+             &  * (1.0_jprb - ssa(:,2:nreg,jlev)) &
+             &  * spread(region_fracs(2:nreg,jlev),1,nspec)
+        planck_base(:,1) = planck_hl(:,jlev+1) * region_fracs(1,jlev)
+        planck_base(:,2:nreg) = spread(planck_hl(:,jlev+1),2,nreg-1) &
+             &  * (1.0_jprb - ssa(:,2:nreg,jlev)) &
+             &  * spread(region_fracs(2:nreg,jlev),1,nspec)
+      else
+        max_reg = 1
+        planck_top(:,1)  = planck_hl(:,jlev)
+        planck_base(:,1) = planck_hl(:,jlev+1)
+      end if
+      transmittance(:,1:max_reg,jlev) = exp(-od(:,1:max_reg,jlev)*secant)
+
+      if (present(source_up)) then
+        source_top  = planck_top
+        source_base = planck_base
+        if (max_reg > 1) then
+          source_top(:,2:nreg) = source_top(:,2:nreg) &
+               &  + ssa(:,2:nreg,jlev) &
+               &  * (flux_up_top(:,2:nreg,jlev) &
+               &     * (0.5_jprb + factor*spread(asymmetry(:,jlev),2,nreg-1)) &
+               &    +flux_dn_top(:,2:nreg,jlev) &
+               &     * (0.5_jprb - factor*spread(asymmetry(:,jlev),2,nreg-1)))
+          source_base(:,2:nreg) = source_base(:,2:nreg) &
+               &  + ssa(:,2:nreg,jlev) &
+               &  * (flux_up_base(:,2:nreg,jlev) &
+               &     * (0.5_jprb + factor*spread(asymmetry(:,jlev),2,nreg-1)) &
+               &    +flux_dn_base(:,2:nreg,jlev) &
+               &     * (0.5_jprb - factor*spread(asymmetry(:,jlev),2,nreg-1)))
+        else
+          source_up(:,2:nreg,jlev) = 0.0_jprb
+        end if
+        do jreg = 1,max_reg
+          do jspec = 1,nspec
+            coeff = (source_base(jspec,jreg)-source_top(jspec,jreg)) &
+                 &   * mu / od(jspec,jreg,jlev)
+            source_up(jspec,jreg,jlev) = coeff + source_top(jspec,jreg) &
+                 - transmittance(jspec,jreg,jlev) * (coeff + source_base(jspec,jreg))
+          end do
+        end do
+      end if
+
+      if (present(source_dn)) then
+        source_top  = planck_top
+        source_base = planck_base
+        if (max_reg > 1) then
+          source_top(:,2:nreg) = source_top(:,2:nreg) &
+               &  + ssa(:,2:nreg,jlev) &
+               &  * (flux_up_top(:,2:nreg,jlev) &
+               &     * (0.5_jprb - factor*spread(asymmetry(:,jlev),2,nreg-1)) &
+               &    +flux_dn_top(:,2:nreg,jlev) &
+               &     * (0.5_jprb + factor*spread(asymmetry(:,jlev),2,nreg-1)))
+          source_base(:,2:nreg) = source_base(:,2:nreg) &
+               &  + ssa(:,2:nreg,jlev) &
+               &  * (flux_up_base(:,2:nreg,jlev) &
+               &     * (0.5_jprb - factor*spread(asymmetry(:,jlev),2,nreg-1)) &
+               &    +flux_dn_base(:,2:nreg,jlev) &
+               &     * (0.5_jprb + factor*spread(asymmetry(:,jlev),2,nreg-1)))
+        else
+          source_dn(:,2:nreg,jlev) = 0.0_jprb
+        end if
+        do jreg = 1,max_reg
+          do jspec = 1,nspec
+            coeff = (source_top(jspec,jreg)-source_base(jspec,jreg)) &
+                 &   * mu / od(jspec,jreg,jlev)
+            source_dn(jspec,jreg,jlev) = coeff + source_base(jspec,jreg) &
+                 - transmittance(jspec,jreg,jlev) * (coeff + source_top(jspec,jreg))
+          end do
+        end do
+      end if
+
+    end do
+
+    if (lhook) call dr_hook('tcrad_two_stream:calc_radiance_source',1,hook_handle)
+
+
+
+
+  end subroutine calc_radiance_source
+
+  subroutine calc_no_scattering_radiance_source(nspec, nlev, nreg, &
+       &  mu, region_fracs, planck_hl, od, &
+       &  transmittance, source_up, source_dn)
+  
+    
+    use parkind1, only           : jpim, jprb
+    use yomhook,  only           : lhook, dr_hook
+
+    implicit none
+
+    ! Inputs
+
+    ! Number of spectral intervals, levels and regions
+    integer(jpim), intent(in) :: nspec, nlev, nreg
+
+    real(jprb) :: mu
+
+    real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
+
+    real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
+
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
+  
+    ! Outputs
+
+    real(jprb), intent(out), dimension(nspec,nreg,nlev) :: transmittance
+    real(jprb), intent(out), dimension(nspec,nreg,nlev), optional &
+         &  :: source_up, source_dn
+
+    real(jprb) :: source_top, source_base
+
+    real(jprb) :: secant, coeff
+
+    integer(jpim) :: jlev, jspec, jreg, max_reg
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('tcrad_two_stream:calc_no_scattering_radiance_source',0,hook_handle)
+
+    secant = 1.0_jprb / mu
+
+    do jlev = 1,nlev
+
+      if (region_fracs(1,jlev) < 1.0_jprb) then
+        max_reg = nreg
+        transmittance(:,1:max_reg,jlev) = exp(-od(:,1:max_reg,jlev)*secant)
+      else
+        max_reg = 1
+        transmittance(:,1,jlev) = exp(-od(:,1,jlev)*secant)
+        transmittance(:,2:nreg,jlev) = 1.0_jprb
+      end if
+
+      if (present(source_up)) then
+        if (max_reg == 1) then
+          source_up(:,2:nreg,jlev) = 0.0_jprb
+        end if
+        do jreg = 1,max_reg
+          do jspec = 1,nspec
+            source_top  = planck_hl(jspec,jlev)   * region_fracs(jreg,jlev)
+            source_base = planck_hl(jspec,jlev+1) * region_fracs(jreg,jlev)
+            coeff = (source_base - source_top) &
+                 &   * mu / od(jspec,jreg,jlev)
+            source_up(jspec,jreg,jlev) = coeff + source_top &
+                 - transmittance(jspec,jreg,jlev) * (coeff + source_base)
+          end do
+        end do
+      end if
+
+      if (present(source_dn)) then
+        if (max_reg == 1) then
+          source_dn(:,2:nreg,jlev) = 0.0_jprb
+        end if
+        do jreg = 1,max_reg
+          do jspec = 1,nspec
+            source_top  = planck_hl(jspec,jlev)   * region_fracs(jreg,jlev)
+            source_base = planck_hl(jspec,jlev+1) * region_fracs(jreg,jlev)
+            coeff = (source_top - source_base) &
+                 &   * mu / od(jspec,jreg,jlev)
+            source_dn(jspec,jreg,jlev) = coeff + source_base &
+                 - transmittance(jspec,jreg,jlev) * (coeff + source_top)
+          end do
+        end do
+      end if
+
+    end do
+
+    if (lhook) call dr_hook('tcrad_two_stream:calc_no_scattering_radiance_source',1,hook_handle)
+
+
+
+
+  end subroutine calc_no_scattering_radiance_source
 
 end module tcrad_two_stream
