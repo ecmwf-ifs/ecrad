@@ -22,6 +22,8 @@ module tcrad_3region_solver
 
 contains
 
+#define NUM_REGIONS 3
+
 #include "tcrad_matrix.h"
 
 #include "tcrad_overlap.h"
@@ -30,6 +32,7 @@ contains
 
 #include "tcrad_radiance.h"
 
+#undef NUM_REGIONS
 
   !---------------------------------------------------------------------
   ! Compute the optical depth scalings for the optically "thick" and
@@ -220,7 +223,7 @@ contains
 
     real(jprb), parameter :: cloud_fraction_threshold = 1.0e-6
 
-    real(jprb) :: cloud_cover
+    real(jprb) :: cloud_cover, weight
 
     real(jprb), dimension(3) :: mu_list, weight_list
 
@@ -308,16 +311,19 @@ contains
       flux_up = 0.0_jprb
       flux_dn = 0.0_jprb
       do jstream = 1,n_stream_per_hem_local
+        weight = weight_list(jstream)*mu_list(jstream) &
+             &  / sum(weight_list(1:n_stream_per_hem_local) &
+             &          * mu_list(1:n_stream_per_hem_local))
         call calc_radiance_source(nspec, nlev, NREGION, &
              &  mu_list(jstream), &
              &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
              &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
              &  transmittance, source_up, source_dn)
         call calc_multiregion_radiance_dn(nspec, nlev, &
-             &  weight_list(jstream), &
+             &  weight, &
              &  transmittance, source_dn, v_overlap, flux_dn)
         call calc_multiregion_radiance_up(nspec, nlev, &
-             &  weight_list(jstream), flux_up_base(:,:,nlev), &
+             &  weight, flux_up_base(:,:,nlev), &
              &  transmittance, source_up, u_overlap, flux_up)
       end do
 

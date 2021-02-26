@@ -319,9 +319,13 @@ module radiation_config
     ! clouds?
     logical :: do_lw_side_emissivity = .true.
 
-    ! Number of streams per hemisphere in longwave TCRAD solver, where
-    ! more than one will use the fast method of Fu et al. (1997)
-    integer :: n_stream_per_hem_lw = 1
+    ! Number of angles per hemisphere in longwave TCRAD solver, where
+    ! 0 means classic Tripleclouds method, while N runs the TCRAD
+    ! Tripleclouds solver then performs N radiances calculations per
+    ! hemisphere using the Tripleclouds solution to provide the
+    ! scattering source function. N=2 is the method of Fu et
+    ! al. (1997).
+    integer :: n_angles_per_hemisphere_lw = 2
 
     ! The 3D transfer rate "X" is such that if transport out of a
     ! region was the only process occurring then by the base of a
@@ -579,6 +583,7 @@ contains
     logical :: do_sw, do_lw, do_clear, do_sw_direct
     logical :: do_3d_effects, use_expm_everywhere, use_aerosols
     logical :: do_lw_side_emissivity
+    integer :: n_angles_per_hemisphere_lw
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
     logical :: do_save_radiative_properties, do_save_spectral_flux
@@ -616,6 +621,7 @@ contains
 
     namelist /radiation/ do_sw, do_lw, do_sw_direct, &
          &  do_3d_effects, do_lw_side_emissivity, do_clear, &
+         &  n_angles_per_hemisphere_lw, &
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
@@ -655,6 +661,7 @@ contains
     do_3d_effects = this%do_3d_effects
     do_3d_lw_multilayer_effects = this%do_3d_lw_multilayer_effects
     do_lw_side_emissivity = this%do_lw_side_emissivity
+    n_angles_per_hemisphere_lw = this%n_angles_per_hemisphere_lw
     do_clear = this%do_clear
     do_lw_aerosol_scattering = this%do_lw_aerosol_scattering
     do_lw_cloud_scattering = this%do_lw_cloud_scattering
@@ -792,6 +799,7 @@ contains
     this%do_3d_effects = do_3d_effects
     this%do_3d_lw_multilayer_effects = do_3d_lw_multilayer_effects
     this%do_lw_side_emissivity = do_lw_side_emissivity
+    this%n_angles_per_hemisphere_lw = n_angles_per_hemisphere_lw
     this%use_expm_everywhere = use_expm_everywhere
     this%use_aerosols = use_aerosols
     this%do_lw_cloud_scattering = do_lw_cloud_scattering
@@ -1289,6 +1297,11 @@ contains
           call print_real('    Overhang factor', &
                &   'overhang_factor', this%overhang_factor)
         end if
+      else if (this%i_solver_lw == ISolverTCRAD) then
+        write(nulout, '(a)') '  TCRAD options:'
+        call print_integer('    Number of regions', 'n_regions', this%nregions)
+        call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &
+             &  this%n_angles_per_hemisphere_lw)
       end if
             
     end if

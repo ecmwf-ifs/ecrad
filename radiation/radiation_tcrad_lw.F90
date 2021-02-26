@@ -112,7 +112,8 @@ contains
              &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
              &         cloud%overlap_param(jcol,:), &
              &         flux_up, flux_dn, &
-             &         n_stream_per_hem=config%n_stream_per_hem_lw, do_3d=config%do_3d_effects)
+             &         n_stream_per_hem=config%n_angles_per_hemisphere_lw, &
+             &         do_3d=config%do_3d_effects)
       else
         ! Assume that the optical depth of clouds is the absorption
         ! optical depth
@@ -122,7 +123,8 @@ contains
              &         od(:,:,jcol), od_cloud_regrid, &
              &         cloud%overlap_param(jcol,:), &
              &         flux_up, flux_dn, &
-             &         n_stream_per_hem=config%n_stream_per_hem_lw, do_3d=config%do_3d_effects)
+             &         n_stream_per_hem=config%n_angles_per_hemisphere_lw, &
+             &         do_3d=config%do_3d_effects)
 
       end if
 

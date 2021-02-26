@@ -388,9 +388,6 @@ contains
 
     if (lhook) call dr_hook('tcrad_two_stream:calc_no_scattering_radiance_source',1,hook_handle)
 
-
-
-
   end subroutine calc_no_scattering_radiance_source
 
 end module tcrad_two_stream
