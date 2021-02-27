@@ -59,14 +59,18 @@ pure function calc_alpha_overlap_matrix(op, op_inhom, &
   
   ! Clear in both layers
   overlap_matrix(1,1) = 1.0_jprb - pair_cloud_cover
-  if (NREGION == 2) then
+
+#if NUM_REGIONS == 2
+
     ! Clear in upper layer, cloudy in lower layer
     overlap_matrix(1,2) = pair_cloud_cover - cf_upper
     ! Clear in lower layer, cloudy in upper layer
     overlap_matrix(2,1) = pair_cloud_cover - cf_lower
     ! Cloudy in both layers
     overlap_matrix(2,2) = cf_upper + cf_lower - pair_cloud_cover
-  else
+
+#else
+
     ! Clear in upper layer, cloudy in lower layer
     one_over_cf = 1.0_jprb / max(cf_lower, 1.0e-6_jprb)
     overlap_matrix(1,2) = (pair_cloud_cover - cf_upper) &
@@ -97,7 +101,8 @@ pure function calc_alpha_overlap_matrix(op, op_inhom, &
     overlap_matrix(2,3) = frac_both * (pair_cloud_cover - cf_upper)
     overlap_matrix(3,2) = frac_both * (pair_cloud_cover - cf_lower)
     overlap_matrix(3,3) = frac_both * (cf_upper+cf_lower-pair_cloud_cover)
-  end if
+
+#endif
 
 end function calc_alpha_overlap_matrix
 

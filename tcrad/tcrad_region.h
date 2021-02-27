@@ -13,18 +13,71 @@
 ! Email:   r.j.hogan@ecmwf.int
 !
 
-#if NUM_REGIONS == 3
+#if NUM_REGIONS == 2
 
 !---------------------------------------------------------------------
-! Compute the optical depth scalings for the optically "thick" and
-! "thin" regions of a Tripleclouds representation of a sub-grid PDF of
-! cloud optical depth. Following Shonk and Hogan (2008), the 16th
-! percentile is used for the thin region, and the formulas estimate
-! this for both lognormal and gamma distributions. However, an
-! adjustment is needed for the gamma distribution at large fractional
-! standard deviations.
-subroutine calc_region_properties(nlev, do_gamma, &
-     &  cloud_fraction, frac_std, reg_fracs, od_scaling, cloud_fraction_threshold)
+! Compute the region fractions and the (trivial) optical depth scaling
+! for the case of only two regions (one clear and one cloudy)
+subroutine calc_region_properties(nlev, &
+     &  cloud_fraction, reg_fracs, od_scaling, cloud_fraction_threshold)
+
+  use parkind1,     only : jprb
+  use yomhook,      only : lhook, dr_hook
+
+  ! Number of levels and regions
+  integer, intent(in) :: nlev
+  
+  ! Cloud fraction, i.e. the fraction of the gridbox assigned to all
+  ! regions numbered 2 and above (region 1 is clear sky)
+  real(jprb), intent(in), dimension(:)  :: cloud_fraction ! (nlev)
+
+  ! Fractional area coverage of each region
+  real(jprb), intent(out) :: reg_fracs(1:NREGION,nlev)
+
+  ! Optical depth scaling for the cloudy regions
+  real(jprb), intent(out) :: od_scaling(2:NREGION,nlev)
+
+  ! Regions smaller than this are ignored
+  real(jprb), intent(in), optional :: cloud_fraction_threshold
+  
+  ! In case the user doesn't supply cloud_fraction_threshold we use
+  ! a default value
+  real(jprb) :: frac_threshold
+  
+  ! Loop indices
+  integer :: jlev
+  
+  real(jprb) :: hook_handle
+
+  if (lhook) call dr_hook('tcrad:calc_region_properties',0,hook_handle)
+
+  if (present(cloud_fraction_threshold)) then
+    frac_threshold = cloud_fraction_threshold
+  else
+    frac_threshold = 1.0e-20_jprb
+  end if
+  ! Only one clear-sky and one cloudy region: cloudy region is
+  ! homogeneous
+  reg_fracs(2,1:nlev)  = cloud_fraction
+  reg_fracs(1,1:nlev)  = 1.0_jprb - reg_fracs(2,1:nlev)
+  od_scaling(2,1:nlev) = 1.0_jprb
+
+end subroutine calc_region_properties
+
+
+#elif NUM_REGIONS == 3
+
+!---------------------------------------------------------------------
+! Compute the region fractions and the optical depth scalings for the
+! optically "thick" and "thin" regions of a Tripleclouds
+! representation of a sub-grid PDF of cloud optical depth. Following
+! Shonk and Hogan (2008), the 16th percentile is used for the thin
+! region, and the formulas estimate this for both lognormal and gamma
+! distributions. However, an adjustment is needed for the gamma
+! distribution at large fractional standard deviations.
+subroutine calc_region_properties(nlev, &
+     &  cloud_fraction, do_gamma, frac_std, &
+     &  reg_fracs, od_scaling, cloud_fraction_threshold)
 
   use parkind1,     only : jprb
   use yomhook,      only : lhook, dr_hook
@@ -154,7 +207,7 @@ end subroutine calc_region_properties
 
 #else
 
-#error calc_region_properties only defined for 3 regions
+#error "calc_region_properties only defined for 2 or 3 regions"
 
 #endif
 

@@ -23,7 +23,11 @@
 ! using the classic Tripleclouds solver alone, or using it to compute
 ! the source function for subsequent radiance calculations.
 subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
-     &  cloud_fraction, fractional_std, od_clear, od_cloud, &
+     &  cloud_fraction, &
+#if NUM_REGIONS == 3
+     &  fractional_std, &
+#endif
+     &  od_clear, od_cloud, &
      &  ssa_cloud, asymmetry_cloud, &
      &  overlap_param, flux_up, flux_dn, n_angles_per_hem, do_3d_effects, &
      &  cloud_cover)
@@ -52,11 +56,15 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! black-body surface)
   real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
 
-  ! Profiles of cloud fraction and the fractional standard deviation
-  ! (i.e. standard deviation divided by mean) of the horizontal
-  ! in-cloud water content (or cloud extinction coefficient)
-  ! distribution.
-  real(jprb), intent(in), dimension(nlev)  :: cloud_fraction, fractional_std
+  ! Profile of cloud fraction 
+  real(jprb), intent(in), dimension(nlev) :: cloud_fraction
+
+#if NUM_REGIONS == 3
+  ! Profile of the fractional standard deviation (i.e. standard
+  ! deviation divided by mean) of the horizontal in-cloud water
+  ! content (or cloud extinction coefficient) distribution.
+  real(jprb), intent(in), dimension(nlev) :: fractional_std
+#endif
 
   ! Layer optical depth of gas and aerosol
   real(jprb), intent(in), dimension(nspec,nlev) :: od_clear
@@ -167,8 +175,11 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
 
   ! Compute the wavelength-independent region fractions and
   ! optical-depth scalings
-  call calc_region_properties(nlev, &
-       &  .true., cloud_fraction, fractional_std, region_fracs, &
+  call calc_region_properties(nlev, cloud_fraction, &
+#if NUM_REGIONS == 3
+       &  .true., fractional_std, &
+#endif
+       &  region_fracs, &
        &  od_scaling, cloud_fraction_threshold)
 
   ! Compute wavelength-independent overlap matrices u_overlap and
@@ -262,7 +273,11 @@ end subroutine calc_flux
 ! Compute the flux profile neglecting the effects of scattering, via
 ! a number of radiance calculations
 subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
-     &  cloud_fraction, fractional_std, od_clear, od_cloud, &
+     &  cloud_fraction, &
+#if NUM_REGIONS == 3
+     &  fractional_std, &
+#endif
+     &  od_clear, od_cloud, &
      &  overlap_param, flux_up, flux_dn, n_angles_per_hem, do_3d_effects, &
      &  cloud_cover)
 
@@ -290,11 +305,15 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
   ! black-body surface)
   real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
 
-  ! Profiles of cloud fraction and the fractional standard deviation
-  ! (i.e. standard deviation divided by mean) of the horizontal
-  ! in-cloud water content (or cloud extinction coefficient)
-  ! distribution.
-  real(jprb), intent(in), dimension(nlev)  :: cloud_fraction, fractional_std
+  ! Profile of cloud fraction 
+  real(jprb), intent(in), dimension(nlev) :: cloud_fraction
+
+#if NUM_REGIONS == 3
+  ! Profile of the fractional standard deviation (i.e. standard
+  ! deviation divided by mean) of the horizontal in-cloud water
+  ! content (or cloud extinction coefficient) distribution.
+  real(jprb), intent(in), dimension(nlev) :: fractional_std
+#endif
 
   ! Layer optical depth of gas and aerosol
   real(jprb), intent(in), dimension(nspec,nlev) :: od_clear
@@ -395,8 +414,11 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
 
   ! Compute the wavelength-independent region fractions and
   ! optical-depth scalings
-  call calc_region_properties(nlev, &
-       &  .true., cloud_fraction, fractional_std, region_fracs, &
+  call calc_region_properties(nlev, cloud_fraction, &
+#if NUM_REGIONS == 3
+       &  .true., fractional_std, &
+#endif
+       &  region_fracs, &
        &  od_scaling, cloud_fraction_threshold)
 
   ! Compute wavelength-independent overlap matrices u_overlap and

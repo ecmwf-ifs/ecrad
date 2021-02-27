@@ -33,7 +33,10 @@ contains
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type, indexed_sum_profile
     use radiation_cloudless_lw, only   : solver_cloudless_lw
-    use tcrad_3region_solver, only     : calc_flux, calc_no_scattering_flux
+    use tcrad_2region_solver, only     : calc_flux_2region => calc_flux, &
+         &                               calc_no_scattering_flux_2region => calc_no_scattering_flux
+    use tcrad_3region_solver, only     : calc_flux_3region => calc_flux, &
+         &                               calc_no_scattering_flux_3region => calc_no_scattering_flux
 
     implicit none
 
@@ -106,28 +109,48 @@ contains
       if (config%do_lw_cloud_scattering) then
         ssa_cloud_regrid = ssa_cloud(config%i_band_from_reordered_g_lw,:,jcol)
         g_cloud_regrid   = g_cloud(config%i_band_from_reordered_g_lw,:,jcol)
-
-        call calc_flux(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), planck_hl(:,:,jcol), &
-             &         cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
-             &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
-             &         cloud%overlap_param(jcol,:), &
-             &         flux_up, flux_dn, &
-             &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
-             &         do_3d_effects=config%do_3d_effects, &
-             &         cloud_cover=flux%cloud_cover_lw(jcol))
+        if (config%nregions == 2) then
+          call calc_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+               &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
+               &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+               &         cloud%overlap_param(jcol,:), &
+               &         flux_up, flux_dn, &
+               &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+               &         do_3d_effects=config%do_3d_effects, &
+               &         cloud_cover=flux%cloud_cover_lw(jcol))
+        else
+          call calc_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+               &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+               &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+               &         cloud%overlap_param(jcol,:), &
+               &         flux_up, flux_dn, &
+               &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+               &         do_3d_effects=config%do_3d_effects, &
+               &         cloud_cover=flux%cloud_cover_lw(jcol))
+        end if
       else
         ! Assume that the optical depth of clouds is the absorption
         ! optical depth
-        call calc_no_scattering_flux(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
-             &         planck_hl(:,:,jcol), &
-             &         cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
-             &         od(:,:,jcol), od_cloud_regrid, &
-             &         cloud%overlap_param(jcol,:), &
-             &         flux_up, flux_dn, &
-             &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
-             &         do_3d_effects=config%do_3d_effects, &
-             &         cloud_cover=flux%cloud_cover_lw(jcol))
-
+        if (config%nregions == 2) then
+          call calc_no_scattering_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+               &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
+               &         od(:,:,jcol), od_cloud_regrid, &
+               &         cloud%overlap_param(jcol,:), &
+               &         flux_up, flux_dn, &
+               &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+               &         do_3d_effects=config%do_3d_effects, &
+               &         cloud_cover=flux%cloud_cover_lw(jcol))
+        else
+          call calc_no_scattering_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+               &         planck_hl(:,:,jcol), &
+               &         cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+               &         od(:,:,jcol), od_cloud_regrid, &
+               &         cloud%overlap_param(jcol,:), &
+               &         flux_up, flux_dn, &
+               &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+               &         do_3d_effects=config%do_3d_effects, &
+               &         cloud_cover=flux%cloud_cover_lw(jcol))
+        end if
       end if
 
       flux%lw_up(jcol,:) = sum(flux_up,1)
