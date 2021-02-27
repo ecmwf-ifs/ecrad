@@ -1,4 +1,4 @@
-! tcrad_flux.h - Fluxes in multi-region atmospheric profile -*- f90 -*-
+! tcrad_two_stream_flux.h - Fluxes in multi-region atmospheric profile -*- f90 -*-
 !
 ! (C) Copyright 2014- ECMWF.
 !
@@ -23,7 +23,7 @@
 ! layer sources, and precomputed upward and downward cloud overlap
 ! matrices, using the Tripleclouds two-stream method of Shonk and
 ! Hogan (2008).
-subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
+subroutine calc_two_stream_flux(nspec, nlev, surf_emission, surf_albedo, &
      &  reflectance, transmittance, source_up, source_dn, &
      &  is_cloud_free_layer, u_overlap, v_overlap, &
      &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top)
@@ -97,7 +97,7 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
 
   real(jprb) :: hook_handle
 
-  if (lhook) call dr_hook('tcrad:calc_multiregion_flux',0,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_two_stream_flux',0,hook_handle)
 
   ! --------------------------------------------------------
   ! Section 1: Prepare variables and arrays
@@ -274,8 +274,8 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
 
   end do
 
-  if (lhook) call dr_hook('tcrad:calc_multiregion_flux',1,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_two_stream_flux',1,hook_handle)
 
-end subroutine calc_multiregion_flux
+end subroutine calc_two_stream_flux
 
 

@@ -27,7 +27,7 @@
 ! any existing radiance profile, useful if used as part of a
 ! multi-stream flux calculation, e.g. the delta-2-plus-4 method of Fu
 ! et al. (1997).
-subroutine calc_multiregion_radiance_up(nspec, nlev, &
+subroutine calc_radiance_up(nspec, nlev, &
      &  weight, surf_up, &
      &  transmittance, source_up, u_overlap, radiance_up)
 
@@ -75,7 +75,7 @@ subroutine calc_multiregion_radiance_up(nspec, nlev, &
 
   real(jprb) :: hook_handle
 
-  if (lhook) call dr_hook('tcrad:calc_multiregion_radiance_up',0,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_radiance_up',0,hook_handle)
 
   ! Set surface upward radiance
   radiance_base = weight * surf_up
@@ -93,9 +93,9 @@ subroutine calc_multiregion_radiance_up(nspec, nlev, &
     radiance_up(:,jlev) = radiance_up(:,jlev) + sum(radiance_base,2)
   end do
 
-  if (lhook) call dr_hook('tcrad:calc_multiregion_radiance_up',1,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_radiance_up',1,hook_handle)
 
-end subroutine calc_multiregion_radiance_up
+end subroutine calc_radiance_up
 
 
 !---------------------------------------------------------------------
@@ -108,7 +108,7 @@ end subroutine calc_multiregion_radiance_up
 ! any existing radiance profile, useful if used as part of a
 ! multi-stream flux calculation, e.g. the delta-2-plus-4 method of Fu
 ! et al. (1997).
-subroutine calc_multiregion_radiance_dn(nspec, nlev, &
+subroutine calc_radiance_dn(nspec, nlev, &
      &  weight, transmittance, source_dn, v_overlap, radiance_dn)
 
   use parkind1, only           : jpim, jprb
@@ -152,7 +152,7 @@ subroutine calc_multiregion_radiance_dn(nspec, nlev, &
 
   real(jprb) :: hook_handle
 
-  if (lhook) call dr_hook('tcrad:calc_multiregion_radiance_dn',0,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_radiance_dn',0,hook_handle)
 
   ! Start with zero at TOA
   radiance_top = 0.0_jprb
@@ -166,7 +166,6 @@ subroutine calc_multiregion_radiance_dn(nspec, nlev, &
     radiance_dn(:,jlev+1) = radiance_dn(:,jlev+1) + sum(radiance_top,2)
   end do
 
-  if (lhook) call dr_hook('tcrad:calc_multiregion_radiance_dn',1,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_radiance_dn',1,hook_handle)
 
-end subroutine calc_multiregion_radiance_dn
-
+end subroutine calc_radiance_dn

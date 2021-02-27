@@ -1,4 +1,4 @@
-! tcrad_two_stream.F90 - Two-stream and related layer solutions for TCRAD package
+! tcrad_layer_solutions.F90 - Two-stream and related layer solutions for TCRAD package
 !
 ! (C) Copyright 2014- ECMWF.
 !
@@ -13,7 +13,7 @@
 ! Email:   r.j.hogan@ecmwf.int
 !
 
-module tcrad_two_stream
+module tcrad_layer_solutions
 
   use parkind1, only : jpim, jprb
 
@@ -530,4 +530,4 @@ contains
 
   end subroutine calc_no_scattering_radiance_source
 
-end module tcrad_two_stream
+end module tcrad_layer_solutions

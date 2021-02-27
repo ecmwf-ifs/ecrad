@@ -16,9 +16,6 @@
 module tcrad_3region_solver
 
   use parkind1, only : jpim
-  use tcrad_two_stream, only : calc_reflectance_transmittance, &
-       &                       gauss_legendre
-
 
   ! By making the number of regions a parameter NREGION, the compiler
   ! can optimize better.  We also provide a preprocessor parameter as
@@ -38,7 +35,7 @@ contains
 
 #include "tcrad_overlap.h"
 
-#include "tcrad_flux.h"
+#include "tcrad_two_stream_flux.h"
 
 #include "tcrad_radiance.h"
 
@@ -56,8 +53,9 @@ contains
     
     use parkind1, only           : jpim, jprb
     use yomhook,  only           : lhook, dr_hook
-    use tcrad_two_stream, only   : calc_reflectance_transmittance, &
-         &  calc_radiance_source, LW_DIFFUSIVITY, MAX_GAUSS_LEGENDRE_POINTS
+    use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
+         &  calc_radiance_source, gauss_legendre, &
+         &  LW_DIFFUSIVITY, MAX_GAUSS_LEGENDRE_POINTS
 
     implicit none
 
@@ -232,7 +230,7 @@ contains
          &  reflectance, transmittance, source_up, source_dn)
 
     ! Classic Tripleclouds method to compute flux profile
-    call calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
+    call calc_two_stream_flux(nspec, nlev, surf_emission, surf_albedo, &
          &  reflectance, transmittance, source_up, source_dn, &
          &  is_cloud_free_layer, u_overlap, v_overlap, &
          &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top)
@@ -262,10 +260,10 @@ contains
              &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
              &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
              &  transmittance, source_up, source_dn)
-        call calc_multiregion_radiance_dn(nspec, nlev, &
+        call calc_radiance_dn(nspec, nlev, &
              &  weight, &
              &  transmittance, source_dn, v_overlap, flux_dn)
-        call calc_multiregion_radiance_up(nspec, nlev, &
+        call calc_radiance_up(nspec, nlev, &
              &  weight, flux_up_base(:,:,nlev), &
              &  transmittance, source_up, u_overlap, flux_up)
       end do
@@ -293,9 +291,9 @@ contains
     
     use parkind1, only           : jpim, jprb
     use yomhook,  only           : lhook, dr_hook
-    use tcrad_two_stream, only   : calc_reflectance_transmittance, &
+    use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
          &  calc_radiance_source, calc_no_scattering_radiance_source, &
-         &  LW_DIFFUSIVITY, MAX_GAUSS_LEGENDRE_POINTS
+         &  gauss_legendre, LW_DIFFUSIVITY, MAX_GAUSS_LEGENDRE_POINTS
 
     implicit none
 
@@ -462,10 +460,10 @@ contains
            &  transmittance, source_up, source_dn)
       ! Radiances are computed in pairs: up and down with same
       ! absolute zenith angle
-      call calc_multiregion_radiance_dn(nspec, nlev, &
+      call calc_radiance_dn(nspec, nlev, &
            &  weight_list(jstream), &
            &  transmittance, source_dn, v_overlap, flux_dn)
-      call calc_multiregion_radiance_up(nspec, nlev, &
+      call calc_radiance_up(nspec, nlev, &
            &  weight_list(jstream), flux_up_surf, &
            &  transmittance, source_up, u_overlap, flux_up)
     end do
