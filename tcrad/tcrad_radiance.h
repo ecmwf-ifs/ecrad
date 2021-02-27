@@ -56,7 +56,7 @@ subroutine calc_multiregion_radiance_up(nspec, nlev, &
   ! radiance, which may include Planck emission, and scattering
   real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: source_up
 
-  ! Upward overlap matrix - see Shonk and Hogan (2008) for definition
+  ! Upward overlap matrix - see Hogan et al. (JGR 2016) for definition
   real(jprb), intent(in),  dimension(NREGION,NREGION,nlev+1) :: u_overlap
 
   ! Output

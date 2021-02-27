@@ -112,8 +112,9 @@ contains
              &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
              &         cloud%overlap_param(jcol,:), &
              &         flux_up, flux_dn, &
-             &         n_stream_per_hem=config%n_angles_per_hemisphere_lw, &
-             &         do_3d=config%do_3d_effects)
+             &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+             &         do_3d_effects=config%do_3d_effects, &
+             &         cloud_cover=flux%cloud_cover_lw(jcol))
       else
         ! Assume that the optical depth of clouds is the absorption
         ! optical depth
@@ -123,11 +124,11 @@ contains
              &         od(:,:,jcol), od_cloud_regrid, &
              &         cloud%overlap_param(jcol,:), &
              &         flux_up, flux_dn, &
-             &         n_stream_per_hem=config%n_angles_per_hemisphere_lw, &
-             &         do_3d=config%do_3d_effects)
+             &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+             &         do_3d_effects=config%do_3d_effects, &
+             &         cloud_cover=flux%cloud_cover_lw(jcol))
 
       end if
-
 
       flux%lw_up(jcol,:) = sum(flux_up,1)
       flux%lw_dn(jcol,:) = sum(flux_dn,1)

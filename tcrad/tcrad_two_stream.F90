@@ -15,7 +15,9 @@
 
 module tcrad_two_stream
 
-  use parkind1, only : jprb
+  use parkind1, only : jpim, jprb
+
+  implicit none
 
   ! Elsasser's factor: the effective factor by which the zenith
   ! optical depth needs to be multiplied to account for longwave
@@ -24,7 +26,41 @@ module tcrad_two_stream
   ! of longwave radiation.
   real(jprb), parameter :: LW_DIFFUSIVITY = 1.66_jprb
 
+  integer(jpim), parameter :: MAX_GAUSS_LEGENDRE_POINTS = 4
+
 contains
+
+  !---------------------------------------------------------------------
+  ! Return Gauss-Legendre quadrature points
+  subroutine gauss_legendre(npoint, xpoint, weight)
+
+    integer(jpim), intent(in)  :: npoint
+    real(jprb),    intent(out) :: xpoint(:), weight(:)
+
+    ! Set default values
+    xpoint = 0.5_jprb
+    weight = 0.0_jprb
+
+    if (npoint <= 1) then
+      xpoint(1) = 0.5_jprb
+      weight(1) = 1.0_jprb
+    else if (npoint == 2) then
+      xpoint(1:2) = [0.211324865405187_jprb, 0.788675134594813_jprb]
+      weight(1:2) = [0.5_jprb, 0.5_jprb]
+    else if (npoint == 3) then
+      xpoint(1:3) = [0.112701665379258_jprb, 0.5_jprb, &
+           &         0.887298334620742_jprb]
+      weight(1:3) = [0.277777777777777_jprb, 0.444444444444444_jprb, &
+           &         0.277777777777777_jprb]
+    else
+      xpoint(1:4) = [0.0694318442029737_jprb, 0.330009478207572_jprb, &
+           &         0.669990521792428_jprb,  0.930568155797026_jprb]
+      weight(1:4) = [0.173927422568727_jprb, 0.326072577431273_jprb, &
+           &         0.326072577431273_jprb, 0.173927422568727_jprb]
+    end if
+
+  end subroutine gauss_legendre
+
 
   !---------------------------------------------------------------------
   ! Compute the longwave reflectance and transmittance to diffuse
@@ -36,10 +72,7 @@ contains
        &  region_fracs, planck_hl, od, ssa, asymmetry, &
        &  reflectance, transmittance, source_up, source_dn)
         
-    use parkind1, only           : jpim, jprb
     use yomhook,  only           : lhook, dr_hook
-
-    implicit none
 
     ! Inputs
 
@@ -201,10 +234,7 @@ contains
        &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
        &  transmittance, source_up, source_dn)
     
-    use parkind1, only           : jpim, jprb
     use yomhook,  only           : lhook, dr_hook
-
-    implicit none
 
     ! Inputs
 
@@ -389,10 +419,7 @@ contains
        &  mu, region_fracs, planck_hl, od, &
        &  transmittance, source_up, source_dn)
       
-    use parkind1, only           : jpim, jprb
     use yomhook,  only           : lhook, dr_hook
-
-    implicit none
 
     ! Inputs
 
