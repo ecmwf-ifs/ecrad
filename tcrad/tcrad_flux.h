@@ -1,6 +1,6 @@
 ! tcrad_flux.h - Fluxes in multi-region atmospheric profile -*- f90 -*-
 !
-! (C) Copyright 2021- ECMWF.
+! (C) Copyright 2014- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -12,17 +12,21 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
-! This file is included in the modules specifying the NREGION
-! parameter (typically 2 or 3) which makes this routine use a
-! "doubleclouds" or "tripleclouds" assumption.
+! This file is included in modules specifying the NREGION parameter
+! (typically 2 or 3) which makes this routine use a "doubleclouds" or
+! "tripleclouds" assumption.
 !
 
-
+!---------------------------------------------------------------------
+! Compute fluxes at top and base of each layer and region from
+! precomputed layer transmittance, reflectance and upward/downward
+! layer sources, and precomputed upward and downward cloud overlap
+! matrices, using the Tripleclouds two-stream method of Shonk and
+! Hogan (2008).
 subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
      &  reflectance, transmittance, source_up, source_dn, &
      &  is_cloud_free_layer, u_overlap, v_overlap, &
      &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top)
-
 
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook
@@ -34,19 +38,35 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
   ! Number of spectral intervals and levels
   integer(jpim), intent(in) :: nspec, nlev
 
+  ! Surface upwards emission, in W m-2 (i.e. emissivity multiplied by
+  ! Planck function at the surface skin temperature) integrated across
+  ! each spectral interval, and albedo in the same intervals
   real(jprb), intent(in),  dimension(nspec) :: surf_emission, surf_albedo
   
+  ! Reflectance and transmittance of each layer and region
   real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: reflectance
   real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: transmittance
+
+  ! Rate of emission upward from the top of a layer and downwards from
+  ! its base, due to emission within the layer, in Watts of power per
+  ! square metre of the entire gridbox, so the energy is scaled by the
+  ! size of each region
   real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: source_up
   real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: source_dn
 
+  ! Where are the cloud free layers?  Includes dummy layers at 0 and
+  ! nlev+1 which are also cloud free
   logical,    intent(in) :: is_cloud_free_layer(0:nlev+1)
 
+  ! U and V overlap matrices, defined by Shonk and Hogan (2008)
   real(jprb), intent(in),  dimension(NREGION,NREGION,nlev+1) :: u_overlap, v_overlap
   
   ! Outputs
 
+  ! Upwelling and downwelling fluxes at the top and base of each layer
+  ! in the regions of that layer, in Watts of power per square metre
+  ! of the entire gridbox, so the energy is scaled by the size of each
+  ! region
   real(jprb), intent(out), dimension(nspec,NREGION,nlev) :: flux_up_base, flux_dn_base
   real(jprb), intent(out), dimension(nspec,NREGION,nlev) :: flux_up_top, flux_dn_top
   
@@ -77,7 +97,7 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
 
   real(jprb) :: hook_handle
 
-  if (lhook) call dr_hook('calc_multiregion_flux',0,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_multiregion_flux',0,hook_handle)
 
   ! --------------------------------------------------------
   ! Section 1: Prepare variables and arrays
@@ -128,7 +148,7 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
 
   ! Work up from the surface computing the total albedo of the
   ! atmosphere and the total upwelling due to emission below each
-  ! level below using the adding method
+  ! level below using the Adding Method
   do jlev = nlev,icloudtop,-1
     total_albedo_below = 0.0_jprb
 
@@ -254,7 +274,7 @@ subroutine calc_multiregion_flux(nspec, nlev, surf_emission, surf_albedo, &
 
   end do
 
-  if (lhook) call dr_hook('calc_multiregion_flux',1,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_multiregion_flux',1,hook_handle)
 
 end subroutine calc_multiregion_flux
 

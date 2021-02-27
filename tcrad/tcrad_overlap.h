@@ -12,6 +12,10 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
+! This file is included in modules specifying the NREGION parameter
+! (typically 2 or 3) which makes this routine use a "doubleclouds" or
+! "tripleclouds" assumption.
+!
 
 !---------------------------------------------------------------------
 ! Calculate a matrix expressing the overlap of regions in adjacent
@@ -97,6 +101,7 @@ pure function calc_alpha_overlap_matrix(op, op_inhom, &
 
 end function calc_alpha_overlap_matrix
 
+
 !---------------------------------------------------------------------
 ! Compute the upward and downward overlap matrices u_overlap and
 ! v_overlap, respectively, where u_overlap is defined such that
@@ -164,7 +169,7 @@ subroutine calc_overlap_matrices(nlev, &
 
   real(jprb) :: hook_handle
 
-  if (lhook) call dr_hook('calc_overlap_',0,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_overlap_matrices',0,hook_handle)
 
   if (present(decorrelation_scaling)) then
     used_decorrelation_scaling = decorrelation_scaling
@@ -248,7 +253,7 @@ subroutine calc_overlap_matrices(nlev, &
     cloud_cover = 1.0_jprb - product(v_overlap(1,1,:))
   end if
   
-  if (lhook) call dr_hook('calc_overlap_matrices',1,hook_handle)
+  if (lhook) call dr_hook('tcrad:calc_overlap_matrices',1,hook_handle)
   
 end subroutine calc_overlap_matrices
   

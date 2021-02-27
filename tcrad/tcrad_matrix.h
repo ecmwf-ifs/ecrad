@@ -12,9 +12,9 @@
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
-! This file is included in the modules specifying the NREGION
-! parameter (typically 2 or 3) which makes this routine use a
-! "doubleclouds" or "tripleclouds" assumption.
+! This file is included in modules specifying the NREGION parameter
+! (typically 2 or 3) which makes this routine use a "doubleclouds" or
+! "tripleclouds" assumption.
 !
 
 !---------------------------------------------------------------------
