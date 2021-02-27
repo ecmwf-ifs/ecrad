@@ -17,4 +17,5 @@ clean:
 tcrad_3region_solver.o: tcrad_layer_solutions.o
 
 tcrad_3region_solver.o: tcrad_matrix.h tcrad_two_stream_flux.h \
-	tcrad_radiance.h tcrad_overlap.h tcrad_region.h
+	tcrad_radiance.h tcrad_overlap.h tcrad_region.h \
+	tcrad_flux_interface.h
