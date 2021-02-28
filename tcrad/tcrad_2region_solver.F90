@@ -41,6 +41,8 @@ contains
 
 #include "tcrad_flux_interface.h"
 
+#include "tcrad_radiance_interface.h"
+
 #undef NUM_REGIONS
 
 end module tcrad_2region_solver
