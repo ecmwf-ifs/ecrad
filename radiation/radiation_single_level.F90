@@ -82,6 +82,10 @@ module radiation_single_level
     !logical :: use_full_spectrum_sw = .false.
     !logical :: use_full_spectrum_lw = .true.
 
+    ! Cosine of the sensor zenith angle for radiance calculations
+    real(jprb), allocatable, dimension(:) :: &
+         &   cos_sensor_zenith_angle ! (ncol)
+
   contains
     procedure :: allocate   => allocate_single_level
     procedure :: deallocate => deallocate_single_level
@@ -95,14 +99,15 @@ contains
   
   !---------------------------------------------------------------------
   subroutine allocate_single_level(this, ncol, nalbedobands, nemisbands, &
-       &                           use_sw_albedo_direct, is_simple_surface)
+       &                           use_sw_albedo_direct, is_simple_surface, &
+       &                           do_radiances)
 
     use yomhook, only : lhook, dr_hook
 
     class(single_level_type), intent(inout) :: this
     integer,                  intent(in)    :: ncol, nalbedobands, nemisbands
     logical,        optional, intent(in)    :: use_sw_albedo_direct
-    logical,        optional, intent(in)    :: is_simple_surface
+    logical,        optional, intent(in)    :: is_simple_surface, do_radiances
 
     real(jprb) :: hook_handle
 
@@ -134,6 +139,12 @@ contains
     end if
 
     allocate(this%iseed(ncol))
+
+    if (present(do_radiances)) then
+      if (do_radiances) then
+        allocate(this%cos_sensor_zenith_angle(ncol))
+      end if
+    end if
 
     if (lhook) call dr_hook('radiation_single_level:allocate',1,hook_handle)
 
@@ -174,6 +185,9 @@ contains
     end if
     if (allocated(this%iseed)) then
       deallocate(this%iseed)
+    end if
+    if (allocated(this%cos_sensor_zenith_angle)) then
+      deallocate(this%cos_sensor_zenith_angle)
     end if
 
     if (lhook) call dr_hook('radiation_single_level:deallocate',1,hook_handle)

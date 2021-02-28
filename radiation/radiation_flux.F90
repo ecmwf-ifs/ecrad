@@ -91,9 +91,15 @@ module radiation_flux
      real(jprb), allocatable, dimension(:,:) :: &
           &  lw_derivatives
 
+     ! if do_radiances==true then instead of storing fluxes we store
+     ! radiances in one particular direction per profile, either per
+     ! band or per g-point, dimensioned (nspec,ncol)
+     real(jprb), allocatable, dimension(:,:) :: lw_radiance_band
+
    contains
      procedure :: allocate   => allocate_flux_type
      procedure :: deallocate => deallocate_flux_type
+     procedure :: allocate_radiances_only
      procedure :: calc_surface_spectral
      procedure :: out_of_physical_bounds
      procedure :: heating_rate_out_of_physical_bounds
@@ -320,9 +326,52 @@ contains
       deallocate(this%lw_derivatives)
     end if
 
+    if (allocated(this%lw_radiance_band)) then
+      deallocate(this%lw_radiance_band)
+    end if
+
     if (lhook) call dr_hook('radiation_flux:deallocate',1,hook_handle)
 
   end subroutine deallocate_flux_type
+
+
+  !---------------------------------------------------------------------
+  ! Allocate radiances only
+  subroutine allocate_radiances_only(this, config, istartcol, iendcol)
+
+    use yomhook,          only : lhook, dr_hook
+    use radiation_io,     only : nulerr, radiation_abort
+    use radiation_config, only : config_type
+
+    integer, intent(in)             :: istartcol, iendcol
+    class(flux_type), intent(inout) :: this
+    type(config_type), intent(in)   :: config
+
+    real(jprb)                      :: hook_handle
+
+    if (lhook) call dr_hook('radiation_flux:allocate_radiances_only',0,hook_handle)
+
+    ! Allocate longwave arrays
+    if (config%do_lw) then
+      if (config%n_spec_lw > 0) then
+        allocate(this%lw_radiance_band(config%n_spec_lw,istartcol:iendcol))
+      else
+        allocate(this%lw_radiance_band(config%n_bands_lw,istartcol:iendcol))
+      end if
+    end if
+
+    if (.not. allocated(this%cloud_cover_lw)) then
+      ! Allocate cloud cover array
+      allocate(this%cloud_cover_lw(istartcol:iendcol))
+      ! Some solvers may not write to cloud cover, so we initialize to
+      ! an unphysical value
+      this%cloud_cover_lw = -1.0_jprb
+    end if
+
+    if (lhook) call dr_hook('radiation_flux:allocate_radiances_only',1,hook_handle)
+
+  end subroutine allocate_radiances_only
+
 
   !---------------------------------------------------------------------
   ! Calculate surface downwelling fluxes in each band using the

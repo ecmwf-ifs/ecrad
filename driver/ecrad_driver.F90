@@ -48,7 +48,7 @@ program ecrad_driver
   use radiation_cloud,          only : cloud_type
   use radiation_aerosol,        only : aerosol_type
   use radiation_flux,           only : flux_type
-  use radiation_save,           only : save_fluxes, save_inputs
+  use radiation_save,           only : save_fluxes, save_inputs, save_radiances
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
@@ -256,7 +256,11 @@ program ecrad_driver
   ! Allocate memory for the flux profiles, which may include arrays
   ! of dimension n_bands_sw/n_bands_lw, so must be called after
   ! setup_radiation
-  call flux%allocate(config, 1, ncol, nlev)
+  if (config%do_radiances) then
+    call flux%allocate_radiances_only(config, 1, ncol)
+  else
+    call flux%allocate(config, 1, ncol, nlev)
+  end if
   
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -336,10 +340,17 @@ program ecrad_driver
 
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
-  ! Store the fluxes in the output file
-  call save_fluxes(file_name, config, thermodynamics, flux, &
-       &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
-       &   experiment_name=driver_config%experiment_name)
+  if (config%do_radiances) then
+    ! Store radiances in the output file
+    call save_radiances(file_name, config, single_level, flux, &
+         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+         &   experiment_name=driver_config%experiment_name)
+  else
+    ! Store the fluxes in the output file
+    call save_fluxes(file_name, config, thermodynamics, flux, &
+         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+         &   experiment_name=driver_config%experiment_name)
+  end if
     
   if (is_complex_surface) then
     ! Get NetCDF output file name for surface

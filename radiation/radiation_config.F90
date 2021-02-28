@@ -295,6 +295,11 @@ module radiation_config
 
     ! Do we include 3D effects?
     logical :: do_3d_effects = .true.
+
+    ! Do we compute radiances for simulating satellite or surface
+    ! radiometer observations, instead of fluxes?  Only available in
+    ! the longwave.
+    logical :: do_radiances = .false.
     
     ! To what extent do we include "entrapment" effects in the
     ! SPARTACUS solver? This essentially means that in a situation
@@ -582,7 +587,7 @@ contains
     ! To be read from the radiation_config namelist 
     logical :: do_sw, do_lw, do_clear, do_sw_direct
     logical :: do_3d_effects, use_expm_everywhere, use_aerosols
-    logical :: do_lw_side_emissivity
+    logical :: do_lw_side_emissivity, do_radiances
     integer :: n_angles_per_hemisphere_lw
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
@@ -620,7 +625,7 @@ contains
     integer :: iunit ! Unit number of namelist file
 
     namelist /radiation/ do_sw, do_lw, do_sw_direct, &
-         &  do_3d_effects, do_lw_side_emissivity, do_clear, &
+         &  do_3d_effects, do_lw_side_emissivity, do_clear, do_radiances, &
          &  n_angles_per_hemisphere_lw, &
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
@@ -659,6 +664,7 @@ contains
     do_lw = this%do_lw
     do_sw_direct = this%do_sw_direct
     do_3d_effects = this%do_3d_effects
+    do_radiances = this%do_radiances
     do_3d_lw_multilayer_effects = this%do_3d_lw_multilayer_effects
     do_lw_side_emissivity = this%do_lw_side_emissivity
     n_angles_per_hemisphere_lw = this%n_angles_per_hemisphere_lw
@@ -797,6 +803,7 @@ contains
     this%do_clear = do_clear
     this%do_sw_direct = do_sw_direct
     this%do_3d_effects = do_3d_effects
+    this%do_radiances = do_radiances
     this%do_3d_lw_multilayer_effects = do_3d_lw_multilayer_effects
     this%do_lw_side_emissivity = do_lw_side_emissivity
     this%n_angles_per_hemisphere_lw = n_angles_per_hemisphere_lw
@@ -1167,6 +1174,8 @@ contains
            &          this%i_gas_model)
       call print_logical('  Aerosols are', 'use_aerosols', this%use_aerosols)
       call print_logical('  Clouds are', 'do_clouds', this%do_clouds)
+      call print_logical('  Compute radiances instead of fluxes','do_radiances', &
+           &             this%do_radiances)
 
       !---------------------------------------------------------------------
       write(nulout, '(a)') 'Surface settings:'
@@ -1307,7 +1316,6 @@ contains
     end if
     
   end subroutine print_config
-
 
 
   !---------------------------------------------------------------------

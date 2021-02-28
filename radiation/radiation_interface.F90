@@ -199,7 +199,7 @@ contains
     use radiation_cloudless_lw,   only : solver_cloudless_lw
     use radiation_homogeneous_sw, only : solver_homogeneous_sw
     use radiation_homogeneous_lw, only : solver_homogeneous_lw
-    use radiation_tcrad_lw,       only : solver_tcrad_lw
+    use radiation_tcrad_lw,       only : solver_tcrad_lw, radiance_solver_tcrad_lw
     use radiation_save,           only : save_radiative_properties
 
     ! Treatment of gas and hydrometeor optics 
@@ -382,7 +382,15 @@ contains
           write(nulout,'(a)') 'Computing longwave fluxes'
         end if
 
-        if (config%i_solver_lw == ISolverMcICA) then
+        if (config%do_radiances) then
+          if (config%i_solver_lw == ISolverTcrad) then
+            ! Compute radiances using the TCRAD longwave solver
+            call radiance_solver_tcrad_lw(nlev,istartcol,iendcol, &
+                 &  config, cloud, single_level%cos_sensor_zenith_angle, & 
+                 &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+                 &  planck_hl, lw_emission, lw_albedo, flux)
+          end if
+        else if (config%i_solver_lw == ISolverMcICA) then
           ! Compute fluxes using the McICA longwave solver
           call solver_mcica_lw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 

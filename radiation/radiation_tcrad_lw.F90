@@ -174,4 +174,142 @@ contains
 
   end subroutine solver_tcrad_lw
 
+
+  subroutine radiance_solver_tcrad_lw(nlev,istartcol,iendcol, &
+       &  config, cloud, cos_sensor_zenith_angle, &
+       &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, planck_hl, &
+       &  emission, albedo, flux)
+
+    use parkind1, only           : jprb
+    use yomhook,  only           : lhook, dr_hook
+
+!    use radiation_io, only             : nulout
+    use radiation_config, only         : config_type, IPdfShapeGamma
+    use radiation_cloud, only          : cloud_type
+    use radiation_flux, only           : flux_type, indexed_sum
+    use radiation_cloudless_lw, only   : solver_cloudless_lw
+    use tcrad_2region_solver, only     : calc_radiance_2region => calc_radiance, &
+         &                               calc_no_scattering_radiance_2region => calc_no_scattering_radiance
+    use tcrad_3region_solver, only     : calc_radiance_3region => calc_radiance, &
+         &                               calc_no_scattering_radiance_3region => calc_no_scattering_radiance
+
+    implicit none
+
+    ! Inputs
+    integer, intent(in) :: nlev               ! number of model levels
+    integer, intent(in) :: istartcol, iendcol ! range of columns to process
+    type(config_type),        intent(in) :: config
+    type(cloud_type),         intent(in) :: cloud
+
+    real(jprb), intent(in) :: cos_sensor_zenith_angle(istartcol:iendcol)
+
+    ! Gas and aerosol optical depth of each layer at each longwave
+    ! g-point
+    real(jprb), intent(in), dimension(config%n_g_lw,nlev,istartcol:iendcol) :: od
+
+    ! Gas and aerosol single-scattering albedo and asymmetry factor,
+    ! only if longwave scattering by aerosols is to be represented
+    real(jprb), intent(in), &
+         &  dimension(config%n_g_lw_if_scattering,nlev,istartcol:iendcol) :: ssa, g
+
+    ! Cloud and precipitation optical depth of each layer in each
+    ! longwave band
+    real(jprb), intent(in) :: od_cloud(config%n_bands_lw,nlev,istartcol:iendcol)
+
+    ! Cloud and precipitation single-scattering albedo and asymmetry
+    ! factor, only if longwave scattering by clouds is to be
+    ! represented
+    real(jprb), intent(in), dimension(config%n_bands_lw_if_scattering, &
+         &                            nlev,istartcol:iendcol) :: ssa_cloud, g_cloud
+
+    ! Planck function (emitted flux from a black body) at half levels
+    ! and at the surface at each longwave g-point
+    real(jprb), intent(in), dimension(config%n_g_lw,nlev+1,istartcol:iendcol) :: planck_hl
+
+    ! Emission (Planck*emissivity) and albedo (1-emissivity) at the
+    ! surface at each longwave g-point
+    real(jprb), intent(in), dimension(config%n_g_lw, istartcol:iendcol) :: emission, albedo
+
+    ! Output
+    type(flux_type), intent(inout):: flux
+
+    ! Local variables
+
+    ! Regridded cloud properties
+    real(jprb), dimension(config%n_g_lw,nlev) :: od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid
+
+    real(jprb), dimension(config%n_g_lw) :: spectral_radiance
+
+    real(jprb) :: hook_handle
+
+    integer :: jcol
+
+    if (lhook) call dr_hook('radiation_tcrad_lw:radiance_solver_tcrad_lw',0,hook_handle)
+
+    if (.not. config%do_lw_cloud_scattering) then
+      ! FIX we have allocated memory that is not used
+      ssa_cloud_regrid = 0.0_jprb
+      g_cloud_regrid   = 0.0_jprb
+    end if
+
+    do jcol = istartcol,iendcol
+
+      od_cloud_regrid    = od_cloud(config%i_band_from_reordered_g_lw,:,jcol)
+      if (config%do_lw_cloud_scattering) then
+        ssa_cloud_regrid = ssa_cloud(config%i_band_from_reordered_g_lw,:,jcol)
+        g_cloud_regrid   = g_cloud(config%i_band_from_reordered_g_lw,:,jcol)
+        if (config%nregions == 2) then
+          call calc_radiance_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+               &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
+               &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+               &         cloud%overlap_param(jcol,:), &
+               &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+               &         do_3d_effects=config%do_3d_effects, &
+               &         cloud_cover=flux%cloud_cover_lw(jcol))
+        else
+          call calc_radiance_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+               &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+               &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+               &         cloud%overlap_param(jcol,:), &
+               &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+               &         do_3d_effects=config%do_3d_effects, &
+               &         cloud_cover=flux%cloud_cover_lw(jcol))
+        end if
+      else
+        ! Assume that the optical depth of clouds is the absorption
+        ! optical depth
+        if (config%nregions == 2) then
+          call calc_no_scattering_radiance_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+               &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
+               &         od(:,:,jcol), od_cloud_regrid, &
+               &         cloud%overlap_param(jcol,:), &
+               &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+               &         do_3d_effects=config%do_3d_effects, &
+               &         cloud_cover=flux%cloud_cover_lw(jcol))
+        else
+          call calc_no_scattering_radiance_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+               &         planck_hl(:,:,jcol), &
+               &         cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+               &         od(:,:,jcol), od_cloud_regrid, &
+               &         cloud%overlap_param(jcol,:), &
+               &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+               &         do_3d_effects=config%do_3d_effects, &
+               &         cloud_cover=flux%cloud_cover_lw(jcol))
+        end if
+      end if
+
+      if (config%do_save_spectral_flux) then
+        flux%lw_radiance_band(:,jcol) = spectral_radiance
+      else
+        call indexed_sum(spectral_radiance, &
+             &           config%i_band_from_reordered_g_lw, &
+             &           flux%lw_radiance_band(:,jcol))
+      end if
+     
+    end do
+
+    if (lhook) call dr_hook('radiation_tcrad_lw:radiance_solver_tcrad_lw',1,hook_handle)
+
+  end subroutine radiance_solver_tcrad_lw
+
 end module radiation_tcrad_lw

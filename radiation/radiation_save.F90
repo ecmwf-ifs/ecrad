@@ -406,6 +406,120 @@ contains
   
 
   !---------------------------------------------------------------------
+  ! Save radiances in "flux" to NetCDF file_name, plus
+  ! cos_sensor_zenith_angle from single_level object
+  subroutine save_radiances(file_name, config, single_level, flux, &
+       &                    iverbose, is_hdf5_file, experiment_name)
+
+    use yomhook,                  only : lhook, dr_hook
+
+    use easy_netcdf
+
+    use radiation_io,             only : nulout
+    use radiation_config,         only : config_type, IGasModelMonochromatic
+    use radiation_single_level,   only : single_level_type
+    use radiation_flux,           only : flux_type
+
+    character(len=*),           intent(in) :: file_name
+    type(config_type),          intent(in) :: config
+    type(single_level_type),    intent(in) :: single_level
+    type(flux_type),            intent(in) :: flux
+    integer,          optional, intent(in) :: iverbose
+    logical,          optional, intent(in) :: is_hdf5_file
+    character(len=*), optional, intent(in) :: experiment_name
+
+    type(netcdf_file)                      :: out_file
+    integer                                :: ncol, n_bands_lw
+    character(10), parameter               :: default_lw_units_str = 'W m-2 sr-1'
+    character(10)                          :: lw_units_str
+    integer                                :: i_local_verbose
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_save:save_radiances',0,hook_handle)
+    
+    if (present(iverbose)) then
+      i_local_verbose = iverbose
+    else
+      i_local_verbose = config%iverbose
+    end if
+
+    lw_units_str = default_lw_units_str
+
+    ncol = size(single_level%cos_sensor_zenith_angle)
+
+    ! Open the file
+    call out_file%create(trim(file_name), iverbose=i_local_verbose, is_hdf5_file=is_hdf5_file)
+    
+    ! Define dimensions
+    call out_file%define_dimension("column", ncol)
+
+    if (config%do_lw) then
+      n_bands_lw = size(flux%lw_radiance_band,1)
+      call out_file%define_dimension("band_lw", n_bands_lw)
+    end if
+
+   ! Put global attributes
+    call out_file%put_global_attributes( &
+         &   title_str="Radiances from the ecRad offline radiation model", &
+         &   references_str="Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation " &
+         &   //"scheme for the ECMWF model. J. Adv. Modeling Earth Sys., 10, 1990–2008", &
+         &   source_str="ecRad offline radiation model")
+
+    ! Save "experiment" global attribute if present and not empty
+    if (present(experiment_name)) then
+      if (experiment_name /= " ") then
+        call out_file%put_global_attribute("experiment", experiment_name)
+      end if
+    end if
+
+    ! Define variables
+    call out_file%define_variable("cos_sensor_zenith_angle", &
+         &  dim1_name="column", units_str="1", &
+         &  long_name="Cosine of the sensor zenith angle")
+
+    if (config%do_lw) then
+
+      if (.not. config%do_save_spectral_flux) then
+        call out_file%define_variable("wavenumber1_lw", &
+             &  dim1_name="band_lw", units_str="cm-1", &
+             &  long_name="Lower wavenumber of longwave band")
+        call out_file%define_variable("wavenumber2_lw", &
+             &  dim1_name="band_lw", units_str="cm-1", &
+             &  long_name="Upper wavenumber of longwave band")
+      end if
+
+      call out_file%define_variable("radiance_lw_band", &
+           &  dim2_name="column", dim1_name="band_lw", &
+           &  units_str=trim(lw_units_str), long_name="Radiance")
+      call out_file%define_variable("cloud_cover_lw", &
+           &  dim1_name="column", units_str="1", &
+           &  long_name="Total cloud cover diagnosed by longwave solver", &
+           &  standard_name="cloud_area_fraction")
+    end if
+
+    ! Write variables
+    call out_file%put("cos_sensor_zenith_angle", single_level%cos_sensor_zenith_angle)
+    
+    if (config%do_lw) then
+      if (.not. config%do_save_spectral_flux) then
+        call out_file%put("wavenumber1_lw", config%wavenumber1_lw)
+        call out_file%put("wavenumber2_lw", config%wavenumber2_lw)
+      end if
+
+      call out_file%put("radiance_lw_band", flux%lw_radiance_band)
+      call out_file%put("cloud_cover_lw",   flux%cloud_cover_lw)
+    end if
+
+    ! Close file
+    call out_file%close()
+
+    if (lhook) call dr_hook('radiation_save:save_radiances',1,hook_handle)
+
+  end subroutine save_radiances
+
+
+  !---------------------------------------------------------------------
   ! Save intermediate radiative properties, specifically the
   ! scattering and absorption properties at each g-point/band
   subroutine save_radiative_properties(file_name, nlev, &

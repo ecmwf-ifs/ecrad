@@ -137,6 +137,19 @@ contains
       stop
     end if
 
+    if (driver_config%cos_sensor_zenith_angle_override >= -1.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%cos_sensor_zenith_angle(ncol))
+      single_level%cos_sensor_zenith_angle = driver_config%cos_sensor_zenith_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding cosine of the sensor zenith angle with ', &
+             &  driver_config%cos_sensor_zenith_angle_override
+      end if
+    else if (file%exists('cos_sensor_zenith_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('cos_sensor_zenith_angle',single_level%cos_sensor_zenith_angle)
+    end if
+
     if (config%do_clouds) then
 
       ! --------------------------------------------------------
