@@ -150,6 +150,22 @@ contains
       call file%get('cos_sensor_zenith_angle',single_level%cos_sensor_zenith_angle)
     end if
 
+    if (file%exists('solar_azimuth_angle')) then
+      call file%get('solar_azimuth_angle', single_level%solar_azimuth_angle)
+    end if
+    if (file%exists('sensor_azimuth_angle')) then
+      call file%get('sensor_azimuth_angle', single_level%sensor_azimuth_angle)
+    end if
+    if (file%exists('u_wind_10m')) then
+      call file%get('u_wind_10m', single_level%u_wind_10m)
+    end if
+    if (file%exists('v_wind_10m')) then
+      call file%get('v_wind_10m', single_level%v_wind_10m)
+    end if
+    if (file%exists('land_mask')) then
+      call file%get('land_mask', single_level%land_mask)
+    end if
+
     if (config%do_clouds) then
 
       ! --------------------------------------------------------

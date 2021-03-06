@@ -61,12 +61,19 @@ $(info *** Building with NetCDF4/HDF5 support)
 CPPFLAGS += -DNC_NETCDF4
 endif
 
+ifdef FLOTSAM_DIR
+FLOTSAM_INCLUDE = -DFLOTSAM -I$(FLOTSAM_DIR)/include
+FLOTSAM_LIB = -L$(FLOTSAM_DIR)/lib -L$(FLOTSAM_DIR)/lib64 -Wl,-rpath,$(FLOTSAM_DIR)/lib -Wl,-rpath,$(FLOTSAM_DIR)/lib64 -lflotsam
+endif
+
 # Consolidate flags
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
-	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
+	$(OPTFLAGS) $(DEBUGFLAGS) $(FLOTSAM_INCLUDE) $(NETCDF_INCLUDE) \
+	$(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradsurf -lradiation -ltcrad -lutilities \
-	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(FLOTSAM_LIB) $(NETCDF_LIB) \
+	$(OMPFLAG)
 ifdef DR_HOOK
 LIBS += -ldl -lrt
 export CFLAGS = -g -O2

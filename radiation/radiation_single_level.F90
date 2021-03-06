@@ -82,9 +82,24 @@ module radiation_single_level
     !logical :: use_full_spectrum_sw = .false.
     !logical :: use_full_spectrum_lw = .true.
 
-    ! Cosine of the sensor zenith angle for radiance calculations
+    ! Cosine of the sensor zenith angle for both longwave and
+    ! shortwave radiance calculations
     real(jprb), allocatable, dimension(:) :: &
          &   cos_sensor_zenith_angle ! (ncol)
+
+    ! Azimuth angles of sun and sensor from due north (radians),
+    ! required for shortwave radiance calculations
+    real(jprb), allocatable, dimension(:) :: &
+         &   solar_azimuth_angle, sensor_azimuth_angle ! (ncol)
+
+    ! Zonal and meridional 10-m wind components in m/s, used for
+    ! computing specular reflection by sea surface affecting solar
+    ! radiances
+    real(jprb), allocatable, dimension(:) :: &
+         &   u_wind_10m, v_wind_10m ! (ncol)
+
+    ! Zero if sea, land otherwise
+    integer, allocatable, dimension(:) :: land_mask ! (ncol)
 
   contains
     procedure :: allocate   => allocate_single_level
@@ -143,6 +158,11 @@ contains
     if (present(do_radiances)) then
       if (do_radiances) then
         allocate(this%cos_sensor_zenith_angle(ncol))
+        allocate(this%solar_azimuth_angle(ncol))
+        allocate(this%sensor_azimuth_angle(ncol))
+        allocate(this%u_wind_10m(ncol))
+        allocate(this%v_wind_10m(ncol))
+        allocate(this%land_mask(ncol))
       end if
     end if
 
@@ -188,6 +208,21 @@ contains
     end if
     if (allocated(this%cos_sensor_zenith_angle)) then
       deallocate(this%cos_sensor_zenith_angle)
+    end if
+    if (allocated(this%solar_azimuth_angle)) then
+      deallocate(this%solar_azimuth_angle)
+    end if
+    if (allocated(this%sensor_azimuth_angle)) then
+      deallocate(this%sensor_azimuth_angle)
+    end if
+    if (allocated(this%u_wind_10m)) then
+      deallocate(this%u_wind_10m)
+    end if
+    if (allocated(this%v_wind_10m)) then
+      deallocate(this%v_wind_10m)
+    end if
+    if (allocated(this%land_mask)) then
+      deallocate(this%land_mask)
     end if
 
     if (lhook) call dr_hook('radiation_single_level:deallocate',1,hook_handle)
