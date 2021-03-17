@@ -19,7 +19,8 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_liquid_optics_socrates.F90 radiation_liquid_optics_slingo.F90 \
 	radiation_tripleclouds_sw.F90 radiation_tripleclouds_lw.F90 \
 	radiation_regions.F90 radiation_tcrad_lw.F90 \
-	radiation_cloudless_lw.F90 radiation_cloudless_sw.F90
+	radiation_cloudless_lw.F90 radiation_cloudless_sw.F90 \
+	radiation_flotsam_sw.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBRAD = ../lib/libradiation.a
@@ -87,7 +88,7 @@ radiation_config.o: radiation_cloud_generator.o
 radiation_tcrad_lw.o: radiation_config.o radiation_cloud.o radiation_flux.o
 radiation_aerosol_optics.F90 radiation_cloud_optics.F90 radiation_homogeneous_sw.F90 \
 	radiation_mcica_sw.F90 radiation_cloudless_sw.o: radiation_delta_eddington.h
-radiation_spartacus_sw.o radiation_spartacus_lw.o \
+radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_flotsam_sw.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o: \
 	radiation_optical_depth_scaling.h radiation_overlap.o \
-	radiation_matrix.o radiation_flux.o radiation_regions.o
+	radiation_matrix.o radiation_flux.o radiation_regions.o radiation_single_level.o
