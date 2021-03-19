@@ -17,6 +17,7 @@
 !   2017-10-23  R. Hogan  Renamed single-character variables
 !   2019-01-08  R. Hogan  Added "indexed_sum_profile"
 !   2019-01-14  R. Hogan  out_of_physical_bounds calls routine in radiation_config
+!   2021-01-20  R. Hogan  Added heating_rate_out_of_physical_bounds function
 
 module radiation_flux
 
@@ -95,6 +96,7 @@ module radiation_flux
      procedure :: deallocate => deallocate_flux_type
      procedure :: calc_surface_spectral
      procedure :: out_of_physical_bounds
+     procedure :: heating_rate_out_of_physical_bounds
   end type flux_type
 
 contains
@@ -487,6 +489,49 @@ contains
 
   end function out_of_physical_bounds
   
+  !---------------------------------------------------------------------
+  ! Return .true. if the heating rates are out of a physically
+  ! sensible range, optionally only considering columns between
+  ! istartcol and iendcol. This function allocates and deallocates
+  ! memory due to the requirements for inputs of out_of_bounds_2d.
+  function heating_rate_out_of_physical_bounds(this, nlev, istartcol, iendcol, pressure_hl) result(is_bad)
+    
+    use radiation_check, only : out_of_bounds_2d
+    use radiation_constants, only : AccelDueToGravity
+
+    ! "Cp" (J kg-1 K-1)
+    real(jprb), parameter :: SpecificHeatDryAir = 1004.0
+
+    class(flux_type), intent(inout) :: this
+    integer, intent(in) :: istartcol, iendcol, nlev
+    logical                      :: is_bad
+    
+    real(jprb), intent(in) :: pressure_hl(:,:)
+
+    real(jprb), allocatable :: hr_K_day(:,:)
+
+    real(jprb) :: scaling(istartcol:iendcol,nlev)
+    
+    allocate(hr_K_day(istartcol:iendcol,nlev))
+
+    scaling = -(24.0_jprb * 3600.0_jprb * AccelDueToGravity / SpecificHeatDryAir) &
+         &  / (pressure_hl(istartcol:iendcol,2:nlev+1) - pressure_hl(istartcol:iendcol,1:nlev))
+    ! Shortwave
+    hr_K_day = scaling * (this%sw_dn(istartcol:iendcol,2:nlev+1) - this%sw_up(istartcol:iendcol,2:nlev+1) &
+         &               -this%sw_dn(istartcol:iendcol,1:nlev)   + this%sw_up(istartcol:iendcol,1:nlev))
+    is_bad = out_of_bounds_2d(hr_K_day, 'sw_heating_rate_K_day', 0.0_jprb, 200.0_jprb, &
+         &                    .false., i1=istartcol, i2=iendcol)
+
+    ! Longwave
+    hr_K_day = scaling * (this%lw_dn(istartcol:iendcol,2:nlev+1) - this%lw_up(istartcol:iendcol,2:nlev+1) &
+         &               -this%lw_dn(istartcol:iendcol,1:nlev)   + this%lw_up(istartcol:iendcol,1:nlev))
+    is_bad = is_bad .or. out_of_bounds_2d(hr_K_day, 'lw_heating_rate_K_day', -250.0_jprb, 150.0_jprb, &
+         &                                .false., i1=istartcol, i2=iendcol)
+
+    deallocate(hr_K_day)
+
+  end function heating_rate_out_of_physical_bounds
+
 
   !---------------------------------------------------------------------
   ! Sum elements of "source" into "dest" according to index "ind".

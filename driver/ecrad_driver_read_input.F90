@@ -73,9 +73,8 @@ contains
     ! Cloud overlap decorrelation length (m)
     real(jprb), parameter :: decorr_length_default = 2000.0_jprb
 
-    ! General surface prop to be read and then modified before used in
-    ! an ecRad structure
-    real(jprb), allocatable, dimension(:)   :: prop_1d
+    ! General property to be read and then modified before used in an
+    ! ecRad structure
     real(jprb), allocatable, dimension(:,:) :: prop_2d
 
     integer :: jgas               ! Loop index for reading gases
@@ -182,8 +181,7 @@ contains
       call single_level%init_seed_simple(1,ncol)
       ! Overwrite with user-specified values if available
       if (file%exists('iseed')) then
-        call file%get('iseed', prop_1d)              ! read iseed as real, 
-        single_level%iseed(1:ncol) = int(prop_1d(1:ncol)) ! convert to integer
+        call file%get('iseed', single_level%iseed)
       end if
 
       ! Cloud overlap parameter
