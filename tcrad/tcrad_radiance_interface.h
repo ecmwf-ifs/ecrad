@@ -26,12 +26,13 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
      &  fractional_std, &
 #endif
      &  od_clear, od_cloud, ssa_cloud, asymmetry_cloud, &
-     &  overlap_param, mu, radiance, do_3d_effects, cloud_cover)
+     &  overlap_param, mu, radiance, cloud_cover, &
+     &  layer_thickness, inv_cloud_scale)
 
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
-       &  calc_radiance_source, LW_DIFFUSIVITY
+       &  calc_radiance_rates, calc_radiance_trans_source, LW_DIFFUSIVITY
 
   implicit none
 
@@ -87,14 +88,19 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Radiances in W m sr-1
   real(jprb), intent(out), dimension(nspec) :: radiance
 
-  ! Optional inputs
-
-  ! Do we represent 3D effects in the radiance calculations?
-  logical,    intent(in), optional :: do_3d_effects
-
   ! Return cloud cover computed from cloud fraction profile and
   ! overlap rules
   real(jprb), intent(out), optional :: cloud_cover
+
+  ! Optional inputs
+
+  ! If 3D effects are to be simulated we need the layer thickness in
+  ! metres...
+  real(jprb), intent(in), optional :: layer_thickness(nlev)
+
+  ! ...and the cloud horizontal scale in metres, where we use the
+  ! cloud separation scale defined by Fielding et al. (QJRMS 2020)
+  real(jprb), intent(in), optional :: inv_cloud_scale(nlev)
 
   ! Local variables
 
@@ -108,9 +114,18 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Reflectance and transmittance of each layer and region
   real(jprb), dimension(nspec,NREGION,nlev) :: reflectance, transmittance
 
+  ! Transmission matrix for 3D effects
+  real(jprb), dimension(nspec,NREGION,NREGION,nlev) :: transmittance_mat
+
   ! Rate of emission up from the top or down through the base of
   ! each layer and region (W m-2)
   real(jprb), dimension(nspec,NREGION,nlev) :: source_up, source_dn
+
+  ! Rate of emission/scattering in the direction of a particular
+  ! radiance at the top and base of each layer and region, per unit
+  ! optical depth (W m-2), used for 3D radiances
+  real(jprb), dimension(nspec,NREGION,nlev) :: rate_up_top, rate_up_base
+  real(jprb), dimension(nspec,NREGION,nlev) :: rate_dn_top, rate_dn_base
 
   ! Which layers are cloud-free?  Dummy cloud-free layers are added
   ! above TOA (level 0) and below the ground (level nlev+1).
@@ -134,11 +149,17 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Fractional area coverage of each region
   real(jprb) :: region_fracs(1:NREGION,nlev)
 
+  ! Area of the vertical interface between each pair of regions,
+  ! divided by the horizontal area of the domain. For 3 regions there
+  ! are two areas: between regions 1 and 2 and between regions 2 and 3
+  ! (regions 1 and 3 are assumed not to touch).
+  real(jprb) :: region_edge_area(NREGION-1,nlev)
+
   ! Cloud fractions below this are ignored
   real(jprb), parameter :: cloud_fraction_threshold = 1.0e-6
 
-  ! Local versions of optional arguments
-  logical :: do_3d_effects_local
+  ! Do we represent 3D effects in the radiance calculations?
+  logical :: do_3d_effects
 
   ! Loop indices for region
   integer(jpim) :: jreg
@@ -147,11 +168,10 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
 
   if (lhook) call dr_hook('tcrad:calc_radiance',0,hook_handle)
 
-  ! Store local values for optional variables
-  if (present(do_3d_effects)) then
-    do_3d_effects_local = do_3d_effects
+  if (present(layer_thickness) .and. present(inv_cloud_scale)) then
+    do_3d_effects = .true.
   else
-    do_3d_effects_local = .false.
+    do_3d_effects = .false.
   end if
 
   ! Compute the wavelength-independent region fractions and
@@ -162,6 +182,14 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
 #endif
        &  region_fracs, &
        &  od_scaling, cloud_fraction_threshold)
+
+  if (do_3d_effects) then
+    call calc_region_edge_areas(nlev, region_fracs, layer_thickness, &
+         &                      inv_cloud_scale, region_edge_area)
+  end if
+
+!  print *, 'inv_cloud_scale = ', inv_cloud_scale
+!  print *, 'region_edge_area = ', region_edge_area
 
   ! Compute wavelength-independent overlap matrices u_overlap and
   ! v_overlap
@@ -212,16 +240,30 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     ! Upward directed radiance measured at top-of-atmosphere
 
     ! Compute transmittance and source towards sensor
-    call calc_radiance_source(nspec, nlev, NREGION, mu, &
-         &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
+    call calc_radiance_rates(nspec, nlev, NREGION, mu, &
+         &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
          &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
-         &  transmittance, source_up=source_up)
-    
-    ! Compute radiance profile
-    call calc_radiance_up(nspec, nlev, &
-         &  ONE_OVER_PI, flux_up_base(:,:,nlev), &
-         &  transmittance, source_up, u_overlap, radiance_profile)
+         &  rate_up_top=rate_up_top, rate_up_base=rate_up_base)
 
+    if (do_3d_effects) then
+      call calc_radiance_trans_source_3d(nspec, nlev, &
+           &  mu, region_fracs, region_edge_area, od, &
+           &  transmittance_mat, &
+           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+           &  source_up=source_up)
+      call calc_radiance_up_3d(nspec, nlev, ONE_OVER_PI, &
+           &  flux_up_base(:,:,nlev), &
+           &  transmittance_mat, source_up, &
+           &  u_overlap, radiance_profile)
+    else
+      call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
+           &  region_fracs, od, transmittance, &
+           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+           &  source_up=source_up)
+      call calc_radiance_up(nspec, nlev, &
+           &  ONE_OVER_PI, flux_up_base(:,:,nlev), &
+           &  transmittance, source_up, u_overlap, radiance_profile)
+    end if
     ! Extract top-of-atmosphere value
     radiance = radiance_profile(:,1)
 
@@ -229,15 +271,28 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     ! Downward directed radiance measured at the surface
 
     ! Compute transmittance and source towards sensor
-    call calc_radiance_source(nspec, nlev, NREGION, -mu, &
-         &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
+    call calc_radiance_rates(nspec, nlev, NREGION, -mu, &
+         &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
          &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
-         &  transmittance, source_dn=source_dn)
-    
-    ! Compute radiance profile
-    call calc_radiance_dn(nspec, nlev, &
-         &  ONE_OVER_PI, transmittance, source_dn, v_overlap, radiance_profile)
+         &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
 
+    if (do_3d_effects) then
+      call calc_radiance_trans_source_3d(nspec, nlev, &
+           &  -mu, region_fracs, region_edge_area, od, &
+           &  transmittance_mat, &
+           &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
+           &  source_dn=source_dn)
+      call calc_radiance_dn_3d(nspec, nlev, ONE_OVER_PI, &
+           &  transmittance_mat, source_dn, &
+           &  v_overlap, radiance_profile)
+    else
+      call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
+           &  region_fracs, od, transmittance, &
+           &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
+           &  source_dn=source_dn)
+      call calc_radiance_dn(nspec, nlev, &
+           &  ONE_OVER_PI, transmittance, source_dn, v_overlap, radiance_profile)
+    end if
     ! Extract surface value
     radiance = radiance_profile(:,nlev+1)
 

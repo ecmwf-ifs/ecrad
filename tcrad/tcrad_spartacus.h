@@ -122,11 +122,13 @@ subroutine calc_radiance_trans_source_3d(nspec, nlev, &
       do jreg = 1,NREGION
         gamma_z1(:,jreg,jreg) = -od(:,jreg,jlev)*secant_za
       end do
-      !print *, 'gamma_z1=',gamma_z1(1,:,:)
+!      print *, 'jlev = ', jlev
+!      print *, 'gamma_z1 = ',gamma_z1(1,:,:)
       ! Loss and gain due to exchange between regions, the loop here
       ! being on the interfaces between regions, which is one less
       ! than the number of regions
       do jreg = 1,NREGION-1
+!        print *,'region_edge_area=',region_edge_area(jreg,jlev)
         if (region_edge_area(jreg,jlev) > 0.0_jprb) then
           ! Radiation lost from region jreg and gained in region jreg+1
           exchange_rate = region_edge_area(jreg,jlev) * tan_za / (PI * region_fracs(jreg,jlev))
@@ -136,6 +138,7 @@ subroutine calc_radiance_trans_source_3d(nspec, nlev, &
           exchange_rate = region_edge_area(jreg,jlev) * tan_za / (PI * region_fracs(jreg+1,jlev))
           gamma_z1(:,jreg+1,jreg+1) = gamma_z1(:,jreg+1,jreg+1) - exchange_rate
           gamma_z1(:,jreg,jreg+1) = gamma_z1(:,jreg,jreg+1) + exchange_rate
+!          print *,'exchange_rate = ', exchange_rate
         end if
       end do
 !      print *, 'gamma_z1=',gamma_z1(1,:,:)

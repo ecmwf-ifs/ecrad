@@ -86,6 +86,9 @@ contains
     ! Regridded cloud properties
     real(jprb), dimension(config%n_g_lw,nlev) :: od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid
 
+    ! Additional geometric properties needed for 3D effects: inverse
+    ! of the cloud separation scale (Fielding et al. 20202) (m-1), and
+    ! the layer thickness (m)
     real(jprb), dimension(nlev) :: inv_cloud_separation_scale, layer_thickness
 
     real(jprb), dimension(config%n_g_lw,nlev+1) :: flux_up, flux_dn
@@ -112,6 +115,8 @@ contains
 
     do jcol = istartcol,iendcol
 
+      ! If we do 3D effects then we need to provide the layer
+      ! thickness and cloud separation scale
       if (config%do_3d_effects) then
         layer_thickness = R_over_g * 0.5_jprb*(thermodynamics%temperature_hl(jcol,1:nlev) &
              &                                +thermodynamics%temperature_hl(jcol,2:nlev+1)) &
@@ -127,6 +132,7 @@ contains
         g_cloud_regrid   = g_cloud(config%i_band_from_reordered_g_lw,:,jcol)
         if (config%nregions == 2) then
           if (config%do_3d_effects) then
+            ! Two regions with scattering and 3D effects
             call calc_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                  &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
                  &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
@@ -136,6 +142,7 @@ contains
                  &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
                  &         cloud_cover=flux%cloud_cover_lw(jcol))
           else
+            ! Two regions with scattering but without 3D effects
             call calc_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                  &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
                  &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
@@ -146,6 +153,7 @@ contains
           end if
         else
           if (config%do_3d_effects) then
+            ! Three regions with scattering and 3D effects
             call calc_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                  &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
                  &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
@@ -155,6 +163,7 @@ contains
                  &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
                  &         cloud_cover=flux%cloud_cover_lw(jcol))
           else
+            ! Three regions with scattering but without 3D effects
             call calc_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                  &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
                  &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
@@ -168,6 +177,7 @@ contains
         ! Assume that the optical depth of clouds is the absorption
         ! optical depth
         if (config%nregions == 2) then
+          ! Two regions and no scattering or 3D effects
           call calc_no_scattering_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
                &         od(:,:,jcol), od_cloud_regrid, &
@@ -177,6 +187,7 @@ contains
                &         do_3d_effects=config%do_3d_effects, &
                &         cloud_cover=flux%cloud_cover_lw(jcol))
         else
+          ! Thre regions and no scattering or 3D effects
           call calc_no_scattering_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                &         planck_hl(:,:,jcol), &
                &         cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
@@ -212,7 +223,7 @@ contains
 
 
   subroutine radiance_solver_tcrad_lw(nlev,istartcol,iendcol, &
-       &  config, cloud, cos_sensor_zenith_angle, &
+       &  config, thermodynamics, cloud, cos_sensor_zenith_angle, &
        &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, planck_hl, &
        &  emission, albedo, flux)
 
@@ -221,6 +232,7 @@ contains
 
 !    use radiation_io, only             : nulout
     use radiation_config, only         : config_type, IPdfShapeGamma
+    use radiation_thermodynamics, only : thermodynamics_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type, indexed_sum
     use radiation_cloudless_lw, only   : solver_cloudless_lw
@@ -228,13 +240,17 @@ contains
          &                               calc_no_scattering_radiance_2region => calc_no_scattering_radiance
     use tcrad_3region_solver, only     : calc_radiance_3region => calc_radiance, &
          &                               calc_no_scattering_radiance_3region => calc_no_scattering_radiance
+    use radiation_constants,  only : GasConstantDryAir, AccelDueToGravity
 
     implicit none
+
+    real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
 
     ! Inputs
     integer, intent(in) :: nlev               ! number of model levels
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
     type(config_type),        intent(in) :: config
+    type(thermodynamics_type),intent(in) :: thermodynamics
     type(cloud_type),         intent(in) :: cloud
 
     real(jprb), intent(in) :: cos_sensor_zenith_angle(istartcol:iendcol)
@@ -274,6 +290,11 @@ contains
     ! Regridded cloud properties
     real(jprb), dimension(config%n_g_lw,nlev) :: od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid
 
+    ! Additional geometric properties needed for 3D effects: inverse
+    ! of the cloud separation scale (Fielding et al. 20202) (m-1), and
+    ! the layer thickness (m)
+    real(jprb), dimension(nlev) :: inv_cloud_separation_scale, layer_thickness
+
     real(jprb), dimension(config%n_g_lw) :: spectral_radiance
 
     real(jprb) :: hook_handle
@@ -290,24 +311,55 @@ contains
 
     do jcol = istartcol,iendcol
 
+      ! If we do 3D effects then we need to provide the layer
+      ! thickness and cloud separation scale
+      if (config%do_3d_effects) then
+        layer_thickness = R_over_g * 0.5_jprb*(thermodynamics%temperature_hl(jcol,1:nlev) &
+             &                                +thermodynamics%temperature_hl(jcol,2:nlev+1)) &
+             &               * log(thermodynamics%pressure_hl(jcol,2:nlev+1) &
+             &                     /max(thermodynamics%pressure_hl(jcol,1:nlev),1.0e-2_jprb))
+        inv_cloud_separation_scale = cloud%inv_cloud_effective_size(jcol,:) &
+             &  * sqrt(cloud%fraction(jcol,:)*(1.0_jprb-cloud%fraction(jcol,:)))
+      end if
+
       od_cloud_regrid    = od_cloud(config%i_band_from_reordered_g_lw,:,jcol)
       if (config%do_lw_cloud_scattering) then
         ssa_cloud_regrid = ssa_cloud(config%i_band_from_reordered_g_lw,:,jcol)
         g_cloud_regrid   = g_cloud(config%i_band_from_reordered_g_lw,:,jcol)
         if (config%nregions == 2) then
-          call calc_radiance_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
-               &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
-               &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
-               &         cloud%overlap_param(jcol,:), &
-               &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
-               &         cloud_cover=flux%cloud_cover_lw(jcol))
+          if (config%do_3d_effects) then
+            call calc_radiance_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                 &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
+                 &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                 &         cloud%overlap_param(jcol,:), &
+                 &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+                 &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                 &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale)
+          else
+            call calc_radiance_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                 &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
+                 &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                 &         cloud%overlap_param(jcol,:), &
+                 &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+                 &         cloud_cover=flux%cloud_cover_lw(jcol))
+          end if
         else
-          call calc_radiance_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
-               &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
-               &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
-               &         cloud%overlap_param(jcol,:), &
-               &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
-               &         cloud_cover=flux%cloud_cover_lw(jcol))
+          if (config%do_3d_effects) then
+            call calc_radiance_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                 &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+                 &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                 &         cloud%overlap_param(jcol,:), &
+                 &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+                 &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                 &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale)
+          else
+            call calc_radiance_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                 &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+                 &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                 &         cloud%overlap_param(jcol,:), &
+                 &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+                 &         cloud_cover=flux%cloud_cover_lw(jcol))
+          end if
         end if
       else
         ! Assume that the optical depth of clouds is the absorption

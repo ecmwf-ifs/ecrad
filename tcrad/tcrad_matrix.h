@@ -347,10 +347,6 @@ subroutine expm_tridiagonal(n, mat, ans)
     end if
   end do
 
-!  print *, eigen_mask
-!  print *, mat(:,1,1)
-!  print *, 'eigenvalues = ', lambda(1,:)
-
   do j = 1,n
     if (eigen_mask(j)) then
       do jlambda = 1,3
@@ -360,14 +356,6 @@ subroutine expm_tridiagonal(n, mat, ans)
       end do
     end if
   end do
-  ! print *, 'mat = '
-  ! print *, mat(1,1,:)
-  ! print *, mat(1,2,:)
-  ! print *, mat(1,3,:)
-  ! print *, 'eigenvectors = '
-  ! print *, eigenvec(1,1,:)
-  ! print *, eigenvec(1,2,:)
-  ! print *, eigenvec(1,3,:)
 
   ! Diagonalization method to exponentiate a matrix
 

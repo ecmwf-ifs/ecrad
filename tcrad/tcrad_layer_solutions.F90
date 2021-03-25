@@ -543,7 +543,7 @@ contains
     ! direction per unit optical depth in that layer region, but since
     ! optical depth is dimensionless, these rates still have units of
     ! W m-2.
-    real(jprb), intent(in), dimension(nspec,nreg,nlev) &
+    real(jprb), intent(in), dimension(nspec,nreg,nlev), optional &
          &  :: rate_up_top, rate_up_base, rate_dn_top, rate_dn_base
 
     ! Optional outputs
