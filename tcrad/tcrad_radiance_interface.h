@@ -140,8 +140,8 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Local versions of optional arguments
   logical :: do_3d_effects_local
 
-  ! Loop indices for region and stream
-  integer(jpim) :: jreg, jstream
+  ! Loop indices for region
+  integer(jpim) :: jreg
 
   real(jprb) :: hook_handle
 
@@ -361,8 +361,8 @@ subroutine calc_no_scattering_radiance(nspec, nlev, surf_emission, surf_albedo, 
   ! Local versions of optional arguments
   logical :: do_3d_effects_local
 
-  ! Loop indices for region and stream
-  integer(jpim) :: jreg, jstream
+  ! Loop indices for region
+  integer(jpim) :: jreg
 
   real(jprb) :: hook_handle
 

@@ -17,6 +17,8 @@ module tcrad_3region_solver
 
   use parkind1, only : jpim
 
+  implicit none
+
   ! By making the number of regions a parameter NREGION, the compiler
   ! can optimize better.  We also provide a preprocessor parameter as
   ! in one or two cases the operations on 2x2 and 3x3 matrices
@@ -36,6 +38,8 @@ contains
 #include "tcrad_overlap.h"
 
 #include "tcrad_two_stream_flux.h"
+
+#include "tcrad_spartacus.h"
 
 #include "tcrad_radiance.h"
 

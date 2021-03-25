@@ -1,3 +1,7 @@
+version 1.5
+	- Added Tripleclouds Radiance (TCRAD) capability including both
+	  flux and radiance solvers
+
 version 1.4.0 (5 November 2020)
 	- Replaced OpenIFS license with Apache License (version 2.0) and
 	  added copyright statements to each file

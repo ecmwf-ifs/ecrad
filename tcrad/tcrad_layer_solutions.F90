@@ -224,6 +224,404 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Compute the rates of emission and scattering into a particular
+  ! zenith angle cosine (mu) at the top and base of each layer and
+  ! region
+  subroutine calc_radiance_rates(nspec, nlev, nreg, &
+       &  mu, region_fracs, planck_hl, ssa, asymmetry, &
+       &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+       &  rate_up_top, rate_up_base, rate_dn_top, rate_dn_base)
+    
+    use yomhook,  only           : lhook, dr_hook
+
+    ! Inputs
+
+    ! Number of spectral intervals, levels and regions
+    integer(jpim), intent(in) :: nspec, nlev, nreg
+
+    ! Cosine of the zenith angle (positive)
+    real(jprb) :: mu
+
+    ! Fraction of the gridbox occupied by each region (summing to 1)
+    ! at each level
+    real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
+
+    ! Planck function integrated over each spectral interval at each
+    ! half-level, in W m-2 (i.e. the flux emitted by a horizontal
+    ! black-body surface)
+    real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
+
+    ! Single scattering albedo in each cloudy region
+    real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa
+
+    ! Asymmetry factor of clouds
+    real(jprb), intent(in), dimension(nspec,nlev) :: asymmetry
+
+    ! Upward and downward fluxes at the top and base of each layer and
+    ! region, in Watts of power per square metre of the entire
+    ! gridbox, so the energy is scaled by the size of each region
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: flux_up_base, flux_dn_base
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: flux_up_top, flux_dn_top
+  
+    ! Outputs
+
+    ! Rate of emission/scattering upwards or downwards at the top or
+    ! base of each layer and region, in Watts of power per square
+    ! metre of the entire gridbox. These terms are available instead
+    ! of source_up and source_dn for the 3D radiance calculation. Note
+    ! that this is the rate of emission/scattering along the radiance
+    ! direction per unit optical depth in that layer region, but since
+    ! optical depth is dimensionless, these rates still have units of
+    ! W m-2.
+    real(jprb), intent(out), dimension(nspec,nreg,nlev), optional &
+         &  :: rate_up_top, rate_up_base, rate_dn_top, rate_dn_base
+
+    ! Local variables
+
+    ! Working variables in W m-2
+    real(jprb), dimension(nspec,nreg) :: planck_top, planck_base
+    real(jprb), dimension(nspec,nreg) :: source_top, source_base
+
+    ! Other working variables
+    real(jprb) :: secant, factor, coeff
+
+    ! Maximum number of active regions in a layer (1 in a cloud-free layer)
+    integer(jpim) :: max_reg
+
+    ! Loop indices for level, spectral interval and region
+    integer(jpim) :: jlev, jspec, jreg
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('tcrad:calc_radiance_rates',0,hook_handle)
+
+    secant = 1.0_jprb / mu
+
+    ! 0.5: half the scattering goes up and half down
+    factor = 0.5_jprb * 3.0_jprb * mu / LW_DIFFUSIVITY
+
+    do jlev = 1,nlev
+
+      ! CHECK / FIX: is the source that per unit optical depth in the
+      ! vertical or along the direction to the sensor?
+
+      if (region_fracs(1,jlev) < 1.0_jprb) then
+        ! Cloudy layer: scale the Planck terms by the region fraction
+        ! and also by the single-scattering co-albedo
+        max_reg = nreg
+        planck_top(:,1) = planck_hl(:,jlev) * region_fracs(1,jlev)
+        planck_top(:,2:nreg) = spread(planck_hl(:,jlev),2,nreg-1) &
+             &  * (1.0_jprb - ssa(:,2:nreg,jlev)) &
+             &  * spread(region_fracs(2:nreg,jlev),1,nspec)
+        planck_base(:,1) = planck_hl(:,jlev+1) * region_fracs(1,jlev)
+        planck_base(:,2:nreg) = spread(planck_hl(:,jlev+1),2,nreg-1) &
+             &  * (1.0_jprb - ssa(:,2:nreg,jlev)) &
+             &  * spread(region_fracs(2:nreg,jlev),1,nspec)
+      else
+        ! Clear layer
+        max_reg = 1
+        planck_top(:,1)  = planck_hl(:,jlev)
+        planck_base(:,1) = planck_hl(:,jlev+1)
+      end if
+
+      if (present(rate_up_top) .and. present(rate_up_base)) then
+        ! Compute the rate of energy emitted or scattered in the
+        ! upward direction mu at the top and base of the layer: first
+        ! the Planck emission for all regions...
+        rate_up_top(:,:,jlev)  = planck_top
+        rate_up_base(:,:,jlev) = planck_base
+        ! ...then scattering from the scattering source function, but
+        ! only in cloudy regions
+        if (max_reg > 1) then
+          rate_up_top(:,2:nreg,jlev) = rate_up_top(:,2:nreg,jlev) &
+               &  + ssa(:,2:nreg,jlev) &
+               &  * (flux_up_top(:,2:nreg,jlev) &
+               &     * (0.5_jprb + factor*spread(asymmetry(:,jlev),2,nreg-1)) &
+               &    +flux_dn_top(:,2:nreg,jlev) &
+               &     * (0.5_jprb - factor*spread(asymmetry(:,jlev),2,nreg-1)))
+          rate_up_base(:,2:nreg,jlev) = rate_up_base(:,2:nreg,jlev) &
+               &  + ssa(:,2:nreg,jlev) &
+               &  * (flux_up_base(:,2:nreg,jlev) &
+               &     * (0.5_jprb + factor*spread(asymmetry(:,jlev),2,nreg-1)) &
+               &    +flux_dn_base(:,2:nreg,jlev) &
+               &     * (0.5_jprb - factor*spread(asymmetry(:,jlev),2,nreg-1)))
+        end if
+      end if
+
+      if (present(rate_dn_top) .and. present(rate_dn_base)) then
+        ! Compute the rate of energy emitted or scattered in the
+        ! downward direction mu at the top and base of the layer:
+        ! first the Planck emission for all regions...
+        rate_dn_top(:,:,jlev)  = planck_top
+        rate_dn_base(:,:,jlev) = planck_base
+        ! ...then scattering from the scattering source function, but
+        ! only in cloudy regions
+        if (max_reg > 1) then
+          rate_dn_top(:,2:nreg,jlev) = rate_dn_top(:,2:nreg,jlev) &
+               &  + ssa(:,2:nreg,jlev) &
+               &  * (flux_up_top(:,2:nreg,jlev) &
+               &     * (0.5_jprb - factor*spread(asymmetry(:,jlev),2,nreg-1)) &
+               &    +flux_dn_top(:,2:nreg,jlev) &
+               &     * (0.5_jprb + factor*spread(asymmetry(:,jlev),2,nreg-1)))
+          rate_dn_base(:,2:nreg,jlev) = rate_dn_base(:,2:nreg,jlev) &
+               &  + ssa(:,2:nreg,jlev) &
+               &  * (flux_up_base(:,2:nreg,jlev) &
+               &     * (0.5_jprb - factor*spread(asymmetry(:,jlev),2,nreg-1)) &
+               &    +flux_dn_base(:,2:nreg,jlev) &
+               &     * (0.5_jprb + factor*spread(asymmetry(:,jlev),2,nreg-1)))
+        end if
+      end if
+
+    end do
+
+    if (lhook) call dr_hook('tcrad:calc_radiance_rates',1,hook_handle)
+
+  end subroutine calc_radiance_rates
+
+
+  !---------------------------------------------------------------------
+  ! Compute the transmittance to a beam of radiation at a particular
+  ! zenith angle cosine (mu), as well as optionally the source from
+  ! the layer in that direction up and/or down. The latter includes
+  ! only emission, so is suitable to be used in a no-scattering
+  ! radiance calculation.
+  subroutine calc_no_scattering_radiance_source(nspec, nlev, nreg, &
+       &  mu, region_fracs, planck_hl, od, &
+       &  transmittance, source_up, source_dn)
+      
+    use yomhook,  only           : lhook, dr_hook
+
+    ! Inputs
+
+    ! Number of spectral intervals, levels and regions
+    integer(jpim), intent(in) :: nspec, nlev, nreg
+
+    ! Cosine of the zenith angle (positive)
+    real(jprb) :: mu
+
+    ! Fraction of the gridbox occupied by each region (summing to 1)
+    ! at each level
+    real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
+
+    ! Planck function integrated over each spectral interval at each
+    ! half-level, in W m-2 (i.e. the flux emitted by a horizontal
+    ! black-body surface)
+    real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
+
+    ! Optical depth in each region and layer
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
+  
+    ! Outputs
+
+    ! Layer transmittance at the requested zenith angle
+    real(jprb), intent(out), dimension(nspec,nreg,nlev) :: transmittance
+
+    ! Source term up from the top of the layer or down from its base,
+    ! in Watts of power per square metre of the entire gridbox, so the
+    ! energy is scaled by the size of each region. Since the user may
+    ! only require a radiance up or down, these output arguments are
+    ! optional.
+    real(jprb), intent(out), dimension(nspec,nreg,nlev), optional &
+         &  :: source_up, source_dn
+
+    ! Working variables in W m-2
+    real(jprb) :: source_top, source_base
+
+    ! Other working variables
+    real(jprb) :: secant, coeff
+   
+    ! Maximum number of active regions in a layer (1 in a cloud-free layer)
+    integer(jpim) :: max_reg
+
+    ! Loop indices for level, spectral interval and region
+    integer(jpim) :: jlev, jspec, jreg
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('tcrad:calc_no_scattering_radiance_source',0,hook_handle)
+
+    secant = 1.0_jprb / mu
+
+    do jlev = 1,nlev
+
+      if (region_fracs(1,jlev) < 1.0_jprb) then
+        ! Cloudy layer: scale the Planck terms by the region fraction
+        ! and also by the single-scattering co-albedo
+        max_reg = nreg
+        transmittance(:,1:max_reg,jlev) = exp(-od(:,1:max_reg,jlev)*secant)
+      else
+        ! Clear layer
+        max_reg = 1
+        transmittance(:,1,jlev) = exp(-od(:,1,jlev)*secant)
+        transmittance(:,2:nreg,jlev) = 1.0_jprb
+      end if
+
+      if (present(source_up)) then
+        ! Compute upward source from layer top due to Planck emission
+        ! within the layer
+        do jreg = 1,max_reg
+          do jspec = 1,nspec
+            source_top  = planck_hl(jspec,jlev)   * region_fracs(jreg,jlev)
+            source_base = planck_hl(jspec,jlev+1) * region_fracs(jreg,jlev)
+            coeff = (source_base - source_top) &
+                 &   * mu / od(jspec,jreg,jlev)
+            source_up(jspec,jreg,jlev) = coeff + source_top &
+                 - transmittance(jspec,jreg,jlev) * (coeff + source_base)
+          end do
+        end do
+        if (max_reg == 1) then
+          ! In a clear layer, set cloudy values to zero
+          source_up(:,2:nreg,jlev) = 0.0_jprb
+        end if
+      end if
+
+      if (present(source_dn)) then
+        ! Compute downward source from layer base due to Planck emission
+        ! within the layer
+        do jreg = 1,max_reg
+          do jspec = 1,nspec
+            source_top  = planck_hl(jspec,jlev)   * region_fracs(jreg,jlev)
+            source_base = planck_hl(jspec,jlev+1) * region_fracs(jreg,jlev)
+            coeff = (source_top - source_base) &
+                 &   * mu / od(jspec,jreg,jlev)
+            source_dn(jspec,jreg,jlev) = coeff + source_base &
+                 - transmittance(jspec,jreg,jlev) * (coeff + source_top)
+          end do
+        end do
+        if (max_reg == 1) then
+          ! In a clear layer, set cloudy values to zero
+          source_dn(:,2:nreg,jlev) = 0.0_jprb
+        end if
+      end if
+
+    end do
+
+    if (lhook) call dr_hook('tcrad:calc_no_scattering_radiance_source',1,hook_handle)
+
+  end subroutine calc_no_scattering_radiance_source
+
+
+  !---------------------------------------------------------------------
+  ! Calculate the transmittance of each layer and region along a path
+  ! with consine of zenith angle "mu", as well as (optionally) the
+  ! emission up from the top of the layer and down through its base,
+  ! computed neglecting 3D effects
+  subroutine calc_radiance_trans_source(nspec, nlev, nreg, &
+             &  mu, region_fracs, od, transmittance, &
+             &  rate_up_top, rate_up_base, rate_dn_top, rate_dn_base, &
+             &  source_up, source_dn)
+
+    use yomhook,  only           : lhook, dr_hook
+
+    ! Inputs
+
+    ! Number of spectral intervals, levels and regions
+    integer(jpim), intent(in) :: nspec, nlev, nreg
+
+    ! Cosine of the zenith angle (positive)
+    real(jprb) :: mu
+
+    ! Fraction of the gridbox occupied by each region (summing to 1)
+    ! at each level
+    real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
+
+    ! Optical depth in each region and layer
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
+  
+    ! Outputs
+
+    ! Layer transmittance at the requested zenith angle
+    real(jprb), intent(out), dimension(nspec,nreg,nlev) :: transmittance
+
+    ! Optional inputs
+
+    ! Rate of emission/scattering upwards or downwards at the top or
+    ! base of each layer and region, in Watts of power per square
+    ! metre of the entire gridbox. These terms are available instead
+    ! of source_up and source_dn for the 3D radiance calculation. Note
+    ! that this is the rate of emission/scattering along the radiance
+    ! direction per unit optical depth in that layer region, but since
+    ! optical depth is dimensionless, these rates still have units of
+    ! W m-2.
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) &
+         &  :: rate_up_top, rate_up_base, rate_dn_top, rate_dn_base
+
+    ! Optional outputs
+
+    ! Source term up from the top of the layer or down from its base,
+    ! in Watts of power per square metre of the entire gridbox, so the
+    ! energy is scaled by the size of each region. Since the user may
+    ! only require a radiance up or down, these output arguments are
+    ! optional.
+    real(jprb), intent(out), dimension(nspec,nreg,nlev), optional &
+         &  :: source_up, source_dn
+
+    ! Local variables
+
+    ! Working variables
+    real(jprb) :: secant, coeff
+
+    ! Maximum number of active regions in layer
+    integer(jpim) :: max_reg
+
+    ! Loop indices
+    integer(jpim) :: jlev, jreg, jspec
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('tcrad:calc_radiance_trans_source',0,hook_handle)
+
+    secant = 1.0_jprb / mu
+
+    do jlev = 1,nlev
+
+      if (region_fracs(1,jlev) < 1.0_jprb) then
+        max_reg = nreg;
+      else
+        max_reg = 1;
+      end if
+
+      do jreg = 1,max_reg
+        transmittance(:,jreg,jlev) = exp(-od(:,jreg,jlev)*secant)
+
+        if (present(source_dn)) then
+          do jspec = 1,nspec
+            coeff = (rate_dn_top(jspec,jreg,jlev) - rate_dn_base(jspec,jreg,jlev)) &
+                 &   * mu / od(jspec,jreg,jlev)
+            source_dn(jspec,jreg,jlev) = coeff + rate_dn_base(jspec,jreg,jlev) &
+                 - transmittance(jspec,jreg,jlev) * (coeff + rate_dn_top(jspec,jreg,jlev))
+          end do
+        end if
+        if (present(source_up)) then
+          do jspec = 1,nspec
+            coeff = (rate_up_base(jspec,jreg,jlev) - rate_up_top(jspec,jreg,jlev)) &
+                 &   * mu / od(jspec,jreg,jlev)
+            source_up(jspec,jreg,jlev) = coeff + rate_up_top(jspec,jreg,jlev) &
+                 - transmittance(jspec,jreg,jlev) * (coeff + rate_up_base(jspec,jreg,jlev))
+          end do
+        end if
+      end do
+
+      if (max_reg == 1) then
+        transmittance(:,2:,jlev) = 1.0_jprb
+        if (present(source_dn)) then
+          source_dn(:,2:,jlev) = 0.0_jprb
+        end if
+        if (present(source_up)) then
+          source_up(:,2:,jlev) = 0.0_jprb
+        end if
+      end if
+      
+    end do
+
+    if (lhook) call dr_hook('tcrad:calc_radiance_trans_source',1,hook_handle)
+
+  end subroutine calc_radiance_trans_source
+
+
+#warning "calc_radiance_source is deprecated"
+
+  !---------------------------------------------------------------------
   ! Compute the transmittance to a beam of radiation at a particular
   ! zenith angle cosine (mu), as well as optionally the source from
   ! the layer in that direction up and/or down. The latter includes
@@ -409,125 +807,5 @@ contains
   end subroutine calc_radiance_source
 
 
-  !---------------------------------------------------------------------
-  ! Compute the transmittance to a beam of radiation at a particular
-  ! zenith angle cosine (mu), as well as optionally the source from
-  ! the layer in that direction up and/or down. The latter includes
-  ! only emission, so is suitable to be used in a no-scattering
-  ! radiance calculation.
-  subroutine calc_no_scattering_radiance_source(nspec, nlev, nreg, &
-       &  mu, region_fracs, planck_hl, od, &
-       &  transmittance, source_up, source_dn)
-      
-    use yomhook,  only           : lhook, dr_hook
-
-    ! Inputs
-
-    ! Number of spectral intervals, levels and regions
-    integer(jpim), intent(in) :: nspec, nlev, nreg
-
-    ! Cosine of the zenith angle (positive)
-    real(jprb) :: mu
-
-    ! Fraction of the gridbox occupied by each region (summing to 1)
-    ! at each level
-    real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
-
-    ! Planck function integrated over each spectral interval at each
-    ! half-level, in W m-2 (i.e. the flux emitted by a horizontal
-    ! black-body surface)
-    real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
-
-    ! Optical depth in each region and layer
-    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
-  
-    ! Outputs
-
-    ! Layer transmittance at the requested zenith angle
-    real(jprb), intent(out), dimension(nspec,nreg,nlev) :: transmittance
-
-    ! Source term up from the top of the layer or down from its base,
-    ! in Watts of power per square metre of the entire gridbox, so the
-    ! energy is scaled by the size of each region. Since the user may
-    ! only require a radiance up or down, these output arguments are
-    ! optional.
-    real(jprb), intent(out), dimension(nspec,nreg,nlev), optional &
-         &  :: source_up, source_dn
-
-    ! Working variables in W m-2
-    real(jprb) :: source_top, source_base
-
-    ! Other working variables
-    real(jprb) :: secant, coeff
-   
-    ! Maximum number of active regions in a layer (1 in a cloud-free layer)
-    integer(jpim) :: max_reg
-
-    ! Loop indices for level, spectral interval and region
-    integer(jpim) :: jlev, jspec, jreg
-
-    real(jprb) :: hook_handle
-
-    if (lhook) call dr_hook('tcrad:calc_no_scattering_radiance_source',0,hook_handle)
-
-    secant = 1.0_jprb / mu
-
-    do jlev = 1,nlev
-
-      if (region_fracs(1,jlev) < 1.0_jprb) then
-        ! Cloudy layer: scale the Planck terms by the region fraction
-        ! and also by the single-scattering co-albedo
-        max_reg = nreg
-        transmittance(:,1:max_reg,jlev) = exp(-od(:,1:max_reg,jlev)*secant)
-      else
-        ! Clear layer
-        max_reg = 1
-        transmittance(:,1,jlev) = exp(-od(:,1,jlev)*secant)
-        transmittance(:,2:nreg,jlev) = 1.0_jprb
-      end if
-
-      if (present(source_up)) then
-        ! Compute upward source from layer top due to Planck emission
-        ! within the layer
-        do jreg = 1,max_reg
-          do jspec = 1,nspec
-            source_top  = planck_hl(jspec,jlev)   * region_fracs(jreg,jlev)
-            source_base = planck_hl(jspec,jlev+1) * region_fracs(jreg,jlev)
-            coeff = (source_base - source_top) &
-                 &   * mu / od(jspec,jreg,jlev)
-            source_up(jspec,jreg,jlev) = coeff + source_top &
-                 - transmittance(jspec,jreg,jlev) * (coeff + source_base)
-          end do
-        end do
-        if (max_reg == 1) then
-          ! In a clear layer, set cloudy values to zero
-          source_up(:,2:nreg,jlev) = 0.0_jprb
-        end if
-      end if
-
-      if (present(source_dn)) then
-        ! Compute downward source from layer base due to Planck emission
-        ! within the layer
-        do jreg = 1,max_reg
-          do jspec = 1,nspec
-            source_top  = planck_hl(jspec,jlev)   * region_fracs(jreg,jlev)
-            source_base = planck_hl(jspec,jlev+1) * region_fracs(jreg,jlev)
-            coeff = (source_top - source_base) &
-                 &   * mu / od(jspec,jreg,jlev)
-            source_dn(jspec,jreg,jlev) = coeff + source_base &
-                 - transmittance(jspec,jreg,jlev) * (coeff + source_top)
-          end do
-        end do
-        if (max_reg == 1) then
-          ! In a clear layer, set cloudy values to zero
-          source_dn(:,2:nreg,jlev) = 0.0_jprb
-        end if
-      end if
-
-    end do
-
-    if (lhook) call dr_hook('tcrad:calc_no_scattering_radiance_source',1,hook_handle)
-
-  end subroutine calc_no_scattering_radiance_source
 
 end module tcrad_layer_solutions

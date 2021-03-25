@@ -417,7 +417,7 @@ contains
         elseif (config%i_solver_lw == ISolverTcrad) then
           ! Compute fluxes using the TCRAD longwave solver
           call solver_tcrad_lw(nlev,istartcol,iendcol, &
-               &  config, cloud, & 
+               &  config, thermodynamics, cloud, & 
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  planck_hl, lw_emission, lw_albedo, flux)
         else

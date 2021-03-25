@@ -44,11 +44,15 @@ pure function calc_alpha_overlap_matrix(op, op_inhom, &
   ! Cloud fraction of upper and lower layers
   real(jprb) :: cf_upper, cf_lower
 
+#if NUM_REGIONS == 3
+
   ! One divided by cloud fraction
   real(jprb) :: one_over_cf
 
   ! Fraction of domain with cloud in both layers
   real(jprb) :: frac_both
+
+#endif
 
   cf_upper = sum(frac_upper(2:NREGION))
   cf_lower = sum(frac_lower(2:NREGION))

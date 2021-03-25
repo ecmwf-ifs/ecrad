@@ -70,8 +70,8 @@ subroutine calc_radiance_up(nspec, nlev, &
   ! Radiance per region at base and top of each layer
   real(jprb), dimension(nspec,NREGION) :: radiance_base, radiance_top
 
-  ! Loop indices for spectral interval, level and region
-  integer(jpim) :: jspec, jlev, jreg
+  ! Loop index for level
+  integer(jpim) :: jlev
 
   real(jprb) :: hook_handle
 
@@ -147,8 +147,8 @@ subroutine calc_radiance_dn(nspec, nlev, &
   ! Radiance per region at base and top of each layer
   real(jprb), dimension(nspec,NREGION) :: radiance_base, radiance_top
 
-  ! Loop indices for spectral interval, level and region
-  integer(jpim) :: jspec, jlev, jreg
+  ! Loop index for level
+  integer(jpim) :: jlev
 
   real(jprb) :: hook_handle
 
@@ -169,3 +169,149 @@ subroutine calc_radiance_dn(nspec, nlev, &
   if (lhook) call dr_hook('tcrad:calc_radiance_dn',1,hook_handle)
 
 end subroutine calc_radiance_dn
+
+
+!---------------------------------------------------------------------
+! As calc_radiance_up but with a matrix for the transmission,
+! representing lateral exchange of radiation between regions
+subroutine calc_radiance_up_3d(nspec, nlev, &
+     &  weight, surf_up, &
+     &  transmittance, source_up, u_overlap, radiance_up)
+
+  use parkind1, only           : jpim, jprb
+  use yomhook,  only           : lhook, dr_hook
+  
+  implicit none
+  
+  ! Inputs
+
+  ! Number of spectral intervals and levels
+  integer(jpim), intent(in) :: nspec, nlev
+
+  ! Weight sources by this amount
+  real(jprb), intent(in) :: weight
+
+  ! Surface upwelling flux in W m-2
+  real(jprb), intent(in),  dimension(nspec,NREGION) :: surf_up
+
+  ! Transmittance of each layer and region in the direction of the
+  ! radiance; this does not include diffuse transmittance, i.e. rays
+  ! that may be scattered as they pass through the layer
+  real(jprb), intent(in),  dimension(nspec,NREGION,NREGION,nlev) :: transmittance
+
+  ! Upward source from the top of the layer in the direction of the
+  ! radiance, which may include Planck emission, and scattering
+  real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: source_up
+
+  ! Upward overlap matrix - see Hogan et al. (JGR 2016) for definition
+  real(jprb), intent(in),  dimension(NREGION,NREGION,nlev+1) :: u_overlap
+
+  ! Output
+
+  ! Upward radiance profile: note that we add to any existing radiance
+  ! profile, useful when summing over multiple angles to get a flux
+  real(jprb), intent(inout), dimension(nspec,nlev+1) :: radiance_up
+
+  ! Local variables
+
+  ! Radiance per region at base and top of each layer
+  real(jprb), dimension(nspec,NREGION) :: radiance_base, radiance_top
+
+  ! Loop index for level
+  integer(jpim) :: jlev
+
+  real(jprb) :: hook_handle
+
+  if (lhook) call dr_hook('tcrad:calc_radiance_up_3d',0,hook_handle)
+
+  ! Set surface upward radiance
+  radiance_base = weight * surf_up
+
+  ! Save radiance profile averaged over regions, adding to existing
+  ! values
+  radiance_up(:,nlev+1) = radiance_up(:,nlev+1) + sum(radiance_base,2)
+
+  do jlev = nlev,1,-1
+    ! Transmittance including exchange between regions
+    radiance_top = mat_x_vec(nspec,transmittance(:,:,:,jlev),radiance_base) &
+         &       + weight * source_up(:,:,jlev)
+    ! Overlap rules to obtain radiances at base of the layer above
+    radiance_base = singlemat_x_vec(nspec,u_overlap(:,:,jlev),radiance_top)
+    ! Save radiances
+    radiance_up(:,jlev) = radiance_up(:,jlev) + sum(radiance_base,2)
+  end do
+
+  if (lhook) call dr_hook('tcrad:calc_radiance_up_3d',1,hook_handle)
+
+end subroutine calc_radiance_up_3d
+
+
+!---------------------------------------------------------------------
+! As calc_radiance_dn but with a matrix for the transmission,
+! representing lateral exchange of radiation between regions
+subroutine calc_radiance_dn_3d(nspec, nlev, &
+     &  weight, transmittance, source_dn, v_overlap, radiance_dn)
+
+  use parkind1, only           : jpim, jprb
+  use yomhook,  only           : lhook, dr_hook
+  
+  implicit none
+  
+  ! Inputs
+
+  ! Number of spectral intervals and levels
+  integer(jpim), intent(in) :: nspec, nlev
+
+  ! Weight sources by this amount
+  real(jprb), intent(in) :: weight
+
+  ! Transmittance of each layer and region in the direction of the
+  ! radiance; this does not include diffuse transmittance, i.e. rays
+  ! that may be scattered as they pass through the layer
+  real(jprb), intent(in),  dimension(nspec,NREGION,NREGION,nlev) :: transmittance
+
+  ! Down source from the base of the layer in the direction of the
+  ! radiance, which may include Planck emission, and scattering
+  real(jprb), intent(in),  dimension(nspec,NREGION,nlev) :: source_dn
+
+  ! Downward overlap matrix - see Shonk and Hogan (2008) for definition
+  real(jprb), intent(in),  dimension(NREGION,NREGION,nlev+1) :: v_overlap
+
+  ! Output
+
+  ! Downward radiance profile: note that we add to any existing radiance
+  ! profile, useful when summing over multiple angles to get a flux
+  real(jprb), intent(inout), dimension(nspec,nlev+1) :: radiance_dn
+
+  ! Local variables
+
+  ! Radiance per region at base and top of each layer
+  real(jprb), dimension(nspec,NREGION) :: radiance_base, radiance_top
+
+  ! Loop index for level
+  integer(jpim) :: jlev
+
+  real(jprb) :: hook_handle
+
+  if (lhook) call dr_hook('tcrad:calc_radiance_dn_3d',0,hook_handle)
+
+  ! Start with zero at TOA
+  radiance_top = 0.0_jprb
+
+  do jlev = 1,nlev
+    ! Solution to Schwarzschild equation
+    radiance_base = mat_x_vec(nspec,transmittance(:,:,:,jlev),radiance_top) &
+         &        + weight * source_dn(:,:,jlev)
+    ! Overlap rules to obtain radiances at base of the layer above
+    radiance_top = singlemat_x_vec(nspec,v_overlap(:,:,jlev+1),radiance_base)
+    ! Save radiances
+    radiance_dn(:,jlev+1) = radiance_dn(:,jlev+1) + sum(radiance_top,2)
+  end do
+
+  if (lhook) call dr_hook('tcrad:calc_radiance_dn_3d',1,hook_handle)
+
+end subroutine calc_radiance_dn_3d
+
+
+
+
