@@ -17,7 +17,6 @@
 ! "doubleclouds" or "tripleclouds" assumption.
 !
 
-
 !---------------------------------------------------------------------
 ! Calculate the transmittance of each layer along a path with consine
 ! of zenith angle "mu", including exchange between regions, as well as
@@ -122,13 +121,10 @@ subroutine calc_radiance_trans_source_3d(nspec, nlev, &
       do jreg = 1,NREGION
         gamma_z1(:,jreg,jreg) = -od(:,jreg,jlev)*secant_za
       end do
-!      print *, 'jlev = ', jlev
-!      print *, 'gamma_z1 = ',gamma_z1(1,:,:)
       ! Loss and gain due to exchange between regions, the loop here
       ! being on the interfaces between regions, which is one less
       ! than the number of regions
       do jreg = 1,NREGION-1
-!        print *,'region_edge_area=',region_edge_area(jreg,jlev)
         if (region_edge_area(jreg,jlev) > 0.0_jprb) then
           ! Radiation lost from region jreg and gained in region jreg+1
           exchange_rate = region_edge_area(jreg,jlev) * tan_za / (PI * region_fracs(jreg,jlev))
@@ -138,21 +134,11 @@ subroutine calc_radiance_trans_source_3d(nspec, nlev, &
           exchange_rate = region_edge_area(jreg,jlev) * tan_za / (PI * region_fracs(jreg+1,jlev))
           gamma_z1(:,jreg+1,jreg+1) = gamma_z1(:,jreg+1,jreg+1) - exchange_rate
           gamma_z1(:,jreg,jreg+1) = gamma_z1(:,jreg,jreg+1) + exchange_rate
-!          print *,'exchange_rate = ', exchange_rate
         end if
       end do
-!      print *, 'gamma_z1=',gamma_z1(1,:,:)
-      call expm_tridiagonal(nspec, gamma_z1, transmittance(:,:,:,jlev))
-      !transmittance(:,:,:,jlev) = 0.0_jprb
-      !transmittance(:,1,1,jlev) = exp(gamma_z1(:,1,1))
-      !transmittance(:,2,2,jlev) = exp(gamma_z1(:,2,2))
-      !transmittance(:,3,3,jlev) = exp(gamma_z1(:,3,3))
-      call inv_tridiagonal (nspec, gamma_z1, inv_gamma_z1)
 
-!      print *,'gamma_z1='
-!      print *,'  ',gamma_z1(1,1,:)
-!      print *,'  ',gamma_z1(1,2,:)
-!      print *,'  ',gamma_z1(1,3,:)
+      call expm_tridiagonal(nspec, gamma_z1, transmittance(:,:,:,jlev))
+      call inv_tridiagonal (nspec, gamma_z1, inv_gamma_z1)
 
       if (present(source_up)) then
         source_far  = rate_up_base(:,:,jlev) * od(:,:,jlev) * secant_za
@@ -160,20 +146,6 @@ subroutine calc_radiance_trans_source_3d(nspec, nlev, &
         d_prime = mat_x_vec(nspec, inv_gamma_z1, source_diff)
         d0 = mat_x_vec(nspec, inv_gamma_z1, d_prime - source_far)
         source_up(:,:,jlev) = d0 + d_prime - mat_x_vec(nspec, transmittance(:,:,:,jlev), d0)
-        if (source_up(1,1,jlev) < 0.0_jprb) then
-          print *, 'level = ', jlev
-          print *, 'source_up = ', source_up(1,:,jlev)
-          print *, 'rate_up_base = ', rate_up_base(1,:,jlev)
-          print *, 'rate_up_top = ', rate_up_top(1,:,jlev)
-          print *, 'od = ', od(1,:,jlev)
-          print *, 'secant = ', secant_za
-          print *, 'transmittance = ', transmittance(1,:,:,jlev)
-          print *, 'inv_gamma_z1 = ', inv_gamma_z1(1,:,:)
-          print *, 'gamma_z1 = '
-          do jreg = 1,NREGION
-            print *, '  ', gamma_z1(1,jreg,:)
-          end do
-        end if
       end if
 
       if (present(source_dn)) then

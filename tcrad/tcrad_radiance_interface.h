@@ -188,9 +188,6 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
          &                      inv_cloud_scale, region_edge_area)
   end if
 
-!  print *, 'inv_cloud_scale = ', inv_cloud_scale
-!  print *, 'region_edge_area = ', region_edge_area
-
   ! Compute wavelength-independent overlap matrices u_overlap and
   ! v_overlap
   call calc_overlap_matrices(nlev, &

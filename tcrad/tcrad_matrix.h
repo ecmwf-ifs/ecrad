@@ -274,7 +274,10 @@ end subroutine inv_tridiagonal
 ! Matrix exponential of a 3x3 tridiagonal matrix, using Viete's method
 ! to solve the cubic equation to find the eigenvalues of the matrix,
 ! then using the diagonalization method with the eigenvalues and
-! eigenvectors to perform the matrix exponentiation.
+! eigenvectors to perform the matrix exponentiation. This routine
+! makes several assumptions about the properties of the matrix that
+! are valid for the way it is used in TCRAD but may not be for other
+! applications.
 subroutine expm_tridiagonal(n, mat, ans)
 
   use parkind1, only : jprb
