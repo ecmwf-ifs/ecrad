@@ -1,5 +1,5 @@
 SOURCES = tcrad_3region_solver.F90 tcrad_2region_solver.F90 \
-	tcrad_layer_solutions.F90
+	tcrad_layer_solutions.F90 tcrad_tilted.F90 tcrad_clear_sky_radiance.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBMR = ../lib/libtcrad.a
@@ -15,7 +15,7 @@ $(LIBMR): $(OBJECTS)
 clean:
 	rm -f *.o $(LIBMR)
 
-tcrad_2region_solver.o tcrad_3region_solver.o: tcrad_layer_solutions.o
+tcrad_2region_solver.o tcrad_3region_solver.o: tcrad_layer_solutions.o tcrad_tilted.o tcrad_clear_sky_radiance.o
 
 tcrad_2region_solver.o tcrad_3region_solver.o: tcrad_matrix.h \
 	tcrad_two_stream_flux.h tcrad_spartacus.h \

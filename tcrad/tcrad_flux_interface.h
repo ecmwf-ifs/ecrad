@@ -39,8 +39,13 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
        &  calc_radiance_rates, calc_radiance_trans_source, gauss_legendre, &
        &  LW_DIFFUSIVITY, MAX_GAUSS_LEGENDRE_POINTS
+  use tcrad_tilted, only       : calc_tilted_overlap
 
   implicit none
+
+  enum, bind(c)
+    enumerator MODE_3D_NONE, MODE_3D_SPARTACUS, MODE_3D_TILTED
+  end enum
 
   ! Inputs
 
@@ -140,6 +145,9 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! above TOA (level 0) and below the ground (level nlev+1).
   logical :: is_cloud_free_layer(0:nlev+1)
 
+  ! Overlap parameter after tilting to represent 3D effects
+  real(jprb), dimension(nlev-1) :: overlap_param_tilted
+
   ! Upward and downward overlap matrices - see Hogan et al. (JGR
   ! 2016) for definitions
   real(jprb), dimension(NREGION,NREGION,nlev+1) :: u_overlap, v_overlap
@@ -171,8 +179,8 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Actual weight used accounts for projection into horizontal area
   real(jprb) ::  weight
 
-  ! Do we represent 3D effects in the radiance calculations?
-  logical :: do_3d_effects
+  ! 3D mode: none, SPARTACUS or tilted
+  integer(jpim) :: mode_3d
 
   ! Local version of an optional argument
   integer(jpim) :: n_angles_per_hem_local
@@ -192,9 +200,9 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   end if
 
   if (present(layer_thickness) .and. present(inv_cloud_scale)) then
-    do_3d_effects = .true.
+    mode_3d = MODE_3D_TILTED
   else
-    do_3d_effects = .false.
+    mode_3d = MODE_3D_NONE
   end if
 
   ! Compute the wavelength-independent region fractions and
@@ -206,7 +214,7 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
        &  region_fracs, &
        &  od_scaling, cloud_fraction_threshold)
 
-  if (do_3d_effects) then
+  if (mode_3d == MODE_3D_SPARTACUS) then
     call calc_region_edge_areas(nlev, region_fracs, layer_thickness, &
          &                      inv_cloud_scale, region_edge_area)
   end if
@@ -280,7 +288,7 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
            &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
            &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
 
-      if (do_3d_effects) then
+      if (mode_3d == MODE_3D_SPARTACUS) then
         call calc_radiance_trans_source_3d(nspec, nlev, &
              &  mu_list(jstream), region_fracs, region_edge_area, od, &
              &  transmittance_mat, &
@@ -294,6 +302,29 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
              &  flux_up_base(:,:,nlev), &
              &  transmittance_mat, source_up, &
              &  u_overlap, flux_up)
+      else if (mode_3d == MODE_3D_TILTED) then
+        ! Compute wavelength-independent overlap matrices u_overlap
+        ! and v_overlap
+        call calc_tilted_overlap(nlev, mu_list(jstream), cloud_fraction, overlap_param, &
+             &  layer_thickness, inv_cloud_scale, &
+             &  overlap_param_tilted)
+        call calc_overlap_matrices(nlev, &
+             &  region_fracs, overlap_param_tilted, &
+             &  u_overlap, v_overlap, &
+             &  0.5_jprb, &
+             &  cloud_fraction_threshold)
+        call calc_radiance_trans_source(nspec, nlev, NREGION, &
+             &  mu_list(jstream), region_fracs, od, &
+             &  transmittance, &
+             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+             &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
+             &  source_up=source_up, source_dn=source_dn)
+        call calc_radiance_dn(nspec, nlev, &
+             &  weight, &
+             &  transmittance, source_dn, v_overlap, flux_dn)
+        call calc_radiance_up(nspec, nlev, &
+             &  weight, flux_up_base(:,:,nlev), &
+             &  transmittance, source_up, u_overlap, flux_up)
       else
         call calc_radiance_trans_source(nspec, nlev, NREGION, &
              &  mu_list(jstream), region_fracs, od, &
