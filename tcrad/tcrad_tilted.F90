@@ -75,7 +75,7 @@ contains
 
     real(jprb) :: hook_handle
 
-    if (lhook) call dr_hook('tcrad:calc_overlap_tilted',0,hook_handle)
+    if (lhook) call dr_hook('tcrad:calc_tilted_overlap',0,hook_handle)
 
     tan_za = sqrt(1.0_jprb - mu*mu)/mu
 
@@ -83,11 +83,15 @@ contains
     inv_cloud_scale = inv_cloud_separation_scale &
          &  / (max(1.0e-6_jprb, sqrt(cloud_fraction*(1.0_jprb-cloud_fraction))))
 
-#ifdef WRONG
+#ifndef WRONG
 
     overlap_param_half_layer = exp(-(0.5_jprb*PI_OVER_FOUR*tan_za) * layer_thickness * inv_cloud_scale)
 
     overlap_param_tilted = overlap_param * overlap_param_half_layer(1:nlev-1) * overlap_param_half_layer(2:nlev)
+
+!    overlap_param_tilted = overlap_param * exp(-PI_OVER_FOUR*tan_za &
+!         &  * 0.5_jprb*(layer_thickness(1:nlev-1)+layer_thickness(2:nlev)) &
+!         &  * min(inv_cloud_scale(1:nlev-1),inv_cloud_scale(2:nlev)))
 
 #else
 
@@ -148,9 +152,11 @@ contains
 
 #endif
 
-!    overlap_param_tilted = overlap_param
+!    write(101,'(137f10.5)') cloud_fraction
+!    write(102,'(136f10.5)') overlap_param    
+!    write(104,'(136f10.5)') overlap_param_tilted
 
-    if (lhook) call dr_hook('tcrad:calc_overlap_tilted',1,hook_handle)
+    if (lhook) call dr_hook('tcrad:calc_tilted_overlap',1,hook_handle)
 
   end subroutine calc_tilted_overlap
 

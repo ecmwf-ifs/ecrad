@@ -502,6 +502,92 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Compute the clear-sky transmittance to a beam of radiation at a
+  ! particular zenith angle cosine (mu), as well as optionally the
+  ! source from the layer in that direction up and/or down. The latter
+  ! includes only emission, so is suitable to be used in a clear-sky
+  ! no-scattering radiance calculation.
+  subroutine calc_clear_sky_trans_source(nspec, nlev, &
+       &  mu, planck_hl, od, &
+       &  transmittance, source_up, source_dn)
+      
+    use yomhook,  only           : lhook, dr_hook
+
+    ! Inputs
+
+    ! Number of spectral intervals and levels
+    integer(jpim), intent(in) :: nspec, nlev
+
+    ! Cosine of the zenith angle (positive)
+    real(jprb) :: mu
+
+    ! Planck function integrated over each spectral interval at each
+    ! half-level, in W m-2 (i.e. the flux emitted by a horizontal
+    ! black-body surface)
+    real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
+
+    ! Optical depth in each layer
+    real(jprb), intent(in), dimension(nspec,nlev) :: od
+  
+    ! Outputs
+
+    ! Layer transmittance at the requested zenith angle
+    real(jprb), intent(out), dimension(nspec,nlev) :: transmittance
+
+    ! Source term up from the top of the layer or down from its base,
+    ! in Watts of power per square metre of the entire gridbox, so the
+    ! energy is scaled by the size of each region. Since the user may
+    ! only require a radiance up or down, these output arguments are
+    ! optional.
+    real(jprb), intent(out), dimension(nspec,nlev), optional &
+         &  :: source_up, source_dn
+
+    ! Working variables
+    real(jprb) :: secant, coeff
+   
+    ! Loop indices for level and spectral interval
+    integer(jpim) :: jlev, jspec
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('tcrad:calc_clear_sky_trans_source',0,hook_handle)
+
+    secant = 1.0_jprb / mu
+
+    do jlev = 1,nlev
+
+      transmittance(:,jlev) = exp(-od(:,jlev)*secant)
+
+      if (present(source_up)) then
+        ! Compute upward source from layer top due to Planck emission
+        ! within the layer
+        do jspec = 1,nspec
+          coeff = (planck_hl(jspec,jlev+1) - planck_hl(jspec,jlev)) &
+               &   * mu / od(jspec,jlev)
+          source_up(jspec,jlev) = coeff + planck_hl(jspec,jlev) &
+               - transmittance(jspec,jlev) * (coeff + planck_hl(jspec,jlev+1))
+        end do
+      end if
+
+      if (present(source_dn)) then
+        ! Compute downward source from layer base due to Planck emission
+        ! within the layer
+        do jspec = 1,nspec
+          coeff = (planck_hl(jspec,jlev) - planck_hl(jspec,jlev+1)) &
+               &   * mu / od(jspec,jlev)
+          source_dn(jspec,jlev) = coeff + planck_hl(jspec,jlev+1) &
+               - transmittance(jspec,jlev) * (coeff + planck_hl(jspec,jlev))
+        end do
+      end if
+
+    end do
+
+    if (lhook) call dr_hook('tcrad:calc_clear_sky_trans_source',1,hook_handle)
+
+  end subroutine calc_clear_sky_trans_source
+
+
+  !---------------------------------------------------------------------
   ! Calculate the transmittance of each layer and region along a path
   ! with consine of zenith angle "mu", as well as (optionally) the
   ! emission up from the top of the layer and down through its base,

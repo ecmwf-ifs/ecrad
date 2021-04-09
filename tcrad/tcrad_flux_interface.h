@@ -200,7 +200,8 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   end if
 
   if (present(layer_thickness) .and. present(inv_cloud_scale)) then
-    mode_3d = MODE_3D_TILTED
+!    mode_3d = MODE_3D_TILTED
+    mode_3d = MODE_3D_SPARTACUS
   else
     mode_3d = MODE_3D_NONE
   end if

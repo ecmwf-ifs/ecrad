@@ -33,7 +33,7 @@ contains
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type, indexed_sum_profile
-    use radiation_cloudless_lw, only   : solver_cloudless_lw
+    use tcrad_clear_sky_solver, only   : calc_clear_sky_flux
     use tcrad_2region_solver, only     : calc_flux_2region => calc_flux, &
          &                               calc_no_scattering_flux_2region => calc_no_scattering_flux
     use tcrad_3region_solver, only     : calc_flux_3region => calc_flux, &
@@ -91,19 +91,16 @@ contains
     ! the layer thickness (m)
     real(jprb), dimension(nlev) :: inv_cloud_separation_scale, layer_thickness
 
+    ! Spectral fluxes
     real(jprb), dimension(config%n_g_lw,nlev+1) :: flux_up, flux_dn
 
     real(jprb) :: hook_handle
 
+    ! Column loop index
     integer :: jcol
 
     if (lhook) call dr_hook('radiation_tcrad_lw:solver_tcrad_lw',0,hook_handle)
 
-    ! Compute clear-sky fluxes using the cloudless solver
-    call solver_cloudless_lw(nlev,istartcol,iendcol, &
-         &  config, od, ssa, g, &
-         &  planck_hl, emission, albedo, flux)
- 
     flux%lw_up(istartcol:iendcol,:) = 0.0_jprb
     flux%lw_dn(istartcol:iendcol,:) = 0.0_jprb
 
@@ -114,6 +111,25 @@ contains
     end if
 
     do jcol = istartcol,iendcol
+
+      if (config%do_clear) then
+        call calc_clear_sky_flux(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+             &  planck_hl(:,:,jcol), od(:,:,jcol), flux_up, flux_dn, &
+             &  n_angles_per_hem=config%n_angles_per_hemisphere_lw)
+
+        flux%lw_up_clear(jcol,:) = sum(flux_up,1)
+        flux%lw_dn_clear(jcol,:) = sum(flux_dn,1)
+
+        if (config%do_save_spectral_flux) then
+          call indexed_sum_profile(flux_up, &
+               &           config%i_spec_from_reordered_g_lw, &
+               &           flux%lw_up_clear_band(:,jcol,:))
+          call indexed_sum_profile(flux_dn, &
+               &           config%i_spec_from_reordered_g_lw, &
+               &           flux%lw_dn_clear_band(:,jcol,:))
+        end if
+
+      end if
 
       ! If we do 3D effects then we need to provide the layer
       ! thickness and cloud separation scale
