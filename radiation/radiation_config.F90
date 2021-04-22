@@ -659,6 +659,7 @@ contains
     character(511) :: directory_name, aerosol_optics_override_file_name
     character(511) :: liq_optics_override_file_name, ice_optics_override_file_name
     character(511) :: cloud_pdf_override_file_name
+    character(511) :: gas_optics_sw_override_file_name, gas_optics_lw_override_file_name
     character(63)  :: liquid_model_name, ice_model_name, gas_model_name
     character(63)  :: sw_solver_name, lw_solver_name, overlap_scheme_name
     character(63)  :: sw_entrapment_name, sw_encroachment_name, cloud_pdf_shape_name
@@ -687,6 +688,7 @@ contains
          &  n_regions, directory_name, gas_model_name, &
          &  ice_optics_override_file_name, liq_optics_override_file_name, &
          &  aerosol_optics_override_file_name, cloud_pdf_override_file_name, &
+         &  gas_optics_sw_override_file_name, gas_optics_lw_override_file_name, &
          &  liquid_model_name, ice_model_name, max_3d_transfer_rate, &
          &  min_cloud_effective_size, overhang_factor, encroachment_scaling, &
          &  use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw, &
@@ -738,6 +740,8 @@ contains
     liq_optics_override_file_name = this%liq_optics_override_file_name
     ice_optics_override_file_name = this%ice_optics_override_file_name
     aerosol_optics_override_file_name = this%aerosol_optics_override_file_name
+    gas_optics_sw_override_file_name = this%gas_optics_sw_override_file_name
+    gas_optics_lw_override_file_name = this%gas_optics_lw_override_file_name
     use_expm_everywhere = this%use_expm_everywhere
     use_aerosols = this%use_aerosols
     do_save_radiative_properties = this%do_save_radiative_properties
@@ -821,7 +825,15 @@ contains
         call radiation_abort('Radiation configuration error')
       end if
     else
+
+      ! This version exits correctly, but provides less information
+      ! about how the namelist was incorrect
       read(unit=iunit, iostat=iosread, nml=radiation)
+
+      ! Depending on compiler this version provides more information
+      ! about the error in the namelist
+      !read(unit=iunit, nml=radiation)
+
       if (iosread /= 0) then
         ! An error occurred reading the file
         if (present(is_success)) then
@@ -909,6 +921,8 @@ contains
     this%liq_optics_override_file_name = liq_optics_override_file_name
     this%ice_optics_override_file_name = ice_optics_override_file_name
     this%aerosol_optics_override_file_name = aerosol_optics_override_file_name
+    this%gas_optics_sw_override_file_name = gas_optics_sw_override_file_name
+    this%gas_optics_lw_override_file_name = gas_optics_lw_override_file_name
     this%use_general_cloud_optics      = use_general_cloud_optics
     this%use_general_aerosol_optics    = use_general_aerosol_optics
     this%cloud_fraction_threshold = cloud_fraction_threshold
