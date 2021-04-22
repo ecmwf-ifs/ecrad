@@ -1,8 +1,8 @@
 !----------------------------------------------------------------------------
-SUBROUTINE RRTM_TAUMOL7 (KIDIA,KFDIA,KLEV,P_TAU,&
- & P_TAUAERL,P_FAC00,P_FAC01,P_FAC10,P_FAC11,P_FORFAC,P_FORFRAC,K_INDFOR,K_JP,K_JT,K_JT1,P_ONEMINUS,&
- & P_COLH2O,P_COLO3,P_COLCO2,P_COLDRY,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC, &
- & P_RAT_H2OO3, P_RAT_H2OO3_1,PMINORFRAC,KINDMINOR)  
+SUBROUTINE RRTM_TAUMOL7 (KIDIA,KFDIA,KLEV,taug,&
+ & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
+ & colh2o,colo3,colco2,coldry,laytrop,selffac,selffrac,indself,fracs, &
+ & rat_h2oo3, rat_h2oo3_1,minorfrac,indminor)  
 
 !     BAND 7:  980-1080 cm-1 (low - H2O,O3; high - O3)
 
@@ -34,316 +34,577 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: taug(KIDIA:KFDIA,JPGPT,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_ONEMINUS
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO3(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLCO2(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLDRY(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: oneminus
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colh2o(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colo3(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colco2(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: coldry(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: fracs(KIDIA:KFDIA,JPGPT,KLEV) 
 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_RAT_H2OO3(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_RAT_H2OO3_1(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: K_INDFOR(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: PMINORFRAC(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: KINDMINOR(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2oo3(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2oo3_1(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
 
 
 ! ---------------------------------------------------------------------------
 
-REAL(KIND=JPRB) :: Z_SPECCOMB(KLEV),Z_SPECCOMB1(KLEV), &
-& Z_SPECCOMB_MCO2(KLEV), Z_SPECCOMB_PLANCK(KLEV)
-INTEGER(KIND=JPIM) :: IND0(KLEV),IND1(KLEV),INDS(KLEV),INDF(KLEV),INDM(KLEV)
+REAL(KIND=JPRB) :: speccomb,speccomb1, &
+& speccomb_mco2, speccomb_planck
+INTEGER(KIND=JPIM) :: ind0,ind1,inds,indf,indm
 
-INTEGER(KIND=JPIM) :: IG, JS, JLAY, JS1, JPL, JMCO2
-INTEGER(KIND=JPIM) :: JLON
+INTEGER(KIND=JPIM) :: IG, JS, lay, JS1, JPL, JMCO2
 
-REAL(KIND=JPRB) :: ZREFRAT_PLANCK_A, ZREFRAT_M_A
-REAL(KIND=JPRB) :: ZCHI_CO2, ZRATCO2, ZADJFAC, ZADJCOLCO2(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB) ::  Z_FAC000, Z_FAC100, Z_FAC200,&
- & Z_FAC010, Z_FAC110, Z_FAC210, &
- & Z_FAC001, Z_FAC101, Z_FAC201, &
- & Z_FAC011, Z_FAC111, Z_FAC211
-REAL(KIND=JPRB) :: ZP, ZP4, ZFK0, ZFK1, ZFK2
-REAL(KIND=JPRB) :: ZTAUFOR,ZTAUSELF,ZTAU_MAJOR,ZTAU_MAJOR1, ZCO2M1, ZCO2M2, ZABSCO2
-
-
-REAL(KIND=JPRB) :: Z_FS, Z_SPECMULT, Z_SPECPARM,  &
-& Z_FS1, Z_SPECMULT1, Z_SPECPARM1, &
-& Z_FPL, Z_SPECMULT_PLANCK, Z_SPECPARM_PLANCK, &
-& Z_FMCO2, Z_SPECMULT_MCO2, Z_SPECPARM_MCO2  
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
-
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL7',0,ZHOOK_HANDLE)
-
-! Minor gas mapping level :
-!     lower - co2, p = 706.2620 mbar, t= 278.94 k
-!     upper - co2, p = 12.9350 mbar, t = 234.01 k
-
-! Calculate reference ratio to be used in calculation of Planck
-! fraction in lower atmosphere.
-
-! P = 706.2620 mb
-      Zrefrat_planck_a = chi_mls(1,3)/chi_mls(3,3)
-
-! P = 706.2720 mb
-      Zrefrat_m_a = chi_mls(1,3)/chi_mls(3,3)
-
-! Compute the optical depth by interpolating in ln(pressure), 
-! temperature, and appropriate species.  Below laytrop, the water
-! vapor self-continuum and foreign continuum is interpolated 
-! (in temperature) separately. 
-
-DO JLAY = 1, KLEV
-  DO JLON = KIDIA, KFDIA
-    IF (JLAY <= K_LAYTROP(JLON)) THEN
-      Z_SPECCOMB(JLAY) = P_COLH2O(JLON,JLAY) + P_RAT_H2OO3(JLON,JLAY)*P_COLO3(JLON,JLAY)
-      Z_SPECPARM = P_COLH2O(JLON,JLAY)/Z_SPECCOMB(JLAY)
-      Z_SPECPARM=MIN(P_ONEMINUS,Z_SPECPARM)
-      Z_SPECMULT = 8._JPRB*Z_SPECPARM
-      JS = 1 + INT(Z_SPECMULT)
-      Z_FS = MOD(Z_SPECMULT,1.0_JPRB)
-
-      Z_SPECCOMB1(JLAY) = P_COLH2O(JLON,JLAY) + P_RAT_H2OO3_1(JLON,JLAY)*P_COLO3(JLON,JLAY)
-      Z_SPECPARM1 = P_COLH2O(JLON,JLAY)/Z_SPECCOMB1(JLAY)
-      IF (Z_SPECPARM1 >= P_ONEMINUS) Z_SPECPARM1 = P_ONEMINUS
-      Z_SPECMULT1 = 8._JPRB*(Z_SPECPARM1)
-      JS1 = 1 + INT(Z_SPECMULT1)
-      Z_FS1 = MOD(Z_SPECMULT1,1.0_JPRB)
-
-      Z_SPECCOMB_MCO2(JLAY) = P_COLH2O(JLON,JLAY) + ZREFRAT_M_A*P_COLO3(JLON,JLAY)
-      Z_SPECPARM_MCO2 = P_COLH2O(JLON,JLAY)/Z_SPECCOMB_MCO2(JLAY)
-      IF (Z_SPECPARM_MCO2 >= P_ONEMINUS) Z_SPECPARM_MCO2 = P_ONEMINUS
-      Z_SPECMULT_MCO2 = 8._JPRB*Z_SPECPARM_MCO2
-      JMCO2 = 1 + INT(Z_SPECMULT_MCO2)
-      Z_FMCO2 = MOD(Z_SPECMULT_MCO2,1.0_JPRB)
-
-! In atmospheres where the amount of CO2 is too great to be considered
-! a minor species, adjust the column amount of CO2 by an empirical factor 
-! to obtain the proper contribution.
-      ZCHI_CO2 = P_COLCO2(JLON,JLAY)/P_COLDRY(JLON,JLAY)
-      ZRATCO2 = 1.E20_JPRB*ZCHI_CO2/CHI_MLS(2,K_JP(JLON,JLAY)+1)
-      IF (ZRATCO2 > 3.0_JPRB) THEN
-         ZADJFAC = 3.0_JPRB+(ZRATCO2-3.0_JPRB)**0.79_JPRB
-         ZADJCOLCO2(JLON,JLAY) = ZADJFAC*CHI_MLS(2,K_JP(JLON,JLAY)+1)*P_COLDRY(JLON,JLAY)*1.E-20_JPRB
-      ELSE
-         ZADJCOLCO2(JLON,JLAY) = P_COLCO2(JLON,JLAY)
-      ENDIF
+REAL(KIND=JPRB) :: refrat_planck_a, refrat_m_a
+REAL(KIND=JPRB) :: chi_co2, ratco2, adjfac, adjcolco2
+REAL(KIND=JPRB) ::  fac000, fac100, fac200,&
+ & fac010, fac110, fac210, &
+ & fac001, fac101, fac201, &
+ & fac011, fac111, fac211
+REAL(KIND=JPRB) :: p, p4, fk0, fk1, fk2
+REAL(KIND=JPRB) :: taufor,tauself,tau_major(ng7),tau_major1(ng7), co2m1, co2m2, absco2
 
 
-      Z_SPECCOMB_PLANCK(JLAY) = P_COLH2O(JLON,JLAY)+ZREFRAT_PLANCK_A*P_COLO3(JLON,JLAY)
-      Z_SPECPARM_PLANCK = P_COLH2O(JLON,JLAY)/Z_SPECCOMB_PLANCK(JLAY)
-      IF (Z_SPECPARM_PLANCK >= P_ONEMINUS) Z_SPECPARM_PLANCK=P_ONEMINUS
-      Z_SPECMULT_PLANCK = 8._JPRB*Z_SPECPARM_PLANCK
-      JPL= 1 + INT(Z_SPECMULT_PLANCK)
-      Z_FPL = MOD(Z_SPECMULT_PLANCK,1.0_JPRB)
+REAL(KIND=JPRB) :: fs, specmult, specparm,  &
+& fs1, specmult1, specparm1, &
+& fpl, specmult_PLANCK, specparm_PLANCK, &
+& fmco2, specmult_mco2, specparm_mco2  
+    !     local integer arrays
+    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
+    integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
+    INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 
-      IND0(JLAY) = ((K_JP(JLON,JLAY)-1)*5+(K_JT(JLON,JLAY)-1))*NSPA(7) + JS
-      IND1(JLAY) = (K_JP(JLON,JLAY)*5+(K_JT1(JLON,JLAY)-1))*NSPA(7) + JS1
-      INDS(JLAY) = K_INDSELF(JLON,JLAY)
-      INDF(JLAY) = K_INDFOR(JLON,JLAY)
-      INDM(JLAY) = KINDMINOR(JLON,JLAY)
+#define MOD1(x) ((x) - AINT((x)))
 
-  IF (Z_SPECPARM < 0.125_JPRB) THEN
-            ZP = Z_FS - 1
-            ZP4 = ZP**4
-            ZFK0 = ZP4
-            ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
-            ZFK2 = ZP + ZP4
-            Z_FAC000 = ZFK0*P_FAC00(JLON,JLAY)
-            Z_FAC100 = ZFK1*P_FAC00(JLON,JLAY)
-            Z_FAC200 = ZFK2*P_FAC00(JLON,JLAY)
-            Z_FAC010 = ZFK0*P_FAC10(JLON,JLAY)
-            Z_FAC110 = ZFK1*P_FAC10(JLON,JLAY)
-            Z_FAC210 = ZFK2*P_FAC10(JLON,JLAY)
-      ELSEIF (Z_SPECPARM > 0.875_JPRB) THEN
-            ZP = -Z_FS 
-            ZP4 = ZP**4
-            ZFK0 = ZP4
-            ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
-            ZFK2 = ZP + ZP4
-            Z_FAC000 = ZFK0*P_FAC00(JLON,JLAY)
-            Z_FAC100 = ZFK1*P_FAC00(JLON,JLAY)
-            Z_FAC200 = ZFK2*P_FAC00(JLON,JLAY)
-            Z_FAC010 = ZFK0*P_FAC10(JLON,JLAY)
-            Z_FAC110 = ZFK1*P_FAC10(JLON,JLAY)
-            Z_FAC210 = ZFK2*P_FAC10(JLON,JLAY)
-      ELSE
-            Z_FAC000 = (1._JPRB - Z_FS) * P_FAC00(JLON,JLAY)
-            Z_FAC010 = (1._JPRB - Z_FS) * P_FAC10(JLON,JLAY)
-            Z_FAC100 = Z_FS * P_FAC00(JLON,JLAY)
-            Z_FAC110 = Z_FS * P_FAC10(JLON,JLAY)
-      ENDIF
-      IF (Z_SPECPARM1 < 0.125_JPRB) THEN
-            ZP = Z_FS1 - 1
-            ZP4 = ZP**4
-            ZFK0 = ZP4
-            ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
-            ZFK2 = ZP + ZP4
-            Z_FAC001 = ZFK0*P_FAC01(JLON,JLAY)
-            Z_FAC101 = ZFK1*P_FAC01(JLON,JLAY)
-            Z_FAC201 = ZFK2*P_FAC01(JLON,JLAY)
-            Z_FAC011 = ZFK0*P_FAC11(JLON,JLAY)
-            Z_FAC111 = ZFK1*P_FAC11(JLON,JLAY)
-            Z_FAC211 = ZFK2*P_FAC11(JLON,JLAY)
-      ELSEIF (Z_SPECPARM1 > 0.875_JPRB) THEN
-            ZP = -Z_FS1 
-            ZP4 = ZP**4
-            ZFK0 = ZP4
-            ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
-            ZFK2 = ZP + ZP4
-            Z_FAC001 = ZFK0*P_FAC01(JLON,JLAY)
-            Z_FAC101 = ZFK1*P_FAC01(JLON,JLAY)
-            Z_FAC201 = ZFK2*P_FAC01(JLON,JLAY)
-            Z_FAC011 = ZFK0*P_FAC11(JLON,JLAY)
-            Z_FAC111 = ZFK1*P_FAC11(JLON,JLAY)
-            Z_FAC211 = ZFK2*P_FAC11(JLON,JLAY)
-      ELSE
-            Z_FAC001 = (1._JPRB - Z_FS1) * P_FAC01(JLON,JLAY)
-            Z_FAC011 = (1._JPRB - Z_FS1) * P_FAC11(JLON,JLAY)
-            Z_FAC101 = Z_FS1 * P_FAC01(JLON,JLAY)
-            Z_FAC111 = Z_FS1 * P_FAC11(JLON,JLAY)
-      ENDIF
+    laytrop_min = MINVAL(laytrop)
+    laytrop_max = MAXVAL(laytrop)
 
-!-- DS_000515
-!CDIR UNROLL=NG7
-      DO IG = 1, NG7
-!-- DS_000515
-         ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(INDS(JLAY),IG) + P_SELFFRAC(JLON,JLAY) * &
-          &       (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG)))
-         ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + P_FORFRAC(JLON,JLAY) * &
-          &       (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
-         ZCO2M1 = KA_MCO2(JMCO2,INDM(JLAY),IG) + Z_FMCO2 * &
-          &       (KA_MCO2(JMCO2+1,INDM(JLAY),IG) - KA_MCO2(JMCO2,INDM(JLAY),IG))
-         ZCO2M2 = KA_MCO2(JMCO2,INDM(JLAY)+1,IG) + Z_FMCO2 * &
-          &       (KA_MCO2(JMCO2+1,INDM(JLAY)+1,IG) - KA_MCO2(JMCO2,INDM(JLAY)+1,IG))
-         ZABSCO2 = ZCO2M1 + PMINORFRAC(JLON,JLAY) * (ZCO2M2 - ZCO2M1)
+    ixlow  = 0
+    ixhigh = 0
+    ixc    = 0
 
-            IF (Z_SPECPARM < 0.125_JPRB) THEN
-               ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &   (Z_FAC000 * ABSA(IND0(JLAY),IG) + &
-                 &   Z_FAC100 * ABSA(IND0(JLAY)+1,IG) + &
-                 &   Z_FAC200 * ABSA(IND0(JLAY)+2,IG) + &
-                 &   Z_FAC010 * ABSA(IND0(JLAY)+9,IG) + &
-                 &   Z_FAC110 * ABSA(IND0(JLAY)+10,IG) + &
-                 &   Z_FAC210 * ABSA(IND0(JLAY)+11,IG))
-            ELSEIF (Z_SPECPARM > 0.875_JPRB) THEN
-               ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &   (Z_FAC200 * ABSA(IND0(JLAY)-1,IG) + &
-                 &   Z_FAC100 * ABSA(IND0(JLAY),IG) + &
-                 &   Z_FAC000 * ABSA(IND0(JLAY)+1,IG) + &
-                 &   Z_FAC210 * ABSA(IND0(JLAY)+8,IG) + &
-                 &   Z_FAC110 * ABSA(IND0(JLAY)+9,IG) + &
-                 &   Z_FAC010 * ABSA(IND0(JLAY)+10,IG))
-            ELSE
-               ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &   (Z_FAC000 * ABSA(IND0(JLAY),IG) + &
-                 &   Z_FAC100 * ABSA(IND0(JLAY)+1,IG) + &
-                 &   Z_FAC010 * ABSA(IND0(JLAY)+9,IG) + &
-                 &   Z_FAC110 * ABSA(IND0(JLAY)+10,IG))
-            ENDIF
-
-            IF (Z_SPECPARM1 < 0.125_JPRB) THEN
-               ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                &    (Z_FAC001 * ABSA(IND1(JLAY),IG) + &
-                &    Z_FAC101 * ABSA(IND1(JLAY)+1,IG) + &
-                &    Z_FAC201 * ABSA(IND1(JLAY)+2,IG) + &
-                &    Z_FAC011 * ABSA(IND1(JLAY)+9,IG) + &
-                &    Z_FAC111 * ABSA(IND1(JLAY)+10,IG) + &
-                &    Z_FAC211 * ABSA(IND1(JLAY)+11,IG))
-            ELSEIF (Z_SPECPARM1 > 0.875_JPRB) THEN
-               ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                &    (Z_FAC201 * ABSA(IND1(JLAY)-1,IG) + &
-                &    Z_FAC101 * ABSA(IND1(JLAY),IG) + &
-                &    Z_FAC001 * ABSA(IND1(JLAY)+1,IG) + &
-                &    Z_FAC211 * ABSA(IND1(JLAY)+8,IG) + &
-                &    Z_FAC111 * ABSA(IND1(JLAY)+9,IG) + &
-                &    Z_FAC011 * ABSA(IND1(JLAY)+10,IG))
-            ELSE
-               ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                &    (Z_FAC001 * ABSA(IND1(JLAY),IG) +  &
-                &    Z_FAC101 * ABSA(IND1(JLAY)+1,IG) + &
-                &    Z_FAC011 * ABSA(IND1(JLAY)+9,IG) + &
-                &    Z_FAC111 * ABSA(IND1(JLAY)+10,IG))
-            ENDIF
+    ! create index lists for mixed layers
+    do lay = laytrop_min+1, laytrop_max
+      icl = 0
+      ich = 0
+      do jc = KIDIA, KFDIA
+        if ( lay <= laytrop(jc) ) then
+          icl = icl + 1
+          ixlow(icl,lay) = jc
+        else
+          ich = ich + 1
+          ixhigh(ich,lay) = jc
+        endif
+      enddo
+      ixc(lay) = icl
+    enddo
 
 
-        P_TAU(JLON,NGS6+IG,JLAY) = ZTAU_MAJOR + ZTAU_MAJOR1 &
-               & + ZTAUSELF + ZTAUFOR &
-               & + ZADJCOLCO2(JLON,JLAY)*ZABSCO2 &
-               & + P_TAUAERL(JLON,JLAY,7)  
-        PFRAC(JLON,NGS6+IG,JLAY) = FRACREFA(IG,JPL) + Z_FPL *&
-         & (FRACREFA(IG,JPL+1) - FRACREFA(IG,JPL))  
-      ENDDO
-    ENDIF
+      ! P = 706.2620 mb
+      refrat_planck_a = chi_mls(1,3)/chi_mls(3,3)
 
-    IF (JLAY > K_LAYTROP(JLON)) THEN
+      ! P = 706.2720 mb
+      refrat_m_a = chi_mls(1,3)/chi_mls(3,3)
 
-! In atmospheres where the amount of CO2 is too great to be considered
-! a minor species, adjust the column amount of CO2 by an empirical factor 
-! to obtain the proper contribution.
-      ZCHI_CO2 = P_COLCO2(JLON,JLAY)/P_COLDRY(JLON,JLAY)
-      ZRATCO2 = 1.E20_JPRB*ZCHI_CO2/CHI_MLS(2,K_JP(JLON,JLAY)+1)
-      IF (ZRATCO2 > 3.0_JPRB) THEN
-         ZADJFAC = 2.0_JPRB+(ZRATCO2-2.0_JPRB)**0.79_JPRB
-         ZADJCOLCO2(JLON,JLAY) = ZADJFAC*CHI_MLS(2,K_JP(JLON,JLAY)+1)*P_COLDRY(JLON,JLAY)*1.E-20_JPRB
-      ELSE
-         ZADJCOLCO2(JLON,JLAY) = P_COLCO2(JLON,JLAY)
-      ENDIF
+      ! Compute the optical depth by interpolating in ln(pressure),
+      ! temperature, and appropriate species.  Below laytrop, the water
+      ! vapor self-continuum and foreign continuum is interpolated
+      ! (in temperature) separately.
 
+      ! Lower atmosphere loop
+      do lay = 1, laytrop_min
+        do jl = KIDIA, KFDIA
 
-      IND0(JLAY) = ((K_JP(JLON,JLAY)-13)*5+(K_JT(JLON,JLAY)-1))*NSPB(7) + 1
-      IND1(JLAY) = ((K_JP(JLON,JLAY)-12)*5+(K_JT1(JLON,JLAY)-1))*NSPB(7) + 1
-      INDM(JLAY) = KINDMINOR(JLON,JLAY)
-!-- JJM_000517
-!CDIR UNROLL=NG7
-      DO IG = 1, NG7
-!-- JJM_000517
-        ZABSCO2 = KB_MCO2(INDM(JLAY),IG) + PMINORFRAC(JLON,JLAY) * &
-         &       (KB_MCO2(INDM(JLAY)+1,IG) - KB_MCO2(INDM(JLAY),IG))
+          speccomb = colh2o(jl,lay) + rat_h2oo3(jl,lay)*colo3(jl,lay)
+          specparm = MIN(colh2o(jl,lay)/speccomb,oneminus)
+          specmult = 8._JPRB*(specparm)
+          js = 1 + int(specmult)
+          fs = MOD1(specmult)
 
-        P_TAU(JLON,NGS6+IG,JLAY) = P_COLO3(JLON,JLAY) *&
-         & (P_FAC00(JLON,JLAY) * ABSB(IND0(JLAY)  ,IG) +&
-         & P_FAC10(JLON,JLAY) * ABSB(IND0(JLAY)+1,IG) +&
-         & P_FAC01(JLON,JLAY) * ABSB(IND1(JLAY)  ,IG) +&
-         & P_FAC11(JLON,JLAY) * ABSB(IND1(JLAY)+1,IG))&
-         & + ZADJCOLCO2(JLON,JLAY) * ZABSCO2 &
-         & + P_TAUAERL(JLON,JLAY,7)  
-        PFRAC(JLON,NGS6+IG,JLAY) = FRACREFB(IG)
-      ENDDO
+          speccomb1 = colh2o(jl,lay) + rat_h2oo3_1(jl,lay)*colo3(jl,lay)
+          specparm1 = MIN(colh2o(jl,lay)/speccomb1,oneminus)
+          specmult1 = 8._JPRB*(specparm1)
+          js1 = 1 + int(specmult1)
+          fs1 = MOD1(specmult1)
 
-! Empirical modification to code to improve stratospheric cooling rates
-! for o3.  Revised to apply weighting for g-point reduction in this band.
+          speccomb_mco2 = colh2o(jl,lay) + refrat_m_a*colo3(jl,lay)
+          specparm_mco2 = MIN(colh2o(jl,lay)/speccomb_mco2,oneminus)
+          specmult_mco2 = 8._JPRB*specparm_mco2
 
-         P_TAU(JLON,ngs6+6,JLAY)=P_TAU(JLON,ngs6+6,JLAY)*0.92_JPRB
-         P_TAU(JLON,ngs6+7,JLAY)=P_TAU(JLON,ngs6+7,JLAY)*0.88_JPRB
-         P_TAU(JLON,ngs6+8,JLAY)=P_TAU(JLON,ngs6+8,JLAY)*1.07_JPRB
-         P_TAU(JLON,ngs6+9,JLAY)=P_TAU(JLON,ngs6+9,JLAY)*1.1_JPRB
-         P_TAU(JLON,ngs6+10,JLAY)=P_TAU(JLON,ngs6+10,JLAY)*0.99_JPRB
-         P_TAU(JLON,ngs6+11,JLAY)=P_TAU(JLON,ngs6+11,JLAY)*0.855_JPRB
+          jmco2 = 1 + int(specmult_mco2)
+          fmco2 = MOD1(specmult_mco2)
 
+          !  In atmospheres where the amount of CO2 is too great to be considered
+          !  a minor species, adjust the column amount of CO2 by an empirical factor
+          !  to obtain the proper contribution.
+          chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
+          ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+          if (ratco2 .gt. 3.0_JPRB) then
+            adjfac = 3.0_JPRB+(ratco2-3.0_JPRB)**0.79_JPRB
+            adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
+          else
+            adjcolco2 = colco2(jl,lay)
+          endif
 
+          speccomb_planck = colh2o(jl,lay)+refrat_planck_a*colo3(jl,lay)
+          specparm_planck = MIN(colh2o(jl,lay)/speccomb_planck,oneminus)
+          specmult_planck = 8._JPRB*specparm_planck
+          jpl = 1 + int(specmult_planck)
+          fpl = MOD1(specmult_planck)
 
-    ENDIF
-  ENDDO
-ENDDO
+          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(7) + js
+          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(7) + js1
+          inds = indself(jl,lay)
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
 
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL7',1,ZHOOK_HANDLE)
+          if (specparm .lt. 0.125_JPRB) then
+            p = fs - 1._JPRB
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac000 = fk0*fac00(jl,lay)
+            fac100 = fk1*fac00(jl,lay)
+            fac200 = fk2*fac00(jl,lay)
+            fac010 = fk0*fac10(jl,lay)
+            fac110 = fk1*fac10(jl,lay)
+            fac210 = fk2*fac10(jl,lay)
+          else if (specparm .gt. 0.875_JPRB) then
+            p = -fs
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac000 = fk0*fac00(jl,lay)
+            fac100 = fk1*fac00(jl,lay)
+            fac200 = fk2*fac00(jl,lay)
+            fac010 = fk0*fac10(jl,lay)
+            fac110 = fk1*fac10(jl,lay)
+            fac210 = fk2*fac10(jl,lay)
+          else
+            fac000 = (1._JPRB - fs) * fac00(jl,lay)
+            fac010 = (1._JPRB - fs) * fac10(jl,lay)
+            fac100 = fs * fac00(jl,lay)
+            fac110 = fs * fac10(jl,lay)
+            fac200 = 0._JPRB
+            fac210 = 0._JPRB
+          endif
 
-END ASSOCIATE
+          if (specparm1 .lt. 0.125_JPRB) then
+            p = fs1 - 1._JPRB
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac001 = fk0*fac01(jl,lay)
+            fac101 = fk1*fac01(jl,lay)
+            fac201 = fk2*fac01(jl,lay)
+            fac011 = fk0*fac11(jl,lay)
+            fac111 = fk1*fac11(jl,lay)
+            fac211 = fk2*fac11(jl,lay)
+          else if (specparm1 .gt. 0.875_JPRB) then
+            p = -fs1
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac001 = fk0*fac01(jl,lay)
+            fac101 = fk1*fac01(jl,lay)
+            fac201 = fk2*fac01(jl,lay)
+            fac011 = fk0*fac11(jl,lay)
+            fac111 = fk1*fac11(jl,lay)
+            fac211 = fk2*fac11(jl,lay)
+          else
+            fac001 = (1._JPRB - fs1) * fac01(jl,lay)
+            fac011 = (1._JPRB - fs1) * fac11(jl,lay)
+            fac101 = fs1 * fac01(jl,lay)
+            fac111 = fs1 * fac11(jl,lay)
+            fac201 = 0._JPRB
+            fac211 = 0._JPRB
+          endif
+
+          if (specparm .lt. 0.125_JPRB) then
+!$NEC unroll(NG7)
+            tau_major(1:ng7) = speccomb *    &
+             (fac000 * absa(ind0,1:ng7)    + &
+              fac100 * absa(ind0+1,1:ng7)  + &
+              fac200 * absa(ind0+2,1:ng7)  + &
+              fac010 * absa(ind0+9,1:ng7)  + &
+              fac110 * absa(ind0+10,1:ng7) + &
+              fac210 * absa(ind0+11,1:ng7))
+          else if (specparm .gt. 0.875_JPRB) then
+!$NEC unroll(NG7)
+            tau_major(1:ng7) = speccomb *   &
+             (fac200 * absa(ind0-1,1:ng7) + &
+              fac100 * absa(ind0,1:ng7)   + &
+              fac000 * absa(ind0+1,1:ng7) + &
+              fac210 * absa(ind0+8,1:ng7) + &
+              fac110 * absa(ind0+9,1:ng7) + &
+              fac010 * absa(ind0+10,1:ng7))
+          else
+!$NEC unroll(NG7)
+            tau_major(1:ng7) = speccomb *   &
+             (fac000 * absa(ind0,1:ng7)   + &
+              fac100 * absa(ind0+1,1:ng7) + &
+              fac010 * absa(ind0+9,1:ng7) + &
+              fac110 * absa(ind0+10,1:ng7))
+          endif
+
+          if (specparm1 .lt. 0.125_JPRB) then
+!$NEC unroll(NG7)
+            tau_major1(1:ng7) = speccomb1 *  &
+             (fac001 * absa(ind1,1:ng7)    + &
+              fac101 * absa(ind1+1,1:ng7)  + &
+              fac201 * absa(ind1+2,1:ng7)  + &
+              fac011 * absa(ind1+9,1:ng7)  + &
+              fac111 * absa(ind1+10,1:ng7) + &
+              fac211 * absa(ind1+11,1:ng7))
+          else if (specparm1 .gt. 0.875_JPRB) then
+!$NEC unroll(NG7)
+            tau_major1(1:ng7) = speccomb1 * &
+             (fac201 * absa(ind1-1,1:ng7) + &
+              fac101 * absa(ind1,1:ng7)   + &
+              fac001 * absa(ind1+1,1:ng7) + &
+              fac211 * absa(ind1+8,1:ng7) + &
+              fac111 * absa(ind1+9,1:ng7) + &
+              fac011 * absa(ind1+10,1:ng7))
+          else
+!$NEC unroll(NG7)
+            tau_major1(1:ng7) = speccomb1 * &
+             (fac001 * absa(ind1,1:ng7)   + &
+              fac101 * absa(ind1+1,1:ng7) + &
+              fac011 * absa(ind1+9,1:ng7) + &
+              fac111 * absa(ind1+10,1:ng7))
+          endif
+
+!$NEC unroll(NG7)
+          do ig = 1, ng7
+            tauself = selffac(jl,lay)* (selfref(inds,ig) + selffrac(jl,lay) * &
+                 (selfref(inds+1,ig) - selfref(inds,ig)))
+            taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
+                 (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
+            co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
+                 (ka_mco2(jmco2+1,indm+1,ig) - ka_mco2(jmco2,indm+1,ig))
+            absco2 = co2m1 + minorfrac(jl,lay) * (co2m2 - co2m1)
+
+            taug(jl,ngs6+ig,lay) = tau_major(ig) + tau_major1(ig) &
+                 + tauself + taufor &
+                 + adjcolco2*absco2
+            fracs(jl,ngs6+ig,lay) = fracrefa(ig,jpl) + fpl * &
+                 (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
+          enddo
+        enddo
+
+      enddo
+
+      ! Upper atmosphere loop
+      do lay = laytrop_max+1, KLEV
+        do jl = KIDIA, KFDIA
+
+          !  In atmospheres where the amount of CO2 is too great to be considered
+          !  a minor species, adjust the column amount of CO2 by an empirical factor
+          !  to obtain the proper contribution.
+          chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
+          ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+          if (ratco2 .gt. 3.0_JPRB) then
+            adjfac = 2.0_JPRB+(ratco2-2.0_JPRB)**0.79_JPRB
+            adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
+          else
+            adjcolco2 = colco2(jl,lay)
+          endif
+
+          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(7) + 1
+          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(7) + 1
+          indm = indminor(jl,lay)
+!$NEC unroll(NG7)
+          do ig = 1, ng7
+            absco2 = kb_mco2(indm,ig) + minorfrac(jl,lay) * &
+                 (kb_mco2(indm+1,ig) - kb_mco2(indm,ig))
+            taug(jl,ngs6+ig,lay) = colo3(jl,lay) * &
+                 (fac00(jl,lay) * absb(ind0,ig) + &
+                 fac10(jl,lay) * absb(ind0+1,ig) + &
+                 fac01(jl,lay) * absb(ind1,ig) + &
+                 fac11(jl,lay) * absb(ind1+1,ig)) &
+                 + adjcolco2 * absco2
+            fracs(jl,ngs6+ig,lay) = fracrefb(ig)
+          enddo
+        enddo
+      enddo
+
+      ! Empirical modification to code to improve stratospheric cooling rates
+      ! for o3.  Revised to apply weighting for g-point reduction in this band.
+      do lay = laytrop_max+1, KLEV
+        do jl = KIDIA, KFDIA
+          taug(jl,ngs6+6,lay)=taug(jl,ngs6+6,lay)*0.92_JPRB
+          taug(jl,ngs6+7,lay)=taug(jl,ngs6+7,lay)*0.88_JPRB
+          taug(jl,ngs6+8,lay)=taug(jl,ngs6+8,lay)*1.07_JPRB
+          taug(jl,ngs6+9,lay)=taug(jl,ngs6+9,lay)*1.1_JPRB
+          taug(jl,ngs6+10,lay)=taug(jl,ngs6+10,lay)*0.99_JPRB
+          taug(jl,ngs6+11,lay)=taug(jl,ngs6+11,lay)*0.855_JPRB
+        enddo
+      enddo
+
+      IF (laytrop_max == laytrop_min) RETURN
+      ! Mixed loop
+      ! Lower atmosphere part
+      do lay = laytrop_min+1, laytrop_max
+        ixc0 = ixc(lay)
+
+!$NEC ivdep
+        do ixp = 1, ixc0
+          jl = ixlow(ixp,lay)
+
+          speccomb = colh2o(jl,lay) + rat_h2oo3(jl,lay)*colo3(jl,lay)
+          specparm = MIN(colh2o(jl,lay)/speccomb,oneminus)
+          specmult = 8._JPRB*(specparm)
+          js = 1 + int(specmult)
+          fs = MOD1(specmult)
+
+          speccomb1 = colh2o(jl,lay) + rat_h2oo3_1(jl,lay)*colo3(jl,lay)
+          specparm1 = MIN(colh2o(jl,lay)/speccomb1,oneminus)
+          specmult1 = 8._JPRB*(specparm1)
+          js1 = 1 + int(specmult1)
+          fs1 = MOD1(specmult1)
+
+          speccomb_mco2 = colh2o(jl,lay) + refrat_m_a*colo3(jl,lay)
+          specparm_mco2 = MIN(colh2o(jl,lay)/speccomb_mco2,oneminus)
+          specmult_mco2 = 8._JPRB*specparm_mco2
+
+          jmco2 = 1 + int(specmult_mco2)
+          fmco2 = MOD1(specmult_mco2)
+
+          !  In atmospheres where the amount of CO2 is too great to be considered
+          !  a minor species, adjust the column amount of CO2 by an empirical factor
+          !  to obtain the proper contribution.
+          chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
+          ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+          if (ratco2 .gt. 3.0_JPRB) then
+            adjfac = 3.0_JPRB+(ratco2-3.0_JPRB)**0.79_JPRB
+            adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
+          else
+            adjcolco2 = colco2(jl,lay)
+          endif
+
+          speccomb_planck = colh2o(jl,lay)+refrat_planck_a*colo3(jl,lay)
+          specparm_planck = MIN(colh2o(jl,lay)/speccomb_planck,oneminus)
+          specmult_planck = 8._JPRB*specparm_planck
+          jpl = 1 + int(specmult_planck)
+          fpl = MOD1(specmult_planck)
+
+          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(7) + js
+          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(7) + js1
+          inds = indself(jl,lay)
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
+
+          if (specparm .lt. 0.125_JPRB) then
+            p = fs - 1._JPRB
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac000 = fk0*fac00(jl,lay)
+            fac100 = fk1*fac00(jl,lay)
+            fac200 = fk2*fac00(jl,lay)
+            fac010 = fk0*fac10(jl,lay)
+            fac110 = fk1*fac10(jl,lay)
+            fac210 = fk2*fac10(jl,lay)
+          else if (specparm .gt. 0.875_JPRB) then
+            p = -fs
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac000 = fk0*fac00(jl,lay)
+            fac100 = fk1*fac00(jl,lay)
+            fac200 = fk2*fac00(jl,lay)
+            fac010 = fk0*fac10(jl,lay)
+            fac110 = fk1*fac10(jl,lay)
+            fac210 = fk2*fac10(jl,lay)
+          else
+            fac000 = (1._JPRB - fs) * fac00(jl,lay)
+            fac010 = (1._JPRB - fs) * fac10(jl,lay)
+            fac100 = fs * fac00(jl,lay)
+            fac110 = fs * fac10(jl,lay)
+            fac200 = 0._JPRB
+            fac210 = 0._JPRB
+          endif
+
+          if (specparm1 .lt. 0.125_JPRB) then
+            p = fs1 - 1._JPRB
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac001 = fk0*fac01(jl,lay)
+            fac101 = fk1*fac01(jl,lay)
+            fac201 = fk2*fac01(jl,lay)
+            fac011 = fk0*fac11(jl,lay)
+            fac111 = fk1*fac11(jl,lay)
+            fac211 = fk2*fac11(jl,lay)
+          else if (specparm1 .gt. 0.875_JPRB) then
+            p = -fs1
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac001 = fk0*fac01(jl,lay)
+            fac101 = fk1*fac01(jl,lay)
+            fac201 = fk2*fac01(jl,lay)
+            fac011 = fk0*fac11(jl,lay)
+            fac111 = fk1*fac11(jl,lay)
+            fac211 = fk2*fac11(jl,lay)
+          else
+            fac001 = (1._JPRB - fs1) * fac01(jl,lay)
+            fac011 = (1._JPRB - fs1) * fac11(jl,lay)
+            fac101 = fs1 * fac01(jl,lay)
+            fac111 = fs1 * fac11(jl,lay)
+            fac201 = 0._JPRB
+            fac211 = 0._JPRB
+          endif
+
+          if (specparm .lt. 0.125_JPRB) then
+!$NEC unroll(NG7)
+            tau_major(1:ng7) = speccomb *    &
+             (fac000 * absa(ind0,1:ng7)    + &
+              fac100 * absa(ind0+1,1:ng7)  + &
+              fac200 * absa(ind0+2,1:ng7)  + &
+              fac010 * absa(ind0+9,1:ng7)  + &
+              fac110 * absa(ind0+10,1:ng7) + &
+              fac210 * absa(ind0+11,1:ng7))
+          else if (specparm .gt. 0.875_JPRB) then
+!$NEC unroll(NG7)
+            tau_major(1:ng7) = speccomb *   &
+             (fac200 * absa(ind0-1,1:ng7) + &
+              fac100 * absa(ind0,1:ng7)   + &
+              fac000 * absa(ind0+1,1:ng7) + &
+              fac210 * absa(ind0+8,1:ng7) + &
+              fac110 * absa(ind0+9,1:ng7) + &
+              fac010 * absa(ind0+10,1:ng7))
+          else
+!$NEC unroll(NG7)
+            tau_major(1:ng7) = speccomb *   &
+             (fac000 * absa(ind0,1:ng7)   + &
+              fac100 * absa(ind0+1,1:ng7) + &
+              fac010 * absa(ind0+9,1:ng7) + &
+              fac110 * absa(ind0+10,1:ng7))
+          endif
+
+          if (specparm1 .lt. 0.125_JPRB) then
+!$NEC unroll(NG7)
+            tau_major1(1:ng7) = speccomb1 *  &
+             (fac001 * absa(ind1,1:ng7)    + &
+              fac101 * absa(ind1+1,1:ng7)  + &
+              fac201 * absa(ind1+2,1:ng7)  + &
+              fac011 * absa(ind1+9,1:ng7)  + &
+              fac111 * absa(ind1+10,1:ng7) + &
+              fac211 * absa(ind1+11,1:ng7))
+          else if (specparm1 .gt. 0.875_JPRB) then
+!$NEC unroll(NG7)
+            tau_major1(1:ng7) = speccomb1 * &
+             (fac201 * absa(ind1-1,1:ng7) + &
+              fac101 * absa(ind1,1:ng7)   + &
+              fac001 * absa(ind1+1,1:ng7) + &
+              fac211 * absa(ind1+8,1:ng7) + &
+              fac111 * absa(ind1+9,1:ng7) + &
+              fac011 * absa(ind1+10,1:ng7))
+          else
+!$NEC unroll(NG7)
+            tau_major1(1:ng7) = speccomb1 * &
+             (fac001 * absa(ind1,1:ng7)   + &
+              fac101 * absa(ind1+1,1:ng7) + &
+              fac011 * absa(ind1+9,1:ng7) + &
+              fac111 * absa(ind1+10,1:ng7))
+          endif
+
+!$NEC unroll(NG7)
+          do ig = 1, ng7
+            tauself = selffac(jl,lay)* (selfref(inds,ig) + selffrac(jl,lay) * &
+                 (selfref(inds+1,ig) - selfref(inds,ig)))
+            taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
+                 (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
+            co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
+                 (ka_mco2(jmco2+1,indm+1,ig) - ka_mco2(jmco2,indm+1,ig))
+            absco2 = co2m1 + minorfrac(jl,lay) * (co2m2 - co2m1)
+
+            taug(jl,ngs6+ig,lay) = tau_major(ig) + tau_major1(ig) &
+                 + tauself + taufor &
+                 + adjcolco2*absco2
+            fracs(jl,ngs6+ig,lay) = fracrefa(ig,jpl) + fpl * &
+                 (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
+          enddo
+        enddo
+
+        ! Upper atmosphere part
+        ixc0 = KFDIA - KIDIA + 1 - ixc0
+!$NEC ivdep
+        do ixp = 1, ixc0
+          jl = ixhigh(ixp,lay)
+
+          !  In atmospheres where the amount of CO2 is too great to be considered
+          !  a minor species, adjust the column amount of CO2 by an empirical factor
+          !  to obtain the proper contribution.
+          chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
+          ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+          if (ratco2 .gt. 3.0_JPRB) then
+            adjfac = 2.0_JPRB+(ratco2-2.0_JPRB)**0.79_JPRB
+            adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
+          else
+            adjcolco2 = colco2(jl,lay)
+          endif
+
+          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(7) + 1
+          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(7) + 1
+          indm = indminor(jl,lay)
+!$NEC unroll(NG7)
+          do ig = 1, ng7
+            absco2 = kb_mco2(indm,ig) + minorfrac(jl,lay) * &
+                 (kb_mco2(indm+1,ig) - kb_mco2(indm,ig))
+            taug(jl,ngs6+ig,lay) = colo3(jl,lay) * &
+                 (fac00(jl,lay) * absb(ind0,ig) + &
+                 fac10(jl,lay) * absb(ind0+1,ig) + &
+                 fac01(jl,lay) * absb(ind1,ig) + &
+                 fac11(jl,lay) * absb(ind1+1,ig)) &
+                 + adjcolco2 * absco2
+            fracs(jl,ngs6+ig,lay) = fracrefb(ig)
+          enddo
+        enddo
+
+        ! Empirical modification to code to improve stratospheric cooling rates
+        ! for o3.  Revised to apply weighting for g-point reduction in this band.
+
+!$NEC ivdep
+        do ixp = 1, ixc0
+          jl = ixhigh(ixp,lay)
+          taug(jl,ngs6+6,lay)=taug(jl,ngs6+6,lay)*0.92_JPRB
+          taug(jl,ngs6+7,lay)=taug(jl,ngs6+7,lay)*0.88_JPRB
+          taug(jl,ngs6+8,lay)=taug(jl,ngs6+8,lay)*1.07_JPRB
+          taug(jl,ngs6+9,lay)=taug(jl,ngs6+9,lay)*1.1_JPRB
+          taug(jl,ngs6+10,lay)=taug(jl,ngs6+10,lay)*0.99_JPRB
+          taug(jl,ngs6+11,lay)=taug(jl,ngs6+11,lay)*0.855_JPRB
+        enddo
+
+      enddo
+
 END SUBROUTINE RRTM_TAUMOL7
