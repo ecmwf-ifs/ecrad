@@ -95,7 +95,8 @@ data ZAMCL4 / 153.8230_JPRB   /
 data ZAVGDRO/ 6.02214E23_JPRB /
 
 INTEGER(KIND=JPIM) :: IATM, JMOL, IXMAX, J1, J2, JK, JL
-INTEGER(KIND=JPIM) :: ITMOL, INXMOL
+INTEGER(KIND=JPIM) :: INXMOL
+INTEGER(KIND=JPIM), PARAMETER :: ITMOL = 7
 
 REAL(KIND=JPRB) :: ZAMM
 
@@ -168,7 +169,6 @@ DO JL = KIDIA, KFDIA
 !     molecular weight of moist air (amm) is calculated for each layer.
 !     Note: RRTM levels count from bottom to top, while the ECRT input
 !     variables count from the top down and must be reversed 
-  ITMOL = 7
   PZ(JL,0) = PAPH(JL,KLEV+1)/100._JPRB
   PTZ(JL,0) = PTH(JL,KLEV+1)
 ENDDO
