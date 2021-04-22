@@ -308,6 +308,7 @@ DO JB = IB1, IB2
   ENDIF
    
   DO JG=1,IGT
+!NEC$ ivdep
     DO IC=1,ICOUNT
       JL=IND(IC)
       IW(JL)=IW(JL)+1
