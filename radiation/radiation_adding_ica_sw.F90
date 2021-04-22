@@ -97,6 +97,7 @@ contains
     ! the entire earth/atmosphere system below that half-level, and
     ! also the "source", which is the upwelling flux due to direct
     ! radiation that is scattered below that level
+!NEC$ outerloop_unroll(8)
     do jlev = nlev,1,-1
       ! Next loop over columns. We could do this by indexing the
       ! entire inner dimension as follows, e.g. for the first line:
@@ -127,6 +128,7 @@ contains
 
     ! Work back down through the atmosphere computing the fluxes at
     ! each half-level
+!NEC$ outerloop_unroll(8)
     do jlev = 1,nlev
       do jcol = 1,ncol
         ! Shonk & Hogan (2008) Eq 14 (after simplification):
