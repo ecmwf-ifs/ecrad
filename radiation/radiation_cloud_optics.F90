@@ -270,7 +270,7 @@ contains
     ! access
     type(cloud_optics_type), pointer :: ho
 
-    integer    :: jcol, jlev
+    integer    :: jcol, jlev, jb
 
     real(jprb) :: hook_handle
 
@@ -457,29 +457,36 @@ contains
 
           ! Combine liquid and ice 
           if (config%do_lw_cloud_scattering) then
-            od_lw_cloud(:,jlev,jcol) = od_lw_liq + od_lw_ice
-            where (scat_od_lw_liq+scat_od_lw_ice > 0.0_jprb)
-              g_lw_cloud(:,jlev,jcol) = (g_lw_liq * scat_od_lw_liq &
-                   &  + g_lw_ice * scat_od_lw_ice) &
-                   &  / (scat_od_lw_liq+scat_od_lw_ice)
-            elsewhere
-              g_lw_cloud(:,jlev,jcol) = 0.0_jprb
-            end where
-            ssa_lw_cloud(:,jlev,jcol) = (scat_od_lw_liq + scat_od_lw_ice) &
-                 &                    / (od_lw_liq + od_lw_ice)
+!NEC$ shortloop
+            do jb = 1, config%n_bands_lw
+              od_lw_cloud(jb,jlev,jcol) = od_lw_liq(jb) + od_lw_ice(jb)
+              if (scat_od_lw_liq(jb)+scat_od_lw_ice(jb) > 0.0_jprb) then
+                g_lw_cloud(jb,jlev,jcol) = (g_lw_liq(jb) * scat_od_lw_liq(jb) &
+                   &  + g_lw_ice(jb) * scat_od_lw_ice(jb)) &
+                   &  / (scat_od_lw_liq(jb)+scat_od_lw_ice(jb))
+              else
+                g_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+              end if
+              ssa_lw_cloud(jb,jlev,jcol) = (scat_od_lw_liq(jb) + scat_od_lw_ice(jb)) &
+                 &                    / (od_lw_liq(jb) + od_lw_ice(jb))
+            enddo
           else
             ! If longwave scattering is to be neglected then the
             ! best approximation is to set the optical depth equal
             ! to the absorption optical depth
+!NEC$ shortloop
             od_lw_cloud(:,jlev,jcol) = od_lw_liq - scat_od_lw_liq &
                  &                   + od_lw_ice - scat_od_lw_ice
           end if
-          od_sw_cloud(:,jlev,jcol) = od_sw_liq + od_sw_ice
-          g_sw_cloud(:,jlev,jcol) = (g_sw_liq * scat_od_sw_liq &
-               &  + g_sw_ice * scat_od_sw_ice) &
-               &  / (scat_od_sw_liq + scat_od_sw_ice)
-          ssa_sw_cloud(:,jlev,jcol) &
-               &  = (scat_od_sw_liq + scat_od_sw_ice) / (od_sw_liq + od_sw_ice)
+!NEC$ shortloop
+          do jb = 1, config%n_bands_sw
+            od_sw_cloud(jb,jlev,jcol) = od_sw_liq(jb) + od_sw_ice(jb)
+            g_sw_cloud(jb,jlev,jcol) = (g_sw_liq(jb) * scat_od_sw_liq(jb) &
+               &  + g_sw_ice(jb) * scat_od_sw_ice(jb)) &
+               &  / (scat_od_sw_liq(jb) + scat_od_sw_ice(jb))
+            ssa_sw_cloud(jb,jlev,jcol) &
+               &  = (scat_od_sw_liq(jb) + scat_od_sw_ice(jb)) / (od_sw_liq(jb) + od_sw_ice(jb))
+          enddo
         end if ! Cloud present
       end do ! Loop over column
     end do ! Loop over level
