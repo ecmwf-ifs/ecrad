@@ -60,6 +60,7 @@ contains
     ! Ice water path in g m-2
     real (jprb) :: iwp_gm_2
 
+    integer :: jb
     !real(jprb)  :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_sw',0,hook_handle)
@@ -69,12 +70,15 @@ contains
     inv_de_um = 1.0_jprb / de_um
     iwp_gm_2  = ice_wp * 1000.0_jprb
 
-    od = iwp_gm_2 * (coeff(1:nb,1) + coeff(1:nb,2) * inv_de_um)
-    scat_od = od * (1.0_jprb - (coeff(1:nb,3) + de_um*(coeff(1:nb,4) &
-         &  + de_um*(coeff(1:nb,5) + de_um*coeff(1:nb,6)))))
-    g = min(coeff(1:nb,7) + de_um*(coeff(1:nb,8) &
-         &  + de_um*(coeff(1:nb,9) + de_um*coeff(1:nb,10))), &
+!NEC$ shortloop
+    do jb = 1, nb
+      od(jb) = iwp_gm_2 * (coeff(jb,1) + coeff(jb,2) * inv_de_um)
+      scat_od(jb) = od(jb) * (1.0_jprb - (coeff(jb,3) + de_um*(coeff(jb,4) &
+         &  + de_um*(coeff(jb,5) + de_um*coeff(jb,6)))))
+      g(jb) = min(coeff(jb,7) + de_um*(coeff(jb,8) &
+         &  + de_um*(coeff(jb,9) + de_um*coeff(jb,10))), &
          &  MaxAsymmetryFactor)
+    enddo
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_sw',1,hook_handle)
 
@@ -105,6 +109,7 @@ contains
     ! Ice water path in g m-2
     real (jprb) :: iwp_gm_2
 
+    integer :: jb
     !real(jprb)  :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_lw',0,hook_handle)
@@ -115,13 +120,16 @@ contains
     inv_de_um = 1.0_jprb / de_um
     iwp_gm_2  = ice_wp * 1000.0_jprb
 
-    od = iwp_gm_2 * (coeff(1:nb,1) + inv_de_um*(coeff(1:nb,2) &
-         &  + inv_de_um*coeff(1:nb,3)))
-    scat_od = od - iwp_gm_2*inv_de_um*(coeff(1:nb,4) + de_um*(coeff(1:nb,5) &
-         &  + de_um*(coeff(1:nb,6) + de_um*coeff(1:nb,7))))
-    g = min(coeff(1:nb,8) + de_um*(coeff(1:nb,9) &
-         &  + de_um*(coeff(1:nb,10) + de_um*coeff(1:nb,11))), &
+!NEC$ shortloop
+    do jb = 1, nb
+      od(jb) = iwp_gm_2 * (coeff(jb,1) + inv_de_um*(coeff(jb,2) &
+         &  + inv_de_um*coeff(jb,3)))
+      scat_od(jb) = od(jb) - iwp_gm_2*inv_de_um*(coeff(jb,4) + de_um*(coeff(jb,5) &
+         &  + de_um*(coeff(jb,6) + de_um*coeff(jb,7))))
+      g(jb) = min(coeff(jb,8) + de_um*(coeff(jb,9) &
+         &  + de_um*(coeff(jb,10) + de_um*coeff(jb,11))), &
          &  MaxAsymmetryFactor)
+    enddo
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_lw',1,hook_handle)
 
