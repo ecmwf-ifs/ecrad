@@ -1,8 +1,8 @@
 !----------------------------------------------------------------------------
-SUBROUTINE RRTM_TAUMOL5 (KIDIA,KFDIA,KLEV,P_TAU,P_WX,&
- & P_TAUAERL,P_FAC00,P_FAC01,P_FAC10,P_FAC11,P_FORFAC,P_FORFRAC,K_INDFOR,K_JP,K_JT,K_JT1,P_ONEMINUS,&
- & P_COLH2O,P_COLCO2, P_COLO3,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC, &
- & P_RAT_H2OCO2, P_RAT_H2OCO2_1, P_RAT_O3CO2, P_RAT_O3CO2_1,PMINORFRAC,KINDMINOR)  
+SUBROUTINE RRTM_TAUMOL5 (KIDIA,KFDIA,KLEV,taug,wx,&
+ & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
+ & colh2o,colco2, colo3,laytrop,selffac,selffrac,indself,fracs, &
+ & rat_h2oco2, rat_h2oco2_1, rat_o3co2, rat_o3co2_1,minorfrac,indminor)  
 
 !     BAND 5:  700-820 cm-1 (low - H2O,CO2; high - O3,CO2)
 
@@ -35,320 +35,574 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_WX(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: taug(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: wx(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_ONEMINUS
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLCO2(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO3(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: oneminus
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colh2o(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colco2(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colo3(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: fracs(KIDIA:KFDIA,JPGPT,KLEV) 
 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_RAT_H2OCO2(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_RAT_H2OCO2_1(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_RAT_O3CO2(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_RAT_O3CO2_1(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: K_INDFOR(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: PMINORFRAC(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: KINDMINOR(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2oco2(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2oco2_1(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_o3co2(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_o3co2_1(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
 ! ---------------------------------------------------------------------------
 
-REAL(KIND=JPRB) :: Z_SPECCOMB(KLEV),Z_SPECCOMB1(KLEV), &
-& Z_SPECCOMB_MO3(KLEV), Z_SPECCOMB_PLANCK(KLEV)
-INTEGER(KIND=JPIM) :: IND0(KLEV),IND1(KLEV),INDS(KLEV),INDF(KLEV),INDM(KLEV)
+REAL(KIND=JPRB) :: speccomb,speccomb1, &
+& speccomb_mo3, speccomb_planck
+INTEGER(KIND=JPIM) :: ind0,ind1,inds,indf,indm
 
-INTEGER(KIND=JPIM) :: IG, JS, JLAY, JS1, JPL, JMO3
-INTEGER(KIND=JPIM) :: JLON
+INTEGER(KIND=JPIM) :: IG, JS, lay, JS1, JPL, JMO3
 
-REAL(KIND=JPRB) :: Z_REFRAT_PLANCK_A, Z_REFRAT_PLANCK_B,Z_REFRAT_M_A
+REAL(KIND=JPRB) :: refrat_planck_a, refrat_planck_b,refrat_m_a
 
-REAL(KIND=JPRB) ::  Z_FAC000, Z_FAC100, Z_FAC200,&
- & Z_FAC010, Z_FAC110, Z_FAC210, &
- & Z_FAC001, Z_FAC101, Z_FAC201, &
- & Z_FAC011, Z_FAC111, Z_FAC211
-REAL(KIND=JPRB) :: ZP, ZP4, ZFK0, ZFK1, ZFK2
-REAL(KIND=JPRB) :: ZTAUFOR,ZTAUSELF,ZTAU_MAJOR,ZTAU_MAJOR1, ZO3M1, ZO3M2, ZABSO3
+REAL(KIND=JPRB) ::  fac000, fac100, fac200,&
+ & fac010, fac110, fac210, &
+ & fac001, fac101, fac201, &
+ & fac011, fac111, fac211
+REAL(KIND=JPRB) :: p, p4, fk0, fk1, fk2
+REAL(KIND=JPRB) :: taufor,tauself,tau_major(ng5),tau_major1(ng5), o3m1, o3m2, abso3
 
-REAL(KIND=JPRB) :: Z_FS, Z_SPECMULT, Z_SPECPARM, &
-& Z_FS1, Z_SPECMULT1, Z_SPECPARM1, &
-& Z_FPL, Z_SPECMULT_PLANCK, Z_SPECPARM_PLANCK, &
-& Z_FMO3, Z_SPECMULT_MO3, Z_SPECPARM_MO3  
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPRB) :: fs, specmult, specparm, &
+& fs1, specmult1, specparm1, &
+& fpl, specmult_PLANCK, specparm_PLANCK, &
+& fmo3, specmult_MO3, specparm_MO3  
+    !     local integer arrays
+    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
+    integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
+    INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
+
+#define MOD1(x) ((x) - AINT((x)))
+
+    laytrop_min = MINVAL(laytrop)
+    laytrop_max = MAXVAL(laytrop)
+
+    ixlow  = 0
+    ixhigh = 0
+    ixc    = 0
+
+    ! create index lists for mixed layers
+    do lay = laytrop_min+1, laytrop_max
+      icl = 0
+      ich = 0
+      do jc = KIDIA, KFDIA
+        if ( lay <= laytrop(jc) ) then
+          icl = icl + 1
+          ixlow(icl,lay) = jc
+        else
+          ich = ich + 1
+          ixhigh(ich,lay) = jc
+        endif
+      enddo
+      ixc(lay) = icl
+    enddo
 
 ! Minor gas mapping level :
 !     lower - o3, p = 317.34 mbar, t = 240.77 k
 !     lower - ccl4
-
-! Calculate reference ratio to be used in calculation of Planck
-! fraction in lower/upper atmosphere.
-
-! P = 473.420 mb
-      Z_REFRAT_PLANCK_A = CHI_MLS(1,5)/CHI_MLS(2,5)
-
-! P = 0.2369 mb
-      Z_REFRAT_PLANCK_B = CHI_MLS(3,43)/CHI_MLS(2,43)
-
-! P = 317.3480
-      Z_REFRAT_M_A = CHI_MLS(1,7)/CHI_MLS(2,7)
-
 
 !     Compute the optical depth by interpolating in ln(pressure), 
 !     temperature, and appropriate species.  Below LAYTROP, the water
 !     vapor self-continuum and foreign continuum is 
 !     interpolated (in temperature) separately.  
 
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL5',0,ZHOOK_HANDLE)
+      ! P = 473.420 mb
+      refrat_planck_a = chi_mls(1,5)/chi_mls(2,5)
 
-DO JLAY = 1, KLEV
-  DO JLON = KIDIA, KFDIA
-    IF (JLAY <= K_LAYTROP(JLON)) THEN
-      Z_SPECCOMB(JLAY) = P_COLH2O(JLON,JLAY) + P_RAT_H2OCO2(JLON,JLAY)*P_COLCO2(JLON,JLAY)
-      Z_SPECPARM = P_COLH2O(JLON,JLAY)/Z_SPECCOMB(JLAY)
-      Z_SPECPARM=MIN(P_ONEMINUS,Z_SPECPARM)
-      Z_SPECMULT = 8._JPRB*(Z_SPECPARM)
-      JS = 1 + INT(Z_SPECMULT)
-      Z_FS = MOD(Z_SPECMULT,1.0_JPRB)
+      ! P = 0.2369 mb
+      refrat_planck_b = chi_mls(3,43)/chi_mls(2,43)
 
-      Z_SPECCOMB1(JLAY) = P_COLH2O(JLON,JLAY) + P_RAT_H2OCO2_1(JLON,JLAY)*P_COLCO2(JLON,JLAY)
-      Z_SPECPARM1 = P_COLH2O(JLON,JLAY)/Z_SPECCOMB1(JLAY)
-      IF (Z_SPECPARM1 >= P_ONEMINUS) Z_SPECPARM1 = P_ONEMINUS
-      Z_SPECMULT1 = 8._JPRB*(Z_SPECPARM1)
-      JS1 = 1 + INT(Z_SPECMULT1)
-      Z_FS1 = MOD(Z_SPECMULT1,1.0_JPRB)
+      ! P = 317.3480
+      refrat_m_a = chi_mls(1,7)/chi_mls(2,7)
 
-      Z_SPECCOMB_MO3(JLAY) = P_COLH2O(JLON,JLAY) + Z_REFRAT_M_A*P_COLCO2(JLON,JLAY)
-      Z_SPECPARM_MO3 = P_COLH2O(JLON,JLAY)/Z_SPECCOMB_MO3(JLAY)
-      IF (Z_SPECPARM_MO3 >= P_ONEMINUS) Z_SPECPARM_MO3 = P_ONEMINUS
-      Z_SPECMULT_MO3 = 8._JPRB*Z_SPECPARM_MO3
-      JMO3 = 1 + INT(Z_SPECMULT_MO3)
-      Z_FMO3 = MOD(Z_SPECMULT_MO3,1.0_JPRB)
+      ! Compute the optical depth by interpolating in ln(pressure) and
+      ! temperature, and appropriate species.  Below laytrop, the
+      ! water vapor self-continuum and foreign continuum is
+      ! interpolated (in temperature) separately.
 
-      Z_SPECCOMB_PLANCK(JLAY) = P_COLH2O(JLON,JLAY)+Z_REFRAT_PLANCK_A*P_COLCO2(JLON,JLAY)
-      Z_SPECPARM_PLANCK = P_COLH2O(JLON,JLAY)/Z_SPECCOMB_PLANCK(JLAY)
-      IF (Z_SPECPARM_PLANCK >= P_ONEMINUS) Z_SPECPARM_PLANCK=P_ONEMINUS
-      Z_SPECMULT_PLANCK = 8._JPRB*Z_SPECPARM_PLANCK
-      JPL= 1 + INT(Z_SPECMULT_PLANCK)
-      Z_FPL = MOD(Z_SPECMULT_PLANCK,1.0_JPRB)
+      ! Lower atmosphere loop
+      do lay = 1, laytrop_min
+        do jl = KIDIA, KFDIA
 
+          speccomb = colh2o(jl,lay) + rat_h2oco2(jl,lay)*colco2(jl,lay)
+          specparm = MIN(colh2o(jl,lay)/speccomb,oneminus)
+          specmult = 8._JPRB*(specparm)
+          js = 1 + int(specmult)
+          fs = MOD1(specmult)
 
-      IND0(JLAY) = ((K_JP(JLON,JLAY)-1)*5+(K_JT(JLON,JLAY)-1))*NSPA(5) + JS
-      IND1(JLAY) = (K_JP(JLON,JLAY)*5+(K_JT1(JLON,JLAY)-1))*NSPA(5) + JS1
-      INDS(JLAY) = K_INDSELF(JLON,JLAY)
-      INDF(JLAY) = K_INDFOR(JLON,JLAY)
-      INDM(JLAY) = KINDMINOR(JLON,JLAY)
+          speccomb1 = colh2o(jl,lay) + rat_h2oco2_1(jl,lay)*colco2(jl,lay)
+          specparm1 = MIN(colh2o(jl,lay)/speccomb1,oneminus)
+          specmult1 = 8._JPRB*(specparm1)
+          js1 = 1 + int(specmult1)
+          fs1 = MOD1(specmult1)
 
+          speccomb_mo3 = colh2o(jl,lay) + refrat_m_a*colco2(jl,lay)
+          specparm_mo3 = MIN(colh2o(jl,lay)/speccomb_mo3,oneminus)
+          specmult_mo3 = 8._JPRB*specparm_mo3
+          jmo3 = 1 + int(specmult_mo3)
+          fmo3 = MOD1(specmult_mo3)
 
-      IF (Z_SPECPARM < 0.125_JPRB) THEN
-            ZP = Z_FS - 1
-            ZP4 = ZP**4
-            ZFK0 = ZP4
-            ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
-            ZFK2 = ZP + ZP4
-            Z_FAC000 = ZFK0*P_FAC00(JLON,JLAY)
-            Z_FAC100 = ZFK1*P_FAC00(JLON,JLAY)
-            Z_FAC200 = ZFK2*P_FAC00(JLON,JLAY)
-            Z_FAC010 = ZFK0*P_FAC10(JLON,JLAY)
-            Z_FAC110 = ZFK1*P_FAC10(JLON,JLAY)
-            Z_FAC210 = ZFK2*P_FAC10(JLON,JLAY)
-      ELSEIF (Z_SPECPARM > 0.875_JPRB) THEN
-            ZP = -Z_FS 
-            ZP4 = ZP**4
-            ZFK0 = ZP4
-            ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
-            ZFK2 = ZP + ZP4
-            Z_FAC000 = ZFK0*P_FAC00(JLON,JLAY)
-            Z_FAC100 = ZFK1*P_FAC00(JLON,JLAY)
-            Z_FAC200 = ZFK2*P_FAC00(JLON,JLAY)
-            Z_FAC010 = ZFK0*P_FAC10(JLON,JLAY)
-            Z_FAC110 = ZFK1*P_FAC10(JLON,JLAY)
-            Z_FAC210 = ZFK2*P_FAC10(JLON,JLAY)
-      ELSE
-            Z_FAC000 = (1._JPRB - Z_FS) * P_FAC00(JLON,JLAY)
-            Z_FAC010 = (1._JPRB - Z_FS) * P_FAC10(JLON,JLAY)
-            Z_FAC100 = Z_FS * P_FAC00(JLON,JLAY)
-            Z_FAC110 = Z_FS * P_FAC10(JLON,JLAY)
-      ENDIF
-      IF (Z_SPECPARM1 < 0.125_JPRB) THEN
-            ZP = Z_FS1 - 1
-            ZP4 = ZP**4
-            ZFK0 = ZP4
-            ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
-            ZFK2 = ZP + ZP4
-            Z_FAC001 = ZFK0*P_FAC01(JLON,JLAY)
-            Z_FAC101 = ZFK1*P_FAC01(JLON,JLAY)
-            Z_FAC201 = ZFK2*P_FAC01(JLON,JLAY)
-            Z_FAC011 = ZFK0*P_FAC11(JLON,JLAY)
-            Z_FAC111 = ZFK1*P_FAC11(JLON,JLAY)
-            Z_FAC211 = ZFK2*P_FAC11(JLON,JLAY)
-      ELSEIF (Z_SPECPARM1 > 0.875_JPRB) THEN
-            ZP = -Z_FS1 
-            ZP4 = ZP**4
-            ZFK0 = ZP4
-            ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
-            ZFK2 = ZP + ZP4
-            Z_FAC001 = ZFK0*P_FAC01(JLON,JLAY)
-            Z_FAC101 = ZFK1*P_FAC01(JLON,JLAY)
-            Z_FAC201 = ZFK2*P_FAC01(JLON,JLAY)
-            Z_FAC011 = ZFK0*P_FAC11(JLON,JLAY)
-            Z_FAC111 = ZFK1*P_FAC11(JLON,JLAY)
-            Z_FAC211 = ZFK2*P_FAC11(JLON,JLAY)
-      ELSE
-            Z_FAC001 = (1._JPRB - Z_FS1) * P_FAC01(JLON,JLAY)
-            Z_FAC011 = (1._JPRB - Z_FS1) * P_FAC11(JLON,JLAY)
-            Z_FAC101 = Z_FS1 * P_FAC01(JLON,JLAY)
-            Z_FAC111 = Z_FS1 * P_FAC11(JLON,JLAY)
-      ENDIF
+          speccomb_planck = colh2o(jl,lay)+refrat_planck_a*colco2(jl,lay)
+          specparm_planck = MIN(colh2o(jl,lay)/speccomb_planck,oneminus)
+          specmult_planck = 8._JPRB*specparm_planck
+          jpl= 1 + int(specmult_planck)
+          fpl = MOD1(specmult_planck)
 
+          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(5) + js
+          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(5) + js1
+          inds = indself(jl,lay)
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
 
+          if (specparm .lt. 0.125_JPRB) then
+            p = fs - 1._JPRB
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac000 = fk0*fac00(jl,lay)
+            fac100 = fk1*fac00(jl,lay)
+            fac200 = fk2*fac00(jl,lay)
+            fac010 = fk0*fac10(jl,lay)
+            fac110 = fk1*fac10(jl,lay)
+            fac210 = fk2*fac10(jl,lay)
+          else if (specparm .gt. 0.875_JPRB) then
+            p = -fs
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac000 = fk0*fac00(jl,lay)
+            fac100 = fk1*fac00(jl,lay)
+            fac200 = fk2*fac00(jl,lay)
+            fac010 = fk0*fac10(jl,lay)
+            fac110 = fk1*fac10(jl,lay)
+            fac210 = fk2*fac10(jl,lay)
+          else
+            fac000 = (1._JPRB - fs) * fac00(jl,lay)
+            fac010 = (1._JPRB - fs) * fac10(jl,lay)
+            fac100 = fs * fac00(jl,lay)
+            fac110 = fs * fac10(jl,lay)
+            fac200 = 0._JPRB
+            fac210 = 0._JPRB
+          endif
 
-!CDIR UNROLL=NG5
-      DO IG = 1, NG5
+          if (specparm1 .lt. 0.125_JPRB) then
+            p = fs1 - 1._JPRB
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac001 = fk0*fac01(jl,lay)
+            fac101 = fk1*fac01(jl,lay)
+            fac201 = fk2*fac01(jl,lay)
+            fac011 = fk0*fac11(jl,lay)
+            fac111 = fk1*fac11(jl,lay)
+            fac211 = fk2*fac11(jl,lay)
+          else if (specparm1 .gt. 0.875_JPRB) then
+            p = -fs1
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac001 = fk0*fac01(jl,lay)
+            fac101 = fk1*fac01(jl,lay)
+            fac201 = fk2*fac01(jl,lay)
+            fac011 = fk0*fac11(jl,lay)
+            fac111 = fk1*fac11(jl,lay)
+            fac211 = fk2*fac11(jl,lay)
+          else
+            fac001 = (1._JPRB - fs1) * fac01(jl,lay)
+            fac011 = (1._JPRB - fs1) * fac11(jl,lay)
+            fac101 = fs1 * fac01(jl,lay)
+            fac111 = fs1 * fac11(jl,lay)
+            fac201 = 0._JPRB
+            fac211 = 0._JPRB
+          endif
 
-         ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(INDS(JLAY),IG) + P_SELFFRAC(JLON,JLAY) * &
-            &     (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG)))
-         ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + P_FORFRAC(JLON,JLAY) * &
-            &     (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
-         ZO3M1 = KA_MO3(JMO3,INDM(JLAY),IG) + Z_FMO3 * &
-            &     (KA_MO3(JMO3+1,INDM(JLAY),IG) - KA_MO3(JMO3,INDM(JLAY),IG))
-         ZO3M2 = KA_MO3(JMO3,INDM(JLAY)+1,IG) + Z_FMO3 * &
-            &     (KA_MO3(JMO3+1,INDM(JLAY)+1,IG) - KA_MO3(JMO3,INDM(JLAY)+1,IG))
-         ZABSO3 = ZO3M1 + PMINORFRAC(JLON,JLAY) * (ZO3M2 - ZO3M1)
+          if (specparm .lt. 0.125_JPRB) then
+!$NEC unroll(NG5)
+            tau_major(1:ng5) = speccomb *    &
+             (fac000 * absa(ind0,1:ng5)    + &
+              fac100 * absa(ind0+1,1:ng5)  + &
+              fac200 * absa(ind0+2,1:ng5)  + &
+              fac010 * absa(ind0+9,1:ng5)  + &
+              fac110 * absa(ind0+10,1:ng5) + &
+              fac210 * absa(ind0+11,1:ng5))
+          else if (specparm .gt. 0.875_JPRB) then
+!$NEC unroll(NG5)
+            tau_major(1:ng5) = speccomb *   &
+             (fac200 * absa(ind0-1,1:ng5) + &
+              fac100 * absa(ind0,1:ng5)   + &
+              fac000 * absa(ind0+1,1:ng5) + &
+              fac210 * absa(ind0+8,1:ng5) + &
+              fac110 * absa(ind0+9,1:ng5) + &
+              fac010 * absa(ind0+10,1:ng5))
+          else
+!$NEC unroll(NG5)
+            tau_major(1:ng5) = speccomb *   &
+             (fac000 * absa(ind0,1:ng5)   + &
+              fac100 * absa(ind0+1,1:ng5) + &
+              fac010 * absa(ind0+9,1:ng5) + &
+              fac110 * absa(ind0+10,1:ng5))
+          endif
 
+          if (specparm1 .lt. 0.125_JPRB) then
+!$NEC unroll(NG5)
+            tau_major1(1:ng5) = speccomb1 *  &
+             (fac001 * absa(ind1,1:ng5)    + &
+              fac101 * absa(ind1+1,1:ng5)  + &
+              fac201 * absa(ind1+2,1:ng5)  + &
+              fac011 * absa(ind1+9,1:ng5)  + &
+              fac111 * absa(ind1+10,1:ng5) + &
+              fac211 * absa(ind1+11,1:ng5))
+          else if (specparm1 .gt. 0.875_JPRB) then
+!$NEC unroll(NG5)
+            tau_major1(1:ng5) = speccomb1 * &
+             (fac201 * absa(ind1-1,1:ng5) + &
+              fac101 * absa(ind1,1:ng5)   + &
+              fac001 * absa(ind1+1,1:ng5) + &
+              fac211 * absa(ind1+8,1:ng5) + &
+              fac111 * absa(ind1+9,1:ng5) + &
+              fac011 * absa(ind1+10,1:ng5))
+          else
+!$NEC unroll(NG5)
+            tau_major1(1:ng5) = speccomb1 * &
+             (fac001 * absa(ind1,1:ng5)   + &
+              fac101 * absa(ind1+1,1:ng5) + &
+              fac011 * absa(ind1+9,1:ng5) + &
+              fac111 * absa(ind1+10,1:ng5))
+          endif
 
-            IF (Z_SPECPARM < 0.125_JPRB) THEN
-               ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &   (Z_FAC000 * ABSA(IND0(JLAY),IG) + &
-                 &   Z_FAC100 * ABSA(IND0(JLAY)+1,IG) + &
-                 &   Z_FAC200 * ABSA(IND0(JLAY)+2,IG) + &
-                 &   Z_FAC010 * ABSA(IND0(JLAY)+9,IG) + &
-                 &   Z_FAC110 * ABSA(IND0(JLAY)+10,IG) + &
-                 &   Z_FAC210 * ABSA(IND0(JLAY)+11,IG))
-            ELSEIF (Z_SPECPARM > 0.875_JPRB) THEN
-               ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &   (Z_FAC200 * ABSA(IND0(JLAY)-1,IG) + &
-                 &   Z_FAC100 * ABSA(IND0(JLAY),IG) + &
-                 &   Z_FAC000 * ABSA(IND0(JLAY)+1,IG) + &
-                 &   Z_FAC210 * ABSA(IND0(JLAY)+8,IG) + &
-                 &   Z_FAC110 * ABSA(IND0(JLAY)+9,IG) + &
-                 &   Z_FAC010 * ABSA(IND0(JLAY)+10,IG))
-            ELSE
-               ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &   (Z_FAC000 * ABSA(IND0(JLAY),IG) + &
-                 &   Z_FAC100 * ABSA(IND0(JLAY)+1,IG) + &
-                 &   Z_FAC010 * ABSA(IND0(JLAY)+9,IG) + &
-                 &   Z_FAC110 * ABSA(IND0(JLAY)+10,IG))
-            ENDIF
+!$NEC unroll(NG5)
+          do ig = 1, ng5
+            tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                 (selfref(inds+1,ig) - selfref(inds,ig)))
+            taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            o3m1 = ka_mo3(jmo3,indm,ig) + fmo3 * &
+                 (ka_mo3(jmo3+1,indm,ig)-ka_mo3(jmo3,indm,ig))
+            o3m2 = ka_mo3(jmo3,indm+1,ig) + fmo3 * &
+                 (ka_mo3(jmo3+1,indm+1,ig)-ka_mo3(jmo3,indm+1,ig))
+            abso3 = o3m1 + minorfrac(jl,lay)*(o3m2-o3m1)
 
-            IF (Z_SPECPARM1 < 0.125_JPRB) THEN
-               ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                 &   (Z_FAC001 * ABSA(IND1(JLAY),IG) + &
-                 &   Z_FAC101 * ABSA(IND1(JLAY)+1,IG) + &
-                 &   Z_FAC201 * ABSA(IND1(JLAY)+2,IG) + &
-                 &   Z_FAC011 * ABSA(IND1(JLAY)+9,IG) + &
-                 &   Z_FAC111 * ABSA(IND1(JLAY)+10,IG) + &
-                 &   Z_FAC211 * ABSA(IND1(JLAY)+11,IG))
-            ELSEIF (Z_SPECPARM1 > 0.875_JPRB) THEN
-               ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                 &   (Z_FAC201 * ABSA(IND1(JLAY)-1,IG) + &
-                 &   Z_FAC101 * ABSA(IND1(JLAY),IG) + &
-                 &   Z_FAC001 * ABSA(IND1(JLAY)+1,IG) + &
-                 &   Z_FAC211 * ABSA(IND1(JLAY)+8,IG) + &
-                 &   Z_FAC111 * ABSA(IND1(JLAY)+9,IG) + &
-                 &   Z_FAC011 * ABSA(IND1(JLAY)+10,IG))
-            ELSE
-               ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                 &   (Z_FAC001 * ABSA(IND1(JLAY),IG) +  &
-                 &   Z_FAC101 * ABSA(IND1(JLAY)+1,IG) + &
-                 &   Z_FAC011 * ABSA(IND1(JLAY)+9,IG) + &
-                 &   Z_FAC111 * ABSA(IND1(JLAY)+10,IG))
-            ENDIF
+            taug(jl,ngs4+ig,lay) = tau_major(ig) + tau_major1(ig) &
+                 + tauself + taufor &
+                 + abso3*colo3(jl,lay) &
+                 + wx(jl,1,lay) * ccl4(ig)
+            fracs(jl,ngs4+ig,lay) = fracrefa(ig,jpl) + fpl * &
+                 (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
+          enddo
+        enddo
 
+      enddo
 
+      ! Upper atmosphere loop
+      do lay = laytrop_max+1, KLEV
+        do jl = KIDIA, KFDIA
 
-        P_TAU(JLON,NGS4+IG,JLAY) = ZTAU_MAJOR + ZTAU_MAJOR1 &
-         & + ZTAUSELF + ZTAUFOR &
-         & + ZABSO3*P_COLO3(JLON,JLAY) &
-         & + P_WX(JLON,1,JLAY) * CCL4(IG)&
-         & + P_TAUAERL(JLON,JLAY,5)  
-        PFRAC(JLON,NGS4+IG,JLAY) = FRACREFA(IG,JPL) + Z_FPL *&
-         & (FRACREFA(IG,JPL+1) - FRACREFA(IG,JPL))  
-      ENDDO
-    ENDIF
+          speccomb = colo3(jl,lay) + rat_o3co2(jl,lay)*colco2(jl,lay)
+          specparm = MIN(colo3(jl,lay)/speccomb,oneminus)
+          specmult = 4._JPRB*(specparm)
+          js = 1 + int(specmult)
+          fs = MOD1(specmult)
 
-    IF (JLAY > K_LAYTROP(JLON)) THEN
-      Z_SPECCOMB(JLAY) = P_COLO3(JLON,JLAY) + P_RAT_O3CO2(JLON,JLAY)*P_COLCO2(JLON,JLAY)
-      Z_SPECPARM = P_COLO3(JLON,JLAY)/Z_SPECCOMB(JLAY)
-      Z_SPECPARM=MIN(P_ONEMINUS,Z_SPECPARM)
-      Z_SPECMULT = 4._JPRB*(Z_SPECPARM)
-      JS = 1 + INT(Z_SPECMULT)
-      Z_FS = MOD(Z_SPECMULT,1.0_JPRB)
+          speccomb1 = colo3(jl,lay) + rat_o3co2_1(jl,lay)*colco2(jl,lay)
+          specparm1 = MIN(colo3(jl,lay)/speccomb1,oneminus)
+          specmult1 = 4._JPRB*(specparm1)
+          js1 = 1 + int(specmult1)
+          fs1 = MOD1(specmult1)
 
-      Z_SPECCOMB1(JLAY) = P_COLO3(JLON,JLAY) + P_RAT_O3CO2_1(JLON,JLAY)*P_COLCO2(JLON,JLAY)
-      Z_SPECPARM1 = P_COLO3(JLON,JLAY)/Z_SPECCOMB1(JLAY)
-      IF (Z_SPECPARM1 >= P_ONEMINUS) Z_SPECPARM1 = P_ONEMINUS
-      Z_SPECMULT1 = 4._JPRB*(Z_SPECPARM1)
-      JS1 = 1 + INT(Z_SPECMULT1)
-      Z_FS1 = MOD(Z_SPECMULT1,1.0_JPRB)
+          fac000 = (1._JPRB - fs) * fac00(jl,lay)
+          fac010 = (1._JPRB - fs) * fac10(jl,lay)
+          fac100 = fs * fac00(jl,lay)
+          fac110 = fs * fac10(jl,lay)
+          fac001 = (1._JPRB - fs1) * fac01(jl,lay)
+          fac011 = (1._JPRB - fs1) * fac11(jl,lay)
+          fac101 = fs1 * fac01(jl,lay)
+          fac111 = fs1 * fac11(jl,lay)
 
-      Z_FAC000 = (1._JPRB - Z_FS) * P_FAC00(JLON,JLAY)
-      Z_FAC010 = (1._JPRB - Z_FS) * P_FAC10(JLON,JLAY)
-      Z_FAC100 = Z_FS * P_FAC00(JLON,JLAY)
-      Z_FAC110 = Z_FS * P_FAC10(JLON,JLAY)
-      Z_FAC001 = (1._JPRB - Z_FS1) * P_FAC01(JLON,JLAY)
-      Z_FAC011 = (1._JPRB - Z_FS1) * P_FAC11(JLON,JLAY)
-      Z_FAC101 = Z_FS1 * P_FAC01(JLON,JLAY)
-      Z_FAC111 = Z_FS1 * P_FAC11(JLON,JLAY)
+          speccomb_planck = colo3(jl,lay)+refrat_planck_b*colco2(jl,lay)
+          specparm_planck = MIN(colo3(jl,lay)/speccomb_planck,oneminus)
+          specmult_planck = 4._JPRB*specparm_planck
+          jpl= 1 + int(specmult_planck)
+          fpl = MOD1(specmult_planck)
 
-      Z_SPECCOMB_PLANCK(JLAY) = P_COLO3(JLON,JLAY)+Z_REFRAT_PLANCK_B*P_COLCO2(JLON,JLAY)
-      Z_SPECPARM_PLANCK = P_COLO3(JLON,JLAY)/Z_SPECCOMB_PLANCK(JLAY)
-      IF (Z_SPECPARM_PLANCK >= P_ONEMINUS) Z_SPECPARM_PLANCK=P_ONEMINUS
-      Z_SPECMULT_PLANCK = 4._JPRB*Z_SPECPARM_PLANCK
-      JPL= 1 + INT(Z_SPECMULT_PLANCK)
-      Z_FPL = MOD(Z_SPECMULT_PLANCK,1.0_JPRB)
+          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(5) + js
+          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(5) + js1
+!$NEC unroll(NG5)
+          do ig = 1, ng5
+            taug(jl,ngs4+ig,lay) = speccomb * &
+                 (fac000 * absb(ind0,ig) + &
+                 fac100 * absb(ind0+1,ig) + &
+                 fac010 * absb(ind0+5,ig) + &
+                 fac110 * absb(ind0+6,ig)) &
+                 + speccomb1 * &
+                 (fac001 * absb(ind1,ig) + &
+                 fac101 * absb(ind1+1,ig) + &
+                 fac011 * absb(ind1+5,ig) + &
+                 fac111 * absb(ind1+6,ig))  &
+                 + wx(jl,1,lay) * ccl4(ig)
+            fracs(jl,ngs4+ig,lay) = fracrefb(ig,jpl) + fpl * &
+                 (fracrefb(ig,jpl+1)-fracrefb(ig,jpl))
+          enddo
+        enddo
 
+      enddo
 
-      IND0(JLAY) = ((K_JP(JLON,JLAY)-13)*5+(K_JT(JLON,JLAY)-1))*NSPB(5) + JS
-      IND1(JLAY) = ((K_JP(JLON,JLAY)-12)*5+(K_JT1(JLON,JLAY)-1))*NSPB(5) + JS1
+      IF (laytrop_max == laytrop_min) RETURN
+      ! Mixed loop
+      ! Lower atmosphere part
+      do lay = laytrop_min+1, laytrop_max
 
+        ixc0 = ixc(lay)
 
+!$NEC ivdep
+        do ixp = 1, ixc0
+          jl = ixlow(ixp,lay)
 
-!CDIR UNROLL=NG5
-      DO IG = 1, NG5
-!-- DS_000515
-        P_TAU(JLON,NGS4+IG,JLAY) = Z_SPECCOMB(JLAY) *   &
-         &(Z_FAC000 * ABSB(IND0(JLAY)  ,IG) +&
-         & Z_FAC100 * ABSB(IND0(JLAY)+1,IG) +&
-         & Z_FAC010 * ABSB(IND0(JLAY)+5,IG) +&
-         & Z_FAC110 * ABSB(IND0(JLAY)+6,IG)) +&
-         & Z_SPECCOMB1(JLAY) * &
-         & (Z_FAC001 * ABSB(IND1(JLAY)  ,IG) +&
-         & Z_FAC101 * ABSB(IND1(JLAY)+1,IG) +&
-         & Z_FAC011 * ABSB(IND1(JLAY)+5,IG) +&
-         & Z_FAC111 * ABSB(IND1(JLAY)+6,IG))+&
-         & P_WX(JLON,1,JLAY) * CCL4(IG)+&
-         & P_TAUAERL(JLON,JLAY,5)  
-        PFRAC(JLON,NGS4+IG,JLAY) = FRACREFB(IG,JPL) + Z_FPL *&
-         & (FRACREFB(IG,JPL+1) - FRACREFB(IG,JPL))  
-      ENDDO
-    ENDIF
-  ENDDO
-ENDDO
+          speccomb = colh2o(jl,lay) + rat_h2oco2(jl,lay)*colco2(jl,lay)
+          specparm = MIN(colh2o(jl,lay)/speccomb,oneminus)
+          specmult = 8._JPRB*(specparm)
+          js = 1 + int(specmult)
+          fs = MOD1(specmult)
 
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL5',1,ZHOOK_HANDLE)
+          speccomb1 = colh2o(jl,lay) + rat_h2oco2_1(jl,lay)*colco2(jl,lay)
+          specparm1 = MIN(colh2o(jl,lay)/speccomb1,oneminus)
+          specmult1 = 8._JPRB*(specparm1)
+          js1 = 1 + int(specmult1)
+          fs1 = MOD1(specmult1)
 
-END ASSOCIATE
+          speccomb_mo3 = colh2o(jl,lay) + refrat_m_a*colco2(jl,lay)
+          specparm_mo3 = MIN(colh2o(jl,lay)/speccomb_mo3,oneminus)
+          specmult_mo3 = 8._JPRB*specparm_mo3
+          jmo3 = 1 + int(specmult_mo3)
+          fmo3 = MOD1(specmult_mo3)
+
+          speccomb_planck = colh2o(jl,lay)+refrat_planck_a*colco2(jl,lay)
+          specparm_planck = MIN(colh2o(jl,lay)/speccomb_planck,oneminus)
+          specmult_planck = 8._JPRB*specparm_planck
+          jpl= 1 + int(specmult_planck)
+          fpl = MOD1(specmult_planck)
+
+          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(5) + js
+          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(5) + js1
+          inds = indself(jl,lay)
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
+
+          if (specparm .lt. 0.125_JPRB) then
+            p = fs - 1._JPRB
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac000 = fk0*fac00(jl,lay)
+            fac100 = fk1*fac00(jl,lay)
+            fac200 = fk2*fac00(jl,lay)
+            fac010 = fk0*fac10(jl,lay)
+            fac110 = fk1*fac10(jl,lay)
+            fac210 = fk2*fac10(jl,lay)
+          else if (specparm .gt. 0.875_JPRB) then
+            p = -fs
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac000 = fk0*fac00(jl,lay)
+            fac100 = fk1*fac00(jl,lay)
+            fac200 = fk2*fac00(jl,lay)
+            fac010 = fk0*fac10(jl,lay)
+            fac110 = fk1*fac10(jl,lay)
+            fac210 = fk2*fac10(jl,lay)
+          else
+            fac000 = (1._JPRB - fs) * fac00(jl,lay)
+            fac010 = (1._JPRB - fs) * fac10(jl,lay)
+            fac100 = fs * fac00(jl,lay)
+            fac110 = fs * fac10(jl,lay)
+            fac200 = 0._JPRB
+            fac210 = 0._JPRB
+          endif
+
+          if (specparm1 .lt. 0.125_JPRB) then
+            p = fs1 - 1._JPRB
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac001 = fk0*fac01(jl,lay)
+            fac101 = fk1*fac01(jl,lay)
+            fac201 = fk2*fac01(jl,lay)
+            fac011 = fk0*fac11(jl,lay)
+            fac111 = fk1*fac11(jl,lay)
+            fac211 = fk2*fac11(jl,lay)
+          else if (specparm1 .gt. 0.875_JPRB) then
+            p = -fs1
+            p4 = p**4
+            fk0 = p4
+            fk1 = 1._JPRB - p - 2.0_JPRB*p4
+            fk2 = p + p4
+            fac001 = fk0*fac01(jl,lay)
+            fac101 = fk1*fac01(jl,lay)
+            fac201 = fk2*fac01(jl,lay)
+            fac011 = fk0*fac11(jl,lay)
+            fac111 = fk1*fac11(jl,lay)
+            fac211 = fk2*fac11(jl,lay)
+          else
+            fac001 = (1._JPRB - fs1) * fac01(jl,lay)
+            fac011 = (1._JPRB - fs1) * fac11(jl,lay)
+            fac101 = fs1 * fac01(jl,lay)
+            fac111 = fs1 * fac11(jl,lay)
+            fac201 = 0._JPRB
+            fac211 = 0._JPRB
+          endif
+
+          if (specparm .lt. 0.125_JPRB) then
+!$NEC unroll(NG5)
+            tau_major(1:ng5) = speccomb *    &
+             (fac000 * absa(ind0,1:ng5)    + &
+              fac100 * absa(ind0+1,1:ng5)  + &
+              fac200 * absa(ind0+2,1:ng5)  + &
+              fac010 * absa(ind0+9,1:ng5)  + &
+              fac110 * absa(ind0+10,1:ng5) + &
+              fac210 * absa(ind0+11,1:ng5))
+          else if (specparm .gt. 0.875_JPRB) then
+!$NEC unroll(NG5)
+            tau_major(1:ng5) = speccomb *   &
+             (fac200 * absa(ind0-1,1:ng5) + &
+              fac100 * absa(ind0,1:ng5)   + &
+              fac000 * absa(ind0+1,1:ng5) + &
+              fac210 * absa(ind0+8,1:ng5) + &
+              fac110 * absa(ind0+9,1:ng5) + &
+              fac010 * absa(ind0+10,1:ng5))
+          else
+!$NEC unroll(NG5)
+            tau_major(1:ng5) = speccomb *   &
+             (fac000 * absa(ind0,1:ng5)   + &
+              fac100 * absa(ind0+1,1:ng5) + &
+              fac010 * absa(ind0+9,1:ng5) + &
+              fac110 * absa(ind0+10,1:ng5))
+          endif
+
+          if (specparm1 .lt. 0.125_JPRB) then
+!$NEC unroll(NG5)
+            tau_major1(1:ng5) = speccomb1 *  &
+             (fac001 * absa(ind1,1:ng5)    + &
+              fac101 * absa(ind1+1,1:ng5)  + &
+              fac201 * absa(ind1+2,1:ng5)  + &
+              fac011 * absa(ind1+9,1:ng5)  + &
+              fac111 * absa(ind1+10,1:ng5) + &
+              fac211 * absa(ind1+11,1:ng5))
+          else if (specparm1 .gt. 0.875_JPRB) then
+!$NEC unroll(NG5)
+            tau_major1(1:ng5) = speccomb1 * &
+             (fac201 * absa(ind1-1,1:ng5) + &
+              fac101 * absa(ind1,1:ng5)   + &
+              fac001 * absa(ind1+1,1:ng5) + &
+              fac211 * absa(ind1+8,1:ng5) + &
+              fac111 * absa(ind1+9,1:ng5) + &
+              fac011 * absa(ind1+10,1:ng5))
+          else
+!$NEC unroll(NG5)
+            tau_major1(1:ng5) = speccomb1 * &
+             (fac001 * absa(ind1,1:ng5)   + &
+              fac101 * absa(ind1+1,1:ng5) + &
+              fac011 * absa(ind1+9,1:ng5) + &
+              fac111 * absa(ind1+10,1:ng5))
+          endif
+
+!$NEC unroll(NG5)
+          do ig = 1, ng5
+            tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                 (selfref(inds+1,ig) - selfref(inds,ig)))
+            taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            o3m1 = ka_mo3(jmo3,indm,ig) + fmo3 * &
+                 (ka_mo3(jmo3+1,indm,ig)-ka_mo3(jmo3,indm,ig))
+            o3m2 = ka_mo3(jmo3,indm+1,ig) + fmo3 * &
+                 (ka_mo3(jmo3+1,indm+1,ig)-ka_mo3(jmo3,indm+1,ig))
+            abso3 = o3m1 + minorfrac(jl,lay)*(o3m2-o3m1)
+
+            taug(jl,ngs4+ig,lay) = tau_major(ig) + tau_major1(ig) &
+                 + tauself + taufor &
+                 + abso3*colo3(jl,lay) &
+                 + wx(jl,1,lay) * ccl4(ig)
+            fracs(jl,ngs4+ig,lay) = fracrefa(ig,jpl) + fpl * &
+                 (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
+          enddo
+        enddo
+
+        ! Upper atmosphere part
+        ixc0 = KFDIA - KIDIA + 1 - ixc0
+!$NEC ivdep
+        do ixp = 1, ixc0
+          jl = ixhigh(ixp,lay)
+
+          speccomb = colo3(jl,lay) + rat_o3co2(jl,lay)*colco2(jl,lay)
+          specparm = MIN(colo3(jl,lay)/speccomb,oneminus)
+          specmult = 4._JPRB*(specparm)
+          js = 1 + int(specmult)
+          fs = MOD1(specmult)
+
+          speccomb1 = colo3(jl,lay) + rat_o3co2_1(jl,lay)*colco2(jl,lay)
+          specparm1 = MIN(colo3(jl,lay)/speccomb1,oneminus)
+          specmult1 = 4._JPRB*(specparm1)
+          js1 = 1 + int(specmult1)
+          fs1 = MOD1(specmult1)
+
+          fac000 = (1._JPRB - fs) * fac00(jl,lay)
+          fac010 = (1._JPRB - fs) * fac10(jl,lay)
+          fac100 = fs * fac00(jl,lay)
+          fac110 = fs * fac10(jl,lay)
+          fac001 = (1._JPRB - fs1) * fac01(jl,lay)
+          fac011 = (1._JPRB - fs1) * fac11(jl,lay)
+          fac101 = fs1 * fac01(jl,lay)
+          fac111 = fs1 * fac11(jl,lay)
+
+          speccomb_planck = colo3(jl,lay)+refrat_planck_b*colco2(jl,lay)
+          specparm_planck = MIN(colo3(jl,lay)/speccomb_planck,oneminus)
+          specmult_planck = 4._JPRB*specparm_planck
+          jpl= 1 + int(specmult_planck)
+          fpl = MOD1(specmult_planck)
+
+          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(5) + js
+          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(5) + js1
+!$NEC unroll(NG5)
+          do ig = 1, ng5
+            taug(jl,ngs4+ig,lay) = speccomb * &
+                 (fac000 * absb(ind0,ig) + &
+                 fac100 * absb(ind0+1,ig) + &
+                 fac010 * absb(ind0+5,ig) + &
+                 fac110 * absb(ind0+6,ig)) &
+                 + speccomb1 * &
+                 (fac001 * absb(ind1,ig) + &
+                 fac101 * absb(ind1+1,ig) + &
+                 fac011 * absb(ind1+5,ig) + &
+                 fac111 * absb(ind1+6,ig))  &
+                 + wx(jl,1,lay) * ccl4(ig)
+            fracs(jl,ngs4+ig,lay) = fracrefb(ig,jpl) + fpl * &
+                 (fracrefb(ig,jpl+1)-fracrefb(ig,jpl))
+          enddo
+        enddo
+
+      enddo
+
 END SUBROUTINE RRTM_TAUMOL5
