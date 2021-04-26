@@ -554,8 +554,10 @@ contains
           end do
         end do
         if (present(incoming_sw)) then
-          incoming_sw(jg,:) &
-               &  = incoming_sw_scale(:) * ZINCSOL(:,jg)
+          do jg = 1,config%n_g_sw
+            incoming_sw(jg,jcol) &
+               &  = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
+          enddo
         end if
       end do
     end if
@@ -603,7 +605,7 @@ contains
     ! Temperature (K) of a half-level
     real(jprb) :: temperature
 
-    real(jprb) :: factor
+    real(jprb) :: factor, aux(istartcol:iendcol,config%n_g_lw)
     real(jprb) :: ZFLUXFAC
 
     integer :: jlev, jgreorder, jg, ig, iband, jband, jcol, ilevoffset
@@ -688,7 +690,10 @@ contains
         else
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_hl(jg,jlev,:) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
+            aux(:,jg) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
+          enddo
+          do jcol = istartcol,iendcol
+            planck_hl(:,jlev,jcol) = aux(jcol,:)
           end do
         end if
       end if
