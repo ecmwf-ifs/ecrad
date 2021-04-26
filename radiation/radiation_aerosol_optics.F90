@@ -419,6 +419,7 @@ contains
 
       ! Loop over position
       do jcol = istartcol,iendcol
+! Added for DWD (2020)
 !NEC$ forced_collapse
         do jlev = istartlev,iendlev
           DO jb = 1, config%n_bands_sw
@@ -477,6 +478,7 @@ contains
  
         ! Loop over position
         do jcol = istartcol,iendcol
+! Added for DWD (2020)
 !NEC$ forced_collapse
           do jlev = istartlev,iendlev
             DO jb = 1, config%n_bands_lw
@@ -512,6 +514,7 @@ contains
 
         ! Loop over position
         do jcol = istartcol,iendcol
+! Added for DWD (2020)
 !NEC$ forced_collapse
           do jlev = istartlev,iendlev
             ! If aerosol longwave scattering is not included then we

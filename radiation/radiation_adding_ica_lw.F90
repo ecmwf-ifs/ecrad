@@ -306,6 +306,7 @@ contains
 
     ! Work down through the atmosphere computing the downward fluxes
     ! at each half-level
+! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = 1,nlev
       do jc = 1,ncol
@@ -318,6 +319,7 @@ contains
 
     ! Work back up through the atmosphere computing the upward fluxes
     ! at each half-level
+! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = nlev,1,-1
       do jc = 1,ncol

@@ -457,6 +457,7 @@ contains
 
           ! Combine liquid and ice 
           if (config%do_lw_cloud_scattering) then
+! Added for DWD (2020)
 !NEC$ shortloop
             do jb = 1, config%n_bands_lw
               od_lw_cloud(jb,jlev,jcol) = od_lw_liq(jb) + od_lw_ice(jb)
@@ -474,10 +475,12 @@ contains
             ! If longwave scattering is to be neglected then the
             ! best approximation is to set the optical depth equal
             ! to the absorption optical depth
+! Added for DWD (2020)
 !NEC$ shortloop
             od_lw_cloud(:,jlev,jcol) = od_lw_liq - scat_od_lw_liq &
                  &                   + od_lw_ice - scat_od_lw_ice
           end if
+! Added for DWD (2020)
 !NEC$ shortloop
           do jb = 1, config%n_bands_sw
             od_sw_cloud(jb,jlev,jcol) = od_sw_liq(jb) + od_sw_ice(jb)

@@ -62,6 +62,7 @@ contains
     ! Apply the bounds of validity to effective radius
     re = max(MinEffectiveRadius, min(re_in, MaxEffectiveRadius))
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jb = 1, nb
       od(jb) = lwp * (coeff(jb,1) + re*(coeff(jb,2) + re*coeff(jb,3))) &

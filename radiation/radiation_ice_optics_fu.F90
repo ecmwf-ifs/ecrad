@@ -70,6 +70,7 @@ contains
     inv_de_um = 1.0_jprb / de_um
     iwp_gm_2  = ice_wp * 1000.0_jprb
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jb = 1, nb
       od(jb) = iwp_gm_2 * (coeff(jb,1) + coeff(jb,2) * inv_de_um)
@@ -120,6 +121,7 @@ contains
     inv_de_um = 1.0_jprb / de_um
     iwp_gm_2  = ice_wp * 1000.0_jprb
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jb = 1, nb
       od(jb) = iwp_gm_2 * (coeff(jb,1) + inv_de_um*(coeff(jb,2) &
