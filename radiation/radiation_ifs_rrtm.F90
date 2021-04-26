@@ -545,9 +545,9 @@ contains
       end do
     else
       ! G points have not been reordered
-      do jg = 1,config%n_g_sw
+      do jcol = istartcol,iendcol
         do jlev = 1,nlev
-          do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_sw
             ! Check for negative optical depth
             od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
             ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
