@@ -31,7 +31,7 @@ contains
   subroutine setup_aerosol_optics(config)
 
     use parkind1,                      only : jprb
-    use ecradhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook
     use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type
     use radiation_io,                  only : nulerr, radiation_abort
@@ -78,7 +78,7 @@ contains
 
     use parkind1,                      only : jprb
     use radiation_io,                  only : nulout, nulerr, radiation_abort
-    use ecradhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook
     use radiation_config,              only : config_type
     use radiation_thermodynamics,      only : thermodynamics_type
     use radiation_gas,                 only : gas_type, IH2O, IMassMixingRatio
@@ -353,7 +353,7 @@ contains
 
     use parkind1,                      only : jprb
     use radiation_io,                  only : nulerr, radiation_abort
-    use ecradhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook
     use radiation_config,              only : config_type
     use radiation_aerosol,             only : aerosol_type
 
@@ -587,7 +587,7 @@ contains
        &  config, iband, mixing_ratio, relative_humidity, extinction)
 
     use parkind1,                      only : jprb
-    use ecradhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook
     use radiation_io,                  only : nulerr, radiation_abort
     use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type, &
