@@ -86,6 +86,7 @@ contains
 
     if (lhook) call dr_hook('radiation_two_stream:calc_two_stream_gammas_lw',0,hook_handle)
 #endif
+! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
       ! Fu et al. (1997), Eq 2.9 and 2.10:
@@ -135,6 +136,7 @@ contains
 
     ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
     ! Atmospheric Physics 53, 147-66)
+! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
       !      gamma1(jg) = 2.0_jprb  - ssa(jg) * (1.25_jprb + 0.75_jprb*g(jg))
@@ -205,6 +207,7 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
       if (od(jg) > 1.0e-3_jprd) then
@@ -294,6 +297,7 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_isothermal_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
       k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
@@ -361,6 +365,7 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
       ! Compute upward and downward emission assuming the Planck
@@ -459,6 +464,7 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
       od_over_mu0 = max(od(jg) / mu0, 0.0_jprd)
@@ -591,6 +597,7 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_z_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
       od_over_mu0 = max(gamma0(jg) * depth, 0.0_jprd)
@@ -704,6 +711,7 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_frac_scattered_diffuse_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
       ! Note that if the minimum value is reduced (e.g. to 1.0e-24)

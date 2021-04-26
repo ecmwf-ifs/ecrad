@@ -308,6 +308,7 @@ DO JB = IB1, IB2
   ENDIF
    
   DO JG=1,IGT
+! Added for DWD (2020)
 !NEC$ ivdep
     DO IC=1,ICOUNT
       JL=IND(IC)
