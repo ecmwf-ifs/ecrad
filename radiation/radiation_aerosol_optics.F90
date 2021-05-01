@@ -219,7 +219,7 @@ contains
 
     if (config%do_lw) then
       call config%gas_optics_lw%spectral_def%calc_mapping(TerrestrialReferenceTemperature, &
-           &  wavenumber, mapping, use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point))
+           &  wavenumber, mapping, use_bands=(.not. config%do_cloud_aerosol_per_lw_g_point))
 
       ao%mass_ext_lw_phobic = matmul(mapping, mass_ext_phobic)
       ao%ssa_lw_phobic = matmul(mapping, mass_ext_phobic*ssa_phobic) &

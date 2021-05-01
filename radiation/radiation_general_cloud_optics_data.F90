@@ -60,6 +60,9 @@ module radiation_general_cloud_optics_data
 
 contains
 
+  ! Provides elemental function "delta_eddington"
+#include "radiation_delta_eddington.h"
+
   !---------------------------------------------------------------------
   ! Setup cloud optics coefficients by reading them from a file
   subroutine setup_general_cloud_optics(this, file_name, specdef, &
@@ -187,6 +190,10 @@ contains
     call specdef%calc_mapping(weighting_temperature, &
          &                    wavenumber, mapping, use_bands=use_bands)
 
+    ! Thick averaging should be performed on delta-Eddington scaled
+    ! quantities (it makes no difference to thin averaging)
+    call delta_eddington(mass_ext, ssa, asymmetry)
+
     ! Thin averaging
     this%mass_ext  = matmul(mapping, mass_ext)
     this%ssa       = matmul(mapping, mass_ext*ssa) / this%mass_ext
@@ -210,6 +217,9 @@ contains
     end if
 
     deallocate(mapping)
+
+    ! Revert back to unscaled quantities
+    call revert_delta_eddington(this%mass_ext, this%ssa, this%asymmetry)
 
     if (iverb >= 2) then
       write(nulout,'(a,a)') '  File: ', trim(file_name)

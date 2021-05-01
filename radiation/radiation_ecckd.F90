@@ -429,7 +429,8 @@ contains
             case (IConcDependenceLUT)
               ! Logarithmic interpolation in concentration space
               molar_abs_conc => this%single_gas(jgas)%molar_abs_conc
-              log_conc = log(mole_fraction_fl(jcol,jlev,igascode))
+              ! Take care of mole_fraction == 0
+              log_conc = log(max(mole_fraction_fl(jcol,jlev,igascode), exp(single_gas%log_mole_frac1)))
               cindex1  = (log_conc - single_gas%log_mole_frac1) / single_gas%d_log_mole_frac
               cindex1  = 1.0_jprb + max(0.0_jprb, min(cindex1, single_gas%n_mole_frac-1.0001_jprb))
               ic1 = int(cindex1)
