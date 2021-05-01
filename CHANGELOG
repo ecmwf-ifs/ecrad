@@ -1,3 +1,8 @@
+version 1.4.2
+	- radiation_config:do_write_double_precision writes fluxes as
+	  doubles in NetCDF file, which reduces noise in heating rate
+	  differences between two experiments
+
 version 1.4.1 (17 March 2021)
 	- Added Jupyter notebook to the practical directory
 
