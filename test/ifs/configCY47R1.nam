@@ -10,7 +10,7 @@
 !
 &radiation_driver
 do_parallel              = true,   ! Use OpenMP parallelization?
-nblocksize               = 8,      ! Number of columns to process per thread
+nblocksize               = 80,      ! Number of columns to process per thread
 do_save_inputs           = false,   ! Save inputs in "inputs.nc"?
 ! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
 iverbose    	   	= 2,
@@ -44,7 +44,7 @@ do_lw_aerosol_scattering= false,          ! Aerosols scatter in the longwave?
 do_lw_cloud_scattering 	= true, 	  ! Clouds scatter in the longwave?
 cloud_inhom_decorr_scaling = 0.5,         ! Ratio of overlap decorr len of inhomogeneities to boundaries
 use_beta_overlap        = false,
-do_save_radiative_properties = false,     ! Save raw radiation properties in radiative_properties.nc?
+do_save_radiative_properties = true,     ! Save raw radiation properties in radiative_properties.nc?
 do_3d_effects		= false,          ! Represent 3D effects?
 sw_entrapment_name      = "Explicit",     ! Zero, Edge-only, Explicit, Non-fractal, Maximum are possible
 ! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
@@ -61,6 +61,7 @@ do_fu_lw_ice_optics_bug = false,
 do_sw_delta_scaling_with_gases = false,
 do_canopy_fluxes_lw     = true,
 do_canopy_fluxes_sw     = true,
+!do_cloud_aerosol_per_sw_g_point=false 
 !
 ! SURFACE ALBEDO AND EMISSIVITY
 do_nearest_spectral_sw_albedo = false,
