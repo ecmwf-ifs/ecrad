@@ -21,7 +21,7 @@ contains
   ! This module contains just one subroutine, the shortwave
   ! "FLOTSAM" solver
 
-  subroutine solver_flotsam_sw(nlev,istartcol,iendcol, &
+  subroutine radiance_solver_flotsam_sw(nlev,istartcol,iendcol, &
        &  config, single_level, cloud, & 
        &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, &
        &  albedo_direct, albedo_diffuse, incoming_sw, &
@@ -78,6 +78,6 @@ contains
 
     if (lhook) call dr_hook('radiation_flotsam_sw:solver_flotsam_sw',1,hook_handle)
 
-  end subroutine solver_flotsam_sw
+  end subroutine radiance_solver_flotsam_sw
 
 end module radiation_flotsam_sw

@@ -200,6 +200,7 @@ contains
     use radiation_homogeneous_sw, only : solver_homogeneous_sw
     use radiation_homogeneous_lw, only : solver_homogeneous_lw
     use radiation_tcrad_lw,       only : solver_tcrad_lw, radiance_solver_tcrad_lw
+    use radiation_flotsam_sw,     only : radiance_solver_flotsam_sw
     use radiation_save,           only : save_radiative_properties
 
     ! Treatment of gas and hydrometeor optics 
@@ -433,7 +434,14 @@ contains
           write(nulout,'(a)') 'Computing shortwave fluxes'
         end if
 
-        if (config%i_solver_sw == ISolverMcICA) then
+        if (config%do_radiances) then
+          if (config%i_solver_sw == ISolverFlotsam) then
+            call radiance_solver_flotsam_sw(nlev,istartcol,iendcol, &
+                 &  config, single_level, cloud, &
+                 &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
+                 &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, flux)
+          end if
+        else if (config%i_solver_sw == ISolverMcICA) then
           ! Compute fluxes using the McICA shortwave solver
           call solver_mcica_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 

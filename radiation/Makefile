@@ -47,7 +47,7 @@ radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_homogeneous_lw.o radiation_homogeneous_sw.o \
 	radiation_cloudless_lw.o radiation_cloudless_sw.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o \
-	radiation_tcrad_lw.o
+	radiation_tcrad_lw.o radiation_flotsam_sw.o
 radiation_ifs_rrtm.o radiation_monochromatic.o: radiation_config.o \
 	radiation_thermodynamics.o radiation_gas.o
 radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_mcica_sw.o \
