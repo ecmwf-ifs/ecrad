@@ -1,0 +1,533 @@
+! radiation_ecckd.F90 - ecCKD generalized gas optics model
+!
+! (C) Copyright 2020- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+! Author:  Robin Hogan
+! Email:   r.j.hogan@ecmwf.int
+! License: see the COPYING file for details
+!
+
+module radiation_ecckd
+
+  use parkind1, only : jprb
+  use radiation_gas_constants
+  use radiation_ecckd_gas
+  use radiation_spectral_definition, only : spectral_definition_type
+
+  implicit none
+
+  public
+
+  !---------------------------------------------------------------------
+  ! This derived type contains all the data needed to describe a
+  ! correlated k-distribution gas optics model created using the ecCKD
+  ! tool
+  type ckd_model_type
+
+    ! Gas information
+
+    ! Number of gases
+    integer :: ngas = 0
+    ! Array of individual-gas data objects
+    type(ckd_gas_type), allocatable :: single_gas(:)
+    ! Mapping from the "gas codes" in the radiation_gas_constants
+    ! module to an index to the single_gas array, where zero means gas
+    ! not present (or part of a composite gas)
+    integer :: i_gas_mapping(0:NMaxGases)
+
+    ! Coordinates of main look-up table for absorption coeffts
+
+    ! Number of pressure and temperature points
+    integer :: npress = 0
+    integer :: ntemp  = 0
+    ! Natural logarithm of first (lowest) pressure (Pa) and increment
+    real(jprb) :: log_pressure1, d_log_pressure
+    ! First temperature profile (K), dimensioned (npress)
+    real(jprb), allocatable :: temperature1(:)
+    ! Temperature increment (K)
+    real(jprb) :: d_temperature
+
+    ! Look-up table for Planck function
+
+    ! Number of entries
+    integer :: nplanck = 0
+    ! Temperature of first element of look-up table and increment (K)
+    real(jprb), allocatable :: temperature1_planck
+    real(jprb), allocatable :: d_temperature_planck
+    ! Planck function (black body flux into a horizontal plane) in W
+    ! m-2, dimensioned (nplanck,ng)
+    real(jprb), allocatable :: planck_function(:,:)
+
+    ! Normalized solar irradiance in each g point dimensioned (ng)
+    real(jprb), allocatable :: norm_solar_irradiance(:)
+
+    ! Rayleigh molar scattering coefficient in m2 mol-1 in each g
+    ! point
+    real(jprb), allocatable :: rayleigh_molar_scat(:)
+
+    ! ! Spectral mapping of g points
+
+    ! ! Number of wavenumber intervals
+    ! integer :: nwav = 0
+
+    ! Number of k terms / g points
+    integer :: ng   = 0
+
+    ! ! Start and end wavenumber (cm-1), dimensioned (nwav)
+    ! real(jprb), allocatable :: wavenumber1(:)
+    ! real(jprb), allocatable :: wavenumber2(:)
+    ! ! Fraction of each g point in each wavenumber interval,
+    ! ! dimensioned (nwav, ng)
+    ! real(jprb), allocatable :: gpoint_fraction(:,:)
+
+    ! ! Band information
+
+    ! ! Number of bands
+    ! integer :: nband = 0
+    ! ! Lower and upper bounds of wavenumber bands (cm-1), dimensioned
+    ! ! (nband)
+    ! real(jprb), allocatable :: wavenumber1_band(:)
+    ! real(jprb), allocatable :: wavenumber2_band(:)
+    ! ! Band (one based) to which each g point belongs
+    ! integer,    allocatable :: i_band_number(:)
+
+    ! Spectral definition describing bands and g points
+    type(spectral_definition_type) :: spectral_def
+
+    ! Shortwave: true, longwave: false
+    logical :: is_sw
+
+  contains
+
+    procedure :: read => read_ckd_model
+    procedure :: calc_optical_depth => calc_optical_depth_ckd_model
+    procedure :: print => print_ckd_model
+    procedure :: calc_planck_function
+    procedure :: calc_incoming_sw
+!    procedure :: deallocate => deallocate_ckd_model
+
+  end type ckd_model_type
+
+
+contains
+
+  !---------------------------------------------------------------------
+  ! Read a complete ecCKD gas optics model from a NetCDF file
+  ! "filename"
+  subroutine read_ckd_model(this, filename, iverbose)
+
+    use easy_netcdf,  only : netcdf_file
+    use radiation_io, only : nulerr, radiation_abort
+    use yomhook,      only : lhook, dr_hook
+
+    class(ckd_model_type), intent(inout) :: this
+    character(len=*),      intent(in)    :: filename
+    integer, optional,     intent(in)    :: iverbose
+
+    type(netcdf_file) :: file
+
+    real(jprb), allocatable :: pressure_lut(:)
+    real(jprb), allocatable :: temperature_full(:,:)
+    real(jprb), allocatable :: temperature_planck(:)
+
+    character(len=512) :: constituent_id
+
+    integer :: iverbose_local
+
+    ! Loop counters
+    integer :: jgas, jjgas
+
+    integer :: istart, inext, nchar, i_gas_code
+
+    real(jprb)         :: hook_handle
+
+    if (lhook) call dr_hook('radiation_ecckd:read_ckd_model',0,hook_handle)
+
+    if (present(iverbose)) then
+      iverbose_local = iverbose
+    else
+      iverbose_local = 3
+    end if
+
+    call file%open(trim(filename), iverbose=iverbose_local)
+
+    ! Read temperature and pressure coordinate variables
+    call file%get('pressure', pressure_lut)
+    this%log_pressure1 = log(pressure_lut(1))
+    this%npress = size(pressure_lut)
+    this%d_log_pressure = log(pressure_lut(2)) - this%log_pressure1
+    call file%get('temperature', temperature_full)
+    allocate(this%temperature1(this%npress));
+    this%temperature1 = temperature_full(:,1)
+    this%d_temperature = temperature_full(1,2)-temperature_full(1,1)
+    this%ntemp = size(temperature_full,2)
+    deallocate(temperature_full)
+    
+    ! Read Planck function, or solar irradiance and Rayleigh
+    ! scattering coefficient
+    if (file%exists('solar_irradiance')) then
+      this%is_sw = .true.
+      call file%get('solar_irradiance', this%norm_solar_irradiance)
+      this%norm_solar_irradiance = this%norm_solar_irradiance &
+           &  / sum(this%norm_solar_irradiance)
+      call file%get('rayleigh_molar_scattering_coeff', &
+           &  this%rayleigh_molar_scat)
+    else
+      this%is_sw = .false.
+      call file%get('temperature_planck', temperature_planck)
+      this%nplanck = size(temperature_planck)
+      this%temperature1_planck = temperature_planck(1)
+      this%d_temperature_planck = temperature_planck(2) - temperature_planck(1)
+      deallocate(temperature_planck)
+      call file%get('planck_function', this%planck_function)
+    end if
+
+    ! ! Read spectral mapping of g points
+    ! call file%get('wavenumber1', this%wavenumber1)
+    ! call file%get('wavenumber2', this%wavenumber2)
+    ! this%nwav = size(this%wavenumber1)
+    ! call file%get('gpoint_fraction', this%gpoint_fraction)
+
+    ! ! Read band information
+    ! call file%get('wavenumber1_band', this%wavenumber1_band)
+    ! call file%get('wavenumber2_band', this%wavenumber2_band)
+    ! this%nband = size(this%wavenumber1_band)
+    ! call file%get('band_number', this%i_band_number)
+
+    ! Read the spectral definition information into a separate
+    ! derived type
+    call this%spectral_def%read(file);
+    this%ng = this%spectral_def%ng
+
+    ! Read gases
+    call file%get('n_gases', this%ngas)
+    allocate(this%single_gas(this%ngas))
+    call file%get_global_attribute('constituent_id', constituent_id)
+    nchar = len(trim(constituent_id))
+    istart = 1
+    this%i_gas_mapping = 0
+    do jgas = 1, this%ngas
+      if (jgas < this%ngas) then
+        inext = istart + scan(constituent_id(istart:nchar), ' ')
+      else
+        inext = nchar+2
+      end if
+      ! Find gas code
+      i_gas_code = 0
+      do jjgas = 1, NMaxGases
+        if (constituent_id(istart:inext-2) == trim(GasLowerCaseName(jjgas))) then
+          i_gas_code = jjgas
+          exit
+        end if
+      end do
+      ! if (i_gas_code == 0) then
+      !   write(nulerr,'(a,a,a)') '*** Error: Gas "', constituent_id(istart:inext-2), &
+      !        & '" not understood'
+      !   call radiation_abort('Radiation configuration error')
+      ! end if
+      this%i_gas_mapping(i_gas_code) = jgas;
+      call this%single_gas(jgas)%read(file, constituent_id(istart:inext-2), i_gas_code)
+      istart = inext
+    end do
+    
+    if (lhook) call dr_hook('radiation_ecckd:read_ckd_model',1,hook_handle)
+
+  end subroutine read_ckd_model
+
+  !---------------------------------------------------------------------
+  ! Print a description of the correlated k-distribution model to the
+  ! "nulout" unit
+  subroutine print_ckd_model(this)
+
+    use radiation_io, only : nulout
+    use radiation_gas_constants
+
+    class(ckd_model_type), intent(in)  :: this
+
+    integer :: jgas
+    
+    if (this%is_sw) then
+      write(nulout,'(a)') 'ecCKD shortwave gas optics model'
+    else
+      write(nulout,'(a)') 'ecCKD longwave gas optics model'
+    end if
+
+    write(nulout,'(a,i0,a,i0,a)') '  Wavenumber range: ', &
+         &  int(this%spectral_def%wavenumber1(1)), ' to ', &
+         &  int(this%spectral_def%wavenumber2(size(this%spectral_def%wavenumber2))), &
+         &  ' cm-1'
+    write(nulout, '(a,i0,a,i0,a)') '  ', this%ng, ' g-points in ', this%spectral_def%nband, ' bands'
+    write(nulout, '(a)') '  Gases:'
+    do jgas = 1,this%ngas
+      if (this%single_gas(jgas)%i_gas_code > 0) then
+        write(nulout, '(a,a,a)', advance='no') '    ', &
+             &  trim(GasName(this%single_gas(jgas)%i_gas_code)), ': '
+      else
+        write(nulout, '(a)', advance='no') '    Composite of well-mixed background gases: '
+      end if
+      select case (this%single_gas(jgas)%i_conc_dependence)
+        case (IConcDependenceNone)
+          write(nulout, '(a)') 'no concentration dependence'
+        case (IConcDependenceLinear)
+          write(nulout, '(a)') 'linear concentration dependence'
+        case (IConcDependenceRelativeLinear)
+          write(nulout, '(a,e14.6)') 'linear concentration dependence relative to a mole fraction of ', &
+               &  this%single_gas(jgas)%reference_mole_frac
+        case (IConcDependenceLUT)
+          write(nulout, '(a,i0,a,e14.6,a,e14.6)') 'look-up table with ', this%single_gas(jgas)%n_mole_frac, &
+               &  ' logarithmically-spaced mole fractions in the range ', exp(this%single_gas(jgas)%log_mole_frac1), &
+               &  ' to ', exp(this%single_gas(jgas)%log_mole_frac1 &
+               &           + this%single_gas(jgas)%n_mole_frac*this%single_gas(jgas)%d_log_mole_frac)
+      end select
+    end do
+
+  end subroutine print_ckd_model
+
+
+  !---------------------------------------------------------------------
+  ! Compute layerwise optical depth for each g point for ncol columns
+  ! at nlev layers
+  subroutine calc_optical_depth_ckd_model(this, ncol, nlev, istartcol, iendcol, nmaxgas, &
+       &  pressure_hl, temperature_fl, mole_fraction_fl, &
+       &  optical_depth_fl, rayleigh_od_fl)
+
+    use yomhook,             only : lhook, dr_hook
+    use radiation_constants, only : AccelDueToGravity
+
+    ! Input variables
+
+    class(ckd_model_type), intent(in), target  :: this
+    ! Number of columns, levels and input gases
+    integer,               intent(in)  :: ncol, nlev, nmaxgas, istartcol, iendcol
+    ! Pressure at half levels (Pa), dimensioned (ncol,nlev+1)
+    real(jprb),            intent(in)  :: pressure_hl(ncol,nlev+1)
+    ! Temperature at full levels (K), dimensioned (ncol,nlev)
+    real(jprb),            intent(in)  :: temperature_fl(istartcol:iendcol,nlev)
+    ! Gas mole fractions at full levels (mol mol-1), dimensioned (ncol,nlev,nmaxgas)
+    real(jprb),            intent(in)  :: mole_fraction_fl(ncol,nlev,nmaxgas)
+    
+    ! Output variables
+
+    ! Layer absorption optical depth for each g point
+    real(jprb),            intent(out) :: optical_depth_fl(this%ng,nlev,istartcol:iendcol)
+    ! In the shortwave only, the Rayleigh scattering optical depth
+    real(jprb),  optional, intent(out) :: rayleigh_od_fl(this%ng,nlev,istartcol:iendcol)
+
+    ! Local variables
+
+    real(jprb), pointer :: molar_abs(:,:,:), molar_abs_conc(:,:,:,:)
+
+    ! Natural logarithm of pressure at full levels
+    real(jprb) :: log_pressure_fl(nlev)
+
+    ! Optical depth of single gas at one point in space versus
+    ! spectral interval
+    real(jprb) :: od_single_gas(this%ng)
+
+    real(jprb) :: multiplier, simple_multiplier, global_multiplier, temperature1
+
+    ! Indices and weights in temperature, pressure and concentration interpolation
+    real(jprb) :: pindex1, tindex1, cindex1
+    real(jprb) :: pw1, pw2, tw1, tw2, cw1, cw2
+    integer    :: ip1, it1, ic1
+
+    ! Natural logarithm of mole fraction at one point
+    real(jprb) :: log_conc
+
+    integer :: jcol, jlev, jgas, igascode
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_ecckd:calc_optical_depth',0,hook_handle)
+
+    optical_depth_fl = 0.0_jprb
+
+    global_multiplier = 1.0_jprb / (AccelDueToGravity * 0.001_jprb * AirMolarMass)
+
+    do jcol = istartcol,iendcol
+
+      log_pressure_fl = log(0.5_jprb * (pressure_hl(jcol,1:nlev)+pressure_hl(jcol,2:nlev+1)))
+
+      do jlev = 1,nlev
+        ! Find interpolation points in pressure
+        pindex1 = (log_pressure_fl(jlev)-this%log_pressure1) &
+             &    / this%d_log_pressure
+        pindex1 = 1.0_jprb + max(0.0_jprb, min(pindex1, this%npress-1.0001_jprb))
+        ip1 = int(pindex1)
+        pw2 = pindex1 - ip1
+        pw1 = 1.0_jprb - pw2
+
+        ! Find interpolation points in temperature
+        temperature1 = pw1*this%temperature1(ip1) &
+             &       + pw2*this%temperature1(ip1+1)
+        tindex1 = (temperature_fl(jcol,jlev) - temperature1) &
+             &    / this%d_temperature
+        tindex1 = 1.0_jprb + max(0.0_jprb, min(tindex1, this%ntemp-1.0001_jprb))
+        it1 = int(tindex1)
+        tw2 = tindex1 - it1
+        tw1 = 1.0_jprb - tw2
+
+        ! Concentration multiplier
+        simple_multiplier = global_multiplier &
+             &  * (pressure_hl(jcol,jlev+1) - pressure_hl(jcol,jlev))
+      
+        do jgas = 1,this%ngas
+
+          associate (single_gas => this%single_gas(jgas))
+            igascode = this%single_gas(jgas)%i_gas_code
+
+          select case (single_gas%i_conc_dependence)
+
+            case (IConcDependenceLinear)
+              molar_abs => this%single_gas(jgas)%molar_abs
+              multiplier = simple_multiplier * mole_fraction_fl(jcol,jlev,igascode)
+              optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
+                   &        + (multiplier*tw1) * (pw1 * molar_abs(:,ip1,it1) &
+                   &                +pw2 * molar_abs(:,ip1+1,it1)) &
+                   &        + (multiplier*tw2) * (pw1 * molar_abs(:,ip1,it1+1) &
+                   &                +pw2 * molar_abs(:,ip1+1,it1+1))
+              ! optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
+              !      &        + (multiplier*tw1*pw1) * molar_abs(:,ip1,it1) &
+              !      &        + (multiplier*tw1*pw2) * molar_abs(:,ip1+1,it1) &
+              !      &        + (multiplier*tw2*pw1) * molar_abs(:,ip1,it1+1) &
+              !      &        + (multiplier*tw2*pw2) * molar_abs(:,ip1+1,it1+1)
+
+            case (IConcDependenceRelativeLinear)
+              molar_abs => this%single_gas(jgas)%molar_abs
+              multiplier = simple_multiplier  * (mole_fraction_fl(jcol,jlev,igascode) &
+                   &                            - single_gas%reference_mole_frac)
+              optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
+                   &  + (multiplier*tw1) * (pw1 * molar_abs(:,ip1,it1) &
+                   &                       +pw2 * molar_abs(:,ip1+1,it1)) &
+                   &  + (multiplier*tw2) * (pw1 * molar_abs(:,ip1,it1+1) &
+                   &                       +pw2 * molar_abs(:,ip1+1,it1+1))
+              ! optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
+              !      &        + (multiplier*tw1*pw1) * molar_abs(:,ip1,it1) &
+              !      &        + (multiplier*tw1*pw2) * molar_abs(:,ip1+1,it1) &
+              !      &        + (multiplier*tw2*pw1) * molar_abs(:,ip1,it1+1) &
+              !      &        + (multiplier*tw2*pw2) * molar_abs(:,ip1+1,it1+1)
+              
+            case (IConcDependenceNone)
+              ! Composite gases
+              molar_abs => this%single_gas(jgas)%molar_abs
+              optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
+                   &  + (simple_multiplier*tw1) * (pw1 * molar_abs(:,ip1,it1) &
+                   &                              +pw2 * molar_abs(:,ip1+1,it1)) &
+                   &  + (simple_multiplier*tw2) * (pw1 * molar_abs(:,ip1,it1+1) &
+                   &                              +pw2 * molar_abs(:,ip1+1,it1+1))
+              
+              ! Or for logarithmic interpolation:
+              ! od_single_gas = exp(od_single_gas) * simple_multiplier
+
+            case (IConcDependenceLUT)
+              ! Logarithmic interpolation in concentration space
+              molar_abs_conc => this%single_gas(jgas)%molar_abs_conc
+              ! Take care of mole_fraction == 0
+              log_conc = log(max(mole_fraction_fl(jcol,jlev,igascode), exp(single_gas%log_mole_frac1)))
+              cindex1  = (log_conc - single_gas%log_mole_frac1) / single_gas%d_log_mole_frac
+              cindex1  = 1.0_jprb + max(0.0_jprb, min(cindex1, single_gas%n_mole_frac-1.0001_jprb))
+              ic1 = int(cindex1)
+              cw2 = cindex1 - ic1
+              cw1 = 1.0_jprb - cw2
+              ! od_single_gas = cw1 * (tw1 * (pw1 * molar_abs_conc(:,ip1,it1,ic1) &
+              !      &                       +pw2 * molar_abs_conc(:,ip1+1,it1,ic1)) &
+              !      &                +tw2 * (pw1 * molar_abs_conc(:,ip1,it1+1,ic1) &
+              !      &                       +pw2 * molar_abs_conc(:,ip1+1,it1+1,ic1))) &
+              !      &         +cw2 * (tw1 * (pw1 * molar_abs_conc(:,ip1,it1,ic1+1) &
+              !      &                       +pw2 * molar_abs_conc(:,ip1+1,it1,ic1+1)) &
+              !      &                +tw2 * (pw1 * molar_abs_conc(:,ip1,it1+1,ic1+1) &
+              !      &                       +pw2 * molar_abs_conc(:,ip1+1,it1+1,ic1+1)))
+              optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
+                   &  + (simple_multiplier * mole_fraction_fl(jcol,jlev,igascode)) * ( &
+                   &          (cw1 * tw1 * pw1) * molar_abs_conc(:,ip1,it1,ic1) &
+                   &         +(cw1 * tw1 * pw2) * molar_abs_conc(:,ip1+1,it1,ic1) &
+                   &         +(cw1 * tw2 * pw1) * molar_abs_conc(:,ip1,it1+1,ic1) &
+                   &         +(cw1 * tw2 * pw2) * molar_abs_conc(:,ip1+1,it1+1,ic1) &
+                   &         +(cw2 * tw1 * pw1) * molar_abs_conc(:,ip1,it1,ic1+1) &
+                   &         +(cw2 * tw1 * pw2) * molar_abs_conc(:,ip1+1,it1,ic1+1) &
+                   &         +(cw2 * tw2 * pw1) * molar_abs_conc(:,ip1,it1+1,ic1+1) &
+                   &         +(cw2 * tw2 * pw2) * molar_abs_conc(:,ip1+1,it1+1,ic1+1))
+            end select
+            
+          end associate
+
+        end do
+
+      end do
+
+      ! Rayleigh scattering
+      if (this%is_sw .and. present(rayleigh_od_fl)) then
+        do jlev = 1,nlev
+          simple_multiplier = global_multiplier &
+               &  * (pressure_hl(jcol,jlev+1) - pressure_hl(jcol,jlev))
+          rayleigh_od_fl(:,jlev,jcol) = simple_multiplier * this%rayleigh_molar_scat
+        end do
+      end if
+
+    end do
+
+    if (lhook) call dr_hook('radiation_ecckd:calc_optical_depth',1,hook_handle)
+
+  end subroutine calc_optical_depth_ckd_model
+
+  !---------------------------------------------------------------------
+  ! Calculate the Planck function integrated across each of the g
+  ! points of this correlated k-distribution model, for a given
+  ! temperature, where Planck function is defined as the flux emitted
+  ! by a black body (rather than radiance)
+  subroutine calc_planck_function(this, nt, temperature, planck)
+
+    class(ckd_model_type), intent(in)  :: this
+    integer,    intent(in)  :: nt
+    real(jprb), intent(in)  :: temperature(:) ! K
+    real(jprb), intent(out) :: planck(this%ng,nt) ! W m-2
+
+    real(jprb) :: tindex1, tw1, tw2
+    integer    :: it1, jt
+
+    do jt = 1,nt
+      tindex1 = (temperature(jt) - this%temperature1_planck) &
+           &   * (1.0_jprb / this%d_temperature_planck)
+      if (tindex1 >= 0) then
+        ! Normal interpolation, and extrapolation for high temperatures
+        tindex1 = 1.0_jprb + tindex1
+        it1 = int(tindex1)
+        tw2 = tindex1 - it1
+        tw1 = 1.0_jprb - tw2
+        planck(:,jt) = tw1 * this%planck_function(:,it1) &
+             &       + tw2 * this%planck_function(:,it1+1)
+      else
+        ! Interpolate linearly to zero
+        planck(:,jt) = this%planck_function(:,1) &
+             &       * (temperature(jt)/this%temperature1_planck)
+      end if
+    end do
+
+  end subroutine calc_planck_function
+  
+
+  !---------------------------------------------------------------------
+  ! Return the spectral solar irradiance integrated over each g point
+  ! of a solar correlated k-distribution model, given the
+  ! total_solar_irradiance
+  subroutine calc_incoming_sw(this, total_solar_irradiance, &
+       &                      spectral_solar_irradiance)
+
+    class(ckd_model_type), intent(in)    :: this
+    real(jprb),            intent(in)    :: total_solar_irradiance ! W m-2
+    real(jprb),            intent(inout) :: spectral_solar_irradiance(:,:) ! W m-2
+ 
+    spectral_solar_irradiance &
+         &  = spread(total_solar_irradiance * this%norm_solar_irradiance, &
+         &           2, size(spectral_solar_irradiance,2))
+
+  end subroutine calc_incoming_sw
+
+end module radiation_ecckd

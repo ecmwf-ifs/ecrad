@@ -127,7 +127,7 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Deallocate array
+  ! Deallocate arrays
   subroutine deallocate_aerosol_arrays(this)
 
     use yomhook,     only : lhook, dr_hook
@@ -157,7 +157,7 @@ contains
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : out_of_bounds_3d
+    use radiation_check,  only : out_of_bounds_3d
 
     class(aerosol_type),   intent(inout) :: this
     integer,      optional,intent(in) :: istartcol, iendcol

@@ -62,6 +62,7 @@ sw_solver_name      = "Tripleclouds", ! "Tripleclouds", "McICA" or "SPARTACUS"
 lw_solver_name      = "Tripleclouds", ! "Tripleclouds", "McICA" or "SPARTACUS"
 overlap_scheme_name = "Exp-Ran",      ! McICA also accepts Max-Ran or Exp-Exp
 do_lw_cloud_scattering = true,        ! Clouds scatter in the longwave?
+gas_model_name      = "RRTMG-IFS",    ! "RRTMG-IFS" or "ECCKD"
 !
 ! AEROSOLS
 !

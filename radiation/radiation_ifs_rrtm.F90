@@ -88,6 +88,10 @@ contains
       call SRTM_INIT(directory)
     end if
 
+    ! Cloud and aerosol properties can only be defined per band
+    config%do_cloud_aerosol_per_sw_g_point = .false.
+    config%do_cloud_aerosol_per_lw_g_point = .false.
+
     config%n_g_sw = jpgsw
     config%n_g_lw = jpglw
     config%n_bands_sw = 14
@@ -108,6 +112,12 @@ contains
          &  16000 , 22650, 29000, 38000, 820 /)
     config%wavenumber2_sw = (/ 3250, 4000, 4650, 5150, 6150, 7700, 8050, 12850, 16000, &
          &  22650, 29000, 38000, 50000, 2600 /)
+
+    ! Store band positions if using generalized cloud or aerosol
+    call config%gas_optics_sw%spectral_def%allocate_bands_only(config%wavenumber1_sw, &
+         &                                                     config%wavenumber2_sw)
+    call config%gas_optics_lw%spectral_def%allocate_bands_only(config%wavenumber1_lw, &
+         &                                                     config%wavenumber2_lw)
 
     allocate(config%i_band_from_g_sw          (config%n_g_sw))
     allocate(config%i_band_from_g_lw          (config%n_g_lw))
