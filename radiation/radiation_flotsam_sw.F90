@@ -71,7 +71,7 @@ contains
     ! Local variables
 
     ! Index to FLOTSAM band ID
-    integer :: iband
+    integer :: iband, istatus
 
     ! Loop counter
     integer :: jcol, jg
@@ -84,16 +84,18 @@ contains
 
     do jcol = istartcol,iendcol
 
-    flotsam_set_geometry(iband, single_level%cos_solar_zenith_angle(jcol), &
-         &                      single_level%cos_sensor_zenith_angle(jcol), &
-         &  single_level%solar_azimuth_angle(jcol) - single_level%sensor_zenith_angle(jcol))
+      istatus = flotsam_set_geometry(iband, single_level%cos_sza(jcol), &
+           &                      single_level%cos_sensor_zenith_angle(jcol), &
+           &  single_level%solar_azimuth_angle(jcol) - single_level%sensor_azimuth_angle(jcol))
     
-    do jg = 1,config%n_band_sw
-
-
+      do jg = 1,config%n_bands_sw
+        
+        
+      end do
+      
     end do
 
-    flotsam_free_band_profile(iband)
+    istatus = flotsam_free_band_profile(iband)
     
     if (lhook) call dr_hook('radiation_flotsam_sw:solver_flotsam_sw',1,hook_handle)
 
