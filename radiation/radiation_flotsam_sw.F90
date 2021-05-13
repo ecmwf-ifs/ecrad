@@ -70,12 +70,31 @@ contains
 
     ! Local variables
 
+    ! Index to FLOTSAM band ID
+    integer :: iband
+
+    ! Loop counter
+    integer :: jcol, jg
+
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flotsam_sw:solver_flotsam_sw',0,hook_handle)
 
-    
+    iband = flotsam_new_band_profile()
 
+    do jcol = istartcol,iendcol
+
+    flotsam_set_geometry(iband, single_level%cos_solar_zenith_angle(jcol), &
+         &                      single_level%cos_sensor_zenith_angle(jcol), &
+         &  single_level%solar_azimuth_angle(jcol) - single_level%sensor_zenith_angle(jcol))
+    
+    do jg = 1,config%n_band_sw
+
+
+    end do
+
+    flotsam_free_band_profile(iband)
+    
     if (lhook) call dr_hook('radiation_flotsam_sw:solver_flotsam_sw',1,hook_handle)
 
   end subroutine radiance_solver_flotsam_sw
