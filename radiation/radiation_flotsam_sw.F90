@@ -33,8 +33,7 @@ contains
     use radiation_config, only         : config_type, IPdfShapeGamma
     use radiation_single_level, only   : single_level_type
     use radiation_cloud, only          : cloud_type
-    use radiation_regions, only        : calc_region_properties
-    use radiation_overlap, only        : calc_overlap_matrices
+    use radiation_cloud_cover, only    : cloud_cover
     use radiation_flux, only           : flux_type
 
     implicit none
@@ -73,6 +72,11 @@ contains
     ! Absorption and scattering gas optical depths
     real(jprb), dimension(nlev,config%n_g_sw) :: &
          &  od_abs, od_rayleigh
+
+    ! We compute total cloud cover, then assume clouds in each layer
+    ! have a cloud fraction equal to the total cloud cover. This means
+    ! rescaling the cloud optical depth
+    real(jprb), dimension(nlev) :: od_cloud_scaled
 
     integer :: ind(nlev)
 
@@ -115,36 +119,64 @@ contains
 
     do jcol = istartcol,iendcol
 
-      istatus = flotsam_set_geometry(iband, single_level%cos_sza(jcol), &
-           &                      single_level%cos_sensor_zenith_angle(jcol), &
-           &  single_level%solar_azimuth_angle(jcol) - single_level%sensor_azimuth_angle(jcol))
+      if (single_level%cos_sensor_zenith_angle(jcol) > 0.0_jprb &
+           &  .and. single_level%cos_sza(jcol) > 0.0_jprb) then
 
-      do jband = 1,config%n_bands_sw
+        flux%cloud_cover_sw(jcol) = cloud_cover(nlev, config%i_overlap_scheme, &
+             &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
+             &  config%use_beta_overlap)
 
-        ng = count(config%i_band_from_reordered_g_sw == jband)
-
-        ! Copy gas scattering properties
-        ig = 1
-        albedo = 0.0_jprb
-        do jg = 1,config%n_g_sw
-          if (config%i_band_from_reordered_g_sw(jg) == jband) then
-            weight(ig)        = incoming_sw(jg,jcol)
-            od_abs(:,ig)      = od(jg,:,jcol) * (1.0_jprb - ssa(jg,:,jcol))
-            od_rayleigh(:,ig) = od(jg,:,jcol) * ssa(jg,:,jcol)
-            albedo = albedo + albedo_diffuse(jg,jcol)
-            ig = ig + 1
-          end if
-        end do
-        albedo = albedo / real(ig-1,jprb)
-        weight = weight / sum(weight)
-
-        istatus = flotsam_init_band_profile_direct(iband, ng, nlev, weight, &
-                                                   od_rayleigh, od_abs)
-        istatus = flotsam_reflectance(iband, 1, albedo, nlev, ind, od_cloud(jband,:,jcol), &
-             &  ssa_cloud(jband,:,jcol), pf, pf_components, flux%sw_radiance_band(jband,jcol))
+        istatus = flotsam_set_geometry(iband, single_level%cos_sza(jcol), &
+             &                      single_level%cos_sensor_zenith_angle(jcol), &
+             &  single_level%solar_azimuth_angle(jcol) - single_level%sensor_azimuth_angle(jcol))
         
-      end do
+        do jband = 1,config%n_bands_sw
+          
+          ! Copy gas scattering properties
+          ng = 0
+          albedo = 0.0_jprb
+          do jg = 1,config%n_g_sw
+            if (config%i_band_from_reordered_g_sw(jg) == jband) then
+              ng = ng + 1
+              weight(ng)        = incoming_sw(jg,jcol)
+              od_abs(:,ng)      = od(jg,:,jcol) * (1.0_jprb - ssa(jg,:,jcol))
+              od_rayleigh(:,ng) = od(jg,:,jcol) * ssa(jg,:,jcol)
+              ! Albedo is simply a weighted average
+              albedo = albedo + albedo_diffuse(jg,jcol)*weight(ng)
+            end if
+          end do
+          albedo = albedo / sum(weight(1:ng))
+          weight(1:ng) = weight(1:ng) / sum(weight(1:ng))
+          
+          istatus = flotsam_init_band_profile_direct(iband, ng, nlev, weight, &
+               &  od_rayleigh, od_abs)
+          ! Clear sky
+          istatus = flotsam_reflectance(iband, 1, albedo, 0, ind, od_cloud(jband,:,jcol), &
+               &  ssa_cloud(jband,:,jcol), pf, pf_components, flux%sw_radiance_clear_band(jband,jcol))
+
+          if (flux%cloud_cover_sw(jcol) > 0.0_jprb) then
+            ! Rescale cloud optical depth; the od_cloud variable
+            od_cloud_scaled = cloud%fraction(jcol,:) * od_cloud(jband,:,jcol) &
+                 &  * (1.0_jprb / flux%cloud_cover_sw(jcol))
+            ! Cloudy sky
+            istatus = flotsam_reflectance(iband, 1, albedo, nlev, ind, od_cloud_scaled, &
+                 &  ssa_cloud(jband,:,jcol), pf, pf_components, flux%sw_radiance_band(jband,jcol))
+            ! Weighted average between clear and cloudy
+            flux%sw_radiance_band(jband,jcol) &
+                 &  = flux%cloud_cover_sw(jcol) * flux%sw_radiance_band(jband,jcol) &
+                 &  + (1.0_jprb-flux%cloud_cover_sw(jcol)) * flux%sw_radiance_clear_band(jband,jcol)
+          else
+            flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_clear_band(jband,jcol)            
+          end if
+          
+        end do
       
+      else
+        ! Either the sun or the sensor is below he horizon
+        flux%sw_radiance_band(:,jcol) = 0.0_jprb
+        flux%sw_radiance_clear_band(:,jcol) = 0.0_jprb
+      end if
+
     end do
 
     istatus = flotsam_free_band_profile(iband)

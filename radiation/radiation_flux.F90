@@ -96,6 +96,7 @@ module radiation_flux
      ! band or per g-point, dimensioned (nspec,ncol)
      real(jprb), allocatable, dimension(:,:) :: sw_radiance_band
      real(jprb), allocatable, dimension(:,:) :: lw_radiance_band
+     real(jprb), allocatable, dimension(:,:) :: sw_radiance_clear_band
 
    contains
      procedure :: allocate   => allocate_flux_type
@@ -330,6 +331,12 @@ contains
     if (allocated(this%lw_radiance_band)) then
       deallocate(this%lw_radiance_band)
     end if
+    if (allocated(this%sw_radiance_band)) then
+      deallocate(this%sw_radiance_band)
+    end if
+    if (allocated(this%sw_radiance_clear_band)) then
+      deallocate(this%sw_radiance_clear_band)
+    end if
 
     if (lhook) call dr_hook('radiation_flux:deallocate',1,hook_handle)
 
@@ -365,8 +372,10 @@ contains
     if (config%do_sw) then
       if (config%n_spec_sw > 0) then
         allocate(this%sw_radiance_band(config%n_spec_sw,istartcol:iendcol))
+        allocate(this%sw_radiance_clear_band(config%n_spec_sw,istartcol:iendcol))
       else
         allocate(this%sw_radiance_band(config%n_bands_sw,istartcol:iendcol))
+        allocate(this%sw_radiance_clear_band(config%n_bands_sw,istartcol:iendcol))
       end if
     end if
 
@@ -376,6 +385,14 @@ contains
       ! Some solvers may not write to cloud cover, so we initialize to
       ! an unphysical value
       this%cloud_cover_lw = -1.0_jprb
+    end if
+
+    if (.not. allocated(this%cloud_cover_sw)) then
+      ! Allocate cloud cover array
+      allocate(this%cloud_cover_sw(istartcol:iendcol))
+      ! Some solvers may not write to cloud cover, so we initialize to
+      ! an unphysical value
+      this%cloud_cover_sw = -1.0_jprb
     end if
 
     if (lhook) call dr_hook('radiation_flux:allocate_radiances_only',1,hook_handle)

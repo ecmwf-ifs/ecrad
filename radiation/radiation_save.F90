@@ -520,6 +520,12 @@ contains
            &  dim2_name="column", dim1_name="band_sw", &
            &  units_str=trim(sw_units_str), long_name="Solar radiance")
 
+      if (config%do_clear) then
+        call out_file%define_variable("radiance_sw_clear_band", &
+             &  dim2_name="column", dim1_name="band_sw", &
+             &  units_str=trim(sw_units_str), long_name="Clear-sky solar radiance")
+      end if
+
     end if
 
     ! Write variables
@@ -542,6 +548,9 @@ contains
       end if
 
       call out_file%put("radiance_sw_band", flux%sw_radiance_band)
+      if (config%do_clear) then
+        call out_file%put("radiance_sw_clear_band", flux%sw_radiance_clear_band)
+      end if
     end if
 
     ! Close file

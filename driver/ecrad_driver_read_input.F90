@@ -49,6 +49,8 @@ contains
     type(cloud_type),  target, intent(inout) :: cloud
     type(aerosol_type),        intent(inout) :: aerosol
 
+    real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
+
     ! Number of columns and levels of input data
     integer, intent(out) :: ncol, nlev
 
@@ -76,6 +78,9 @@ contains
     ! General property to be read and then modified before used in an
     ! ecRad structure
     real(jprb), allocatable, dimension(:,:) :: prop_2d
+
+    ! Longitude and latitude (degrees)
+    real(jprb), allocatable, dimension(:) :: latitude, longitude
 
     integer :: jgas               ! Loop index for reading gases
     integer :: irank              ! Dimensions of gas data
@@ -114,6 +119,17 @@ contains
         end if
     end if
 
+    ! Solar and sensor geometry can either be provided directly, or
+    ! computed from the longitude and latitude of the sun, the sensor
+    ! and the column - here we load the longitude and latitude of the
+    ! column, if provided
+    if (file%exists('latitude')) then
+      call file%get('latitude', latitude)
+    end if
+    if (file%exists('longitude')) then
+      call file%get('longitude', longitude)
+    end if
+
     if (driver_config%cos_sza_override >= 0.0_jprb) then
       ! Optional override of cosine of solar zenith angle
       allocate(single_level%cos_sza(ncol))
@@ -122,6 +138,16 @@ contains
         write(nulout,'(a,g10.3)') '  Overriding cosine of the solar zenith angle with ', &
              &  driver_config%cos_sza_override
       end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%solar_latitude > -200.0_jprb &
+         &   .and. driver_config%solar_longitude > -400.0_jprb) then
+      ! Compute solar zenith angle from longitude and latitude of sun
+      ! and column
+      allocate(single_level%cos_sza(ncol))
+      single_level%cos_sza &
+           &  = sin(driver_config%solar_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &  + cos(driver_config%solar_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &  * cos((longitude - driver_config%solar_longitude)*PI_OVER_180)
     else if (file%exists('cos_solar_zenith_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('cos_solar_zenith_angle',single_level%cos_sza)
@@ -144,6 +170,16 @@ contains
         write(nulout,'(a,g10.3)') '  Overriding cosine of the sensor zenith angle with ', &
              &  driver_config%cos_sensor_zenith_angle_override
       end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%sensor_latitude > -200.0_jprb &
+         &   .and. driver_config%sensor_longitude > -400.0_jprb) then
+      ! Compute sensor zenith angle from longitude and latitude of
+      ! sensor and column
+      allocate(single_level%cos_sensor_zenith_angle(ncol))
+      single_level%cos_sensor_zenith_angle &
+           &  = sin(driver_config%sensor_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &  + cos(driver_config%sensor_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &  * cos((longitude - driver_config%sensor_longitude)*PI_OVER_180)
     else if (file%exists('cos_sensor_zenith_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('cos_sensor_zenith_angle',single_level%cos_sensor_zenith_angle)
@@ -160,6 +196,17 @@ contains
         write(nulout,'(a,g10.3)') '  Overriding solar azimuth angle with ', &
              &  driver_config%solar_azimuth_angle_override
       end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%solar_latitude > -200.0_jprb &
+         &   .and. driver_config%solar_longitude > -400.0_jprb) then
+      ! Compute solar azimuth angle from longitude and latitude of sun
+      ! and column
+      allocate(single_level%solar_azimuth_angle(ncol))
+      single_level%solar_azimuth_angle &
+           & = acos((sin(driver_config%solar_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &       - cos(driver_config%solar_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &       * cos((longitude - driver_config%solar_longitude)*PI_OVER_180)) &
+           &       / sqrt(1.0_jprb - single_level%cos_sza**2))
     else if (file%exists('solar_azimuth_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('solar_azimuth_angle',single_level%solar_azimuth_angle)
@@ -176,12 +223,32 @@ contains
         write(nulout,'(a,g10.3)') '  Overriding sensor azimuth angle with ', &
              &  driver_config%sensor_azimuth_angle_override
       end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%sensor_latitude > -200.0_jprb &
+         &   .and. driver_config%sensor_longitude > -400.0_jprb) then
+      ! Compute sensor azimuth angle from longitude and latitude of sensor
+      ! and column
+      allocate(single_level%sensor_azimuth_angle(ncol))
+      single_level%sensor_azimuth_angle &
+           & = acos((sin(driver_config%sensor_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &       - cos(driver_config%sensor_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &       * cos((longitude - driver_config%sensor_longitude)*PI_OVER_180)) &
+           &       / sqrt(1.0_jprb - single_level%cos_sensor_zenith_angle**2))
     else if (file%exists('sensor_azimuth_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('sensor_azimuth_angle',single_level%sensor_azimuth_angle)
     else if (config%do_sw .and. config%do_radiances) then
       write(nulout,'(a,a)') '*** Error: sensor_azimuth_angle not provided'
       stop
+    end if
+
+    if (config%do_sw .and. config%do_radiances) then
+      do jgas = 1,ncol
+        write(101,'(4f12.5)') longitude(jgas), latitude(jgas), &
+             &  single_level%cos_sza(jgas), single_level%solar_azimuth_angle(jgas)
+        write(102,'(4f12.5)') longitude(jgas), latitude(jgas), &
+             &  single_level%cos_sensor_zenith_angle(jgas), single_level%sensor_azimuth_angle(jgas)
+      end do
     end if
 
     if (file%exists('u_wind_10m')) then
