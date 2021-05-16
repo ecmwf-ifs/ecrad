@@ -429,9 +429,10 @@ contains
     character(len=*), optional, intent(in) :: experiment_name
 
     type(netcdf_file)                      :: out_file
-    integer                                :: ncol, n_bands_lw
+    integer                                :: ncol, n_bands_lw, n_bands_sw
     character(10), parameter               :: default_lw_units_str = 'W m-2 sr-1'
-    character(10)                          :: lw_units_str
+    character(10), parameter               :: default_sw_units_str = 'W m-2 sr-1'
+    character(10)                          :: lw_units_str, sw_units_str
     integer                                :: i_local_verbose
 
     real(jprb) :: hook_handle
@@ -445,6 +446,7 @@ contains
     end if
 
     lw_units_str = default_lw_units_str
+    sw_units_str = default_sw_units_str
 
     ncol = size(single_level%cos_sensor_zenith_angle)
 
@@ -457,6 +459,10 @@ contains
     if (config%do_lw) then
       n_bands_lw = size(flux%lw_radiance_band,1)
       call out_file%define_dimension("band_lw", n_bands_lw)
+    end if
+    if (config%do_sw) then
+      n_bands_sw = size(flux%sw_radiance_band,1)
+      call out_file%define_dimension("band_sw", n_bands_sw)
     end if
 
    ! Put global attributes
@@ -491,11 +497,29 @@ contains
 
       call out_file%define_variable("radiance_lw_band", &
            &  dim2_name="column", dim1_name="band_lw", &
-           &  units_str=trim(lw_units_str), long_name="Radiance")
+           &  units_str=trim(lw_units_str), long_name="Thermal radiance")
       call out_file%define_variable("cloud_cover_lw", &
            &  dim1_name="column", units_str="1", &
            &  long_name="Total cloud cover diagnosed by longwave solver", &
            &  standard_name="cloud_area_fraction")
+
+    end if
+
+    if (config%do_sw) then
+
+      if (.not. config%do_save_spectral_flux) then
+        call out_file%define_variable("wavenumber1_sw", &
+             &  dim1_name="band_sw", units_str="cm-1", &
+             &  long_name="Lower wavenumber of shortwave band")
+        call out_file%define_variable("wavenumber2_sw", &
+             &  dim1_name="band_sw", units_str="cm-1", &
+             &  long_name="Upper wavenumber of shortwave band")
+      end if
+
+      call out_file%define_variable("radiance_sw_band", &
+           &  dim2_name="column", dim1_name="band_sw", &
+           &  units_str=trim(sw_units_str), long_name="Solar radiance")
+
     end if
 
     ! Write variables
@@ -509,6 +533,15 @@ contains
 
       call out_file%put("radiance_lw_band", flux%lw_radiance_band)
       call out_file%put("cloud_cover_lw",   flux%cloud_cover_lw)
+    end if
+
+    if (config%do_sw) then
+      if (.not. config%do_save_spectral_flux) then
+!        call out_file%put("wavenumber1_sw", config%wavenumber1_sw)
+!        call out_file%put("wavenumber2_sw", config%wavenumber2_sw)
+      end if
+
+      call out_file%put("radiance_sw_band", flux%sw_radiance_band)
     end if
 
     ! Close file

@@ -147,14 +147,43 @@ contains
     else if (file%exists('cos_sensor_zenith_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('cos_sensor_zenith_angle',single_level%cos_sensor_zenith_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: cos_sensor_zenith_angle not provided'
+      stop
     end if
 
-    if (file%exists('solar_azimuth_angle')) then
-      call file%get('solar_azimuth_angle', single_level%solar_azimuth_angle)
+    if (driver_config%solar_azimuth_angle_override >= -9.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%solar_azimuth_angle(ncol))
+      single_level%solar_azimuth_angle = driver_config%solar_azimuth_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding solar azimuth angle with ', &
+             &  driver_config%solar_azimuth_angle_override
+      end if
+    else if (file%exists('solar_azimuth_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('solar_azimuth_angle',single_level%solar_azimuth_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: solar_azimuth_angle not provided'
+      stop
     end if
-    if (file%exists('sensor_azimuth_angle')) then
-      call file%get('sensor_azimuth_angle', single_level%sensor_azimuth_angle)
+
+    if (driver_config%sensor_azimuth_angle_override >= -9.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%sensor_azimuth_angle(ncol))
+      single_level%sensor_azimuth_angle = driver_config%sensor_azimuth_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding sensor azimuth angle with ', &
+             &  driver_config%sensor_azimuth_angle_override
+      end if
+    else if (file%exists('sensor_azimuth_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('sensor_azimuth_angle',single_level%sensor_azimuth_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: sensor_azimuth_angle not provided'
+      stop
     end if
+
     if (file%exists('u_wind_10m')) then
       call file%get('u_wind_10m', single_level%u_wind_10m)
     end if

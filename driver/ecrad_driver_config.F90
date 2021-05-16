@@ -47,6 +47,8 @@ module ecrad_driver_config
      real(jprb) :: solar_irradiance_override ! W m-2
      real(jprb) :: cos_sza_override
      real(jprb) :: cos_sensor_zenith_angle_override
+     real(jprb) :: solar_azimuth_angle_override  ! radians
+     real(jprb) :: sensor_azimuth_angle_override ! radians
      real(jprb) :: cloud_inhom_separation_factor  = 1.0_jprb
      real(jprb) :: cloud_separation_scale_surface = -1.0_jprb
      real(jprb) :: cloud_separation_scale_toa     = -1.0_jprb
@@ -140,6 +142,8 @@ contains
     real(jprb) :: skin_temperature
     real(jprb) :: cos_solar_zenith_angle
     real(jprb) :: cos_sensor_zenith_angle
+    real(jprb) :: solar_azimuth_angle
+    real(jprb) :: sensor_azimuth_angle
     real(jprb) :: solar_irradiance_override
     real(jprb) :: cloud_inhom_separation_factor
     real(jprb) :: cloud_separation_scale_surface
@@ -184,6 +188,7 @@ contains
          &  low_inv_effective_size, cloud_inhom_separation_factor, &
          &  effective_size_scaling, cos_solar_zenith_angle, &
          &  cos_sensor_zenith_angle, &
+         &  solar_azimuth_angle, sensor_azimuth_angle, &
          &  lw_emissivity, q_liquid_scaling, q_ice_scaling, &
          &  istartcol, iendcol, solar_irradiance_override, &
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
@@ -223,6 +228,8 @@ contains
     skin_temperature = -1.0_jprb
     cos_solar_zenith_angle = -1.0_jprb
     cos_sensor_zenith_angle = -2.0_jprb
+    solar_azimuth_angle = -10.0_jprb
+    sensor_azimuth_angle = -10.0_jprb
     solar_irradiance_override = -1.0_jprb
     cloud_inhom_separation_factor = 1.0_jprb
     cloud_separation_scale_toa = -1.0_jprb
@@ -329,6 +336,8 @@ contains
     this%skin_temperature_override = skin_temperature
     this%cos_sza_override = cos_solar_zenith_angle
     this%cos_sensor_zenith_angle_override = cos_sensor_zenith_angle
+    this%solar_azimuth_angle_override = solar_azimuth_angle
+    this%sensor_azimuth_angle_override = sensor_azimuth_angle
     this%solar_irradiance_override = solar_irradiance_override
     this%cloud_inhom_separation_factor = cloud_inhom_separation_factor
     this%cloud_separation_scale_toa = cloud_separation_scale_toa

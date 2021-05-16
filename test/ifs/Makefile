@@ -63,7 +63,7 @@ test_spartacus_maxentr:
 
 # (d) Tripleclouds solver with exponential-random overlap 
 test_tcrad:
-	./change_namelist.sh $(CONFIG) config_tcrad.nam \
+	$(CHANGENAM) $(CONFIG) config_tcrad.nam \
 		sw_solver_name='"Tripleclouds"' lw_solver_name='"TCRAD"' \
 		overlap_scheme_name='"Exp-Ran"'
 	$(DRIVER) config_tcrad.nam $(INPUT).nc $(INPUT)_tcrad_out.nc

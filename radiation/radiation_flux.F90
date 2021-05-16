@@ -94,6 +94,7 @@ module radiation_flux
      ! if do_radiances==true then instead of storing fluxes we store
      ! radiances in one particular direction per profile, either per
      ! band or per g-point, dimensioned (nspec,ncol)
+     real(jprb), allocatable, dimension(:,:) :: sw_radiance_band
      real(jprb), allocatable, dimension(:,:) :: lw_radiance_band
 
    contains
@@ -357,6 +358,15 @@ contains
         allocate(this%lw_radiance_band(config%n_spec_lw,istartcol:iendcol))
       else
         allocate(this%lw_radiance_band(config%n_bands_lw,istartcol:iendcol))
+      end if
+    end if
+
+    ! Allocate short arrays
+    if (config%do_sw) then
+      if (config%n_spec_sw > 0) then
+        allocate(this%sw_radiance_band(config%n_spec_sw,istartcol:iendcol))
+      else
+        allocate(this%sw_radiance_band(config%n_bands_sw,istartcol:iendcol))
       end if
     end if
 
