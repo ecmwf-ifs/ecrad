@@ -98,8 +98,8 @@ module radiation_single_level
     real(jprb), allocatable, dimension(:) :: &
          &   u_wind_10m, v_wind_10m ! (ncol)
 
-    ! Zero if sea, land otherwise
-    integer, allocatable, dimension(:) :: land_mask ! (ncol)
+    ! Fraction of gridbox that is sea
+    real(jprb), allocatable, dimension(:) :: sea_fraction ! (ncol)
 
   contains
     procedure :: allocate   => allocate_single_level
@@ -163,7 +163,7 @@ contains
         allocate(this%sensor_azimuth_angle(ncol))
         allocate(this%u_wind_10m(ncol))
         allocate(this%v_wind_10m(ncol))
-        allocate(this%land_mask(ncol))
+        allocate(this%sea_fraction(ncol))
       end if
     end if
 
@@ -223,8 +223,8 @@ contains
     if (allocated(this%v_wind_10m)) then
       deallocate(this%v_wind_10m)
     end if
-    if (allocated(this%land_mask)) then
-      deallocate(this%land_mask)
+    if (allocated(this%sea_fraction)) then
+      deallocate(this%sea_fraction)
     end if
 
     if (lhook) call dr_hook('radiation_single_level:deallocate',1,hook_handle)

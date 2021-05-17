@@ -203,10 +203,11 @@ contains
       ! and column
       allocate(single_level%solar_azimuth_angle(ncol))
       single_level%solar_azimuth_angle &
-           & = acos((sin(driver_config%solar_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           & = acos(max(-1.0_jprb, min(1.0_jprb, &
+           &        (sin(driver_config%solar_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
            &       - cos(driver_config%solar_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
            &       * cos((longitude - driver_config%solar_longitude)*PI_OVER_180)) &
-           &       / sqrt(1.0_jprb - single_level%cos_sza**2))
+           &       / max(sqrt(1.0_jprb - single_level%cos_sza**2), epsilon(1.0_jprb)))))
     else if (file%exists('solar_azimuth_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('solar_azimuth_angle',single_level%solar_azimuth_angle)
@@ -230,10 +231,11 @@ contains
       ! and column
       allocate(single_level%sensor_azimuth_angle(ncol))
       single_level%sensor_azimuth_angle &
-           & = acos((sin(driver_config%sensor_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           & = acos(max(-1.0_jprb, min(1.0_jprb, &
+           &        (sin(driver_config%sensor_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
            &       - cos(driver_config%sensor_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
            &       * cos((longitude - driver_config%sensor_longitude)*PI_OVER_180)) &
-           &       / sqrt(1.0_jprb - single_level%cos_sensor_zenith_angle**2))
+           &       / max(sqrt(1.0_jprb - single_level%cos_sensor_zenith_angle**2), epsilon(1.0_jprb)))))
     else if (file%exists('sensor_azimuth_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('sensor_azimuth_angle',single_level%sensor_azimuth_angle)
@@ -257,8 +259,8 @@ contains
     if (file%exists('v_wind_10m')) then
       call file%get('v_wind_10m', single_level%v_wind_10m)
     end if
-    if (file%exists('land_mask')) then
-      call file%get('land_mask', single_level%land_mask)
+    if (file%exists('sea_fraction')) then
+      call file%get('sea_fraction', single_level%sea_fraction)
     end if
 
     if (config%do_clouds) then
