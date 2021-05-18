@@ -18,6 +18,8 @@ module ecrad_driver_read_input
   
 contains
 
+  ! --------------------------------------------------------
+  ! Read a netCDF file containing input fields for ecRad
   subroutine read_input(file, config, driver_config, ncol, nlev, &
        &          is_complex_surface, surface, single_level, thermodynamics, &
        &          gas, cloud, aerosol)
@@ -202,12 +204,9 @@ contains
       ! Compute solar azimuth angle from longitude and latitude of sun
       ! and column
       allocate(single_level%solar_azimuth_angle(ncol))
-      single_level%solar_azimuth_angle &
-           & = acos(max(-1.0_jprb, min(1.0_jprb, &
-           &        (sin(driver_config%solar_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
-           &       - cos(driver_config%solar_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
-           &       * cos((longitude - driver_config%solar_longitude)*PI_OVER_180)) &
-           &       / max(sqrt(1.0_jprb - single_level%cos_sza**2), epsilon(1.0_jprb)))))
+      single_level%solar_azimuth_angle = calc_azimuth(driver_config%solar_latitude, &
+           &  driver_config%solar_longitude, latitude, longitude)
+
     else if (file%exists('solar_azimuth_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('solar_azimuth_angle',single_level%solar_azimuth_angle)
@@ -230,27 +229,14 @@ contains
       ! Compute sensor azimuth angle from longitude and latitude of sensor
       ! and column
       allocate(single_level%sensor_azimuth_angle(ncol))
-      single_level%sensor_azimuth_angle &
-           & = acos(max(-1.0_jprb, min(1.0_jprb, &
-           &        (sin(driver_config%sensor_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
-           &       - cos(driver_config%sensor_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
-           &       * cos((longitude - driver_config%sensor_longitude)*PI_OVER_180)) &
-           &       / max(sqrt(1.0_jprb - single_level%cos_sensor_zenith_angle**2), epsilon(1.0_jprb)))))
+      single_level%sensor_azimuth_angle = calc_azimuth(driver_config%sensor_latitude, &
+           &  driver_config%sensor_longitude, latitude, longitude)
     else if (file%exists('sensor_azimuth_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('sensor_azimuth_angle',single_level%sensor_azimuth_angle)
     else if (config%do_sw .and. config%do_radiances) then
       write(nulout,'(a,a)') '*** Error: sensor_azimuth_angle not provided'
       stop
-    end if
-
-    if (config%do_sw .and. config%do_radiances) then
-      do jgas = 1,ncol
-        write(101,'(4f12.5)') longitude(jgas), latitude(jgas), &
-             &  single_level%cos_sza(jgas), single_level%solar_azimuth_angle(jgas)
-        write(102,'(4f12.5)') longitude(jgas), latitude(jgas), &
-             &  single_level%cos_sensor_zenith_angle(jgas), single_level%sensor_azimuth_angle(jgas)
-      end do
     end if
 
     if (file%exists('u_wind_10m')) then
@@ -791,5 +777,30 @@ contains
     call gas%scale(INO2,    driver_config%no2_scaling,    driver_config%iverbose >= 2)
 
   end subroutine read_input
+
+  ! --------------------------------------------------------
+  ! Compute the azimuth between a point (sun or sensor) and an
+  ! atmospheric column, where the first two arguments are the latitude
+  ! and longitude of the point in degrees, and the last two are the
+  ! same but for the column
+  elemental function calc_azimuth(pt_lat_deg, pt_lon_deg, col_lat_deg, col_lon_deg)
+
+    use parkind1,                 only : jprb, jpim
+
+    real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
+
+    real(jprb), intent(in) :: pt_lat_deg, pt_lon_deg, col_lat_deg, col_lon_deg
+
+    real(jprb) :: calc_azimuth
+
+    real(jprb) :: sx, sy
+    
+    sx = cos(pt_lat_deg * PI_OVER_180) * sin((pt_lon_deg-col_lon_deg) * PI_OVER_180)
+    sy = cos(col_lat_deg * PI_OVER_180) * sin(pt_lat_deg * PI_OVER_180) &
+         &  - sin(col_lat_deg * PI_OVER_180) * cos(pt_lat_deg * PI_OVER_180) &
+         &  * cos((pt_lon_deg-col_lon_deg) * PI_OVER_180)
+    calc_azimuth = atan2(-sx, -sy)
+
+  end function calc_azimuth
 
 end module ecrad_driver_read_input

@@ -18,8 +18,7 @@ module radiation_flotsam_sw
 
 contains
 
-  ! This module contains just one subroutine, the shortwave
-  ! "FLOTSAM" solver
+  ! This module contains the shortwave "FLOTSAM" solver
 
   subroutine radiance_solver_flotsam_sw(nlev,istartcol,iendcol, &
        &  config, single_level, cloud, & 
@@ -82,7 +81,7 @@ contains
 
     real(jprb) :: weight(config%n_g_sw)
 
-    real(jprb) :: albedo(1)
+    real(jprb) :: albedo(FLOTSAM_NUM_ALBEDO_COMPONENTS)
 
     ! Phase function and components
     real(jprb) :: pf(nlev)
@@ -90,6 +89,9 @@ contains
 
     ! Index to FLOTSAM band ID
     integer :: iband, istatus, ig
+
+    ! Number of albedos
+    integer :: nalbedo
 
     integer :: i
 
@@ -148,10 +150,26 @@ contains
           albedo = albedo / sum(weight(1:ng))
           weight(1:ng) = weight(1:ng) / sum(weight(1:ng))
           
+          ! If we are over sea we optionally use the Cox-Munk model
+          ! for ocean reflectance accounting for sun glint
+          nalbedo = 1
+          if (allocated(single_level%sea_fraction) &
+               &  .and. allocated(config%i_ocean_reflectance_id_sw)) then
+            if (config%i_ocean_reflectance_id_sw(jband) >= 0 &
+                 &  .and. single_level%sea_fraction(jcol) > 0.5_jprb) then
+              nalbedo = 4
+              istatus = flotsam_get_ocean_albedo_components( &
+                   &  config%i_ocean_reflectance_id_sw(jband), single_level%cos_sza(jcol), &
+                   &  single_level%cos_sensor_zenith_angle(jcol), &
+                   &  single_level%solar_azimuth_angle(jcol) - single_level%sensor_azimuth_angle(jcol), &
+                   &  3.0_jprb, albedo)
+            end if
+          end if
+
           istatus = flotsam_init_band_profile_direct(iband, ng, nlev, weight, &
                &  od_rayleigh, od_abs)
           ! Clear sky
-          istatus = flotsam_reflectance(iband, 1, albedo, 0, ind, od_cloud(jband,:,jcol), &
+          istatus = flotsam_reflectance(iband, nalbedo, albedo, 0, ind, od_cloud(jband,:,jcol), &
                &  ssa_cloud(jband,:,jcol), pf, pf_components, flux%sw_radiance_clear_band(jband,jcol))
 
           if (flux%cloud_cover_sw(jcol) > 0.0_jprb) then
@@ -159,7 +177,7 @@ contains
             od_cloud_scaled = cloud%fraction(jcol,:) * od_cloud(jband,:,jcol) &
                  &  * (1.0_jprb / flux%cloud_cover_sw(jcol))
             ! Cloudy sky
-            istatus = flotsam_reflectance(iband, 1, albedo, nlev, ind, od_cloud_scaled, &
+            istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_scaled, &
                  &  ssa_cloud(jband,:,jcol), pf, pf_components, flux%sw_radiance_band(jband,jcol))
             ! Weighted average between clear and cloudy
             flux%sw_radiance_band(jband,jcol) &
@@ -186,5 +204,57 @@ contains
     if (lhook) call dr_hook('radiation_flotsam_sw:solver_flotsam_sw',1,hook_handle)
 
   end subroutine radiance_solver_flotsam_sw
+
+  subroutine allocate_ocean_reflectance_model(config)
+
+    use parkind1, only           : jprb
+    use yomhook,  only           : lhook, dr_hook
+    use radiation_config, only   : config_type
+    use radiation_io, only       : nulout
+    
+    implicit none
+
+#include <flotsam.inc>
+
+    type(config_type), intent(inout) :: config
+
+    integer, parameter :: nwind = 10
+
+    integer :: jband, jwind
+
+    real(jprb) :: wind(nwind)
+
+    real(jprb) :: wavelength
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_flotsam_sw:allocate_ocean_reflectance_model',0,hook_handle)
+
+    allocate(config%i_ocean_reflectance_id_sw(config%n_bands_sw))
+
+    do jwind = 1,nwind
+      wind(jwind) = jwind*2.0_jprb - 1.0_jprb
+    end do
+
+    do jband = 1,config%n_bands_sw
+
+      wavelength = 0.01_jprb / (0.5_jprb*(config%gas_optics_sw%spectral_def%wavenumber1_band(jband) &
+           &  + config%gas_optics_sw%spectral_def%wavenumber1_band(jband)))
+      
+      if (config%iverbosesetup >= 2) then
+        write(nulout, '(a,f10.1,a)') 'Initializing ocean reflectance model at wavelength of ', &
+             &  wavelength*1.0e9, ' nm'
+      end if
+
+      config%i_ocean_reflectance_id_sw(jband) &
+           &  = flotsam_new_ocean_brdf(wavelength, nwind, wind);
+      ! FIX: check ID is valid
+
+    end do
+
+    if (lhook) call dr_hook('radiation_flotsam_sw:allocate_ocean_reflectance_model',1,hook_handle)
+
+  end subroutine allocate_ocean_reflectance_model
+
 
 end module radiation_flotsam_sw

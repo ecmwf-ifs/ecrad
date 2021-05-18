@@ -38,7 +38,7 @@ contains
 
     use parkind1,         only : jprb
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : config_type, ISolverMcICA, &
+    use radiation_config, only : config_type, ISolverMcICA, ISolverFlotsam, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
 
     ! Currently there are two gas absorption models: RRTMG (default)
@@ -52,6 +52,7 @@ contains
     use radiation_cloud_optics,   only :  setup_cloud_optics
     use radiation_general_cloud_optics, only :  setup_general_cloud_optics
     use radiation_aerosol_optics, only :  setup_aerosol_optics
+    use radiation_flotsam_sw, only     :  allocate_ocean_reflectance_model
 
     type(config_type), intent(inout) :: config
 
@@ -113,6 +114,11 @@ contains
            &  config%lw_emiss_wavelength_bound, config%i_lw_emiss_index, &
            &  config%wavenumber1_lw, config%wavenumber2_lw, &
            &  config%i_emiss_from_band_lw, config%lw_emiss_weights)
+
+    ! Setup Cox-Munk model
+    if (config%i_solver_sw == ISolverFlotsam) then
+      call allocate_ocean_reflectance_model(config)
+    end if
 
     if (config%do_clouds) then
       if (config%i_gas_model == IGasModelMonochromatic) then

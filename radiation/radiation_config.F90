@@ -477,6 +477,7 @@ module radiation_config
     logical :: do_cloud_aerosol_per_sw_g_point = .true.
     logical :: do_cloud_aerosol_per_lw_g_point = .true.
 
+    !---------------------------------------------------------------------
     ! COMPUTED PARAMETERS
 
     ! Users of this library should not edit these parameters directly;
@@ -547,6 +548,10 @@ module radiation_config
     ! n_albedo_intervals/n_emiss_intervals or n_g_sw/n_g_lw
     integer :: n_canopy_bands_sw = 1
     integer :: n_canopy_bands_lw = 1
+
+    ! IDs of the Cox & Munk ocean reflectance model used in FLOTSAM,
+    ! per band
+    integer, allocatable :: i_ocean_reflectance_id_sw(:)
 
     ! Data structures containing gas optics description in the case of
     ! ecCKD
