@@ -475,10 +475,10 @@ module radiation_config
     ! intervals are identical to the bands, and n_wav_frac_[l|s]w =
     ! n_bands_[l|s]w. If do_cloud_aerosol_per_[l|s]w_g_point is true
     ! then they are not the same as bands.
-    real(jprb), allocatable, dimension(:) :: wavenumber1_sw
-    real(jprb), allocatable, dimension(:) :: wavenumber2_sw
-    real(jprb), allocatable, dimension(:) :: wavenumber1_lw
-    real(jprb), allocatable, dimension(:) :: wavenumber2_lw
+    !real(jprb), allocatable, dimension(:) :: wavenumber1_sw
+    !real(jprb), allocatable, dimension(:) :: wavenumber2_sw
+    !real(jprb), allocatable, dimension(:) :: wavenumber1_lw
+    !real(jprb), allocatable, dimension(:) :: wavenumber2_lw
 
     ! Fraction of each g point in each wavenumber interval,
     ! dimensioned (n_wav_frac_[l|s]w, n_g_[l|s]w)
@@ -1487,6 +1487,8 @@ contains
     ! Internally we deal with wavenumber
     real(jprb) :: wavenumber1, wavenumber2 ! cm-1
 
+    real(jprb) :: wavenumber1_band, wavenumber2_band ! cm-1
+
     integer :: jband ! Loop index for spectral band
 
     if (this%n_bands_sw <= 0) then
@@ -1501,13 +1503,15 @@ contains
     nweights = 0
 
     do jband = 1,this%n_bands_sw
-      if (wavenumber1 < this%wavenumber2_sw(jband) &
-           &  .and. wavenumber2 > this%wavenumber1_sw(jband)) then
+      wavenumber1_band = this%gas_optics_sw%spectral_def%wavenumber1_band(jband)
+      wavenumber2_band = this%gas_optics_sw%spectral_def%wavenumber2_band(jband)
+      
+      if (wavenumber1 < wavenumber2_band .and. wavenumber2 > wavenumber1_band) then
         nweights = nweights+1
         iband(nweights) = jband
-        weight(nweights) = (min(wavenumber2,this%wavenumber2_sw(jband)) &
-             &         - max(wavenumber1,this%wavenumber1_sw(jband))) &
-             & / (this%wavenumber2_sw(jband) - this%wavenumber1_sw(jband))
+        weight(nweights) = (min(wavenumber2,wavenumber2_band) &
+             &         - max(wavenumber1,wavenumber1_band)) &
+             & / (wavenumber2_band - wavenumber1_band)
       end if
     end do
 
@@ -1520,9 +1524,11 @@ contains
            &  weighting_name, ' (', wavenumber1, ' to ', &
            &  wavenumber2, ' cm-1):'
       do jband = 1, nweights
+        wavenumber1_band = this%gas_optics_sw%spectral_def%wavenumber1_band(iband(jband))
+        wavenumber2_band = this%gas_optics_sw%spectral_def%wavenumber2_band(iband(jband))
         write(nulout, '(a,i0,a,f6.0,a,f6.0,a,f8.4)') '  Shortwave band ', &
-             &  iband(jband), ' (', this%wavenumber1_sw(iband(jband)), ' to ', &
-             &  this%wavenumber2_sw(iband(jband)), ' cm-1): ', weight(jband)
+             &  iband(jband), ' (', wavenumber1_band, ' to ', &
+             &  wavenumber2_band, ' cm-1): ', weight(jband)
       end do
     end if
 
@@ -1572,7 +1578,8 @@ contains
       call this%consolidate_intervals(.true., &
            &  this%do_nearest_spectral_sw_albedo, &
            &  this%sw_albedo_wavelength_bound, this%i_sw_albedo_index, &
-           &  this%wavenumber1_sw, this%wavenumber2_sw, &
+           &  this%gas_optics_sw%spectral_def%wavenumber1_band, &
+           &  this%gas_optics_sw%spectral_def%wavenumber2_band, &
            &  this%i_albedo_from_band_sw, this%sw_albedo_weights)
     end if
 
@@ -1617,7 +1624,8 @@ contains
       call this%consolidate_intervals(.false., &
            &  this%do_nearest_spectral_lw_emiss, &
            &  this%lw_emiss_wavelength_bound, this%i_lw_emiss_index, &
-           &  this%wavenumber1_lw, this%wavenumber2_lw, &
+           &  this%gas_optics_lw%spectral_def%wavenumber1_band, &
+           &  this%gas_optics_lw%spectral_def%wavenumber2_band, &
            &  this%i_emiss_from_band_lw, this%lw_emiss_weights)
     end if
 

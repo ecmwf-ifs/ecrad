@@ -106,12 +106,14 @@ contains
     call config%consolidate_intervals(.true., &
            &  config%do_nearest_spectral_sw_albedo, &
            &  config%sw_albedo_wavelength_bound, config%i_sw_albedo_index, &
-           &  config%wavenumber1_sw, config%wavenumber2_sw, &
+           &  config%gas_optics_sw%spectral_def%wavenumber1_band, &
+           &  config%gas_optics_sw%spectral_def%wavenumber2_band, &
            &  config%i_albedo_from_band_sw, config%sw_albedo_weights)
     call config%consolidate_intervals(.false., &
            &  config%do_nearest_spectral_lw_emiss, &
            &  config%lw_emiss_wavelength_bound, config%i_lw_emiss_index, &
-           &  config%wavenumber1_lw, config%wavenumber2_lw, &
+           &  config%gas_optics_lw%spectral_def%wavenumber1_band, &
+           &  config%gas_optics_lw%spectral_def%wavenumber2_band, &
            &  config%i_emiss_from_band_lw, config%lw_emiss_weights)
 
     if (config%do_clouds) then
