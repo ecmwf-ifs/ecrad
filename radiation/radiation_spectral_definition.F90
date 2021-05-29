@@ -187,7 +187,7 @@ contains
   subroutine calc_mapping(this, temperature, wavenumber, mapping, use_bands)
 
     use yomhook,      only : lhook, dr_hook
-    use radiation_io, only : nulerr, radiation_abort
+    use radiation_io, only : nulout, nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
     real(jprb),                      intent(in)    :: temperature   ! K
@@ -205,7 +205,7 @@ contains
     integer    :: nwav ! Number of wavenumbers describing cloud
 
     ! Indices to wavenumber intervals in spectral definition structure
-    integer    :: isd, isd0, isd1, isd2
+    integer    :: isd, isd0, isd1, isd2, iwav
 
     ! Loop indices
     integer    :: jg, jwav, jband
@@ -265,7 +265,15 @@ contains
             weight(jwav) = (wavenum2-wavenum1) * planck_weight(jwav)
           end if
         end do
-        mapping(jband,:) = weight / sum(weight)
+        if (any(weight > 0.0_jprb)) then
+          mapping(jband,:) = weight / sum(weight)
+        else
+          iwav = minloc(abs(wavenumber - 0.5_jprb &
+               &  * (this%wavenumber1_band(jband)+this%wavenumber2_band(jband))),1)
+          write(nulout,'(a,i0,a,i0)') 'Warning: no cloud properties in band ', jband, &
+               &  ', using closest in wavenumber space: element ', iwav
+          mapping(jband,iwav) = 1.0_jprb
+        end if
       end do
 
       deallocate(weight)

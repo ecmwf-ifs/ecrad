@@ -342,7 +342,11 @@ program ecrad_driver
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   if (config%do_radiances) then
-    ! Store radiances in the output file
+    ! Store radiances (or brightness temperatures) in the output file
+    if (driver_config%do_save_brightness_temperature) then
+      call flux%convert_radiance_to_brightness_temperature(ncol, config%gas_optics_lw)
+    end if
+
     call save_radiances(file_name, config, single_level, flux, &
          &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
          &   experiment_name=driver_config%experiment_name)

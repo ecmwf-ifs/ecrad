@@ -98,6 +98,9 @@ module ecrad_driver_config
      ! files?
      logical :: do_write_hdf5 = .false.
 
+     ! Do we convert longwave radiances to brightness temperatures?
+     logical :: do_save_brightness_temperature
+
      ! Name of the experiment, to save in output file
      character(len=NMaxStringLength) :: experiment_name = ''
 
@@ -175,7 +178,8 @@ contains
     integer :: nblocksize
 
     logical :: do_save_inputs, do_ignore_inhom_effective_size, &
-         &  do_correct_unphysical_inputs, do_write_hdf5
+         &  do_correct_unphysical_inputs, do_write_hdf5, &
+         &  do_save_brightness_temperature
     integer :: nrepeat
 
     ! Process a limited number of columns (iendcol=0 indicates to
@@ -207,7 +211,7 @@ contains
          &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
          &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling, &
-         &  vmr_suffix_str, experiment_name
+         &  vmr_suffix_str, experiment_name, do_save_brightness_temperature
 
     real(jprb) :: hook_handle
 
@@ -266,6 +270,7 @@ contains
     nrepeat = 1
     do_correct_unphysical_inputs = .false.
     do_write_hdf5 = .false.
+    do_save_brightness_temperature = .false.
     experiment_name = ''
 
     ! Open the namelist file and read the radiation_driver namelist
@@ -361,6 +366,7 @@ contains
     this%cloud_separation_scale_power = cloud_separation_scale_power
     this%do_correct_unphysical_inputs = do_correct_unphysical_inputs
     this%do_write_hdf5  = do_write_hdf5
+    this%do_save_brightness_temperature = do_save_brightness_temperature
     this%h2o_scaling    = h2o_scaling
     this%co2_scaling    = co2_scaling
     this%o3_scaling     = o3_scaling

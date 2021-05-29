@@ -98,6 +98,9 @@ module radiation_flux
      real(jprb), allocatable, dimension(:,:) :: lw_radiance_band
      real(jprb), allocatable, dimension(:,:) :: sw_radiance_clear_band
 
+     ! Is lw_radiance_band actually a brightness temperature (in K)?
+     logical :: is_brightness_temperature = .false.
+
    contains
      procedure :: allocate   => allocate_flux_type
      procedure :: deallocate => deallocate_flux_type
@@ -105,6 +108,7 @@ module radiation_flux
      procedure :: calc_surface_spectral
      procedure :: out_of_physical_bounds
      procedure :: heating_rate_out_of_physical_bounds
+     procedure :: convert_radiance_to_brightness_temperature
   end type flux_type
 
 contains
@@ -531,6 +535,27 @@ contains
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',1,hook_handle)
 
   end subroutine calc_surface_spectral
+
+  !---------------------------------------------------------------------
+  ! Convert lw_radiance_band to a brightness temperature, using the
+  ! Planck mapping contained in the ckd_model definition
+  subroutine convert_radiance_to_brightness_temperature(this, ncol, ckd_model)
+    
+    use radiation_ecckd, only : ckd_model_type
+
+    class(flux_type),     intent(inout) :: this
+    integer,              intent(in)    :: ncol
+    type(ckd_model_type), intent(in)    :: ckd_model
+
+    real(jprb) :: bt(ckd_model%spectral_def%nband,ncol)
+
+    if (.not. this%is_brightness_temperature) then
+      call ckd_model%calc_brightness_temperature(ncol, this%lw_radiance_band, bt)
+      this%lw_radiance_band = bt
+      this%is_brightness_temperature = .true.
+    end if
+
+  end subroutine convert_radiance_to_brightness_temperature
 
 
   !---------------------------------------------------------------------

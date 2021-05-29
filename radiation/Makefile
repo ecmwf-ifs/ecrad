@@ -105,7 +105,7 @@ radiation_ecckd_gas.o: radiation_gas_constants.o
 
 radiation_gas.o radiation_single_level.o radiation_thermodynamics.o \
 	radiation_flux.o radiation_aerosol.o: radiation_check.o
-
+radiation_flux.o: radiation_ecckd.o
 radiation_gas.o: radiation_gas_constants.o
 
 radiation_general_cloud_optics_data.o: radiation_spectral_definition.o
