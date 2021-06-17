@@ -62,7 +62,9 @@ contains
       call config%aerosol_optics%set_types(config%i_aerosol_type_map(1:config%n_aerosol_types))
     end if
 
-    call config%aerosol_optics%print_description(config%i_aerosol_type_map(1:config%n_aerosol_types))
+    if (config%iverbosesetup >= 1) then
+      call config%aerosol_optics%print_description(config%i_aerosol_type_map(1:config%n_aerosol_types))
+    end if
 
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_aerosol_optics',1,hook_handle)
 
