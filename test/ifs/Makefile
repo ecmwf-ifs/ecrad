@@ -60,6 +60,12 @@ test_spartacus_maxentr:
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
 
+# (h) Cloudless solver with exponential-random overlap 
+test_cloudless:
+	./change_namelist.sh $(CONFIG) config_cloudless.nam \
+		sw_solver_name='"Cloudless"' lw_solver_name='"Cloudless"'
+	$(DRIVER) config_cloudless.nam $(INPUT).nc $(INPUT)_cloudless_out.nc
+
 # Clean data files
 clean:
 	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc \
