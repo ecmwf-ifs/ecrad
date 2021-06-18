@@ -576,8 +576,8 @@ contains
     ! Uniform deviates between 0 and 1
     real(jprb) :: rand_top(ng)
 
-    ! Height indices
-    integer :: jlev, jcloud
+    ! Loop indices
+    integer :: jlev, jcloud, jg
 
     integer :: iy
 
@@ -629,39 +629,43 @@ contains
     do jlev = ibegin,iend
 
       if (is_any_cloud(jlev)) then
-        ! The intention is that all these operations are vectorizable,
-        ! since all are vector operations on vectors of length ng...
 
-        ! Copy the cloud mask between levels
-        prev_cloud = is_cloud
+! Added for DWD (2020)
+!NEC$ shortloop
+        do jg = 1,ng
+          ! The intention is that all these operations are vectorizable,
+          ! since all are vector operations on vectors of length ng...
 
-        ! For each spectral interval, has the first cloud appeared at this level?
-        first_cloud = (trigger <= cum_cloud_cover(jlev) .and. .not. found_cloud)
+          ! Copy the cloud mask between levels
+          prev_cloud(jg) = is_cloud(jg)
 
-        ! ...if so, add to found_cloud
-        found_cloud = found_cloud .or. first_cloud
+          ! For each spectral interval, has the first cloud appeared at this level?
+          first_cloud(jg) = (trigger(jg) <= cum_cloud_cover(jlev) .and. .not. found_cloud(jg))
 
-        ! There is cloud at this level either if a first cloud has
-        ! appeared, or using separate probability calculations
-        ! depending on whether there is a cloud above (given by
-        ! prev_cloud)
-        is_cloud = first_cloud &
-             &  .or. found_cloud .and. merge(rand_cloud(:,jlev)*frac(jlev-1) &
-             &               < frac(jlev)+frac(jlev-1)-pair_cloud_cover(jlev-1), &
-             &             rand_cloud(:,jlev)*(cum_cloud_cover(jlev-1) - frac(jlev-1)) &
-             &               < pair_cloud_cover(jlev-1) - overhang(jlev-1) - frac(jlev-1), &
-             &             prev_cloud)
-        ! The random number determining cloud structure decorrelates
-        ! with the one above it according to the overlap parameter,
-        ! but always decorrelates if there is clear-sky above.  If
-        ! there is clear-sky in the present level, the random number
-        ! is set to zero to ensure that the optical depth scaling is
-        ! also zero.
-        rand_inhom(:,jlev) = merge(merge(rand_inhom(:,jlev-1), rand_inhom(:,jlev), &
-             &                           rand_inhom2(:,jlev) < overlap_param_inhom(jlev-1) &
-             &                           .and. prev_cloud), &
-             &                     0.0_jprb, is_cloud)
-        
+          ! ...if so, add to found_cloud
+          found_cloud(jg) = found_cloud(jg) .or. first_cloud(jg)
+
+          ! There is cloud at this level either if a first cloud has
+          ! appeared, or using separate probability calculations
+          ! depending on whether there is a cloud above (given by
+          ! prev_cloud)
+          is_cloud(jg) = first_cloud(jg) &
+               &  .or. found_cloud(jg) .and. merge(rand_cloud(jg,jlev)*frac(jlev-1) &
+               &               < frac(jlev)+frac(jlev-1)-pair_cloud_cover(jlev-1), &
+               &             rand_cloud(jg,jlev)*(cum_cloud_cover(jlev-1) - frac(jlev-1)) &
+               &               < pair_cloud_cover(jlev-1) - overhang(jlev-1) - frac(jlev-1), &
+               &             prev_cloud(jg))
+          ! The random number determining cloud structure decorrelates
+          ! with the one above it according to the overlap parameter,
+          ! but always decorrelates if there is clear-sky above.  If
+          ! there is clear-sky in the present level, the random number
+          ! is set to zero to ensure that the optical depth scaling is
+          ! also zero.
+          rand_inhom(jg,jlev) = merge(merge(rand_inhom(jg,jlev-1), rand_inhom(jg,jlev), &
+               &                           rand_inhom2(jg,jlev) < overlap_param_inhom(jlev-1) &
+               &                           .and. prev_cloud(jg)), &
+               &                     0.0_jprb, is_cloud(jg))
+        end do
       else
         ! No cloud at this level
         is_cloud = .false.
