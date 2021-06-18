@@ -556,8 +556,9 @@ contains
           end do
         end do
         if (present(incoming_sw)) then
-          incoming_sw(jg,:) &
-               &  = incoming_sw_scale(:) * ZINCSOL(:,jg)
+          do jg = 1,config%n_g_sw
+            incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
+          end do
         end if
       end do
     end if
