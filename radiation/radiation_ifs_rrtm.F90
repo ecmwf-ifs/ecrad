@@ -1,10 +1,16 @@
 ! radiation_ifs_rrtm.F90 - Interface to IFS implementation of RRTM-G
 !
-! Copyright (C) 2015-2019 ECMWF
+! (C) Copyright 2015- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-04-11  R. Hogan  Receive "surface" dummy argument
@@ -19,7 +25,7 @@ module radiation_ifs_rrtm
 
   implicit none
 
-  public  :: setup_gas_optics, gas_optics, planck_function
+  public  :: setup_gas_optics, gas_optics, planck_function, set_gas_units
 
 contains
 
@@ -514,6 +520,8 @@ contains
       incoming_sw_scale = 1.0_jprb
       do jcol = istartcol,iendcol
         if (single_level%cos_sza(jcol) > 0.0_jprb) then
+! Added for DWD (2020)
+!NEC$ nounroll
           incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(jcol,:))
         end if
       end do
@@ -539,17 +547,18 @@ contains
       end do
     else
       ! G points have not been reordered
-      do jg = 1,config%n_g_sw
+      do jcol = istartcol,iendcol
         do jlev = 1,nlev
-          do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_sw
             ! Check for negative optical depth
             od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
             ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
           end do
         end do
         if (present(incoming_sw)) then
-          incoming_sw(jg,:) &
-               &  = incoming_sw_scale(:) * ZINCSOL(:,jg)
+          do jg = 1,config%n_g_sw
+            incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
+          end do
         end if
       end do
     end if

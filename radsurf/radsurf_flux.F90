@@ -1,16 +1,24 @@
 ! radsurf_flux.f90 - Derived type to store fluxes into facets of the surface
 !
-! Copyright (C) 2017 ECMWF
+! (C) Copyright 2017- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 
 module radsurf_flux
 
   use parkind1, only : jprb
 
   implicit none
+
+  public
 
   !---------------------------------------------------------------------
   ! This derived type contains the output from the surface radiation

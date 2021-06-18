@@ -1,10 +1,16 @@
 ! radiation_aerosol_optics.F90 - Computing aerosol optical properties
 !
-! Copyright (C) 2015-2018 ECMWF
+! (C) Copyright 2015- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2018-04-15  R Hogan  Add "direct" option
@@ -12,6 +18,7 @@
 module radiation_aerosol_optics
 
   implicit none
+  public
 
 contains
 
@@ -55,7 +62,9 @@ contains
       call config%aerosol_optics%set_types(config%i_aerosol_type_map(1:config%n_aerosol_types))
     end if
 
-    call config%aerosol_optics%print_description(config%i_aerosol_type_map(1:config%n_aerosol_types))
+    if (config%iverbosesetup >= 1) then
+      call config%aerosol_optics%print_description(config%i_aerosol_type_map(1:config%n_aerosol_types))
+    end if
 
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_aerosol_optics',1,hook_handle)
 

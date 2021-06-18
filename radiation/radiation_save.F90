@@ -1,10 +1,16 @@
 ! radiation_save.F90 - Save data to NetCDF files
 !
-! Copyright (C) 2014-2019 ECMWF
+! (C) Copyright 2014- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-04-22  R. Hogan  Adapt for new way of describing longwave properties
@@ -26,7 +32,8 @@ contains
   ! Save fluxes in "flux" to NetCDF file_name, plus pressure from the
   ! thermodynamics object
   subroutine save_fluxes(file_name, config, thermodynamics, flux, &
-       &                 iverbose, is_hdf5_file, experiment_name)
+       &                 iverbose, is_hdf5_file, experiment_name, &
+       &                 is_double_precision)
 
     use yomhook,                  only : lhook, dr_hook
 
@@ -43,6 +50,7 @@ contains
     type(flux_type),            intent(in) :: flux
     integer,          optional, intent(in) :: iverbose
     logical,          optional, intent(in) :: is_hdf5_file
+    logical,          optional, intent(in) :: is_double_precision
     character(len=*), optional, intent(in) :: experiment_name
 
     type(netcdf_file)                      :: out_file
@@ -89,6 +97,11 @@ contains
     ! Variables stored internally with column varying fastest, but in
     ! output file column varies most slowly so need to transpose
     call out_file%transpose_matrices(.true.)
+
+    ! Set default precision for file, if specified
+    if (present(is_double_precision)) then
+      call out_file%double_precision(is_double_precision)
+    end if
 
     ! Spectral fluxes in memory are dimensioned (nband,ncol,nlev), but
     ! are reoriented in the output file to be (nband,nlev,ncol), where

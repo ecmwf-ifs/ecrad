@@ -13,8 +13,8 @@ all: test
 test: test_default test_noaer test_expran test_expran_vec test_tripleclouds \
 	test_spartacus test_spartacus_maxentr
 
-# (a) Default IFS settings for cycle 43R3: McICA solver with
-# exponential-exponential overlap
+# (a) Default IFS settings: McICA solver with exponential-exponential
+# overlap
 test_default:
 	$(DRIVER) $(CONFIG) $(INPUT).nc $(INPUT)_default_out.nc
 
@@ -60,11 +60,17 @@ test_spartacus_maxentr:
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
 
-# (h) Exponential-random overlap with "vectorizable" solver
+# (h) Exponential-random overlap with "vectorizable" cloud generator
 test_expran_vec:
 	./change_namelist.sh $(CONFIG) config_expran_vec.nam \
 		overlap_scheme_name='"Exp-Ran"' use_vectorizable_generator=true
 	$(DRIVER) config_expran_vec.nam $(INPUT).nc $(INPUT)_expran_vec_out.nc
+
+# (i) Cloudless solver with exponential-random overlap 
+test_cloudless:
+	./change_namelist.sh $(CONFIG) config_cloudless.nam \
+		sw_solver_name='"Cloudless"' lw_solver_name='"Cloudless"'
+	$(DRIVER) config_cloudless.nam $(INPUT).nc $(INPUT)_cloudless_out.nc
 
 # Clean data files
 clean:

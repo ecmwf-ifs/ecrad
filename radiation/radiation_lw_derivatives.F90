@@ -1,10 +1,16 @@
 ! radiation_lw_derivatives.F90 - Compute longwave derivatives for Hogan and Bozzo (2015) method
 !
-! Copyright (C) 2016-2017 ECMWF
+! (C) Copyright 2016- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! This module provides routines to compute the rate of change of
 ! broadband upwelling longwave flux at each half level with respect to
@@ -26,6 +32,8 @@
 !   2017-10-23  R. Hogan  Renamed single-character variables
 
 module radiation_lw_derivatives
+
+  public
 
 contains
 

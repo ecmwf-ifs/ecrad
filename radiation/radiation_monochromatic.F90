@@ -1,10 +1,16 @@
 ! radiation_interface.F90 - Monochromatic gas/cloud optics for testing
 !
-! Copyright (C) 2014-2018 ECMWF
+! (C) Copyright 2014- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-04-11  R. Hogan  Receive "surface" dummy argument
@@ -16,7 +22,8 @@ module radiation_monochromatic
   implicit none
 
   public  :: setup_gas_optics, gas_optics, set_gas_units, &
-       &     setup_cloud_optics, cloud_optics
+       &     setup_cloud_optics, cloud_optics,            &
+       &     setup_aerosol_optics, add_aerosol_optics
 
 contains
 

@@ -5,6 +5,8 @@ USE PARSRTM   ,ONLY : JPGMAX
 
 IMPLICIT NONE
 
+PUBLIC
+
 SAVE
 
 !     ------------------------------------------------------------------

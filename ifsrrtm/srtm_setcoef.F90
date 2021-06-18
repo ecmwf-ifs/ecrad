@@ -93,7 +93,7 @@ DO JK = 1, I_NLAYERS
       !        two values that the layer pressure lies.
 
       Z_PLOG = LOG(PAVEL(JL,JK))
-      KJP(JL,JK) = INT(36. - 5*(Z_PLOG+0.04))
+      KJP(JL,JK) = INT(36._JPRB - 5._JPRB*(Z_PLOG+0.04_JPRB))
       IF (KJP(JL,JK) < 1) THEN
         KJP(JL,JK) = 1
       ELSEIF (KJP(JL,JK) > 58) THEN
@@ -131,7 +131,7 @@ DO JK = 1, I_NLAYERS
       !        If the pressure is less than ~100mb, perform a different
       !        set of species interpolations.
 
-      IF (Z_PLOG <= 4.56) GO TO 5300
+      IF (Z_PLOG <= 4.56_JPRB) GO TO 5300
       KLAYTROP(JL) =  KLAYTROP(JL) + 1
 
       !        Set up factors needed to separately include the water vapor

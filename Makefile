@@ -66,7 +66,12 @@ export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradsurf -lradiation -lutilities \
-	-lifsrrtm -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+ifdef DR_HOOK
+LIBS += -ldl -lrt
+export CFLAGS = -g -O2
+endif
+
 
 #############################
 ### --- BUILD TARGETS --- ###
@@ -77,9 +82,26 @@ all: build
 help:
 	@echo "Usage:"
 	@echo "  make PROFILE=<prof>"
-	@echo "where <prof> is one of gfortran, pgi etc."
+	@echo "where <prof> is one of gfortran, pgi, intel or cray (see Makefile_include.<prof>)"
+	@echo "Other arguments to make are:"
+	@echo "  DEBUG=1              Compile with debug settings on and optimizations off"
+	@echo "  SINGLE_PRECISION=1   Compile with single precision"
+	@echo "  DR_HOOK=1            Compile with the Dr Hook profiling system"
+	@echo "  test                 Run test cases in test directory"
+	@echo "  clean                Remove all compiled files"
 
-build: libifsaux libutilities libifsrrtm libradiation libradsurf driver symlinks
+ifdef DR_HOOK
+build: directories libifsaux libdrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
+else
+build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
+endif
+
+# git cannot store empty directories so they may need to be created 
+directories: mod lib
+mod:
+	mkdir -p mod
+lib:
+	mkdir -p lib
 
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps
@@ -90,6 +112,12 @@ clean-deps:
 
 libifsaux:
 	cd ifsaux && $(MAKE)
+
+libdrhook:
+	cd drhook && $(MAKE)
+
+libdummydrhook:
+	cd drhook && $(MAKE) dummy
 
 libutilities:
 	cd utilities && $(MAKE)
@@ -137,6 +165,7 @@ clean-utilities:
 	cd ifsaux && $(MAKE) clean
 	cd utilities && $(MAKE) clean
 	cd ifsrrtm && $(MAKE) clean
+	cd drhook && $(MAKE) clean
 
 clean-mods:
 	rm -f mod/*.mod
@@ -147,6 +176,6 @@ clean-symlinks:
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
-.PHONY: all build help deps clean-deps libifsaux libutilities libifsrrtm \
+.PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
 	libradiation libradsurf driver symlinks clean clean-toplevel test test_ifs \
 	test_i3rc test_surface clean-tests clean-utilities clean-mods clean-symlinks

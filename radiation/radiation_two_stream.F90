@@ -1,10 +1,16 @@
 ! radiation_two_stream.F90 - Compute two-stream coefficients
 !
-! Copyright (C) 2014-2018 ECMWF
+! (C) Copyright 2014- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-05-04  P Dueben/R Hogan  Use JPRD where double precision essential
@@ -17,6 +23,7 @@ module radiation_two_stream
   use parkind1, only : jprb, jprd
 
   implicit none
+  public
 
   ! Elsasser's factor: the effective factor by which the zenith
   ! optical depth needs to be multiplied to account for longwave
@@ -79,7 +86,8 @@ contains
 
     if (lhook) call dr_hook('radiation_two_stream:calc_two_stream_gammas_lw',0,hook_handle)
 #endif
-
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       ! Fu et al. (1997), Eq 2.9 and 2.10:
       !      gamma1(jg) = LwDiffusivity * (1.0_jprb - 0.5_jprb*ssa(jg) &
@@ -128,6 +136,8 @@ contains
 
     ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
     ! Atmospheric Physics 53, 147-66)
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       !      gamma1(jg) = 2.0_jprb  - ssa(jg) * (1.25_jprb + 0.75_jprb*g(jg))
       !      gamma2(jg) = 0.75_jprb *(ssa(jg) * (1.0_jprb - g(jg)))
@@ -197,6 +207,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       if (od(jg) > 1.0e-3_jprd) then
         k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
@@ -285,6 +297,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_isothermal_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
            1.E-12_jprd)) ! Eq 18 of Meador & Weaver (1980)
@@ -351,6 +365,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       ! Compute upward and downward emission assuming the Planck
       ! function to vary linearly with optical depth within the layer
@@ -448,6 +464,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       od_over_mu0 = max(od(jg) / mu0, 0.0_jprd)
       ! In the IFS this appears to be faster without testing the value
@@ -579,6 +597,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_z_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       od_over_mu0 = max(gamma0(jg) * depth, 0.0_jprd)
       ! In the IFS this appears to be faster without testing the value
@@ -691,6 +711,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_frac_scattered_diffuse_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       ! Note that if the minimum value is reduced (e.g. to 1.0e-24)
       ! then noise starts to appear as a function of solar zenith

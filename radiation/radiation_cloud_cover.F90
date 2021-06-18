@@ -1,17 +1,28 @@
 ! radiation_cloud_cover.F90 - Compute cumulative cloud cover for McICA
 !
-! Copyright (C) 2016 ECMWF
+! (C) Copyright 2016- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Generate profiles of the cumulative cloud cover as seen from TOA,
 ! used in the McICA cloud generator.
+!
+! Modifications
+!   2020-10-07  R. Hogan  Ensure iobj1 initialized in case of alpha_obj==0
 
 module radiation_cloud_cover
 
   use parkind1, only           : jprb
+
+  public
 
   ! Three overlap schemes.  Note that "Exponential" means that
   ! clear-sky regions have no special significance for computing the
@@ -241,7 +252,11 @@ contains
       pair_cloud_cover(jlev) = overlap_alpha*max(frac(jlev),frac(jlev+1)) &
            &  + (1.0_jprb - overlap_alpha) &
            &  * (frac(jlev)+frac(jlev+1)-frac(jlev)*frac(jlev+1))
-
+! Added for DWD (2020)
+#ifdef __SX__
+    enddo
+    do jlev = 1,nlev-1
+#endif
       if (frac(jlev) >= MaxCloudFrac) then
         ! Cloud cover has reached one
         cum_product = 0.0_jprb
@@ -481,6 +496,12 @@ contains
       do while (nobj > 1)
         ! Find the most correlated adjacent pair of objects
         alpha_max = 0.0_jprb
+
+        ! Need to re-initialize iobj1 here in case alpha_obj(:)==0.0,
+        ! which would mean that the "if" statement in the following
+        ! loop would never get triggered
+        iobj1 = 1
+
         jobj = 1
         do while (jobj < nobj)
           if (alpha_obj(jobj) > alpha_max) then

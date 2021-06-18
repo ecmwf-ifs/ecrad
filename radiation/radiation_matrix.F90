@@ -1,10 +1,16 @@
 ! radiation_matrix.F90 - SPARTACUS matrix operations
 !
-! Copyright (C) 2014-2018 ECMWF
+! (C) Copyright 2014- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2018-10-15  R. Hogan  Added fast_expm_exchange_[23]
@@ -22,6 +28,7 @@ module radiation_matrix
   use parkind1, only : jprb
 
   implicit none
+  public
 
   ! Codes to describe sparseness pattern, where the SHORTWAVE
   ! pattern is of the form:

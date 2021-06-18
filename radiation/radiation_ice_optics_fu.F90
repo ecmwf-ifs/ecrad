@@ -1,30 +1,47 @@
 ! radiation_ice_optics_fu.F90 - Fu's scheme for ice optical properties
 !
-! Copyright (C) 2014-2016 ECMWF
+! (C) Copyright 2014- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
+! Modifications
+!   2020-08-10  R. Hogan  Bounded re to be <= 100um and g to be < 1.0
 
 module radiation_ice_optics_fu
 
+  use parkind1, only : jprb
+
   implicit none
+  public
 
   ! The number of ice coefficients depends on the parameterization
   integer, parameter :: NIceOpticsCoeffsFuSW  = 10
   integer, parameter :: NIceOpticsCoeffsFuLW  = 11
 
+  ! Limits based on the range of validity of the parameterizations
+  real(jprb), parameter :: MaxAsymmetryFactor = 1.0_jprb - 10.0_jprb*epsilon(1.0_jprb)
+  real(jprb), parameter :: MaxEffectiveRadius = 100.0e-6_jprb ! metres
 
 contains
 
   !---------------------------------------------------------------------
   ! Compute shortwave ice-particle scattering properties using Fu
-  ! (1996) parameterization
+  ! (1996) parameterization.  The asymmetry factor in band 14 goes
+  ! larger than one for re > 100.8 um, so we cap re at 100 um.
+  ! Asymmetry factor is capped at just less than 1 because if it is
+  ! exactly 1 then delta-Eddington scaling leads to a zero scattering
+  ! optical depth and then division by zero.
   subroutine calc_ice_optics_fu_sw(nb, coeff, ice_wp, &
        &  re, od, scat_od, g)
 
-    use parkind1, only : jprb
     !use yomhook,  only : lhook, dr_hook
 
     ! Number of bands
@@ -48,16 +65,16 @@ contains
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_sw',0,hook_handle)
 
     ! Convert to effective diameter using the relationship in the IFS
-    de_um     = re * (1.0e6_jprb / 0.64952_jprb)
+    de_um     = min(re, MaxEffectiveRadius) * (1.0e6_jprb / 0.64952_jprb)
     inv_de_um = 1.0_jprb / de_um
     iwp_gm_2  = ice_wp * 1000.0_jprb
-    !    de_um = 20.0_jprb
 
     od = iwp_gm_2 * (coeff(1:nb,1) + coeff(1:nb,2) * inv_de_um)
     scat_od = od * (1.0_jprb - (coeff(1:nb,3) + de_um*(coeff(1:nb,4) &
          &  + de_um*(coeff(1:nb,5) + de_um*coeff(1:nb,6)))))
     g = min(coeff(1:nb,7) + de_um*(coeff(1:nb,8) &
-         &  + de_um*(coeff(1:nb,9) + de_um*coeff(1:nb,10))), 1.0_jprb)
+         &  + de_um*(coeff(1:nb,9) + de_um*coeff(1:nb,10))), &
+         &  MaxAsymmetryFactor)
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_sw',1,hook_handle)
 
@@ -70,7 +87,6 @@ contains
   subroutine calc_ice_optics_fu_lw(nb, coeff, ice_wp, &
        &  re, od, scat_od, g)
 
-    use parkind1, only : jprb
     !use yomhook,  only : lhook, dr_hook
 
     ! Number of bands
@@ -94,8 +110,7 @@ contains
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_lw',0,hook_handle)
 
     ! Convert to effective diameter using the relationship in the IFS
-    de_um = re * (1.0e6_jprb / 0.64952_jprb)
-    !    de_um = 20.0_jprb
+    de_um = min(re, MaxEffectiveRadius) * (1.0e6_jprb / 0.64952_jprb)
 
     inv_de_um = 1.0_jprb / de_um
     iwp_gm_2  = ice_wp * 1000.0_jprb
@@ -105,7 +120,8 @@ contains
     scat_od = od - iwp_gm_2*inv_de_um*(coeff(1:nb,4) + de_um*(coeff(1:nb,5) &
          &  + de_um*(coeff(1:nb,6) + de_um*coeff(1:nb,7))))
     g = min(coeff(1:nb,8) + de_um*(coeff(1:nb,9) &
-         &  + de_um*(coeff(1:nb,10) + de_um*coeff(1:nb,11))), 1.0_jprb)
+         &  + de_um*(coeff(1:nb,10) + de_um*coeff(1:nb,11))), &
+         &  MaxAsymmetryFactor)
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_lw',1,hook_handle)
 

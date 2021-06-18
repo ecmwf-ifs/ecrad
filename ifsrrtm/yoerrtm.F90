@@ -5,6 +5,8 @@ USE PARRRTM   ,ONLY : JPGMAX
 
 IMPLICIT NONE
 
+PUBLIC
+
 SAVE
 
 !     ------------------------------------------------------------------

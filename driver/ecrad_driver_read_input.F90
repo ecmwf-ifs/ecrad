@@ -1,13 +1,20 @@
 ! ecrad_driver_read_input.F90 - Read input structures from NetCDF file
 !
-! Copyright (C) 2018-2019 ECMWF
+! (C) Copyright 2018- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
-!
 
 module ecrad_driver_read_input
+
+  public
   
 contains
 
@@ -67,10 +74,8 @@ contains
     ! Cloud overlap decorrelation length (m)
     real(jprb), parameter :: decorr_length_default = 2000.0_jprb
 
-
-    ! General surface prop to be read and then modified before used in
-    ! an ecRad structure
-    real(jprb), allocatable, dimension(:)   :: prop_1d
+    ! General property to be read and then modified before used in an
+    ! ecRad structure
     real(jprb), allocatable, dimension(:,:) :: prop_2d
 
     integer :: jgas               ! Loop index for reading gases
@@ -154,8 +159,7 @@ contains
       call single_level%init_seed_simple(1,ncol)
       ! Overwrite with user-specified values if available
       if (file%exists('iseed')) then
-        call file%get('iseed', prop_1d)              ! read iseed as real, 
-        single_level%iseed(1:ncol) = int(prop_1d(1:ncol)) ! convert to integer
+        call file%get('iseed', single_level%iseed)
       end if
 
       ! Cloud overlap parameter

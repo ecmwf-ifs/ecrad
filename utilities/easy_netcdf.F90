@@ -1,10 +1,16 @@
 ! easy_netcdf.F90 - Module providing convenient NetCDF read/write capability
 !
-! Copyright (C) 2014-2019 ECMWF
+! (C) Copyright 2014- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
-! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-04-28  R. Hogan  Fix "reshape" when writing 3D array
@@ -18,10 +24,11 @@
 module easy_netcdf
 
   use netcdf
-  use parkind1,      only : jprb, jpib
+  use parkind1,      only : jprb, jpib, jprm, jprd
   use radiation_io,  only : nulout, nulerr, my_abort => radiation_abort
 
   implicit none
+  public
 
   !---------------------------------------------------------------------
   ! An object of this type provides convenient read or write access to
@@ -49,6 +56,7 @@ module easy_netcdf
     procedure :: close => close_netcdf_file
     procedure :: get_real_scalar
     procedure :: get_real_vector
+    procedure :: get_integer_vector
     procedure :: get_real_matrix
     procedure :: get_real_array3
     procedure :: get_real_scalar_indexed
@@ -58,7 +66,7 @@ module easy_netcdf
     procedure :: get_real_array4
     generic   :: get => get_real_scalar, get_real_vector, &
          &              get_real_matrix, get_real_array3, &
-         &              get_real_array4, &
+         &              get_real_array4, get_integer_vector, &
          &              get_real_scalar_indexed, get_real_vector_indexed, &
          &              get_real_matrix_indexed, get_real_array3_indexed
     procedure :: get_real_scalar_attribute
@@ -722,6 +730,64 @@ contains
     end if
 
   end subroutine get_real_vector
+
+
+  !---------------------------------------------------------------------
+  ! Read a 1D integer array into "vector", which must be allocatable
+  ! and will be reallocated if necessary
+  subroutine get_integer_vector(this, var_name, vector)
+    class(netcdf_file)           :: this
+    character(len=*), intent(in) :: var_name
+    integer, allocatable, intent(out) :: vector(:)
+
+    integer                      :: n  ! Length of vector
+    integer                      :: istatus
+    integer                      :: ivarid, ndims
+    integer                      :: ndimlens(NF90_MAX_VAR_DIMS)
+    integer                      :: j
+
+    call this%get_variable_id(var_name, ivarid)
+    call this%get_array_dimensions(ivarid, ndims, ndimlens)
+
+    ! Ensure variable has only one dimension in the file
+    n = 1
+    do j = 1, ndims
+      n = n * ndimlens(j)
+      if (j > 1 .and. ndimlens(j) > 1) then
+        write(nulerr,'(a,a,a)') '*** Error reading NetCDF variable ', &
+             & var_name, &
+             & ' as a vector: all dimensions above the first must be singletons'
+        call my_abort('Error reading NetCDF file')
+      end if
+    end do
+
+    ! Reallocate if necessary
+    if (allocated(vector)) then
+      if (size(vector) /= n) then
+        if (this%iverbose >= 1) then
+          write(nulout,'(a,a)') '  Warning: resizing vector to read ', var_name
+        end if
+        deallocate(vector)
+        allocate(vector(n))
+      end if
+    else
+      allocate(vector(n))
+    end if
+
+    if (this%iverbose >= 3) then
+      write(nulout,'(a,a,a,i0,a)',advance='no') '  Reading ', var_name, '(', n, ')'
+      call this%print_variable_attributes(ivarid,nulout)
+    end if
+
+    ! Read variable
+    istatus = nf90_get_var(this%ncid, ivarid, vector)
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error reading NetCDF variable ', &
+           &  var_name, ' as an integer vector: ', trim(nf90_strerror(istatus))
+      call my_abort('Error reading NetCDF file')
+    end if
+
+  end subroutine get_integer_vector
 
 
   !---------------------------------------------------------------------
@@ -1475,7 +1541,7 @@ contains
       call my_abort('Error reading NetCDF file')
     end if
 
-    ! Allocatable character strings not supported one enough compilers
+    ! Allocatable character strings not supported on enough compilers
     ! yet
     !    if (allocated(attr_str)) then
     !      deallocate(attr_str)
@@ -1707,7 +1773,6 @@ contains
 
     ! Read output precision from optional argument "is_double" if
     ! present, otherwise from default output precision for this file
-    data_type = NF90_FLOAT ! Default
     if (present(data_type_name)) then
       if (data_type_name == 'double') then
         data_type = NF90_DOUBLE
@@ -1724,7 +1789,15 @@ contains
         call my_abort('Error writing NetCDF file')
       end if
     else if (present(is_double)) then
+      if (is_double) then
+        data_type = NF90_DOUBLE
+      else
+        data_type = NF90_FLOAT
+      end if
+    else if (this%is_double_precision) then
       data_type = NF90_DOUBLE
+    else
+      data_type = NF90_FLOAT
     end if
 
     ! Define variable
@@ -1764,9 +1837,9 @@ contains
     if (present(fill_value)) then
 #ifdef NC_NETCDF4
       if (data_type == NF90_DOUBLE) then
-        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,8))
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,jprd))
       else if (data_type == NF90_FLOAT) then
-        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,4))
+        istatus = nf90_def_var_fill(this%ncid, ivarid, 0, real(fill_value,jprm))
       else if (data_type == NF90_INT) then
         istatus = nf90_def_var_fill(this%ncid, ivarid, 0, int(fill_value,4))
       else if (data_type == NF90_SHORT) then
@@ -1776,9 +1849,9 @@ contains
       end if
 #else
       if (data_type == NF90_DOUBLE) then
-        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,8))
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,jprd))
       else if (data_type == NF90_FLOAT) then
-        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,4))
+        istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", real(fill_value,jprm))
       else if (data_type == NF90_INT) then
         istatus = nf90_put_att(this%ncid, ivarid, "_FillValue", int(fill_value,4))
       else if (data_type == NF90_SHORT) then

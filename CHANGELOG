@@ -1,3 +1,34 @@
+version 1.4.2
+	- radiation_config:do_write_double_precision writes fluxes as
+	  doubles in NetCDF file, which reduces noise in heating rate
+	  differences between two experiments
+
+version 1.4.1 (17 March 2021)
+	- Added Jupyter notebook to the practical directory
+
+version 1.4.0 (5 November 2020)
+	- Replaced OpenIFS license with Apache License (version 2.0) and
+	  added copyright statements to each file
+	- Bug fix in cum_cloud_cover_exp_exp that was triggered if exactly
+	  zero overlap parameter between cloud objects
+	- Corrected the metadata in fu_ice_scattering_rrtm.nc for the
+	  meaning of the coefficients representing the single-scattering
+	  albedo (or mass absorption coefficient) of ice in the longwave
+	- Fixed bug in McICA solvers in single-precision where ssa*od can
+	  underflow to zero even when the terms individually are larger than
+	  zero
+
+version 1.3.1 (10 August 2020)
+	- Functional Dr Hook added by Ioan Hadade, enabled with "make
+	  DR_HOOK=1"
+	- Fix from Daniel Rieger in ifsrrtm/srtm_taumol[16-29].F90,
+	  correcting a bug that violated bit-reproducibility when changing
+	  the number of MPI tasks
+	- Makefile_include.cray added by Ioan Hadade so that "make
+	  PROFILE=cray" uses the Cray compiler, if available
+	- Added securities to Fu ice optics: re <= 100um and g < 1
+	- Added securities to SOCRATES liquid optics: 1.2um <= re <= 50um
+
 version 1.3.0 (20 March 2020)
 	- Corrected shortwave band fluxes in Cloudless and Homogeneous
 	  solvers, which scaled the direct downwelling spectral flux by the
