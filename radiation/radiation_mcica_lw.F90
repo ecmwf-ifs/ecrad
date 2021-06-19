@@ -225,11 +225,13 @@ contains
               i_cloud_top = jlev
             end if
 
-            od_cloud_new = od_scaling(:,jlev) &
-                 &  * od_cloud(config%i_band_from_reordered_g_lw,jlev,jcol)
-            od_total = od(:,jlev,jcol) + od_cloud_new
-            ssa_total = 0.0_jprb
-            g_total   = 0.0_jprb
+            do jg = 1,ng
+              od_cloud_new(jg) = od_scaling(jg,jlev) &
+                 &  * od_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol)
+              od_total(jg)  = od(jg,jlev,jcol) + od_cloud_new(jg)
+              ssa_total(jg) = 0.0_jprb
+              g_total(jg)   = 0.0_jprb
+            end do
 
             if (config%do_lw_cloud_scattering) then
               ! Scattering case: calculate reflectance and
@@ -239,20 +241,25 @@ contains
                 ! In single precision we need to protect against the
                 ! case that od_total > 0.0 and ssa_total > 0.0 but
                 ! od_total*ssa_total == 0 due to underflow
-                scat_od_total = ssa(:,jlev,jcol)*od(:,jlev,jcol) &
-                     &     + ssa_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
-                     &     *  od_cloud_new
-                where (scat_od_total > 0.0_jprb)
-                  g_total = (g(:,jlev,jcol)*ssa(:,jlev,jcol)*od(:,jlev,jcol) &
-                       &     +   g_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
-                       &     * ssa_cloud(config%i_band_from_reordered_g_lw,jlev,jcol) &
-                       &     *  od_cloud_new) &
-                       &     / scat_od_total
-                end where                
-                where (od_total > 0.0_jprb)
-                  ssa_total = scat_od_total / od_total
-                end where
+                do jg = 1,ng
+                  if (od_total(jg) > 0.0_jprb) then
+                    scat_od_total(jg) = ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
+                     &     + ssa_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
+                     &     *  od_cloud_new(jg)
+                    ssa_total(jg) = scat_od_total(jg) / od_total(jg)
+
+                    if (scat_od_total(jg) > 0.0_jprb) then
+                      g_total(jg) = (g(jg,jlev,jcol)*ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
+                         &     +   g_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
+                         &     * ssa_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
+                         &     *  od_cloud_new(jg)) &
+                         &     / scat_od_total(jg)
+                    end if
+                  end if
+                end do
+
               else
+
                 do jg = 1,ng
                   if (od_total(jg) > 0.0_jprb) then
                     scat_od = ssa_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
@@ -265,6 +272,7 @@ contains
                     end if
                   end if
                 end do
+
               end if
             
               ! Compute cloudy-sky reflectance, transmittance etc at

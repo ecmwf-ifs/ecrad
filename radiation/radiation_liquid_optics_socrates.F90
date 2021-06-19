@@ -51,6 +51,7 @@ contains
     ! Total optical depth, scattering optical depth and asymmetry factor
     real(jprb), intent(out) :: od(nb), scat_od(nb), g(nb)
 
+    integer    :: jb
     ! Local effective radius (m), after applying bounds
     real(jprb) :: re
 
@@ -61,14 +62,18 @@ contains
     ! Apply the bounds of validity to effective radius
     re = max(MinEffectiveRadius, min(re_in, MaxEffectiveRadius))
 
-    od = lwp * (coeff(1:nb,1) + re*(coeff(1:nb,2) + re*coeff(1:nb,3))) &
-         &  / (1.0_jprb + re*(coeff(1:nb,4) + re*(coeff(1:nb,5) &
-         &  + re*coeff(1:nb,6))))
-    scat_od = od * (1.0_jprb &
-         &  - (coeff(1:nb,7) + re*(coeff(1:nb,8) + re*coeff(1:nb,9))) &
-         &  / (1.0_jprb + re*(coeff(1:nb,10) + re*coeff(1:nb,11))))
-    g = (coeff(1:nb,12) + re*(coeff(1:nb,13) + re*coeff(1:nb,14))) &
-         &  / (1.0_jprb + re*(coeff(1:nb,15) + re*coeff(1:nb,16)))
+! Added for DWD (2020)
+!NEC$ shortloop
+    do jb = 1, nb
+      od(jb) = lwp * (coeff(jb,1) + re*(coeff(jb,2) + re*coeff(jb,3))) &
+         &  / (1.0_jprb + re*(coeff(jb,4) + re*(coeff(jb,5) &
+         &  + re*coeff(jb,6))))
+      scat_od(jb) = od(jb) * (1.0_jprb &
+         &  - (coeff(jb,7) + re*(coeff(jb,8) + re*coeff(jb,9))) &
+         &  / (1.0_jprb + re*(coeff(jb,10) + re*coeff(jb,11))))
+      g(jb) = (coeff(jb,12) + re*(coeff(jb,13) + re*coeff(jb,14))) &
+         &  / (1.0_jprb + re*(coeff(jb,15) + re*coeff(jb,16)))
+    enddo
 
     !if (lhook) call dr_hook('radiation_liquid_optics_socrates:calc_liq_optics_socrates',1,hook_handle)
 
