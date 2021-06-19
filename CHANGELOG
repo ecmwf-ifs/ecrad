@@ -4,6 +4,8 @@ version 1.4.2
 	  differences between two experiments
 	- Added use_vectorizable_generator for vectorizable random number
 	  generator that speeds-up McICA solver on NEC hardware
+	- Numerous modifications to improve performance on DWD's NEC but
+	  which don't affect performance on Intel
 
 version 1.4.1 (17 March 2021)
 	- Added Jupyter notebook to the practical directory
