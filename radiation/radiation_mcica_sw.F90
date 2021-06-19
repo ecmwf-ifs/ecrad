@@ -210,7 +210,8 @@ contains
              &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
              &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
              &  config%pdf_sampler, od_scaling, total_cloud_cover, &
-             &  is_beta_overlap=config%use_beta_overlap)
+             &  use_beta_overlap=config%use_beta_overlap, &
+             &  use_vectorizable_generator=config%use_vectorizable_generator)
 
         ! Store total cloud cover
         flux%cloud_cover_sw(jcol) = total_cloud_cover
@@ -227,9 +228,9 @@ contains
                 ssa_total(jg) = 0.0_jprb
                 g_total(jg)   = 0.0_jprb
 
-              ! In single precision we need to protect against the
-              ! case that od_total > 0.0 and ssa_total > 0.0 but
-              ! od_total*ssa_total == 0 due to underflow
+                ! In single precision we need to protect against the
+                ! case that od_total > 0.0 and ssa_total > 0.0 but
+                ! od_total*ssa_total == 0 due to underflow
                 if (od_total(jg) > 0.0_jprb) then
                   scat_od = ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
                        &     + ssa_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &

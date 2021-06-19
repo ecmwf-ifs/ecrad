@@ -79,7 +79,7 @@ contains
       g(jb) = min(coeff(jb,7) + de_um*(coeff(jb,8) &
          &  + de_um*(coeff(jb,9) + de_um*coeff(jb,10))), &
          &  MaxAsymmetryFactor)
-    enddo
+    end do
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_sw',1,hook_handle)
 
@@ -131,7 +131,7 @@ contains
       g(jb) = min(coeff(jb,8) + de_um*(coeff(jb,9) &
          &  + de_um*(coeff(jb,10) + de_um*coeff(jb,11))), &
          &  MaxAsymmetryFactor)
-    enddo
+    end do
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_lw',1,hook_handle)
 

@@ -205,7 +205,8 @@ contains
            &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
            &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
            &  config%pdf_sampler, od_scaling, total_cloud_cover, &
-           &  is_beta_overlap=config%use_beta_overlap)
+           &  use_beta_overlap=config%use_beta_overlap, &
+           &  use_vectorizable_generator=config%use_vectorizable_generator)
       
       ! Store total cloud cover
       flux%cloud_cover_lw(jcol) = total_cloud_cover
@@ -224,13 +225,13 @@ contains
               i_cloud_top = jlev
             end if
 
-            DO jg = 1, ng
+            do jg = 1,ng
               od_cloud_new(jg) = od_scaling(jg,jlev) &
                  &  * od_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol)
               od_total(jg)  = od(jg,jlev,jcol) + od_cloud_new(jg)
               ssa_total(jg) = 0.0_jprb
               g_total(jg)   = 0.0_jprb
-            ENDDO
+            end do
 
             if (config%do_lw_cloud_scattering) then
               ! Scattering case: calculate reflectance and
@@ -241,7 +242,6 @@ contains
                 ! case that od_total > 0.0 and ssa_total > 0.0 but
                 ! od_total*ssa_total == 0 due to underflow
                 do jg = 1,ng
-
                   if (od_total(jg) > 0.0_jprb) then
                     scat_od_total(jg) = ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
                      &     + ssa_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
@@ -257,7 +257,9 @@ contains
                     end if
                   end if
                 end do
+
               else
+
                 do jg = 1,ng
                   if (od_total(jg) > 0.0_jprb) then
                     scat_od = ssa_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
@@ -270,6 +272,7 @@ contains
                     end if
                   end if
                 end do
+
               end if
             
               ! Compute cloudy-sky reflectance, transmittance etc at

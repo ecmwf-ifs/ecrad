@@ -213,7 +213,6 @@ DO JL = KIDIA, KFDIA
 !- Here, all molecules in WKL and WX are in volume mixing ratio; convert to
 !  molec/cm2 based on COLDRY for use in RRTM
 
-!CDIR UNROLL=6
 ZSUMMOL = 0.0_JPRB
 !AB broadening gases
     DO JMOL = 2, ITMOL

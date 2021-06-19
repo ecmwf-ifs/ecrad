@@ -62,7 +62,9 @@ contains
       call config%aerosol_optics%set_types(config%i_aerosol_type_map(1:config%n_aerosol_types))
     end if
 
-    call config%aerosol_optics%print_description(config%i_aerosol_type_map(1:config%n_aerosol_types))
+    if (config%iverbosesetup >= 1) then
+      call config%aerosol_optics%print_description(config%i_aerosol_type_map(1:config%n_aerosol_types))
+    end if
 
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_aerosol_optics',1,hook_handle)
 
@@ -422,7 +424,7 @@ contains
 ! Added for DWD (2020)
 !NEC$ forced_collapse
         do jlev = istartlev,iendlev
-          DO jb = 1, config%n_bands_sw
+          do jb = 1,config%n_bands_sw
             od_sw_aerosol(jb,jlev) = aerosol%od_sw(jb,jlev,jcol)
             scat_sw_aerosol(jb,jlev) = aerosol%ssa_sw(jb,jlev,jcol) * od_sw_aerosol(jb,jlev)
             scat_g_sw_aerosol(jb,jlev) = aerosol%g_sw(jb,jlev,jcol) * scat_sw_aerosol(jb,jlev)
@@ -430,13 +432,13 @@ contains
             if (.not. config%do_sw_delta_scaling_with_gases) then
               ! Delta-Eddington scaling on aerosol only.  Note that if
               ! do_sw_delta_scaling_with_gases==.true. then the delta
-              ! scaling is done to the cloud-aerosol-gas mixture inside
-              ! the solver
+              ! scaling is done to the cloud-aerosol-gas mixture
+              ! inside the solver
               call delta_eddington_extensive(od_sw_aerosol(jb,jlev), scat_sw_aerosol(jb,jlev), &
-                 &                         scat_g_sw_aerosol(jb,jlev))
+                   &                         scat_g_sw_aerosol(jb,jlev))
             end if
-          ENDDO
-        ENDDO
+          end do
+        end do
         ! Combine aerosol shortwave scattering properties with gas
         ! properties (noting that any gas scattering will have an
         ! asymmetry factor of zero)
@@ -481,15 +483,15 @@ contains
 ! Added for DWD (2020)
 !NEC$ forced_collapse
           do jlev = istartlev,iendlev
-            DO jb = 1, config%n_bands_lw
+            do jb = 1,config%n_bands_lw
               od_lw_aerosol(jb,jlev) = aerosol%od_lw(jb,jlev,jcol)
               scat_lw_aerosol(jb,jlev) = aerosol%ssa_lw(jb,jlev,jcol) * od_lw_aerosol(jb,jlev)
               scat_g_lw_aerosol(jb,jlev) = aerosol%g_lw(jb,jlev,jcol) * scat_lw_aerosol(jb,jlev)
             
               call delta_eddington_extensive(od_lw_aerosol(jb,jlev), scat_lw_aerosol(jb,jlev), &
                    &                         scat_g_lw_aerosol(jb,jlev))
-            ENDDO
-          ENDDO
+            end do
+          end do
           do jlev = istartlev,iendlev
             do jg = 1,config%n_g_lw
               iband = config%i_band_from_reordered_g_lw(jg)
@@ -520,11 +522,11 @@ contains
             ! If aerosol longwave scattering is not included then we
             ! weight the optical depth by the single scattering
             ! co-albedo
-            DO jb = 1, config%n_bands_lw
+            do jb = 1, config%n_bands_lw
               od_lw_aerosol(jb,jlev) = aerosol%od_lw(jb,jlev,jcol) &
                  &  * (1.0_jprb - aerosol%ssa_lw(jb,jlev,jcol))
-            ENDDO
-          ENDDO
+            end do
+          end do
           do jlev = istartlev,iendlev
             do jg = 1,config%n_g_lw
               od_lw(jg,jlev,jcol) = od_lw(jg,jlev,jcol) &

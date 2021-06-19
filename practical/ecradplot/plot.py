@@ -1839,7 +1839,7 @@ def plot_input_profile(latitude, IFS_srcfile, dstfile=None, title=None):
 
 
 def plot_output_profile(latitude, IFS_srcfile, ecRAD_srcfiles, linedicts, dstfile=None, 
-                       clearsky_linedict={ 'linestyle':'--'}):
+                       clearsky_linedict={ 'ls':'--'}):
 
     with sns.plotting_context('talk'):
 
@@ -1976,7 +1976,7 @@ def plot_output_profile(latitude, IFS_srcfile, ecRAD_srcfiles, linedicts, dstfil
     
     
 def compare_output_profile(latitude, IFS_srcfile, ecRAD_reference_srcfile, ecRAD_srcfiles, linedicts, dstfile=None, 
-                       clearsky_linedict={'linestyle':'--'}):
+                       clearsky_linedict={'ls':'--'}):
 
     with sns.plotting_context('talk'):                                                                                                                                     
 

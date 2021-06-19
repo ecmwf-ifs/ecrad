@@ -295,7 +295,7 @@ contains
     real(jprb), intent(out), dimension(ncol, nlev+1) :: flux_up, flux_dn
     
     ! Loop index for model level
-    integer :: jlev, jc
+    integer :: jlev, jcol
 
     real(jprb) :: hook_handle
 
@@ -309,9 +309,9 @@ contains
 ! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = 1,nlev
-      do jc = 1,ncol
-        flux_dn(jc,jlev+1) = transmittance(jc,jlev)*flux_dn(jc,jlev) + source_dn(jc,jlev)
-      enddo
+      do jcol = 1,ncol
+        flux_dn(jcol,jlev+1) = transmittance(jcol,jlev)*flux_dn(jcol,jlev) + source_dn(jcol,jlev)
+      end do
     end do
 
     ! Surface reflection and emission
@@ -322,9 +322,9 @@ contains
 ! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = nlev,1,-1
-      do jc = 1,ncol
-        flux_up(jc,jlev) = transmittance(jc,jlev)*flux_up(jc,jlev+1) + source_up(jc,jlev)
-      enddo
+      do jcol = 1,ncol
+        flux_up(jcol,jlev) = transmittance(jcol,jlev)*flux_up(jcol,jlev+1) + source_up(jcol,jlev)
+      end do
     end do
     
     if (lhook) call dr_hook('radiation_adding_ica_lw:calc_fluxes_no_scattering_lw',1,hook_handle)
