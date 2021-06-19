@@ -73,7 +73,7 @@ contains
          &  / (1.0_jprb + re*(coeff(jb,10) + re*coeff(jb,11))))
       g(jb) = (coeff(jb,12) + re*(coeff(jb,13) + re*coeff(jb,14))) &
          &  / (1.0_jprb + re*(coeff(jb,15) + re*coeff(jb,16)))
-    enddo
+    end do
 
     !if (lhook) call dr_hook('radiation_liquid_optics_socrates:calc_liq_optics_socrates',1,hook_handle)
 

@@ -470,7 +470,7 @@ contains
               end if
               ssa_lw_cloud(jb,jlev,jcol) = (scat_od_lw_liq(jb) + scat_od_lw_ice(jb)) &
                  &                    / (od_lw_liq(jb) + od_lw_ice(jb))
-            enddo
+            end do
           else
             ! If longwave scattering is to be neglected then the
             ! best approximation is to set the optical depth equal
@@ -489,7 +489,7 @@ contains
                &  / (scat_od_sw_liq(jb) + scat_od_sw_ice(jb))
             ssa_sw_cloud(jb,jlev,jcol) &
                &  = (scat_od_sw_liq(jb) + scat_od_sw_ice(jb)) / (od_sw_liq(jb) + od_sw_ice(jb))
-          enddo
+          end do
         end if ! Cloud present
       end do ! Loop over column
     end do ! Loop over level

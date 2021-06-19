@@ -692,7 +692,7 @@ contains
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
             planck_tmp(:,jg) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
-          enddo
+          end do
           do jcol = istartcol,iendcol
             planck_hl(:,jlev,jcol) = planck_tmp(jcol,:)
           end do

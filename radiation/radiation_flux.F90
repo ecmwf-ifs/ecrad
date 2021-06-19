@@ -661,7 +661,7 @@ contains
       ig = ind(jg)
       do jc = ist, iend
         dest(ig,jc) = dest(ig,jc) + source(jg,jc)
-      enddo
+      end do
     end do
 
   end subroutine indexed_sum_vec
