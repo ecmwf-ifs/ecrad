@@ -99,6 +99,14 @@ module radiation_flux
      procedure :: heating_rate_out_of_physical_bounds
   end type flux_type
 
+! Added for DWD (2020)
+#ifdef __SX__
+      logical :: use_indexed_sum_vec = .true. !  use vectorizable indexed_sum routine
+#else
+      logical :: use_indexed_sum_vec = .false.
+#endif
+
+
 contains
 
   !---------------------------------------------------------------------
@@ -320,6 +328,13 @@ contains
       deallocate(this%lw_derivatives)
     end if
 
+    if (allocated(this%lw_dn_surf_g))               deallocate(this%lw_dn_surf_g)
+    if (allocated(this%lw_dn_surf_clear_g))         deallocate(this%lw_dn_surf_clear_g)
+    if (allocated(this%sw_dn_diffuse_surf_g))       deallocate(this%sw_dn_diffuse_surf_g)
+    if (allocated(this%sw_dn_direct_surf_g))        deallocate(this%sw_dn_direct_surf_g)
+    if (allocated(this%sw_dn_diffuse_surf_clear_g)) deallocate(this%sw_dn_diffuse_surf_clear_g)
+    if (allocated(this%sw_dn_direct_surf_clear_g))  deallocate(this%sw_dn_direct_surf_clear_g)
+
     if (lhook) call dr_hook('radiation_flux:deallocate',1,hook_handle)
 
   end subroutine deallocate_flux_type
@@ -348,30 +363,58 @@ contains
 
     if (config%do_sw .and. config%do_surface_sw_spectral_flux) then
 
-      do jcol = istartcol,iendcol
-        call indexed_sum(this%sw_dn_direct_surf_g(:,jcol), &
-             &           config%i_band_from_reordered_g_sw, &
-             &           this%sw_dn_direct_surf_band(:,jcol))
-        call indexed_sum(this%sw_dn_diffuse_surf_g(:,jcol), &
-             &           config%i_band_from_reordered_g_sw, &
-             &           this%sw_dn_surf_band(:,jcol))
-        this%sw_dn_surf_band(:,jcol) &
-             &  = this%sw_dn_surf_band(:,jcol) &
-             &  + this%sw_dn_direct_surf_band(:,jcol)
-      end do
+      if (use_indexed_sum_vec) then
+        call indexed_sum_vec(this%sw_dn_direct_surf_g, &
+             &               config%i_band_from_reordered_g_sw, &
+             &               this%sw_dn_direct_surf_band, istartcol, iendcol)
+        call indexed_sum_vec(this%sw_dn_diffuse_surf_g, &
+             &               config%i_band_from_reordered_g_sw, &
+             &               this%sw_dn_surf_band, istartcol, iendcol)
+        do jcol = istartcol,iendcol
+          this%sw_dn_surf_band(:,jcol) &
+               &  = this%sw_dn_surf_band(:,jcol) &
+               &  + this%sw_dn_direct_surf_band(:,jcol)
+        end do
+      else
+        do jcol = istartcol,iendcol
+          call indexed_sum(this%sw_dn_direct_surf_g(:,jcol), &
+               &           config%i_band_from_reordered_g_sw, &
+               &           this%sw_dn_direct_surf_band(:,jcol))
+          call indexed_sum(this%sw_dn_diffuse_surf_g(:,jcol), &
+               &           config%i_band_from_reordered_g_sw, &
+               &           this%sw_dn_surf_band(:,jcol))
+          this%sw_dn_surf_band(:,jcol) &
+               &  = this%sw_dn_surf_band(:,jcol) &
+               &  + this%sw_dn_direct_surf_band(:,jcol)
+        end do
+      end if
 
       if (config%do_clear) then
-        do jcol = istartcol,iendcol
-          call indexed_sum(this%sw_dn_direct_surf_clear_g(:,jcol), &
-               &           config%i_band_from_reordered_g_sw, &
-               &           this%sw_dn_direct_surf_clear_band(:,jcol))
-          call indexed_sum(this%sw_dn_diffuse_surf_clear_g(:,jcol), &
-               &           config%i_band_from_reordered_g_sw, &
-               &           this%sw_dn_surf_clear_band(:,jcol))
-          this%sw_dn_surf_clear_band(:,jcol) &
-               &  = this%sw_dn_surf_clear_band(:,jcol) &
-               &  + this%sw_dn_direct_surf_clear_band(:,jcol)
-        end do
+        if (use_indexed_sum_vec) then
+          call indexed_sum_vec(this%sw_dn_direct_surf_clear_g, &
+               &               config%i_band_from_reordered_g_sw, &
+               &               this%sw_dn_direct_surf_clear_band, istartcol, iendcol)
+          call indexed_sum_vec(this%sw_dn_diffuse_surf_clear_g, &
+               &               config%i_band_from_reordered_g_sw, &
+               &               this%sw_dn_surf_clear_band, istartcol, iendcol)
+          do jcol = istartcol,iendcol
+            this%sw_dn_surf_clear_band(:,jcol) &
+                 &  = this%sw_dn_surf_clear_band(:,jcol) &
+                 &  + this%sw_dn_direct_surf_clear_band(:,jcol)
+          end do
+        else
+          do jcol = istartcol,iendcol
+            call indexed_sum(this%sw_dn_direct_surf_clear_g(:,jcol), &
+                 &           config%i_band_from_reordered_g_sw, &
+                 &           this%sw_dn_direct_surf_clear_band(:,jcol))
+            call indexed_sum(this%sw_dn_diffuse_surf_clear_g(:,jcol), &
+                 &           config%i_band_from_reordered_g_sw, &
+                 &           this%sw_dn_surf_clear_band(:,jcol))
+            this%sw_dn_surf_clear_band(:,jcol) &
+                 &  = this%sw_dn_surf_clear_band(:,jcol) &
+                 &  + this%sw_dn_direct_surf_clear_band(:,jcol)
+          end do
+        end if
       end if
 
     end if ! do_surface_sw_spectral_flux
@@ -382,14 +425,23 @@ contains
         this%sw_dn_diffuse_surf_canopy(:,istartcol:iendcol) = this%sw_dn_diffuse_surf_g(:,istartcol:iendcol)
         this%sw_dn_direct_surf_canopy (:,istartcol:iendcol) = this%sw_dn_direct_surf_g (:,istartcol:iendcol)
       else if (config%do_nearest_spectral_sw_albedo) then
-        do jcol = istartcol,iendcol
-          call indexed_sum(this%sw_dn_direct_surf_g(:,jcol), &
-               &           config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
-               &           this%sw_dn_direct_surf_canopy(:,jcol))
-          call indexed_sum(this%sw_dn_diffuse_surf_g(:,jcol), &
-               &           config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
-               &           this%sw_dn_diffuse_surf_canopy(:,jcol))
-        end do
+        if (use_indexed_sum_vec) then
+          call indexed_sum_vec(this%sw_dn_direct_surf_g, &
+               &               config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
+               &               this%sw_dn_direct_surf_canopy, istartcol, iendcol)
+          call indexed_sum_vec(this%sw_dn_diffuse_surf_g, &
+               &               config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
+               &               this%sw_dn_diffuse_surf_canopy, istartcol, iendcol)
+        else
+          do jcol = istartcol,iendcol
+            call indexed_sum(this%sw_dn_direct_surf_g(:,jcol), &
+                 &           config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
+                 &           this%sw_dn_direct_surf_canopy(:,jcol))
+            call indexed_sum(this%sw_dn_diffuse_surf_g(:,jcol), &
+                 &           config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
+                 &           this%sw_dn_diffuse_surf_canopy(:,jcol))
+          end do
+        end if
       else
         ! More accurate calculations using weights, but requires
         ! this%sw_dn_[direct_]surf_band to be defined, i.e.
@@ -424,19 +476,31 @@ contains
       if (config%use_canopy_full_spectrum_lw) then
         this%lw_dn_surf_canopy(:,istartcol:iendcol) = this%lw_dn_surf_g(:,istartcol:iendcol)
       else if (config%do_nearest_spectral_lw_emiss) then
-        do jcol = istartcol,iendcol
-          call indexed_sum(this%lw_dn_surf_g(:,jcol), &
-               &           config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
-               &           this%lw_dn_surf_canopy(:,jcol))
-        end do
+        if (use_indexed_sum_vec) then
+          call indexed_sum_vec(this%lw_dn_surf_g, &
+               &               config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
+               &               this%lw_dn_surf_canopy, istartcol, iendcol)
+        else
+          do jcol = istartcol,iendcol
+            call indexed_sum(this%lw_dn_surf_g(:,jcol), &
+                 &           config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
+                 &           this%lw_dn_surf_canopy(:,jcol))
+          end do
+        end if
       else
         ! Compute fluxes in each longwave emissivity interval using
         ! weights; first sum over g points to get the values in bands
-        do jcol = istartcol,iendcol
-          call indexed_sum(this%lw_dn_surf_g(:,jcol), &
-               &           config%i_band_from_reordered_g_lw, &
-               &           lw_dn_surf_band(:,jcol))
-        end do
+        if (use_indexed_sum_vec) then
+          call indexed_sum_vec(this%lw_dn_surf_g, &
+               &               config%i_band_from_reordered_g_lw, &
+               &               lw_dn_surf_band, istartcol, iendcol)
+        else
+          do jcol = istartcol,iendcol
+            call indexed_sum(this%lw_dn_surf_g(:,jcol), &
+                 &           config%i_band_from_reordered_g_lw, &
+                 &           lw_dn_surf_band(:,jcol))
+          end do
+        end if
         nalbedoband = size(config%lw_emiss_weights,1)
         this%lw_dn_surf_canopy(:,istartcol:iendcol) = 0.0_jprb
         do jband = 1,config%n_bands_lw
@@ -580,6 +644,27 @@ contains
 
   end subroutine indexed_sum
 
+  !---------------------------------------------------------------------
+  ! Vectorized version of "add_indexed_sum"
+  subroutine indexed_sum_vec(source, ind, dest, ist, iend)
+
+    real(jprb), intent(in)  :: source(:,:)
+    integer,    intent(in)  :: ind(:)
+    real(jprb), intent(out) :: dest(:,:)
+    integer,    intent(in)  :: ist, iend
+
+    integer :: ig, jg, jc
+
+    dest = 0.0
+
+    do jg = lbound(source,1), ubound(source,1)
+      ig = ind(jg)
+      do jc = ist, iend
+        dest(ig,jc) = dest(ig,jc) + source(jg,jc)
+      end do
+    end do
+
+  end subroutine indexed_sum_vec
 
   !---------------------------------------------------------------------
   ! As "add_indexed_sum" but a whole vertical profiles

@@ -44,6 +44,11 @@ cloud_separation_scale_toa     = 14000.0,
 cloud_separation_scale_surface = 2500.0,
 cloud_separation_scale_power   = 3.5,
 cloud_inhom_separation_factor  = 0.75,
+!
+
+! Writing fluxes in double precision removes noise from differences in
+! mesospheric heating rates
+do_write_double_precision = true,
 /
 
 &radiation

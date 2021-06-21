@@ -17,6 +17,16 @@ version 1.5
 	  (i.e. do_nearest_spectral_sw_albedo and
 	  do_nearest_spectral_lw_emiss are now false by default)
 
+version 1.4.2 (21 June 2021)
+	- radiation_config:do_write_double_precision writes fluxes as
+	  doubles in NetCDF file, which reduces noise in heating rate
+	  differences between two experiments
+	- Added use_vectorizable_generator for vectorizable random number
+	  generator that speeds-up McICA solver on NEC hardware
+	- Numerous modifications to improve performance on DWD's NEC but
+	  which don't affect performance on Intel
+	- Removed unused radsurf code - use SPARTACUS-Surface instead
+
 version 1.4.1 (17 March 2021)
 	- Added Jupyter notebook to the practical directory
 

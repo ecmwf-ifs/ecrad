@@ -23,8 +23,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_check.F90   radiation_ecckd_interface.F90 \
 	radiation_gas_constants.F90 radiation_ecckd_gas.F90 \
 	radiation_spectral_definition.F90 radiation_general_cloud_optics.F90 \
-	radiation_general_cloud_optics_data.F90
-
+	radiation_general_cloud_optics_data.F90 radiation_random_numbers.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBRAD = ../lib/libradiation.a
@@ -86,7 +85,7 @@ radiation_cloudless_lw.o, radiation_tripleclouds_lw.o: radiation_adding_ica_lw.o
 radiation_aerosol_optics.o radiation_cloud_optics.o: \
 	radiation_config.o
 radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
-	radiation_cloud_cover.o
+	radiation_cloud_cover.o radiation_random_numbers.o
 radiation_lw_derivatives.o: radiation_matrix.o
 
 radiation_config.o: radiation_cloud_generator.o radiation_ecckd.o radiation_general_cloud_optics_data.o
