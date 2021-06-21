@@ -19,14 +19,13 @@ module ecrad_driver_read_input
 contains
 
   subroutine read_input(file, config, driver_config, ncol, nlev, &
-       &          is_complex_surface, surface, single_level, thermodynamics, &
+       &          single_level, thermodynamics, &
        &          gas, cloud, aerosol)
 
     use parkind1,                 only : jprb, jpim
     use radiation_io,             only : nulout
     use radiation_config,         only : config_type, ISolverSPARTACUS
     use ecrad_driver_config,      only : driver_config_type
-    use radsurf_properties,       only : surface_type
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_gas,            only : gas_type, &
@@ -42,7 +41,6 @@ contains
     type(netcdf_file),         intent(in)    :: file
     type(config_type),         intent(in)    :: config
     type(driver_config_type),  intent(in)    :: driver_config
-    type(surface_type),        intent(inout) :: surface
     type(single_level_type),   intent(inout) :: single_level
     type(thermodynamics_type), intent(inout) :: thermodynamics
     type(gas_type),            intent(inout) :: gas
@@ -52,13 +50,8 @@ contains
     ! Number of columns and levels of input data
     integer, intent(out) :: ncol, nlev
 
-    ! Are we using a complex surface representation stored in the
-    ! "surface" structure?
-    logical, intent(out) :: is_complex_surface
-
     integer :: ngases             ! Num of gases with concs described in 2D
     integer :: nwellmixedgases    ! Num of globally well-mixed gases
-    
 
     ! Mixing ratio of gases described in 2D (ncol,nlev); this is
     ! volume mixing ratio (m3/m3) except for water vapour and ozone
@@ -434,131 +427,75 @@ contains
     ! Read surface properties
     ! --------------------------------------------------------
 
-    ! Surface properties
-    if (file%exists('tile_representation')) then
-      ! We have a complex representation
-      single_level%is_simple_surface = .false.
-      is_complex_surface = .true.
-      call surface%read(file)
-      if (config%use_canopy_full_spectrum_sw) then
-        allocate(single_level%sw_albedo(ncol,config%n_g_sw))
-        allocate(single_level%sw_albedo_direct(ncol,config%n_g_sw))
-      else
-        allocate(single_level%sw_albedo(ncol,surface%nalbedobands))
-        allocate(single_level%sw_albedo_direct(ncol,surface%nalbedobands))
-      end if
+    single_level%is_simple_surface = .true.
 
-      ! Optional override of shortwave albedo
-      if (driver_config%sw_albedo_override >= 0.0_jprb) then
-        surface%sw_albedo = driver_config%sw_albedo_override
-        if (allocated(surface%sw_albedo_direct)) then
-          surface%sw_albedo_direct = driver_config%sw_albedo_override
-        end if
-        if (driver_config%iverbose >= 2) then
-          write(nulout,'(a,g10.3)') '  Overriding shortwave albedo of each facet with ', &
-               &  driver_config%sw_albedo_override
-        end if
-      end if
-
-      if (config%use_canopy_full_spectrum_lw) then
-        allocate(single_level%lw_emission(ncol,config%n_g_lw))
-        allocate(single_level%lw_emissivity(ncol,config%n_g_lw))
-      else
-        allocate(single_level%lw_emission(ncol,surface%nemissbands))
-        allocate(single_level%lw_emissivity(ncol,surface%nemissbands))
-      end if
-
-      ! Optional override of longwave emissivity
-      if (driver_config%lw_emissivity_override >= 0.0_jprb) then
-        surface%lw_emissivity = driver_config%lw_emissivity_override
-        if (driver_config%iverbose >= 2) then
-          write(nulout,'(a,g10.3)')  '  Overriding longwave emissivity of each facet with ', &
-               &  driver_config%lw_emissivity_override
-        end if
-      end if
-
+    ! Single-level variable with dimensions (ncol)
+    if (file%exists('skin_temperature')) then
+      call file%get('skin_temperature',single_level%skin_temperature) ! K
     else
-      ! We have a "simple" representation with a single flat tile, so
-      ! the "surface" structure is not used
-      single_level%is_simple_surface = .true.
-      is_complex_surface = .false.
-
-      ! Single-level variable with dimensions (ncol)
-      if (file%exists('skin_temperature')) then
-        call file%get('skin_temperature',single_level%skin_temperature) ! K
-      else
-        allocate(single_level%skin_temperature(ncol))
-        single_level%skin_temperature(1:ncol) = thermodynamics%temperature_hl(1:ncol,nlev+1)
-        if (driver_config%iverbose >= 1 .and. config%do_lw &
-             &  .and. driver_config%skin_temperature_override < 0.0_jprb) then 
-          write(nulout,'(a)') 'Warning: skin temperature set equal to lowest air temperature'
-        end if
+      allocate(single_level%skin_temperature(ncol))
+      single_level%skin_temperature(1:ncol) = thermodynamics%temperature_hl(1:ncol,nlev+1)
+      if (driver_config%iverbose >= 1 .and. config%do_lw &
+           &  .and. driver_config%skin_temperature_override < 0.0_jprb) then 
+        write(nulout,'(a)') 'Warning: skin temperature set equal to lowest air temperature'
       end if
-
-      if (driver_config%sw_albedo_override >= 0.0_jprb) then
-        ! Optional override of shortwave albedo
-        allocate(single_level%sw_albedo(ncol,1))
-        single_level%sw_albedo = driver_config%sw_albedo_override
-        if (driver_config%iverbose >= 2) then
-          write(nulout,'(a,g10.3)') '  Overriding shortwave albedo with ', &
-               &  driver_config%sw_albedo_override
-        end if
-        !if (allocated(single_level%sw_albedo_direct)) then
-        !  single_level%sw_albedo_direct = driver_config%sw_albedo_override
-        !end if
-      else
-        ! Shortwave albedo is stored with dimensions (ncol,nalbedobands)
-        if (file%get_rank('sw_albedo') == 1) then
-          ! ...but if in the NetCDF file it has only dimension (ncol), in
-          ! order that nalbedobands is correctly set to 1, we need to turn
-          ! off transposition
-          call file%get('sw_albedo',    single_level%sw_albedo, do_transp=.false.)
-          if (file%exists('sw_albedo_direct')) then
-            call file%get('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.false.)
-          end if
-        else
-          call file%get('sw_albedo',    single_level%sw_albedo, do_transp=.true.)
-          if (file%exists('sw_albedo_direct')) then
-            call file%get('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.true.)
-          end if
-        end if
+    end if
+    
+    if (driver_config%sw_albedo_override >= 0.0_jprb) then
+      ! Optional override of shortwave albedo
+      allocate(single_level%sw_albedo(ncol,1))
+      single_level%sw_albedo = driver_config%sw_albedo_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding shortwave albedo with ', &
+             &  driver_config%sw_albedo_override
       end if
-
-      ! Longwave emissivity
-      if (driver_config%lw_emissivity_override >= 0.0_jprb) then
-        ! Optional override of longwave emissivity
-        allocate(single_level%lw_emissivity(ncol,1))
-        single_level%lw_emissivity = driver_config%lw_emissivity_override
-        if (driver_config%iverbose >= 2) then
-          write(nulout,'(a,g10.3)')  '  Overriding longwave emissivity with ', &
-               &  driver_config%lw_emissivity_override
+      !if (allocated(single_level%sw_albedo_direct)) then
+      !  single_level%sw_albedo_direct = driver_config%sw_albedo_override
+      !end if
+    else
+      ! Shortwave albedo is stored with dimensions (ncol,nalbedobands)
+      if (file%get_rank('sw_albedo') == 1) then
+        ! ...but if in the NetCDF file it has only dimension (ncol), in
+        ! order that nalbedobands is correctly set to 1, we need to turn
+        ! off transposition
+        call file%get('sw_albedo',    single_level%sw_albedo, do_transp=.false.)
+        if (file%exists('sw_albedo_direct')) then
+          call file%get('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.false.)
         end if
       else
-        if (file%get_rank('lw_emissivity') == 1) then
-          call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.false.)
-        else
-          call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.true.)
+        call file%get('sw_albedo',    single_level%sw_albedo, do_transp=.true.)
+        if (file%exists('sw_albedo_direct')) then
+          call file%get('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.true.)
         end if
       end if
     end if
-
+    
+    ! Longwave emissivity
+    if (driver_config%lw_emissivity_override >= 0.0_jprb) then
+      ! Optional override of longwave emissivity
+      allocate(single_level%lw_emissivity(ncol,1))
+      single_level%lw_emissivity = driver_config%lw_emissivity_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)')  '  Overriding longwave emissivity with ', &
+             &  driver_config%lw_emissivity_override
+      end if
+    else
+      if (file%get_rank('lw_emissivity') == 1) then
+        call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.false.)
+      else
+        call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.true.)
+      end if
+    end if
+  
     ! Optional override of skin temperature
     if (driver_config%skin_temperature_override >= 0.0_jprb) then
-      if (is_complex_surface) then
-        surface%skin_temperature = driver_config%skin_temperature_override
-        if (driver_config%iverbose >= 2) then
-          write(nulout,'(a,g10.3)') '  Overriding skin_temperature of each facet with ', &
-               &  driver_config%skin_temperature_override
-        end if
-      else
-        single_level%skin_temperature = driver_config%skin_temperature_override
-        if (driver_config%iverbose >= 2) then
-          write(nulout,'(a,g10.3)') '  Overriding skin_temperature with ', &
-               &  driver_config%skin_temperature_override
-        end if
+      single_level%skin_temperature = driver_config%skin_temperature_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding skin_temperature with ', &
+             &  driver_config%skin_temperature_override
       end if
     end if
-
+    
     ! --------------------------------------------------------
     ! Read aerosol and gas concentrations
     ! --------------------------------------------------------

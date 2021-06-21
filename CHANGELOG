@@ -6,6 +6,7 @@ version 1.4.2
 	  generator that speeds-up McICA solver on NEC hardware
 	- Numerous modifications to improve performance on DWD's NEC but
 	  which don't affect performance on Intel
+	- Removed unused radsurf code - use SPARTACUS-Surface instead
 
 version 1.4.1 (17 March 2021)
 	- Added Jupyter notebook to the practical directory
