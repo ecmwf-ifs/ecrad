@@ -12,6 +12,10 @@ version 1.5
 	- Generalized clouds and aerosols can compute optical properties
 	  per g-point or band, controlled with
 	  do_cloud_aerosol_per_[lw|sw]_g_point
+	- Default is to average albedo/emissivity source data to ecRad
+	  bands/g-points, rather than just to find the nearest value
+	  (i.e. do_nearest_spectral_sw_albedo and
+	  do_nearest_spectral_lw_emiss are now false by default)
 
 version 1.4.1 (17 March 2021)
 	- Added Jupyter notebook to the practical directory

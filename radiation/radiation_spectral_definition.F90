@@ -501,7 +501,17 @@ contains
     if (allocated(mapping)) then
       deallocate(mapping)
     end if
-   
+    
+    ! Check wavelength is monotonically increasing
+    if (ninterval > 2) then
+      do jint = 2,ninterval-1
+        if (wavelength_bound(jint) <= wavelength_bound(jint-1)) then
+          write(nulerr, '(a)') '*** Error: wavelength bounds must be monotonically increasing'
+          call radiation_abort()
+        end if
+      end do
+    end if
+
     ! Define the mapping matrix
     if (ninterval < 2) then
       ! Simple case of one band
@@ -639,9 +649,11 @@ contains
     nin = size(mapping,1)
     nout = size(mapping,2)
 
-    if (use_bands_local) then
+    if (nin <= 1) then
+      write(nulout, '(a)') '  All spectral intervals will use the same albedo/emissivity'
+    else if (use_bands_local) then
       write(nulout, '(a,i0,a,i0,a)') '  Mapping from ', nin, ' values to ', nout, ' bands (wavenumber ranges in cm-1)'
-      if (nout <= 20) then
+      if (nout <= 40) then
         do jout = 1,nout
           write(nulout,'(i6,a,i6,a)',advance='no') nint(this%wavenumber1_band(jout)), ' to', &
                &                        nint(this%wavenumber2_band(jout)), ':'
@@ -651,7 +663,7 @@ contains
           write(nulout, '()')
         end do
       else
-        do jout = 1,15
+        do jout = 1,30
           write(nulout,'(i6,a,i6,a)',advance='no') nint(this%wavenumber1_band(jout)), ' to', &
                &                        nint(this%wavenumber2_band(jout)), ':'
           do jin = 1,nin
@@ -669,7 +681,7 @@ contains
       end if
     else
       write(nulout, '(a,i0,a,i0,a)') '  Mapping from ', nin, ' values to ', nout, ' g-points'
-      if (nout <= 20) then
+      if (nout <= 40) then
         do jout = 1,nout
           write(nulout,'(i3,a)',advance='no') jout, ':'
           do jin = 1,nin
@@ -678,7 +690,7 @@ contains
           write(nulout, '()')
         end do
       else
-        do jout = 1,15
+        do jout = 1,30
           write(nulout,'(i3,a)',advance='no') jout, ':'
           do jin = 1,nin
             write(nulout,'(f5.2)',advance='no') mapping(jin,jout)

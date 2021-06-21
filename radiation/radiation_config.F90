@@ -287,8 +287,8 @@ module radiation_config
     ! wavenumber of the band (nearest neighbour), or by a weighting
     ! according to the spectral overlap of each interval with each
     ! band
-    logical :: do_nearest_spectral_sw_albedo = .true.
-    logical :: do_nearest_spectral_lw_emiss  = .true.
+    logical :: do_nearest_spectral_sw_albedo = .false.
+    logical :: do_nearest_spectral_lw_emiss  = .false.
 
     ! User-defined monotonically increasing wavelength bounds (m)
     ! between input surface albedo/emissivity intervals. Implicitly
@@ -671,8 +671,8 @@ contains
          &     .false.,.false.,.false.,.false.,.false.,.false.]
     integer :: i_aerosol_type_map(NMaxAerosolTypes) ! More than 256 is an error
 
-    logical :: do_nearest_spectral_sw_albedo = .true.
-    logical :: do_nearest_spectral_lw_emiss  = .true.
+    logical :: do_nearest_spectral_sw_albedo
+    logical :: do_nearest_spectral_lw_emiss
     real(jprb) :: sw_albedo_wavelength_bound(NMaxAlbedoIntervals-1)
     real(jprb) :: lw_emiss_wavelength_bound( NMaxAlbedoIntervals-1)
     integer :: i_sw_albedo_index(NMaxAlbedoIntervals)

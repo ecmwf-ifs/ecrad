@@ -64,6 +64,7 @@ test_spartacus_maxentr:
 test_ecckd:
 	$(CHANGENAM) $(CONFIG) config_ecckd.nam \
 		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"' \
+		do_nearest_spectral_lw_emiss=false \
 		use_general_cloud_optics=true use_general_aerosol_optics=true
 	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
 #		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"'
@@ -71,6 +72,7 @@ test_ecckd:
 test_ecckd_spartacus:
 	$(CHANGENAM) $(CONFIG) config_ecckd_spartacus.nam \
 		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"' \
+		do_nearest_spectral_lw_emiss=false \
 		use_general_cloud_optics=true use_general_aerosol_optics=true \
 		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
 		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
@@ -80,6 +82,7 @@ test_ecckd_spartacus:
 test_ecckd_noaer:
 	$(CHANGENAM) $(CONFIG) config_ecckd_noaer.nam \
 		gas_model_name='"ECCKD"' use_aerosols=false \
+		do_nearest_spectral_lw_emiss=false \
 		use_general_cloud_optics=true use_general_aerosol_optics=true
 	$(DRIVER) config_ecckd_noaer.nam $(INPUT).nc $(INPUT)_ecckd_noaer_out.nc
 
