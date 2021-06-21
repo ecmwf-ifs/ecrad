@@ -228,7 +228,7 @@ contains
 
     ! Temporary storage of albedo in ecRad bands
     real(jprb) :: sw_albedo_band(istartcol:iendcol, config%n_bands_sw)
-    real(jprb) :: lw_albedo_band (istartcol:iendcol, config%n_bands_lw)
+    real(jprb) :: lw_albedo_band(istartcol:iendcol, config%n_bands_lw)
 
     ! Number of albedo bands
     integer :: nalbedoband

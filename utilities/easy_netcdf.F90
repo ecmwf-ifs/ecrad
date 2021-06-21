@@ -104,7 +104,9 @@ module easy_netcdf
     procedure :: get_outer_dimension
     procedure :: attribute_exists
     procedure :: global_attribute_exists
+#ifdef NC_NETCDF4
     procedure :: copy_dimensions
+#endif
     procedure :: copy_variable_definition
     procedure :: copy_variable
     procedure, private :: get_array_dimensions
@@ -2477,6 +2479,8 @@ contains
 
   end subroutine put_real_array3
 
+
+#ifdef NC_NETCDF4
   !---------------------------------------------------------------------
   ! Copy dimensions from "infile" to "this"
   subroutine copy_dimensions(this, infile)
@@ -2512,6 +2516,7 @@ contains
     end do
 
   end subroutine copy_dimensions
+#endif
 
   !---------------------------------------------------------------------
   ! Copy variable definition and attributes from "infile" to "this"

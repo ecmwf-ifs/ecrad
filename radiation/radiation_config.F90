@@ -1650,16 +1650,16 @@ contains
     ! band, or properly weight the contributions? This can be modified
     ! if there is only one albedo intervals.
     logical, intent(inout)    :: do_nearest
-    ! Monotonically increasing wavelength bounds between intervals,
-    ! not including the outer bounds (which are assumed to be zero and
-    ! infinity)
+    ! Monotonically increasing wavelength bounds (m) between
+    ! intervals, not including the outer bounds (which are assumed to
+    ! be zero and infinity)
     real(jprb), intent(in)    :: wavelength_bound(NMaxAlbedoIntervals-1)
     ! The albedo band indices corresponding to each interval
     integer,    intent(in)    :: i_intervals(NMaxAlbedoIntervals)
     ! Start and end wavenumber bounds for the ecRad bands (cm-1)
     real(jprb), intent(in)    :: wavenumber1(:), wavenumber2(:)
 
-    ! if do_nearest is TRUE then the result is expressed in i_mapping,
+    ! If do_nearest is TRUE then the result is expressed in i_mapping,
     ! which will be allocated to have the same length as wavenumber1,
     ! and contain the index of the albedo interval corresponding to
     ! that band

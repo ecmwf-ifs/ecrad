@@ -421,6 +421,188 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Compute a mapping matrix "mapping" that can be used in an
+  ! expression y=matmul(mapping,x) where x is a variable containing
+  ! optical properties in input bands (e.g. albedo in shortwave albedo
+  ! bands), and y is this variable mapped on to the spectral intervals
+  ! in the spectral definition "this". Temperature (K) is used to
+  ! generate a Planck function to weight each input band
+  ! appropriately.
+  subroutine calc_mapping_from_bands(this, temperature, &
+       &  wavelength_bound, i_intervals, mapping, use_bands)
+
+    use yomhook,      only : lhook, dr_hook
+    use radiation_io, only : nulerr, radiation_abort
+
+    class(spectral_definition_type), intent(in)    :: this
+    real(jprb),                      intent(in)    :: temperature   ! K
+    ! Monotonically increasing wavelength bounds (m) between
+    ! intervals, not including the outer bounds (which are assumed to
+    ! be zero and infinity)
+    real(jprb), intent(in)    :: wavelength_bound(:)
+    ! The albedo band indices corresponding to each interval
+    integer,    intent(in)    :: i_intervals(:)
+    real(jprb), allocatable,         intent(inout) :: mapping(:,:)
+    logical,    optional,            intent(in)    :: use_bands
+
+    ! Planck function and central wavenumber of each wavenumber
+    ! interval of the spectral definition
+    real(jprb) :: planck(this%nwav)         ! W m-2 (cm-1)-1
+    real(jprb) :: wavenumber_mid(this%nwav) ! cm-1
+
+    real(jprb) :: wavenumber1_bound, wavenumber2_bound
+
+    ! To work out weights we sample the Planck function at five points
+    ! in the interception between an input interval and a band, and
+    ! use the Trapezium rul
+    integer, parameter :: nsample = 5
+    integer :: isamp
+    real(jprb), dimension(nsample) :: wavenumber_sample, planck_sample
+    real(jprb), parameter :: weight_sample(nsample) &
+         &        = [0.5_jprb, 1.0_jprb, 1.0_jprb, 1.0_jprb, 0.5_jprb]
+
+    ! Index of input value corresponding to each wavenumber interval
+    integer :: i_input(this%nwav)
+
+    ! Number of albedo/emissivity values that will be provided, some
+    ! of which may span discontinuous intervals in wavelength space
+    integer :: ninput
+
+    ! Number of albedo/emissivity intervals represented, where some
+    ! may be grouped to have the same value of albedo/emissivity (an
+    ! example is in the thermal infrared where classically the IFS has
+    ! ninput=2 and ninterval=3, since only two emissivities are
+    ! provided representing (1) the infrared window, and (2) the
+    ! intervals to each side of the infrared window.
+    integer :: ninterval
+
+    logical    :: use_bands_local
+
+    ! Loop indices
+    integer    :: jg, jband, jin, jint
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_bands',0,hook_handle)
+
+    if (present(use_bands)) then
+      use_bands_local = use_bands
+    else
+      use_bands_local = .false.
+    end if
+
+    ! Count the number of input intervals 
+    ninterval = size(i_intervals)
+    ninput    = maxval(i_intervals)
+    
+    if (allocated(mapping)) then
+      deallocate(mapping)
+    end if
+   
+    ! Define the mapping matrix
+    if (use_bands_local) then
+      ! Require properties per band
+
+      allocate(mapping(this%nband, ninput))
+      mapping = 0.0_jprb
+      do jband = 1,this%nband
+        do jint = 1,ninterval
+          if (jint == 1) then
+            ! First input interval in wavelength space: lower
+            ! wavelength bound is 0 m, so infinity cm-1
+            wavenumber2_bound = this%wavenumber2_band(jband)
+          else
+            wavenumber2_bound = min(this%wavenumber2_band(jband), &
+                 &                  0.01_jprb/wavelength_bound(jint-1))
+          end if
+
+          if (jint == ninterval) then
+            ! Final input interval in wavelength space: upper
+            ! wavelength bound is infinity m, so 0 cm-1
+            wavenumber1_bound = this%wavenumber1_band(jband)
+          else
+            wavenumber1_bound = max(this%wavenumber1_band(jband), &
+                 &                  0.01_jprb/wavelength_bound(jint))
+
+          end if
+
+          if (wavenumber2_bound > wavenumber1_bound) then
+            ! Current input interval contributes to current band;
+            ! compute the weight of the contribution in proportion to
+            ! an approximate calculation of the integral of the Planck
+            ! function over the relevant part of the spectrum
+            wavenumber_sample = wavenumber1_bound + [(isamp,isamp=0,nsample-1)] &
+                 &  * (wavenumber2_bound-wavenumber1_bound) / real(nsample-1,jprb)
+            planck_sample = calc_planck_function_wavenumber(wavenumber_sample, temperature)
+            mapping(jband,i_intervals(jint)) = mapping(jband,i_intervals(jint)) &
+                 &  + sum(planck_sample*weight_sample) * (wavenumber2_bound-wavenumber1_bound)
+          end if
+
+        end do
+      end do
+
+    else
+      ! Require properties per g-point
+
+      if (this%ng == 0) then
+        write(nulerr,'(a)') '*** Error: requested surface mapping per g-point but only available per band'
+        call radiation_abort('Radiation configuration error')
+      end if
+
+      allocate(mapping(this%ng, ninput))
+      mapping = 0.0_jprb
+
+      wavenumber_mid = 0.5_jprb * (this%wavenumber1 + this%wavenumber2)
+      planck = calc_planck_function_wavenumber(wavenumber_mid, temperature)
+
+      ! In the processing that follows, we assume that the wavenumber
+      ! grid on which the g-points are defined in the spectral
+      ! definition is much finer than the albedo/emissivity intervals
+      ! that the user will provide.  This means that each wavenumber
+      ! is assigned to only one of the albedo/emissivity intervals.
+
+      ! By default set all wavenumbers to use first input
+      ! albedo/emissivity
+      i_input = 1
+      
+      ! All bounded intervals
+      do jint = 2,ninterval-1
+        wavenumber1_bound = 0.01_jprb / wavelength_bound(jint)
+        wavenumber2_bound = 0.01_jprb / wavelength_bound(jint-1)
+        where (wavenumber_mid > wavenumber1_bound &
+             & .and. wavenumber_mid <= wavenumber2_bound)
+          i_input = i_intervals(jint)
+        end where
+      end do
+
+      ! Final interval in wavelength space goes up to wavenumber of
+      ! infinity
+      if (ninterval > 1) then
+        wavenumber2_bound = 0.01_jprb / wavelength_bound(ninterval-1)
+        where (wavenumber_mid <= wavenumber2_bound)
+          i_input = i_intervals(ninterval)
+        end where
+      end if
+
+      do jin = 1,ninput
+        do jg = 1,this%ng
+          mapping(jg, jin) = sum(this%gpoint_fraction(:,jg) * planck, &
+               &                 mask=(i_input==jin))
+        end do
+      end do
+
+    end if
+
+    ! Normalize mapping matrix
+    do jg = 1,this%ng
+      mapping(jg,:) = mapping(jg,:) * (1.0_jprb/sum(mapping(jg,:)))
+    end do
+
+    if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_bands',1,hook_handle)
+
+  end subroutine calc_mapping_from_bands
+
+  !---------------------------------------------------------------------
   ! Return the minimum wavenumber of this object in cm-1
   pure function min_wavenumber(this)
 
