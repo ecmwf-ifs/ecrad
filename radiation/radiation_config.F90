@@ -72,7 +72,6 @@ module radiation_config
        & IEntrapmentExplicit, & ! Estimate horiz migration dist, account for fractal clouds
        & IEntrapmentExplicitNonFractal, & ! As above but ignore fractal nature of clouds
        & IEntrapmentMaximum ! Complete horizontal homogenization within regions (old SPARTACUS assumption)
-
   end enum
   
   ! Names available in the radiation namelist for variable
@@ -293,7 +292,9 @@ module radiation_config
 
     ! User-defined monotonically increasing wavelength bounds (m)
     ! between input surface albedo/emissivity intervals. Implicitly
-    ! the first interval starts at zero and the last ends at infinity.
+    ! the first interval starts at zero and the last ends at
+    ! infinity. These must be set with define_sw_albedo_intervals and
+    ! define_lw_emiss_intervals.
     real(jprb) :: sw_albedo_wavelength_bound(NMaxAlbedoIntervals-1) = -1.0_jprb
     real(jprb) :: lw_emiss_wavelength_bound( NMaxAlbedoIntervals-1) = -1.0_jprb
 
@@ -599,7 +600,8 @@ module radiation_config
      procedure :: get_sw_weights
      procedure :: define_sw_albedo_intervals
      procedure :: define_lw_emiss_intervals
-     procedure :: consolidate_intervals
+     procedure :: consolidate_sw_albedo_intervals
+     procedure :: consolidate_lw_emiss_intervals
 
   end type config_type
 
@@ -1314,6 +1316,14 @@ contains
            &          this%i_gas_model)
       call print_logical('  Aerosols are', 'use_aerosols', this%use_aerosols)
       call print_logical('  Clouds are', 'do_clouds', this%do_clouds)
+      if (this%do_sw) then
+        call print_logical('  Do cloud/aerosol/surface SW properties per g-point', &
+             &  'do_cloud_aerosol_per_sw_g_point', this%do_cloud_aerosol_per_sw_g_point)
+      end if
+      if (this%do_lw) then
+        call print_logical('  Do cloud/aerosol/surface LW properties per g-point', &
+             &  'do_cloud_aerosol_per_lw_g_point', this%do_cloud_aerosol_per_lw_g_point)
+      end if
 
       !---------------------------------------------------------------------
       write(nulout, '(a)') 'Surface settings:'
@@ -1546,6 +1556,7 @@ contains
        &                                i_intervals, do_nearest)
 
     use radiation_io, only : nulerr, radiation_abort
+    use radiation_spectral_definition, only : SolarReferenceTemperature
 
     class(config_type),   intent(inout) :: this
     ! Number of spectral intervals in which albedo is defined
@@ -1574,13 +1585,21 @@ contains
     this%i_sw_albedo_index(1:ninterval)            = i_intervals(1:ninterval)
     this%i_sw_albedo_index(ninterval+1:)           = 0
 
+    ! If this routine is called before setup_radiation then the
+    ! spectral intervals are not yet known
+    ! consolidate_sw_albedo_intervals is called later.  Otherwise it
+    ! is called immediately and overwrites any existing mapping.
     if (this%is_consolidated) then
-      call this%consolidate_intervals(.true., &
-           &  this%do_nearest_spectral_sw_albedo, &
-           &  this%sw_albedo_wavelength_bound, this%i_sw_albedo_index, &
-           &  this%gas_optics_sw%spectral_def%wavenumber1_band, &
-           &  this%gas_optics_sw%spectral_def%wavenumber2_band, &
-           &  this%i_albedo_from_band_sw, this%sw_albedo_weights)
+      !call this%consolidate_intervals(.true., &
+      !     &  this%do_nearest_spectral_sw_albedo, &
+      !     &  this%sw_albedo_wavelength_bound, this%i_sw_albedo_index, &
+      !     &  this%gas_optics_sw%spectral_def%wavenumber1_band, &
+      !     &  this%gas_optics_sw%spectral_def%wavenumber2_band, &
+      !     &  this%i_albedo_from_band_sw, this%sw_albedo_weights)
+      !call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
+      !     &  this%sw_albedo_wavelength_bound, this%i_sw_albedo_index, &
+      !     &  this%sw_albedo_weights, use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point))
+      call this%consolidate_sw_albedo_intervals
     end if
 
   end subroutine define_sw_albedo_intervals
@@ -1592,6 +1611,7 @@ contains
        &                                i_intervals, do_nearest)
 
     use radiation_io, only : nulerr, radiation_abort
+    use radiation_spectral_definition, only : TerrestrialReferenceTemperature
 
     class(config_type),   intent(inout) :: this
     ! Number of spectral intervals in which emissivity is defined
@@ -1621,12 +1641,16 @@ contains
     this%i_lw_emiss_index(ninterval+1:)           = 0
 
     if (this%is_consolidated) then
-      call this%consolidate_intervals(.false., &
-           &  this%do_nearest_spectral_lw_emiss, &
-           &  this%lw_emiss_wavelength_bound, this%i_lw_emiss_index, &
-           &  this%gas_optics_lw%spectral_def%wavenumber1_band, &
-           &  this%gas_optics_lw%spectral_def%wavenumber2_band, &
-           &  this%i_emiss_from_band_lw, this%lw_emiss_weights)
+      ! call this%consolidate_intervals(.false., &
+      !      &  this%do_nearest_spectral_lw_emiss, &
+      !      &  this%lw_emiss_wavelength_bound, this%i_lw_emiss_index, &
+      !      &  this%gas_optics_lw%spectral_def%wavenumber1_band, &
+      !      &  this%gas_optics_lw%spectral_def%wavenumber2_band, &
+      !      &  this%i_emiss_from_band_lw, this%lw_emiss_weights)
+      !call this%gas_optics_lw%spectral_def%calc_mapping_from_bands(TerrestrialReferenceTemperature, &
+      !     &  this%lw_emiss_wavelength_bound, this%i_lw_emiss_index, &
+      !     &  this%lw_emiss_weights, use_bands=(.not. this%do_cloud_aerosol_per_lw_g_point))
+      call this%consolidate_lw_emiss_intervals
     end if
 
   end subroutine define_lw_emiss_intervals
@@ -1637,247 +1661,441 @@ contains
   ! intervals with the shortwave bands, or the input longwave
   ! emissivity intervals with the longwave bands, depending on the
   ! arguments provided.
-  subroutine consolidate_intervals(this, is_sw, do_nearest, &
-       &  wavelength_bound, i_intervals, wavenumber1, wavenumber2, &
-       &  i_mapping, weights)
+  ! subroutine consolidate_intervals(this, is_sw, do_nearest, &
+  !      &  wavelength_bound, i_intervals, wavenumber1, wavenumber2, &
+  !      &  i_mapping, weights)
+
+  !   use radiation_io, only : nulout, nulerr, radiation_abort
+
+  !   class(config_type),   intent(inout) :: this
+  !   ! Is this the shortwave?  Otherwise longwave
+  !   logical,    intent(in)    :: is_sw
+  !   ! Do we find the nearest albedo interval to the centre of each
+  !   ! band, or properly weight the contributions? This can be modified
+  !   ! if there is only one albedo intervals.
+  !   logical, intent(inout)    :: do_nearest
+  !   ! Monotonically increasing wavelength bounds (m) between
+  !   ! intervals, not including the outer bounds (which are assumed to
+  !   ! be zero and infinity)
+  !   real(jprb), intent(in)    :: wavelength_bound(NMaxAlbedoIntervals-1)
+  !   ! The albedo band indices corresponding to each interval
+  !   integer,    intent(in)    :: i_intervals(NMaxAlbedoIntervals)
+  !   ! Start and end wavenumber bounds for the ecRad bands (cm-1)
+  !   real(jprb), intent(in)    :: wavenumber1(:), wavenumber2(:)
+
+  !   ! If do_nearest is TRUE then the result is expressed in i_mapping,
+  !   ! which will be allocated to have the same length as wavenumber1,
+  !   ! and contain the index of the albedo interval corresponding to
+  !   ! that band
+  !   integer,    allocatable, intent(inout) :: i_mapping(:)
+  !   ! ...otherwise the result is expressed in "weights", of
+  !   ! size(n_intervals, n_bands) containing how much of each interval
+  !   ! contributes to each band.
+  !   real(jprb), allocatable, intent(inout) :: weights(:,:)
+
+  !   ! Number and loop index of ecRad bands
+  !   integer    :: nband, jband
+  !   ! Number and index of albedo/emissivity intervals
+  !   integer    :: ninterval, iinterval
+  !   ! Sometimes an albedo or emissivity value will be used in more
+  !   ! than one interval, so nvalue indicates how many values will
+  !   ! actually be provided
+  !   integer    :: nvalue
+  !   ! Wavenumber bounds of the albedo/emissivity interval
+  !   real(jprb) :: wavenumber1_albedo, wavenumber2_albedo
+  !   ! Reciprocal of the wavenumber range of the ecRad band
+  !   real(jprb) :: recip_dwavenumber ! cm
+  !   ! Midpoint/bound of wavenumber band
+  !   real(jprb) :: wavenumber_mid, wavenumber_bound ! cm-1
+    
+  !   nband = size(wavenumber1)
+
+  !   ! Count the number of albedo/emissivity intervals
+  !   ninterval = 0
+  !   do iinterval = 1,NMaxAlbedoIntervals
+  !     if (i_intervals(iinterval) > 0) then
+  !       ninterval = iinterval
+  !     else
+  !       exit
+  !     end if
+  !   end do
+
+  !   if (ninterval < 2) then
+  !     ! Zero or one albedo/emissivity intervals found, so we index all
+  !     ! bands to one interval
+  !     if (allocated(i_mapping)) then
+  !       deallocate(i_mapping)
+  !     end if
+  !     allocate(i_mapping(nband))
+  !     i_mapping(:) = 1
+  !     do_nearest = .true.
+  !     ninterval = 1
+  !     nvalue = 1
+  !   else
+  !     ! Check wavelength is monotonically increasing
+  !     do jband = 2,ninterval-1
+  !       if (wavelength_bound(jband) <= wavelength_bound(jband-1)) then
+  !         if (is_sw) then
+  !           write(nulerr, '(a,a)') '*** Error: wavelength bounds for shortwave albedo intervals ', &
+  !                &  'must be monotonically increasing'
+  !         else
+  !           write(nulerr, '(a,a)') '*** Error: wavelength bounds for longwave emissivity intervals ', &
+  !                &  'must be monotonically increasing'
+  !         end if
+  !         call radiation_abort()
+  !       end if
+  !     end do
+
+  !     ! What is the maximum index, indicating the number of
+  !     ! albedo/emissivity values to expect?
+  !     nvalue = maxval(i_intervals(1:ninterval))
+      
+  !     if (do_nearest) then
+  !       ! Simpler nearest-neighbour mapping from band to
+  !       ! albedo/emissivity interval
+  !       if (allocated(i_mapping)) then
+  !         deallocate(i_mapping)
+  !       end if
+  !       allocate(i_mapping(nband))
+
+  !       ! Loop over bands
+  !       do jband = 1,nband
+  !         ! Compute mid-point of band in wavenumber space (cm-1)
+  !         wavenumber_mid = 0.5_jprb * (wavenumber1(jband) &
+  !              &                     + wavenumber2(jband))
+  !         iinterval = 1
+  !         ! Convert wavelength (m) into wavenumber (cm-1) at the lower
+  !         ! bound of the albedo interval
+  !         wavenumber_bound = 0.01_jprb / wavelength_bound(iinterval)
+  !         ! Find the albedo interval that has the largest overlap with
+  !         ! the band; this approach assumes that the albedo intervals
+  !         ! are larger than the spectral bands
+  !         do while (wavenumber_bound >= wavenumber_mid &
+  !              &    .and. iinterval < ninterval)
+  !           iinterval = iinterval + 1
+  !           if (iinterval < ninterval) then
+  !             wavenumber_bound = 0.01_jprb / wavelength_bound(iinterval)
+  !           else
+  !             ! For the last interval there is no lower bound
+  !             wavenumber_bound = 0.0_jprb
+  !           end if
+  !         end do
+  !         ! Save the index of the band corresponding to the albedo
+  !         ! interval and move onto the next band
+  !         i_mapping(jband) = i_intervals(iinterval)
+  !       end do
+  !     else
+  !       ! More accurate weighting
+  !       if (allocated(weights)) then
+  !         deallocate(weights)
+  !       end if
+  !       allocate(weights(nvalue,nband))
+  !       weights(:,:) = 0.0_jprb
+        
+  !       ! Loop over bands
+  !       do jband = 1,nband
+  !         recip_dwavenumber = 1.0_jprb / (wavenumber2(jband) &
+  !              &                        - wavenumber1(jband))
+  !         ! Find the first overlapping albedo band
+  !         iinterval = 1
+  !         ! Convert wavelength (m) into wavenumber (cm-1) at the lower
+  !         ! bound (in wavenumber space) of the albedo/emissivty interval
+  !         wavenumber1_albedo = 0.01_jprb / wavelength_bound(iinterval)
+  !         do while (wavenumber1_albedo >= wavenumber2(jband) &
+  !              &    .and. iinterval < ninterval)
+  !           iinterval = iinterval + 1
+  !           wavenumber1_albedo = 0.01_jprb / wavelength_bound(iinterval)
+  !         end do
+          
+  !         wavenumber2_albedo = wavenumber2(jband)
+          
+  !         ! Add all overlapping bands
+  !         do while (wavenumber2_albedo > wavenumber1(jband) &
+  !              &  .and. iinterval <= ninterval)
+  !           weights(i_intervals(iinterval),jband) &
+  !                &  = weights(i_intervals(iinterval),jband) &
+  !                &  + recip_dwavenumber &
+  !                &  * (min(wavenumber2_albedo,wavenumber2(jband)) &
+  !                &   - max(wavenumber1_albedo,wavenumber1(jband)))
+  !           wavenumber2_albedo = wavenumber1_albedo
+  !           iinterval = iinterval + 1
+  !           if (iinterval < ninterval) then
+  !             wavenumber1_albedo = 0.01_jprb / wavelength_bound(iinterval)
+  !           else
+  !             wavenumber1_albedo = 0.0_jprb
+  !           end if
+  !         end do
+  !       end do
+  !     end if
+  !   end if
+
+  !   ! Define how many bands to use for reporting surface downwelling
+  !   ! fluxes for canopy radiation scheme
+  !   if (is_sw) then
+  !     if (this%use_canopy_full_spectrum_sw) then
+  !       this%n_canopy_bands_sw = this%n_g_sw
+  !     else 
+  !       this%n_canopy_bands_sw = nvalue
+  !     end if
+  !   else
+  !     if (this%use_canopy_full_spectrum_lw) then
+  !       this%n_canopy_bands_lw = this%n_g_lw
+  !     else 
+  !       this%n_canopy_bands_lw = nvalue
+  !     end if
+  !   end if
+
+  !   if (this%iverbosesetup >= 2) then
+  !     if (.not. do_nearest) then
+  !       if (is_sw) then
+  !         write(nulout, '(a,i0,a,i0,a)') 'Weighting of ', nvalue, ' albedo values in ', &
+  !            &  nband, ' shortwave bands (wavenumber ranges in cm-1):'
+  !       else
+  !         write(nulout, '(a,i0,a,i0,a)') 'Weighting of ', nvalue, ' emissivity values in ', &
+  !            &  nband, ' longwave bands (wavenumber ranges in cm-1):'
+  !       end if
+  !       if (nband <= 20) then
+  !         do jband = 1,nband
+  !           write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
+  !                &                        nint(wavenumber2(jband)), ':'
+  !           do iinterval = 1,nvalue
+  !             write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+  !           end do
+  !           write(nulout, '()')
+  !         end do
+  !       else
+  !         do jband = 1,15
+  !           write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
+  !                &                        nint(wavenumber2(jband)), ':'
+  !           do iinterval = 1,nvalue
+  !             write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+  !           end do
+  !           write(nulout, '()')
+  !         end do
+  !         write(nulout,'(a)') '  ...'
+  !         write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(nband)), ' to', &
+  !              &                        nint(wavenumber2(nband)), ':'
+  !         do iinterval = 1,nvalue
+  !           write(nulout,'(f5.2)',advance='no') weights(iinterval,nband)
+  !         end do
+  !         write(nulout, '()')
+  !       end if
+  !     else if (ninterval <= 1) then
+  !       if (is_sw) then
+  !         write(nulout, '(a)') 'All shortwave bands will use the same albedo'
+  !       else
+  !         write(nulout, '(a)') 'All longwave bands will use the same emissivty'
+  !       end if
+  !     else
+  !       if (is_sw) then
+  !         write(nulout, '(a,i0,a)',advance='no') 'Mapping from ', nband, &
+  !              &  ' shortwave bands to albedo intervals:'
+  !       else
+  !         write(nulout, '(a,i0,a)',advance='no') 'Mapping from ', nband, &
+  !              &  ' longwave bands to emissivity intervals:'
+  !       end if
+  !       do jband = 1,nband
+  !         write(nulout,'(a,i0)',advance='no') ' ', i_mapping(jband)
+  !       end do
+  !       write(nulout, '()')
+  !     end if
+  !   end if
+
+  ! end subroutine consolidate_intervals
+
+
+  !---------------------------------------------------------------------
+  ! Consolidate the surface shortwave albedo intervals with the
+  ! band/g-point intervals
+  subroutine consolidate_sw_albedo_intervals(this)
 
     use radiation_io, only : nulout, nulerr, radiation_abort
+    use radiation_spectral_definition, only : SolarReferenceTemperature
 
     class(config_type),   intent(inout) :: this
-    ! Is this the shortwave?  Otherwise longwave
-    logical,    intent(in)    :: is_sw
-    ! Do we find the nearest albedo interval to the centre of each
-    ! band, or properly weight the contributions? This can be modified
-    ! if there is only one albedo intervals.
-    logical, intent(inout)    :: do_nearest
-    ! Monotonically increasing wavelength bounds (m) between
-    ! intervals, not including the outer bounds (which are assumed to
-    ! be zero and infinity)
-    real(jprb), intent(in)    :: wavelength_bound(NMaxAlbedoIntervals-1)
-    ! The albedo band indices corresponding to each interval
-    integer,    intent(in)    :: i_intervals(NMaxAlbedoIntervals)
-    ! Start and end wavenumber bounds for the ecRad bands (cm-1)
-    real(jprb), intent(in)    :: wavenumber1(:), wavenumber2(:)
 
-    ! If do_nearest is TRUE then the result is expressed in i_mapping,
-    ! which will be allocated to have the same length as wavenumber1,
-    ! and contain the index of the albedo interval corresponding to
-    ! that band
-    integer,    allocatable, intent(inout) :: i_mapping(:)
-    ! ...otherwise the result is expressed in "weights", of
-    ! size(n_intervals, n_bands) containing how much of each interval
-    ! contributes to each band.
-    real(jprb), allocatable, intent(inout) :: weights(:,:)
-
-    ! Number and loop index of ecRad bands
-    integer    :: nband, jband
-    ! Number and index of albedo/emissivity intervals
-    integer    :: ninterval, iinterval
-    ! Sometimes an albedo or emissivity value will be used in more
-    ! than one interval, so nvalue indicates how many values will
-    ! actually be provided
-    integer    :: nvalue
-    ! Wavenumber bounds of the albedo/emissivity interval
-    real(jprb) :: wavenumber1_albedo, wavenumber2_albedo
-    ! Reciprocal of the wavenumber range of the ecRad band
-    real(jprb) :: recip_dwavenumber ! cm
-    ! Midpoint/bound of wavenumber band
-    real(jprb) :: wavenumber_mid, wavenumber_bound ! cm-1
-    
-    nband = size(wavenumber1)
+    integer :: ninterval, jint, jband
 
     ! Count the number of albedo/emissivity intervals
     ninterval = 0
-    do iinterval = 1,NMaxAlbedoIntervals
-      if (i_intervals(iinterval) > 0) then
-        ninterval = iinterval
+    do jint = 1,NMaxAlbedoIntervals
+      if (this%i_sw_albedo_index(jint) > 0) then
+        ninterval = jint
       else
         exit
       end if
     end do
 
-    if (ninterval < 2) then
-      ! Zero or one albedo/emissivity intervals found, so we index all
-      ! bands to one interval
-      if (allocated(i_mapping)) then
-        deallocate(i_mapping)
-      end if
-      allocate(i_mapping(nband))
-      i_mapping(:) = 1
-      do_nearest = .true.
+    if (ninterval < 1) then
+      ! The user has not specified shortwave albedo bands - assume
+      ! only one
       ninterval = 1
-      nvalue = 1
-    else
-      ! Check wavelength is monotonically increasing
-      do jband = 2,ninterval-1
-        if (wavelength_bound(jband) <= wavelength_bound(jband-1)) then
-          if (is_sw) then
-            write(nulerr, '(a,a)') '*** Error: wavelength bounds for shortwave albedo intervals ', &
-                 &  'must be monotonically increasing'
-          else
-            write(nulerr, '(a,a)') '*** Error: wavelength bounds for longwave emissivity intervals ', &
-                 &  'must be monotonically increasing'
-          end if
-          call radiation_abort()
-        end if
-      end do
-
-      ! What is the maximum index, indicating the number of
-      ! albedo/emissivity values to expect?
-      nvalue = maxval(i_intervals(1:ninterval))
-      
-      if (do_nearest) then
-        ! Simpler nearest-neighbour mapping from band to
-        ! albedo/emissivity interval
-        if (allocated(i_mapping)) then
-          deallocate(i_mapping)
-        end if
-        allocate(i_mapping(nband))
-
-        ! Loop over bands
-        do jband = 1,nband
-          ! Compute mid-point of band in wavenumber space (cm-1)
-          wavenumber_mid = 0.5_jprb * (wavenumber1(jband) &
-               &                     + wavenumber2(jband))
-          iinterval = 1
-          ! Convert wavelength (m) into wavenumber (cm-1) at the lower
-          ! bound of the albedo interval
-          wavenumber_bound = 0.01_jprb / wavelength_bound(iinterval)
-          ! Find the albedo interval that has the largest overlap with
-          ! the band; this approach assumes that the albedo intervals
-          ! are larger than the spectral bands
-          do while (wavenumber_bound >= wavenumber_mid &
-               &    .and. iinterval < ninterval)
-            iinterval = iinterval + 1
-            if (iinterval < ninterval) then
-              wavenumber_bound = 0.01_jprb / wavelength_bound(iinterval)
-            else
-              ! For the last interval there is no lower bound
-              wavenumber_bound = 0.0_jprb
-            end if
-          end do
-          ! Save the index of the band corresponding to the albedo
-          ! interval and move onto the next band
-          i_mapping(jband) = i_intervals(iinterval)
-        end do
-      else
-        ! More accurate weighting
-        if (allocated(weights)) then
-          deallocate(weights)
-        end if
-        allocate(weights(nvalue,nband))
-        weights(:,:) = 0.0_jprb
-        
-        ! Loop over bands
-        do jband = 1,nband
-          recip_dwavenumber = 1.0_jprb / (wavenumber2(jband) &
-               &                        - wavenumber1(jband))
-          ! Find the first overlapping albedo band
-          iinterval = 1
-          ! Convert wavelength (m) into wavenumber (cm-1) at the lower
-          ! bound (in wavenumber space) of the albedo/emissivty interval
-          wavenumber1_albedo = 0.01_jprb / wavelength_bound(iinterval)
-          do while (wavenumber1_albedo >= wavenumber2(jband) &
-               &    .and. iinterval < ninterval)
-            iinterval = iinterval + 1
-            wavenumber1_albedo = 0.01_jprb / wavelength_bound(iinterval)
-          end do
-          
-          wavenumber2_albedo = wavenumber2(jband)
-          
-          ! Add all overlapping bands
-          do while (wavenumber2_albedo > wavenumber1(jband) &
-               &  .and. iinterval <= ninterval)
-            weights(i_intervals(iinterval),jband) &
-                 &  = weights(i_intervals(iinterval),jband) &
-                 &  + recip_dwavenumber &
-                 &  * (min(wavenumber2_albedo,wavenumber2(jband)) &
-                 &   - max(wavenumber1_albedo,wavenumber1(jband)))
-            wavenumber2_albedo = wavenumber1_albedo
-            iinterval = iinterval + 1
-            if (iinterval < ninterval) then
-              wavenumber1_albedo = 0.01_jprb / wavelength_bound(iinterval)
-            else
-              wavenumber1_albedo = 0.0_jprb
-            end if
-          end do
-        end do
-      end if
-    end if
-
-    ! Define how many bands to use for reporting surface downwelling
-    ! fluxes for canopy radiation scheme
-    if (is_sw) then
       if (this%use_canopy_full_spectrum_sw) then
         this%n_canopy_bands_sw = this%n_g_sw
       else 
-        this%n_canopy_bands_sw = nvalue
+        this%n_canopy_bands_sw = 1
+      end if
+    else
+      if (this%use_canopy_full_spectrum_sw) then
+        this%n_canopy_bands_sw = this%n_g_sw
+      else 
+        this%n_canopy_bands_sw = maxval(this%i_sw_albedo_index(1:ninterval))
+      end if
+    end if
+      
+    call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
+         &  this%sw_albedo_wavelength_bound(1:ninterval-1), this%i_sw_albedo_index(1:ninterval), &
+         &  this%sw_albedo_weights, use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point))
+
+    ! Legacy method uses input band with largest weight
+    if (this%do_nearest_spectral_sw_albedo) then
+      allocate(this%i_albedo_from_band_sw(this%n_bands_sw))
+      this%i_albedo_from_band_sw = maxloc(this%sw_albedo_weights, dim=1)
+    end if
+
+    if (this%iverbosesetup >= 2) then
+      write(nulout, '(a)') 'Surface shortwave albedo'
+      if (.not. this%do_nearest_spectral_sw_albedo) then
+
+        ! write(nulout, '(a,i0,a,i0,a)') 'Weighting of ', nvalue, ' albedo values in ', &
+        !      &  nband, ' shortwave bands (wavenumber ranges in cm-1):'
+        ! if (nband <= 20) then
+        !   do jband = 1,nband
+        !     write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
+        !          &                        nint(wavenumber2(jband)), ':'
+        !     do iinterval = 1,nvalue
+        !       write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+        !     end do
+        !     write(nulout, '()')
+        !   end do
+        ! else
+        !   do jband = 1,15
+        !     write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
+        !          &                        nint(wavenumber2(jband)), ':'
+        !     do iinterval = 1,nvalue
+        !       write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+        !     end do
+        !     write(nulout, '()')
+        !   end do
+        !   write(nulout,'(a)') '  ...'
+        !   write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(nband)), ' to', &
+        !        &                        nint(wavenumber2(nband)), ':'
+        !   do iinterval = 1,nvalue
+        !     write(nulout,'(f5.2)',advance='no') weights(iinterval,nband)
+        !   end do
+        !   write(nulout, '()')
+        ! end if
+        call this%gas_optics_sw%spectral_def%print_mapping_from_bands(this%sw_albedo_weights, &
+             &                          use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point))
+      else if (ninterval <= 1) then
+        write(nulout, '(a)') 'All shortwave bands will use the same albedo'
+      else
+        write(nulout, '(a,i0,a)',advance='no') 'Mapping from ', size(this%i_albedo_from_band_sw), &
+             &  ' shortwave intervals to albedo intervals:'
+        do jband = 1,size(this%i_albedo_from_band_sw)
+          write(nulout,'(a,i0)',advance='no') ' ', this%i_albedo_from_band_sw(jband)
+        end do
+        write(nulout, '()')
+      end if
+    end if
+    
+  end subroutine consolidate_sw_albedo_intervals
+
+
+  !---------------------------------------------------------------------
+  ! Consolidate the surface longwave emissivity intervals with the
+  ! band/g-point intervals
+  subroutine consolidate_lw_emiss_intervals(this)
+
+    use radiation_io, only : nulout, nulerr, radiation_abort
+    use radiation_spectral_definition, only : TerrestrialReferenceTemperature
+
+    class(config_type),   intent(inout) :: this
+
+    integer :: ninterval, jint, jband
+
+    ! Count the number of albedo/emissivity intervals
+    ninterval = 0
+    do jint = 1,NMaxAlbedoIntervals
+      if (this%i_lw_emiss_index(jint) > 0) then
+        ninterval = jint
+      else
+        exit
+      end if
+    end do
+
+    if (ninterval < 1) then
+      ! The user has not specified longwave emissivity bands - assume
+      ! only one
+      ninterval = 1
+      if (this%use_canopy_full_spectrum_sw) then
+        this%n_canopy_bands_lw = this%n_g_lw
+      else 
+        this%n_canopy_bands_lw = 1
       end if
     else
       if (this%use_canopy_full_spectrum_lw) then
         this%n_canopy_bands_lw = this%n_g_lw
       else 
-        this%n_canopy_bands_lw = nvalue
+        this%n_canopy_bands_lw = maxval(this%i_lw_emiss_index(1:ninterval))
       end if
     end if
 
+    call this%gas_optics_lw%spectral_def%calc_mapping_from_bands(TerrestrialReferenceTemperature, &
+         &  this%lw_emiss_wavelength_bound(1:ninterval-1), this%i_lw_emiss_index(1:ninterval), &
+         &  this%lw_emiss_weights, use_bands=(.not. this%do_cloud_aerosol_per_lw_g_point))
+
+    ! Legacy method uses input band with largest weight
+    if (this%do_nearest_spectral_lw_emiss) then
+      allocate(this%i_emiss_from_band_lw(this%n_bands_lw))
+      this%i_emiss_from_band_lw = maxloc(this%lw_emiss_weights, dim=1)
+    end if
+
     if (this%iverbosesetup >= 2) then
-      if (.not. do_nearest) then
-        if (is_sw) then
-          write(nulout, '(a,i0,a,i0,a)') 'Weighting of ', nvalue, ' albedo values in ', &
-             &  nband, ' shortwave bands (wavenumber ranges in cm-1):'
-        else
-          write(nulout, '(a,i0,a,i0,a)') 'Weighting of ', nvalue, ' emissivity values in ', &
-             &  nband, ' longwave bands (wavenumber ranges in cm-1):'
-        end if
-        if (nband <= 20) then
-          do jband = 1,nband
-            write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
-                 &                        nint(wavenumber2(jband)), ':'
-            do iinterval = 1,nvalue
-              write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
-            end do
-            write(nulout, '()')
-          end do
-        else
-          do jband = 1,15
-            write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
-                 &                        nint(wavenumber2(jband)), ':'
-            do iinterval = 1,nvalue
-              write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
-            end do
-            write(nulout, '()')
-          end do
-          write(nulout,'(a)') '  ...'
-          write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(nband)), ' to', &
-               &                        nint(wavenumber2(nband)), ':'
-          do iinterval = 1,nvalue
-            write(nulout,'(f5.2)',advance='no') weights(iinterval,nband)
-          end do
-          write(nulout, '()')
-        end if
+      if (.not. this%do_nearest_spectral_lw_emiss) then
+        ! write(nulout, '(a,i0,a,i0,a)') 'Weighting of ', nvalue, ' emissivity values in ', &
+        !      &  nband, ' longwave bands (wavenumber ranges in cm-1):'
+        ! if (nband <= 20) then
+        !   do jband = 1,nband
+        !     write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
+        !          &                        nint(wavenumber2(jband)), ':'
+        !     do iinterval = 1,nvalue
+        !       write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+        !     end do
+        !     write(nulout, '()')
+        !   end do
+        ! else
+        !   do jband = 1,15
+        !     write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(jband)), ' to', &
+        !          &                        nint(wavenumber2(jband)), ':'
+        !     do iinterval = 1,nvalue
+        !       write(nulout,'(f5.2)',advance='no') weights(iinterval,jband)
+        !     end do
+        !     write(nulout, '()')
+        !   end do
+        !   write(nulout,'(a)') '  ...'
+        !   write(nulout,'(i6,a,i6,a)',advance='no') nint(wavenumber1(nband)), ' to', &
+        !        &                        nint(wavenumber2(nband)), ':'
+        !   do iinterval = 1,nvalue
+        !     write(nulout,'(f5.2)',advance='no') weights(iinterval,nband)
+        !   end do
+        !   write(nulout, '()')
+        ! end if
+        call this%gas_optics_lw%spectral_def%print_mapping_from_bands(this%lw_emiss_weights, &
+             &                          use_bands=(.not. this%do_cloud_aerosol_per_lw_g_point))
       else if (ninterval <= 1) then
-        if (is_sw) then
-          write(nulout, '(a)') 'All shortwave bands will use the same albedo'
-        else
-          write(nulout, '(a)') 'All longwave bands will use the same emissivty'
-        end if
+        write(nulout, '(a)') 'All longwave bands will use the same emissivty'
       else
-        if (is_sw) then
-          write(nulout, '(a,i0,a)',advance='no') 'Mapping from ', nband, &
-               &  ' shortwave bands to albedo intervals:'
-        else
-          write(nulout, '(a,i0,a)',advance='no') 'Mapping from ', nband, &
-               &  ' longwave bands to emissivity intervals:'
-        end if
-        do jband = 1,nband
-          write(nulout,'(a,i0)',advance='no') ' ', i_mapping(jband)
+        write(nulout, '(a,i0,a)',advance='no') 'Mapping from ', size(this%i_emiss_from_band_lw), &
+             &  ' longwave intervals to emissivity intervals:'
+        do jband = 1,size(this%i_emiss_from_band_lw)
+          write(nulout,'(a,i0)',advance='no') ' ', this%i_emiss_from_band_lw(jband)
         end do
         write(nulout, '()')
       end if
     end if
 
-  end subroutine consolidate_intervals
+  end subroutine consolidate_lw_emiss_intervals
 
 
   !---------------------------------------------------------------------

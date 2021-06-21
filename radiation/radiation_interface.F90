@@ -40,6 +40,8 @@ contains
     use yomhook,          only : lhook, dr_hook
     use radiation_config, only : config_type, ISolverMcICA, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
+    use radiation_spectral_definition, only &
+         &  : SolarReferenceTemperature, TerrestrialReferenceTemperature
 
     ! Currently there are two gas absorption models: RRTMG (default)
     ! and monochromatic
@@ -103,18 +105,26 @@ contains
 
     ! Consolidate the albedo/emissivity intervals with the shortwave
     ! and longwave spectral bands
-    call config%consolidate_intervals(.true., &
-           &  config%do_nearest_spectral_sw_albedo, &
-           &  config%sw_albedo_wavelength_bound, config%i_sw_albedo_index, &
-           &  config%gas_optics_sw%spectral_def%wavenumber1_band, &
-           &  config%gas_optics_sw%spectral_def%wavenumber2_band, &
-           &  config%i_albedo_from_band_sw, config%sw_albedo_weights)
-    call config%consolidate_intervals(.false., &
-           &  config%do_nearest_spectral_lw_emiss, &
-           &  config%lw_emiss_wavelength_bound, config%i_lw_emiss_index, &
-           &  config%gas_optics_lw%spectral_def%wavenumber1_band, &
-           &  config%gas_optics_lw%spectral_def%wavenumber2_band, &
-           &  config%i_emiss_from_band_lw, config%lw_emiss_weights)
+    ! call config%consolidate_intervals(.true., &
+    !        &  config%do_nearest_spectral_sw_albedo, &
+    !        &  config%sw_albedo_wavelength_bound, config%i_sw_albedo_index, &
+    !        &  config%gas_optics_sw%spectral_def%wavenumber1_band, &
+    !        &  config%gas_optics_sw%spectral_def%wavenumber2_band, &
+    !        &  config%i_albedo_from_band_sw, config%sw_albedo_weights)
+    ! call config%consolidate_intervals(.false., &
+    !        &  config%do_nearest_spectral_lw_emiss, &
+    !        &  config%lw_emiss_wavelength_bound, config%i_lw_emiss_index, &
+    !        &  config%gas_optics_lw%spectral_def%wavenumber1_band, &
+    !        &  config%gas_optics_lw%spectral_def%wavenumber2_band, &
+    !        &  config%i_emiss_from_band_lw, config%lw_emiss_weights)
+    !call config%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
+    !     &  config%sw_albedo_wavelength_bound, config%i_sw_albedo_index, &
+    !     &  config%sw_albedo_weights, use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point))
+    !call config%gas_optics_lw%spectral_def%calc_mapping_from_bands(TerrestrialReferenceTemperature, &
+    !     &  config%lw_emiss_wavelength_bound, config%i_lw_emiss_index, &
+    !     &  config%lw_emiss_weights, use_bands=(.not. config%do_cloud_aerosol_per_lw_g_point))
+    call config%consolidate_sw_albedo_intervals
+    call config%consolidate_lw_emiss_intervals
 
     if (config%do_clouds) then
       if (config%i_gas_model == IGasModelMonochromatic) then

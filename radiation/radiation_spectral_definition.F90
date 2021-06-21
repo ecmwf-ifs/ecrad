@@ -62,6 +62,8 @@ module radiation_spectral_definition
     procedure :: deallocate
     procedure :: find => find_wavenumber
     procedure :: calc_mapping
+    procedure :: calc_mapping_from_bands
+    procedure :: print_mapping_from_bands
     procedure :: min_wavenumber, max_wavenumber
 
   end type spectral_definition_type
@@ -422,12 +424,13 @@ contains
 
   !---------------------------------------------------------------------
   ! Compute a mapping matrix "mapping" that can be used in an
-  ! expression y=matmul(mapping,x) where x is a variable containing
+  ! expression y=matmul(mapping^T,x) where x is a variable containing
   ! optical properties in input bands (e.g. albedo in shortwave albedo
   ! bands), and y is this variable mapped on to the spectral intervals
   ! in the spectral definition "this". Temperature (K) is used to
   ! generate a Planck function to weight each input band
-  ! appropriately.
+  ! appropriately. Note that "mapping" is here transposed from the
+  ! convention in the calc_mapping routine.
   subroutine calc_mapping_from_bands(this, temperature, &
        &  wavelength_bound, i_intervals, mapping, use_bands)
 
@@ -500,10 +503,19 @@ contains
     end if
    
     ! Define the mapping matrix
-    if (use_bands_local) then
+    if (ninterval < 2) then
+      ! Simple case of one band
+      if (use_bands_local) then
+        allocate(mapping(1, this%nband))
+      else
+        allocate(mapping(1, this%ng))
+      end if
+      mapping = 1.0_jprb
+
+    else if (use_bands_local) then
       ! Require properties per band
 
-      allocate(mapping(this%nband, ninput))
+      allocate(mapping(ninput, this%nband))
       mapping = 0.0_jprb
       do jband = 1,this%nband
         do jint = 1,ninterval
@@ -534,7 +546,7 @@ contains
             wavenumber_sample = wavenumber1_bound + [(isamp,isamp=0,nsample-1)] &
                  &  * (wavenumber2_bound-wavenumber1_bound) / real(nsample-1,jprb)
             planck_sample = calc_planck_function_wavenumber(wavenumber_sample, temperature)
-            mapping(jband,i_intervals(jint)) = mapping(jband,i_intervals(jint)) &
+            mapping(i_intervals(jint),jband) = mapping(i_intervals(jint),jband) &
                  &  + sum(planck_sample*weight_sample) * (wavenumber2_bound-wavenumber1_bound)
           end if
 
@@ -549,7 +561,7 @@ contains
         call radiation_abort('Radiation configuration error')
       end if
 
-      allocate(mapping(this%ng, ninput))
+      allocate(mapping(ninput,this%ng))
       mapping = 0.0_jprb
 
       wavenumber_mid = 0.5_jprb * (this%wavenumber1 + this%wavenumber2)
@@ -584,9 +596,9 @@ contains
         end where
       end if
 
-      do jin = 1,ninput
-        do jg = 1,this%ng
-          mapping(jg, jin) = sum(this%gpoint_fraction(:,jg) * planck, &
+      do jg = 1,this%ng
+        do jin = 1,ninput
+          mapping(jin,jg) = sum(this%gpoint_fraction(:,jg) * planck, &
                &                 mask=(i_input==jin))
         end do
       end do
@@ -594,13 +606,96 @@ contains
     end if
 
     ! Normalize mapping matrix
-    do jg = 1,this%ng
-      mapping(jg,:) = mapping(jg,:) * (1.0_jprb/sum(mapping(jg,:)))
+    do jg = 1,size(mapping,dim=2)
+      mapping(:,jg) = mapping(:,jg) * (1.0_jprb/sum(mapping(:,jg)))
     end do
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_bands',1,hook_handle)
 
   end subroutine calc_mapping_from_bands
+
+
+  !---------------------------------------------------------------------
+  ! Print out the mapping computed by calc_mapping_from_bands
+  subroutine print_mapping_from_bands(this, mapping, use_bands)
+
+    use radiation_io, only : nulout
+
+    class(spectral_definition_type), intent(in) :: this
+    real(jprb), allocatable,         intent(in) :: mapping(:,:) ! (ninput,nband/ng)
+    logical,    optional,            intent(in) :: use_bands
+
+    logical :: use_bands_local
+
+    integer :: nin, nout
+    integer :: jin, jout
+
+    if (present(use_bands)) then
+      use_bands_local = use_bands
+    else
+      use_bands_local = .false.
+    end if
+
+    nin = size(mapping,1)
+    nout = size(mapping,2)
+
+    if (use_bands_local) then
+      write(nulout, '(a,i0,a,i0,a)') '  Mapping from ', nin, ' values to ', nout, ' bands (wavenumber ranges in cm-1)'
+      if (nout <= 20) then
+        do jout = 1,nout
+          write(nulout,'(i6,a,i6,a)',advance='no') nint(this%wavenumber1_band(jout)), ' to', &
+               &                        nint(this%wavenumber2_band(jout)), ':'
+          do jin = 1,nin
+            write(nulout,'(f5.2)',advance='no') mapping(jin,jout)
+          end do
+          write(nulout, '()')
+        end do
+      else
+        do jout = 1,15
+          write(nulout,'(i6,a,i6,a)',advance='no') nint(this%wavenumber1_band(jout)), ' to', &
+               &                        nint(this%wavenumber2_band(jout)), ':'
+          do jin = 1,nin
+            write(nulout,'(f5.2)',advance='no') mapping(jin,jout)
+          end do
+          write(nulout, '()')
+        end do
+        write(nulout,'(a)') '  ...'
+        write(nulout,'(i6,a,i6,a)',advance='no') nint(this%wavenumber1_band(nout)), ' to', &
+             &                        nint(this%wavenumber2_band(nout)), ':'
+        do jin = 1,nin
+          write(nulout,'(f5.2)',advance='no') mapping(jin,nout)
+        end do
+        write(nulout, '()')
+      end if
+    else
+      write(nulout, '(a,i0,a,i0,a)') '  Mapping from ', nin, ' values to ', nout, ' g-points'
+      if (nout <= 20) then
+        do jout = 1,nout
+          write(nulout,'(i3,a)',advance='no') jout, ':'
+          do jin = 1,nin
+            write(nulout,'(f5.2)',advance='no') mapping(jin,jout)
+          end do
+          write(nulout, '()')
+        end do
+      else
+        do jout = 1,15
+          write(nulout,'(i3,a)',advance='no') jout, ':'
+          do jin = 1,nin
+            write(nulout,'(f5.2)',advance='no') mapping(jin,jout)
+          end do
+          write(nulout, '()')
+        end do
+        write(nulout,'(a)') '  ...'
+        write(nulout,'(i3,a)',advance='no') nout, ':'
+        do jin = 1,nin
+          write(nulout,'(f5.2)',advance='no') mapping(jin,nout)
+        end do
+        write(nulout, '()')
+      end if
+    end if
+
+  end subroutine print_mapping_from_bands
+
 
   !---------------------------------------------------------------------
   ! Return the minimum wavenumber of this object in cm-1
