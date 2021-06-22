@@ -36,10 +36,6 @@ program ecrad_driver
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
   use radiation_config,         only : config_type
   use radiation_single_level,   only : single_level_type
-  use radsurf_properties,       only : surface_type, print_surface_representation
-  use radsurf_intermediate,     only : surface_intermediate_type
-  use radsurf_flux,             only : surface_flux_type
-  use radsurf_save,             only : save_surface_fluxes
   use radiation_thermodynamics, only : thermodynamics_type
   use radiation_gas,            only : gas_type, &
        &   IVolumeMixingRatio, IMassMixingRatio, &
@@ -58,9 +54,6 @@ program ecrad_driver
   ! The NetCDF file containing the input profiles
   type(netcdf_file)         :: file
 
-  ! Derived type for the surface inputs
-  type(surface_type)        :: surface
-
   ! Derived types for the inputs to the radiation scheme
   type(config_type)         :: config
   type(single_level_type)   :: single_level
@@ -68,10 +61,6 @@ program ecrad_driver
   type(gas_type)            :: gas
   type(cloud_type)          :: cloud
   type(aerosol_type)        :: aerosol
-
-  ! Derived types for the surface fluxes
-  type(surface_intermediate_type) :: surface_intermediate
-  type(surface_flux_type)         :: surface_flux
 
   ! Configuration specific to this driver
   type(driver_config_type)  :: driver_config
@@ -97,10 +86,6 @@ program ecrad_driver
   ! Are any variables out of bounds?
   logical :: is_out_of_bounds
 
-  ! Are we using a complex surface representation stored in the
-  ! "surface" structure?
-  logical :: is_complex_surface
-
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
@@ -114,7 +99,7 @@ program ecrad_driver
 
   ! Check program called with correct number of arguments
   if (command_argument_count() < 3) then
-    stop 'Usage: ecrad config.nam input_file.nc output_file.nc [output_surface_file.nc]'
+    stop 'Usage: ecrad config.nam input_file.nc output_file.nc'
   end if
 
   ! Use namelist to configure the radiation calculation
@@ -181,20 +166,11 @@ program ecrad_driver
 
   ! Read input variables from NetCDF file
   call read_input(file, config, driver_config, ncol, nlev, &
-       &          is_complex_surface, surface, single_level, thermodynamics, &
+       &          single_level, thermodynamics, &
        &          gas, cloud, aerosol)
-
-  if (is_complex_surface) then
-    config%do_canopy_fluxes_sw = .true.
-    config%do_canopy_fluxes_lw = .true.
-  end if
 
   ! Close input file
   call file%close()
-
-  if (is_complex_surface .and. driver_config%iverbose >= 2) then
-    call print_surface_representation(surface%i_representation)
-  end if
 
   ! Compute seed from skin temperature residual
   !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
@@ -233,13 +209,6 @@ program ecrad_driver
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call
   call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
-
-  if (is_complex_surface) then
-    call surface_intermediate%allocate(driver_config%istartcol, driver_config%iendcol, &
-         &                             config, surface)
-    call surface_flux%allocate(config, driver_config%istartcol, driver_config%iendcol, &
-         &                     surface%i_representation)
-  end if
 
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
@@ -287,19 +256,9 @@ program ecrad_driver
                &  ' processing columns ', istartcol, '-', iendcol
         end if
         
-        if (is_complex_surface) then
-          call surface_intermediate%calc_boundary_conditions(driver_config%istartcol, &
-               &  driver_config%iendcol, config, surface, thermodynamics, gas, single_level)
-        end if
-        
         ! Call the ECRAD radiation scheme
         call radiation(ncol, nlev, istartcol, iendcol, config, &
              &  single_level, thermodynamics, gas, cloud, aerosol, flux)
-        
-        if (is_complex_surface) then
-          call surface_intermediate%partition_fluxes(driver_config%istartcol, &
-               &  driver_config%iendcol, config, surface, flux, surface_flux)
-        end if
         
       end do
       !$OMP END PARALLEL DO
@@ -312,19 +271,9 @@ program ecrad_driver
         write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
       end if
       
-      if (is_complex_surface) then
-        call surface_intermediate%calc_boundary_conditions(driver_config%istartcol, &
-             &  driver_config%iendcol, config, surface, thermodynamics, gas, single_level)
-      end if
-      
       ! Call the ECRAD radiation scheme
       call radiation(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
            &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
-      
-      if (is_complex_surface) then
-        call surface_intermediate%partition_fluxes(driver_config%istartcol, &
-             &  driver_config%iendcol, config, surface, flux, surface_flux)
-      end if
       
     end if
     
@@ -339,18 +288,9 @@ program ecrad_driver
   ! Store the fluxes in the output file
   call save_fluxes(file_name, config, thermodynamics, flux, &
        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
-       &   experiment_name=driver_config%experiment_name)
+       &   experiment_name=driver_config%experiment_name, &
+       &   is_double_precision=driver_config%do_write_double_precision)
     
-  if (is_complex_surface) then
-    ! Get NetCDF output file name for surface
-    call get_command_argument(4, file_name, status=istatus)
-    if (istatus /= 0) then
-      write(nulout,'(a)') 'Warning: file name for surface-flux outputs not provided'
-    else
-      call save_surface_fluxes(file_name, config, surface_flux, iverbose=driver_config%iverbose)
-    end if
-  end if
-
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if

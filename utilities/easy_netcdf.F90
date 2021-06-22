@@ -1773,7 +1773,6 @@ contains
 
     ! Read output precision from optional argument "is_double" if
     ! present, otherwise from default output precision for this file
-    data_type = NF90_FLOAT ! Default
     if (present(data_type_name)) then
       if (data_type_name == 'double') then
         data_type = NF90_DOUBLE
@@ -1790,7 +1789,15 @@ contains
         call my_abort('Error writing NetCDF file')
       end if
     else if (present(is_double)) then
+      if (is_double) then
+        data_type = NF90_DOUBLE
+      else
+        data_type = NF90_FLOAT
+      end if
+    else if (this%is_double_precision) then
       data_type = NF90_DOUBLE
+    else
+      data_type = NF90_FLOAT
     end if
 
     ! Define variable

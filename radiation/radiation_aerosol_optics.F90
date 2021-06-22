@@ -62,7 +62,9 @@ contains
       call config%aerosol_optics%set_types(config%i_aerosol_type_map(1:config%n_aerosol_types))
     end if
 
-    call config%aerosol_optics%print_description(config%i_aerosol_type_map(1:config%n_aerosol_types))
+    if (config%iverbosesetup >= 1) then
+      call config%aerosol_optics%print_description(config%i_aerosol_type_map(1:config%n_aerosol_types))
+    end if
 
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_aerosol_optics',1,hook_handle)
 
@@ -383,14 +385,14 @@ contains
     ! asymmetry-times-scattering-optical-depth for all the aerosols at
     ! a point in space for each spectral band of the shortwave and
     ! longwave spectrum
-    real(jprb), dimension(config%n_bands_sw) &
+    real(jprb), dimension(config%n_bands_sw,nlev) &
          & :: od_sw_aerosol, scat_sw_aerosol, scat_g_sw_aerosol
-    real(jprb), dimension(config%n_bands_lw) :: od_lw_aerosol
-    real(jprb), dimension(config%n_bands_lw_if_scattering) &
+    real(jprb), dimension(config%n_bands_lw,nlev) :: od_lw_aerosol
+    real(jprb), dimension(config%n_bands_lw_if_scattering,nlev) &
          & :: scat_lw_aerosol, scat_g_lw_aerosol
 
     ! Loop indices for column, level, g point and band
-    integer :: jcol, jlev, jg
+    integer :: jcol, jlev, jg, jb
 
     ! Range of levels over which aerosols are present
     integer :: istartlev, iendlev
@@ -419,33 +421,38 @@ contains
 
       ! Loop over position
       do jcol = istartcol,iendcol
+! Added for DWD (2020)
+!NEC$ forced_collapse
         do jlev = istartlev,iendlev
-          od_sw_aerosol = aerosol%od_sw(:,jlev,jcol)
-          scat_sw_aerosol = aerosol%ssa_sw(:,jlev,jcol) * od_sw_aerosol
-          scat_g_sw_aerosol = aerosol%g_sw(:,jlev,jcol) * scat_sw_aerosol
+          do jb = 1,config%n_bands_sw
+            od_sw_aerosol(jb,jlev) = aerosol%od_sw(jb,jlev,jcol)
+            scat_sw_aerosol(jb,jlev) = aerosol%ssa_sw(jb,jlev,jcol) * od_sw_aerosol(jb,jlev)
+            scat_g_sw_aerosol(jb,jlev) = aerosol%g_sw(jb,jlev,jcol) * scat_sw_aerosol(jb,jlev)
 
-          if (.not. config%do_sw_delta_scaling_with_gases) then
-            ! Delta-Eddington scaling on aerosol only.  Note that if
-            ! do_sw_delta_scaling_with_gases==.true. then the delta
-            ! scaling is done to the cloud-aerosol-gas mixture inside
-            ! the solver
-            call delta_eddington_extensive(od_sw_aerosol, scat_sw_aerosol, &
-                 &                         scat_g_sw_aerosol)
-          end if
-
-          ! Combine aerosol shortwave scattering properties with gas
-          ! properties (noting that any gas scattering will have an
-          ! asymmetry factor of zero)
-          if (od_sw_aerosol(1) > 0.0_jprb) then
+            if (.not. config%do_sw_delta_scaling_with_gases) then
+              ! Delta-Eddington scaling on aerosol only.  Note that if
+              ! do_sw_delta_scaling_with_gases==.true. then the delta
+              ! scaling is done to the cloud-aerosol-gas mixture
+              ! inside the solver
+              call delta_eddington_extensive(od_sw_aerosol(jb,jlev), scat_sw_aerosol(jb,jlev), &
+                   &                         scat_g_sw_aerosol(jb,jlev))
+            end if
+          end do
+        end do
+        ! Combine aerosol shortwave scattering properties with gas
+        ! properties (noting that any gas scattering will have an
+        ! asymmetry factor of zero)
+        do jlev = istartlev,iendlev
+          if (od_sw_aerosol(1,jlev) > 0.0_jprb) then
             do jg = 1,config%n_g_sw
               iband = config%i_band_from_reordered_g_sw(jg)
-              local_od = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband)
+              local_od = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband,jlev)
               local_scat = ssa_sw(jg,jlev,jcol) * od_sw(jg,jlev,jcol) &
-                   &  + scat_sw_aerosol(iband)
+                   &  + scat_sw_aerosol(iband,jlev)
               ! Note that asymmetry_sw of gases is zero so the following
               ! simply weights the aerosol asymmetry by the scattering
               ! optical depth
-              g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(iband) / local_scat
+              g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(iband,jlev) / local_scat
               ssa_sw(jg,jlev,jcol) = local_scat / local_od
               od_sw (jg,jlev,jcol) = local_od
             end do
@@ -473,27 +480,32 @@ contains
  
         ! Loop over position
         do jcol = istartcol,iendcol
+! Added for DWD (2020)
+!NEC$ forced_collapse
           do jlev = istartlev,iendlev
-            od_lw_aerosol = aerosol%od_lw(:,jlev,jcol)
-            scat_lw_aerosol = aerosol%ssa_lw(:,jlev,jcol) * od_lw_aerosol
-            scat_g_lw_aerosol = aerosol%g_lw(:,jlev,jcol) * scat_lw_aerosol
+            do jb = 1,config%n_bands_lw
+              od_lw_aerosol(jb,jlev) = aerosol%od_lw(jb,jlev,jcol)
+              scat_lw_aerosol(jb,jlev) = aerosol%ssa_lw(jb,jlev,jcol) * od_lw_aerosol(jb,jlev)
+              scat_g_lw_aerosol(jb,jlev) = aerosol%g_lw(jb,jlev,jcol) * scat_lw_aerosol(jb,jlev)
             
-            call delta_eddington_extensive(od_lw_aerosol, scat_lw_aerosol, &
-                 &                         scat_g_lw_aerosol)
-            
+              call delta_eddington_extensive(od_lw_aerosol(jb,jlev), scat_lw_aerosol(jb,jlev), &
+                   &                         scat_g_lw_aerosol(jb,jlev))
+            end do
+          end do
+          do jlev = istartlev,iendlev
             do jg = 1,config%n_g_lw
               iband = config%i_band_from_reordered_g_lw(jg)
-              if (od_lw_aerosol(iband) > 0.0_jprb) then
+              if (od_lw_aerosol(iband,jlev) > 0.0_jprb) then
                 ! All scattering is due to aerosols, therefore the
                 ! asymmetry factor is equal to the value for aerosols
-                if (scat_lw_aerosol(iband) > 0.0_jprb) then
-                  g_lw(jg,jlev,jcol) = scat_g_lw_aerosol(iband) &
-                       &  / scat_lw_aerosol(iband)
+                if (scat_lw_aerosol(iband,jlev) > 0.0_jprb) then
+                  g_lw(jg,jlev,jcol) = scat_g_lw_aerosol(iband,jlev) &
+                       &  / scat_lw_aerosol(iband,jlev)
                 else
                   g_lw(jg,jlev,jcol) = 0.0_jprb
                 end if
-                local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband)
-                ssa_lw(jg,jlev,jcol) = scat_lw_aerosol(iband) / local_od
+                local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband,jlev)
+                ssa_lw(jg,jlev,jcol) = scat_lw_aerosol(iband,jlev) / local_od
                 od_lw (jg,jlev,jcol) = local_od
               end if
             end do
@@ -504,15 +516,21 @@ contains
 
         ! Loop over position
         do jcol = istartcol,iendcol
+! Added for DWD (2020)
+!NEC$ forced_collapse
           do jlev = istartlev,iendlev
             ! If aerosol longwave scattering is not included then we
             ! weight the optical depth by the single scattering
             ! co-albedo
-            od_lw_aerosol = aerosol%od_lw(:,jlev,jcol) &
-                 &  * (1.0_jprb - aerosol%ssa_lw(:,jlev,jcol))
+            do jb = 1, config%n_bands_lw
+              od_lw_aerosol(jb,jlev) = aerosol%od_lw(jb,jlev,jcol) &
+                 &  * (1.0_jprb - aerosol%ssa_lw(jb,jlev,jcol))
+            end do
+          end do
+          do jlev = istartlev,iendlev
             do jg = 1,config%n_g_lw
               od_lw(jg,jlev,jcol) = od_lw(jg,jlev,jcol) &
-                   &  + od_lw_aerosol(config%i_band_from_reordered_g_lw(jg))
+                   &  + od_lw_aerosol(config%i_band_from_reordered_g_lw(jg),jlev)
             end do
           end do
         end do
