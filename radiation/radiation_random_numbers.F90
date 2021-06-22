@@ -42,6 +42,8 @@ module radiation_random_numbers
 
   implicit none
 
+  public :: rng_type, IRngMinstdVector, IRngNative
+
   enum, bind(c) 
     enumerator IRngNative, &      ! Built-in Fortran-90 RNG
          &     IRngMinstdVector ! Vector MINSTD algorithm
