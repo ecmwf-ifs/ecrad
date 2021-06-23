@@ -60,7 +60,7 @@ module radiation_random_numbers
   integer(kind=jpim), parameter :: NMaxStreams = 512
   integer(kind=jpib), parameter :: IMinstdA0 = 16807
   integer(kind=jpib), parameter :: IMinstdA  = 48271
-  integer(kind=jpib), parameter :: IMinstdM  = 2147483647
+  real(kind=jprb),    parameter :: IMinstdM  = 2147483647._jprb
   real(kind=jprb),    parameter :: IMinstdScale = 1.0_jprb / 2147483647.0_jprb
 
   !---------------------------------------------------------------------
@@ -71,7 +71,7 @@ module radiation_random_numbers
   type rng_type
 
     integer(kind=jpim) :: itype = IRngNative
-    integer(kind=jpim) :: istate(NMaxStreams)
+    real(kind=jprb)    :: istate(NMaxStreams)
     integer(kind=jpim) :: nmaxstreams = NMaxStreams
     integer(kind=jpim) :: iseed
 
@@ -105,6 +105,7 @@ contains
 
     integer, allocatable :: iseednative(:)
     integer :: nseed, jseed
+    real(jprb) :: rnd_init, rseed
 
     if (present(itype)) then
       this%itype = itype
@@ -125,14 +126,14 @@ contains
     end if
     
     if (this%itype == IRngMinstdVector) then
-      ! Use the C++ minstd_rand0 algorithm to populate the state: this
-      ! loop is not vectorizable
-      this%istate(1) = this%iseed
-      do jseed = 2,this%nmaxstreams
-        this%istate(jseed) = mod(IMinstdA0 * this%istate(jseed-1), IMinstdM)
+      rseed = REAL(ABS(this%iseed),jprb)
+      ! Use a modified (and vectorized) C++ minstd_rand0 algorithm to populate the state
+      do jseed = 1,this%nmaxstreams
+        rnd_init = nint(mod( rseed*jseed*(1._jprb-0.05_jprb*jseed+0.005_jprb*jseed**2)*IMinstdA0, IMinstdM))
+        !
+        ! One warmup of the C++ minstd_rand algorithm
+        this%istate(jseed) = mod(IMinstdA * rnd_init, IMinstdM)
       end do
-      ! One warmup of the C++ minstd_rand algorithm
-      this%istate(1:this%nmaxstreams) = mod(IMinstdA * this%istate(1:this%nmaxstreams), IMinstdM)
 
     else
       ! Native generator by default
@@ -142,7 +143,7 @@ contains
         iseednative(jseed) = this%iseed + jseed - 1
       end do
       call random_seed(put=iseednative)
-      
+      deallocate(iseednative)
     end if
 
   end subroutine initialize
@@ -157,16 +158,17 @@ contains
     class(rng_type), intent(inout) :: this
     real(kind=jprb), intent(out)   :: randnum(:)
 
-    integer :: imax
+    integer :: imax, i
 
     if (this%itype == IRngMinstdVector) then
       
       imax = min(this%nmaxstreams, size(randnum))
 
       ! C++ minstd_rand algorithm
-      this%istate(1:imax) = mod(IMinstdA * this%istate(1:imax), IMinstdM)
-      randnum(1:imax) = IMinstdScale * this%istate(1:imax)
-
+      DO i = 1, imax
+        this%istate(i) = mod(IMinstdA * this%istate(i), IMinstdM)
+        randnum(i) = IMinstdScale * this%istate(i)
+      ENDDO
     else
 
       call random_number(randnum)
@@ -186,7 +188,7 @@ contains
     class(rng_type), intent(inout) :: this
     real(kind=jprb), intent(out)   :: randnum(:,:)
 
-    integer :: imax, jblock
+    integer :: imax, jblock, i
 
     if (this%itype == IRngMinstdVector) then
       
@@ -195,8 +197,10 @@ contains
       ! C++ minstd_ran algorithm
       do jblock = 1,size(randnum,2)
         ! These lines should be vectorizable
-        this%istate(1:imax) = mod(IMinstdA * this%istate(1:imax), IMinstdM)
-        randnum(1:imax,jblock) = IMinstdScale * this%istate(1:imax)
+        DO i = 1, imax
+          this%istate(i) = mod(IMinstdA * this%istate(i), IMinstdM)
+          randnum(i,jblock) = IMinstdScale * this%istate(i)
+        ENDDO
       end do
 
     else
@@ -219,7 +223,7 @@ contains
     real(kind=jprb), intent(inout) :: randnum(:,:)
     logical,         intent(in)    :: mask(:)
 
-    integer :: imax, jblock
+    integer :: imax, jblock, i
 
     if (this%itype == IRngMinstdVector) then
       
@@ -229,8 +233,10 @@ contains
       do jblock = 1,size(randnum,2)
         if (mask(jblock)) then
           ! These lines should be vectorizable
-          this%istate(1:imax) = mod(IMinstdA * this%istate(1:imax), IMinstdM)
-          randnum(1:imax,jblock) = IMinstdScale * this%istate(1:imax)
+          DO i = 1, imax
+            this%istate(i) = mod(IMinstdA * this%istate(i), IMinstdM)
+            randnum(i,jblock) = IMinstdScale * this%istate(i)
+          ENDDO
         end if
       end do
 
