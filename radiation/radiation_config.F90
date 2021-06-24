@@ -1137,7 +1137,7 @@ contains
              &   = trim(this%directory_name) // "/aerosol_ifs_48R1.nc"       
       else
         this%aerosol_optics_file_name &
-             &   = trim(this%directory_name) // "/aerosol_ifs_rrtm_45R2.nc"
+             &   = trim(this%directory_name) // "/aerosol_ifs_rrtm_46R1_with_NI_AM.nc"
       end if
     end if
 
