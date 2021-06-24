@@ -101,11 +101,10 @@ module radiation_flux
 
 ! Added for DWD (2020)
 #ifdef __SX__
-      logical :: use_indexed_sum_vec = .true. !  use vectorizable indexed_sum routine
+      logical, parameter :: use_indexed_sum_vec = .true.
 #else
-      logical :: use_indexed_sum_vec = .false.
+      logical, parameter :: use_indexed_sum_vec = .false.
 #endif
-
 
 contains
 

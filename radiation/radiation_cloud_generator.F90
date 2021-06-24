@@ -506,14 +506,75 @@ contains
     end do
         
     ! Sample from a lognormal or gamma distribution to obtain the
-    ! optical depth scalings, calling the faster masked version and
-    ! assuming values outside the range itrigger:iend are already zero
+    ! optical depth scalings
+
+    ! Masked version assuming values outside the range itrigger:iend
+    ! are already zero:
     call pdf_sampler%masked_sample(n_layers_to_scale, &
          &  fractional_std(itrigger:iend), &
          &  rand_inhom1(1:n_layers_to_scale), od_scaling(ig,itrigger:iend), &
          &  is_cloudy(itrigger:iend))
         
+    ! ! IFS version:
+    ! !$omp simd 
+    ! do jlev=itrigger,iend
+    !    if (.not. is_cloudy(jlev)) then
+    !       od_scaling(ig,jlev) = 0.0_jprb
+    !    else
+    !       call sample_from_pdf_simd(&
+    !            pdf_sampler,fractional_std(jlev),&
+    !            rand_inhom1(jlev-itrigger+1), &
+    !            od_scaling(ig,jlev))
+    !    end if
+    ! end do
+
   end subroutine generate_column_exp_exp
+
+
+  !---------------------------------------------------------------------
+  ! Extract the value of a lognormal distribution with fractional
+  ! standard deviation "fsd" corresponding to the cumulative
+  ! distribution function value "cdf", and return it in x. Since this
+  ! is an elemental subroutine, fsd, cdf and x may be arrays. SIMD version.
+  subroutine sample_from_pdf_simd(this, fsd, cdf, x)
+    use parkind1,              only : jprb
+    use radiation_pdf_sampler, only : pdf_sampler_type
+    implicit none
+#if defined(__GFORTRAN__) || defined(__PGI) || defined(__NEC__)
+#else
+    !$omp declare simd(sample_from_pdf_simd) uniform(this) &
+    !$omp linear(ref(fsd)) linear(ref(cdf))
+#endif
+    type(pdf_sampler_type), intent(in)  :: this
+
+    ! Fractional standard deviation (0 to 4) and cumulative
+    ! distribution function (0 to 1)
+    real(jprb),              intent(in)  :: fsd, cdf
+
+    ! Sample from distribution
+    real(jprb),              intent(out) :: x
+
+    ! Index to look-up table
+    integer    :: ifsd, icdf
+
+    ! Weights in bilinear interpolation
+    real(jprb) :: wfsd, wcdf
+
+    ! Bilinear interpolation with bounds
+    wcdf = cdf * (this%ncdf-1) + 1.0_jprb
+    icdf = max(1, min(int(wcdf), this%ncdf-1))
+    wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
+
+    wfsd = (fsd-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
+    ifsd = max(1, min(int(wfsd), this%nfsd-1))
+    wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
+
+    x =      (1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
+         & + (1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
+         & +           wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
+         & +           wcdf *          wfsd  * this%val(icdf+1,ifsd+1)
+
+  end subroutine sample_from_pdf_simd
 
 
   !---------------------------------------------------------------------
