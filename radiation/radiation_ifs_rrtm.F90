@@ -100,25 +100,6 @@ contains
     ! Wavenumber ranges of each band may be needed so that the user
     ! can compute UV and photosynthetically active radiation for a
     ! particular wavelength range
-    !allocate(config%wavenumber1_sw(config%n_bands_sw))
-    !allocate(config%wavenumber2_sw(config%n_bands_sw))
-    !allocate(config%wavenumber1_lw(config%n_bands_lw))
-    !allocate(config%wavenumber2_lw(config%n_bands_lw))
-    !config%wavenumber1_lw = (/ 10, 350, 500, 630, 700, 820, 980, 1080, 1180, 1390, 1480, &
-    !     &  1800, 2080, 2250, 2380, 2600 /)
-    !config%wavenumber2_lw = (/ 350, 500, 630, 700, 820, 980, 1080, 1180, 1390, 1480, 1800, &
-    !     &  2080, 2250, 2380, 2600, 3250 /)
-    !config%wavenumber1_sw = (/ 2600, 3250, 4000, 4650, 5150, 6150, 7700, 8050, 12850, &
-    !     &  16000 , 22650, 29000, 38000, 820 /)
-    !config%wavenumber2_sw = (/ 3250, 4000, 4650, 5150, 6150, 7700, 8050, 12850, 16000, &
-    !     &  22650, 29000, 38000, 50000, 2600 /)
-
-    ! Store band positions if using generalized cloud or aerosol
-    !call config%gas_optics_sw%spectral_def%allocate_bands_only(config%wavenumber1_sw, &
-    !     &                                                     config%wavenumber2_sw)
-    !call config%gas_optics_lw%spectral_def%allocate_bands_only(config%wavenumber1_lw, &
-    !     &                                                     config%wavenumber2_lw)
-
     call config%gas_optics_sw%spectral_def%allocate_bands_only( &
          &  [2600.0_jprb, 3250.0_jprb, 4000.0_jprb, 4650.0_jprb, 5150.0_jprb, 6150.0_jprb, 7700.0_jprb, &
          &   8050.0_jprb, 12850.0_jprb, 16000.0_jprb, 22650.0_jprb, 29000.0_jprb, 38000.0_jprb, 820.0_jprb], &

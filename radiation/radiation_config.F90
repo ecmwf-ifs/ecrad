@@ -479,17 +479,6 @@ module radiation_config
     ! Has "consolidate" been called?  
     logical :: is_consolidated = .false.
 
-    ! Bounds of the wavenumber intervals used to describe
-    ! g_frac_[l|s]w, in cm-1, of length n_wav_frac_[l|s]w. If
-    ! do_cloud_aerosol_per_[l|s]w_g_point is false then these
-    ! intervals are identical to the bands, and n_wav_frac_[l|s]w =
-    ! n_bands_[l|s]w. If do_cloud_aerosol_per_[l|s]w_g_point is true
-    ! then they are not the same as bands.
-    !real(jprb), allocatable, dimension(:) :: wavenumber1_sw
-    !real(jprb), allocatable, dimension(:) :: wavenumber2_sw
-    !real(jprb), allocatable, dimension(:) :: wavenumber1_lw
-    !real(jprb), allocatable, dimension(:) :: wavenumber2_lw
-
     ! Fraction of each g point in each wavenumber interval,
     ! dimensioned (n_wav_frac_[l|s]w, n_g_[l|s]w)
     real(jprb), allocatable, dimension(:,:) :: g_frac_sw, g_frac_lw

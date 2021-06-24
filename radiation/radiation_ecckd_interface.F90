@@ -50,23 +50,15 @@ contains
         ! wavenumber space
         config%n_bands_sw = config%gas_optics_sw%spectral_def%nband
       end if
-      !allocate(config%wavenumber1_sw(config%n_bands_sw))
-      !allocate(config%wavenumber2_sw(config%n_bands_sw))
 
       allocate(config%i_band_from_g_sw          (config%n_g_sw))
       allocate(config%i_band_from_reordered_g_sw(config%n_g_sw))
       allocate(config%i_g_from_reordered_g_sw   (config%n_g_sw))
         
       if (config%do_cloud_aerosol_per_sw_g_point) then
-        !config%wavenumber1_sw = config%gas_optics_sw%spectral_def%wavenumber1
-        !config%wavenumber2_sw = config%gas_optics_sw%spectral_def%wavenumber2
         config%i_band_from_g_sw           = [ (jj, jj = 1,config%n_g_sw) ]
         config%i_band_from_reordered_g_sw = [ (jj, jj = 1,config%n_g_sw) ]
       else
-        !config%wavenumber1_sw &
-        !     &  = config%gas_optics_sw%spectral_def%wavenumber1_band
-        !config%wavenumber2_sw &
-        !     &  = config%gas_optics_sw%spectral_def%wavenumber2_band
         config%i_band_from_g_sw &
              &  = config%gas_optics_sw%spectral_def%i_band_number
         config%i_band_from_reordered_g_sw &
@@ -97,23 +89,15 @@ contains
         ! wavenumber space
         config%n_bands_lw = config%gas_optics_lw%spectral_def%nband
       end if
-      !allocate(config%wavenumber1_lw(config%n_bands_lw))
-      !allocate(config%wavenumber2_lw(config%n_bands_lw))
 
       allocate(config%i_band_from_g_lw          (config%n_g_lw))
       allocate(config%i_band_from_reordered_g_lw(config%n_g_lw))
       allocate(config%i_g_from_reordered_g_lw   (config%n_g_lw))
 
       if (config%do_cloud_aerosol_per_lw_g_point) then
-        !config%wavenumber1_lw = config%gas_optics_lw%spectral_def%wavenumber1
-        !config%wavenumber2_lw = config%gas_optics_lw%spectral_def%wavenumber2
         config%i_band_from_g_lw           = [ (jj, jj = 1,config%n_g_lw) ]
         config%i_band_from_reordered_g_lw = [ (jj, jj = 1,config%n_g_lw) ]
       else
-        !config%wavenumber1_lw &
-        !     &  = config%gas_optics_lw%spectral_def%wavenumber1_band
-        !config%wavenumber2_lw &
-        !     &  = config%gas_optics_lw%spectral_def%wavenumber2_band
         config%i_band_from_g_lw &
              &  = config%gas_optics_lw%spectral_def%i_band_number
         config%i_band_from_reordered_g_lw &
