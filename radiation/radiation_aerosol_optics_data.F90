@@ -334,7 +334,7 @@ contains
       end if
     end if
 
-    if (lhook) call dr_hook('radiation_aerosol_optics_data:allocate',0,hook_handle)
+    if (lhook) call dr_hook('radiation_aerosol_optics_data:allocate',1,hook_handle)
 
   end subroutine allocate
 
