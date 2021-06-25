@@ -743,20 +743,25 @@ contains
 
   !---------------------------------------------------------------------
   ! Return the Planck function (in W m-2 (cm-1)-1) for a given
-  ! wavenumber (cm-1) and temperature (K)
+  ! wavenumber (cm-1) and temperature (K), ensuring double precision
+  ! for internal calculation
   elemental function calc_planck_function_wavenumber(wavenumber, temperature)
 
+    use parkind1,            only : jprb, jprd
     use radiation_constants, only : SpeedOfLight, BoltzmannConstant, PlanckConstant
 
     real(jprb), intent(in) :: wavenumber  ! cm-1
     real(jprb), intent(in) :: temperature ! K
     real(jprb) :: calc_planck_function_wavenumber
 
-    real(jprb) :: freq
-    freq = wavenumber * 100.0_jprb * SpeedOfLight
-    calc_planck_function_wavenumber = (2.0_jprb * PlanckConstant * freq**3 * SpeedOfLight**-2) &
-         &  / (exp(PlanckConstant*freq/(BoltzmannConstant*temperature)) - 1.0_jprb)
-    calc_planck_function_wavenumber = calc_planck_function_wavenumber * 100.0_jprb * SpeedOfLight
+    real(jprd) :: freq ! Hz
+    real(jprd) :: planck_fn_freq ! W m-2 Hz-1
+
+    freq = 100.0_jprd * real(SpeedOfLight,jprd) * real(wavenumber,jprd)
+    planck_fn_freq = 2.0_jprd * real(PlanckConstant,jprd) * freq**3 &
+         &  / (real(SpeedOfLight,jprd)**2 * (exp(real(PlanckConstant,jprd)*freq &
+         &     /(real(BoltzmannConstant,jprd)*real(temperature,jprd))) - 1.0_jprd))
+    calc_planck_function_wavenumber = planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd)
 
   end function calc_planck_function_wavenumber
 

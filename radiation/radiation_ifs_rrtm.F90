@@ -435,7 +435,7 @@ contains
         ! the surface
         lw_emission = lw_emission * (1.0_jprb - lw_albedo)
       else
-      ! Longwave emission has already been computed
+        ! Longwave emission has already been computed
         if (config%use_canopy_full_spectrum_lw) then
           lw_emission = transpose(single_level%lw_emission(istartcol:iendcol,:))
         else

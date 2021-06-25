@@ -262,10 +262,8 @@ module radiation_config
     ! .true. is not compatible with the SPARTACUS solver.
     logical :: do_sw_delta_scaling_with_gases = .false.
 
-    ! Codes describing the gas and cloud scattering models to use, the
-    ! latter of which is currently not used
+    ! Codes describing the gas model
     integer :: i_gas_model = IGasModelIFSRRTMG
-    !     integer :: i_cloud_model
 
     ! Optics if i_gas_model==IGasModelMonochromatic.
     ! The wavelength to use for the Planck function in metres. If this
