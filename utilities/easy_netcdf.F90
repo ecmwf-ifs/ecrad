@@ -1186,7 +1186,7 @@ contains
 
       if (this%iverbose >= 3) then
         write(nulout,'(a,a,a,i0,i0,i0,a)',advance='no') '  Reading ', var_name, &
-             & ' (permuted dimensions ', i_permute_3d, ')'
+             & ' (permuting dimensions ', i_permute_3d, ')'
         call this%print_variable_attributes(ivarid,nulout)
       end if
 
@@ -1330,7 +1330,7 @@ contains
       if (this%iverbose >= 3) then
         write(nulout,'(a,i0,a,a,a,i0,i0,i0,a)') '  Reading slice ', index, &
              &  ' of ', var_name, &
-             & ' (permuted dimensions ', i_permute_3d, ')'
+             & ' (permuting dimensions ', i_permute_3d, ')'
       end if
 
       istatus = nf90_get_var(this%ncid, ivarid, var_permute, &
@@ -1470,7 +1470,7 @@ contains
 
       if (this%iverbose >= 3) then
         write(nulout,'(a,a,a,i0,i0,i0,a)',advance='no') '  Reading ', var_name, &
-             & ' (permuted dimensions ', i_permute_4d, ')'
+             & ' (permuting dimensions ', i_permute_4d, ')'
         call this%print_variable_attributes(ivarid,nulout)
       end if
 
@@ -1658,8 +1658,7 @@ contains
     if (this%iverbose >= 4) then
       istatus = nf90_get_att(this%ncid, ivarid, 'long_name', attr_str)
       if (istatus == NF90_NOERR) then
-        write(iunit, '(a)') ':'
-        write(iunit, '(a,a)', advance='no') '    ', trim(attr_str)
+        write(iunit, '(a,a,a)', advance='no') ': "', trim(attr_str), '"'
         istatus = nf90_get_att(this%ncid, ivarid, 'units', attr_str)
         if (istatus == NF90_NOERR) then
           if (trim(attr_str) == '1') then
@@ -1817,15 +1816,23 @@ contains
     if (present(long_name)) then
       istatus = nf90_put_att(this%ncid, ivarid, "long_name", long_name)
       if (this%iverbose >= 4) then
-        write(nulout,'(a,a,a,a)') '  Defining ',trim(var_name),': ',long_name
+        write(nulout,'(a,a,a,a,a)', advance='no') '  Defining ',trim(var_name), &
+             &  ': "', long_name, '"'
       end if
     else
       if (this%iverbose >= 4) then
-        write(nulout,'(a,a)') '  Defining ',trim(var_name)
+        write(nulout,'(a,a)', advance='no') '  Defining ',trim(var_name)
       end if
     end if
     if (present(units_str)) then
       istatus = nf90_put_att(this%ncid, ivarid, "units", units_str)
+      if (trim(units_str) == '1') then
+        write(nulout, '(a)') ' (dimensionless)'
+      else
+        write(nulout, '(a,a,a)') ' (', trim(units_str), ')'
+      end if
+    else
+      write(nulout, '(1x)')
     end if
     if (present(standard_name)) then
       istatus = nf90_put_att(this%ncid, ivarid, "standard_name", standard_name)
@@ -2297,17 +2304,18 @@ contains
       ! Save array after permuting dimensions
       if (this%iverbose >= 3) then
         write(nulout,'(a,a,a,i0,i0,i0,a)') '  Writing ', var_name, &
-             & ' (permuted dimensions: ', i_permute_3d, ')'
+             & ' (permuting dimensions: ', i_permute_3d, ')'
       end if
       n_dimlens_permuted = (/ size(var,i_permute_3d(1)), &
            &                  size(var,i_permute_3d(2)), &
            &                  size(var,i_permute_3d(3))  /)
-      if (this%iverbose >= 4) then
-        write(nulout,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') '    (', &
-             &  n_dimlens_permuted(1), ',', n_dimlens_permuted(2), &
-             &  ',', n_dimlens_permuted(3), ') -> (', ndimlens(1), &
-             &  ',', ndimlens(2), ',', ndimlens(3), ')'
-      end if
+      !! FIX: This makes it look like the dimensions have stayed the same
+      ! if (this%iverbose >= 4) then
+      !   write(nulout,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') '    (', &
+      !        &  n_dimlens_permuted(1), ',', n_dimlens_permuted(2), &
+      !        &  ',', n_dimlens_permuted(3), ') -> (', ndimlens(1), &
+      !        &  ',', ndimlens(2), ',', ndimlens(3), ')'
+      ! end if
       allocate(var_permute(n_dimlens_permuted(1), &
            &   n_dimlens_permuted(2), n_dimlens_permuted(3)))
       ! Due to the odd way that ORDER works in Fortran RESHAPE, we
