@@ -1905,16 +1905,22 @@ contains
         write(nulout,'(a,a)', advance='no') '  Defining ',trim(var_name)
       end if
     end if
+
     if (present(units_str)) then
       istatus = nf90_put_att(this%ncid, ivarid, "units", units_str)
-      if (trim(units_str) == '1') then
-        write(nulout, '(a)') ' (dimensionless)'
-      else
-        write(nulout, '(a,a,a)') ' (', trim(units_str), ')'
+      if (this%iverbose >= 4) then
+        if (trim(units_str) == '1') then
+          write(nulout, '(a)') ' (dimensionless)'
+        else
+          write(nulout, '(a,a,a)') ' (', trim(units_str), ')'
+        end if
       end if
     else
-      write(nulout, '(1x)')
+      if (this%iverbose >= 4) then
+        write(nulout, '(1x)')
+      end if
     end if
+
     if (present(standard_name)) then
       istatus = nf90_put_att(this%ncid, ivarid, "standard_name", standard_name)
     end if
