@@ -488,6 +488,7 @@ contains
       ! Compute the fluxes just above the highest cloud
       flux_up(:,1) = total_source(:,1,i_cloud_top) &
            &  + total_albedo(:,1,i_cloud_top)*flux_dn_clear(:,i_cloud_top)
+      flux_up(:,2:) = 0.0_jprb
       flux%lw_up(jcol,i_cloud_top) = sum(flux_up(:,1))
       if (config%do_save_spectral_flux) then
         call indexed_sum(flux_up(:,1), &
