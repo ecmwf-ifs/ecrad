@@ -70,6 +70,15 @@ test_ecckd:
 	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
 #		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"'
 
+test_ecckd_tc:
+	$(CHANGENAM) $(CONFIG) config_ecckd_tc.nam \
+		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"' \
+		 overlap_scheme_name='"Exp-Ran"' \
+		do_nearest_spectral_lw_emiss=false \
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
+		use_general_cloud_optics=true use_general_aerosol_optics=true
+	$(DRIVER) config_ecckd_tc.nam $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
+
 # ecCKD gas optics with SPARTACUS solver
 test_ecckd_spartacus:
 	$(CHANGENAM) $(CONFIG) config_ecckd_spartacus.nam \
