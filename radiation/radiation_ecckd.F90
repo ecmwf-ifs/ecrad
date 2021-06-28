@@ -62,7 +62,7 @@ module radiation_ecckd
     real(jprb), allocatable :: temperature1_planck
     real(jprb), allocatable :: d_temperature_planck
     ! Planck function (black body flux into a horizontal plane) in W
-    ! m-2, dimensioned (nplanck,ng)
+    ! m-2, dimensioned (ng,nplanck)
     real(jprb), allocatable :: planck_function(:,:)
 
     ! Normalized solar irradiance in each g point dimensioned (ng)
@@ -254,16 +254,17 @@ contains
     integer :: jgas
     
     if (this%is_sw) then
-      write(nulout,'(a)') 'ecCKD shortwave gas optics model'
+      write(nulout,'(a)',advance='no') 'ecCKD shortwave gas optics model: '
     else
-      write(nulout,'(a)') 'ecCKD longwave gas optics model'
+      write(nulout,'(a)',advance='no') 'ecCKD longwave gas optics model: '
     end if
 
-    write(nulout,'(a,i0,a,i0,a)') '  Wavenumber range: ', &
-         &  int(this%spectral_def%wavenumber1(1)), ' to ', &
-         &  int(this%spectral_def%wavenumber2(size(this%spectral_def%wavenumber2))), &
-         &  ' cm-1'
-    write(nulout, '(a,i0,a,i0,a)') '  ', this%ng, ' g-points in ', this%spectral_def%nband, ' bands'
+    write(nulout,'(i0,a,i0,a,i0,a,i0,a)') &
+         &  nint(this%spectral_def%wavenumber1(1)), '-', &
+         &  nint(this%spectral_def%wavenumber2(size(this%spectral_def%wavenumber2))), &
+         &  ' cm-1, ', this%ng, ' g-points in ', this%spectral_def%nband, ' bands'
+    write(nulout,'(a,i0,a,i0,a,i0,a)') '  Look-up table sizes: ', this%npress, ' pressures, ', &
+         &  this%ntemp, ' temperatures, ', this%nplanck, ' planck-function entries'
     write(nulout, '(a)') '  Gases:'
     do jgas = 1,this%ngas
       if (this%single_gas(jgas)%i_gas_code > 0) then
@@ -498,7 +499,7 @@ contains
       if (tindex1 >= 0) then
         ! Normal interpolation, and extrapolation for high temperatures
         tindex1 = 1.0_jprb + tindex1
-        it1 = int(tindex1)
+        it1 = min(int(tindex1), this%nplanck-1)
         tw2 = tindex1 - it1
         tw1 = 1.0_jprb - tw2
         planck(:,jt) = tw1 * this%planck_function(:,it1) &
