@@ -1028,6 +1028,7 @@ contains
   ! data such as data file names
   subroutine consolidate_config(this)
 
+    use parkind1,     only : jprd
     use yomhook,      only : lhook, dr_hook
     use radiation_io, only : nulout, nulerr, radiation_abort
 
@@ -1061,7 +1062,12 @@ contains
          & .and. this%i_overlap_scheme /= IOverlapExponentialRandom) then
       write(nulerr,'(a)') '*** Error: SPARTACUS/Tripleclouds solvers can only do Exponential-Random overlap'
       call radiation_abort('Radiation configuration error')
+    end if
 
+    if (jprb < jprd .and. this%iverbosesetup >= 1 &
+         &  .and. (this%i_solver_sw == ISolverSPARTACUS &
+         &    .or. this%i_solver_lw == ISolverSPARTACUS)) then
+      write(nulout,'(a)') 'Warning: the SPARTACUS solver may be unstable in single precision'
     end if
 
     ! If ecCKD gas optics model is being used set relevant file names

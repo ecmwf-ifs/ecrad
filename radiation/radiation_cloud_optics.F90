@@ -345,10 +345,12 @@ contains
               call radiation_abort()
             end if
 
+            ! Delta-Eddington scaling in the shortwave only
             if (.not. config%do_sw_delta_scaling_with_gases) then
-              ! Delta-Eddington scaling in the shortwave only
               call delta_eddington_scat_od(od_sw_liq, scat_od_sw_liq, g_sw_liq)
             end if
+            !call delta_eddington_scat_od(od_lw_liq, scat_od_lw_liq, g_lw_liq)
+
           else
             ! Liquid not present: set properties to zero
             od_lw_liq = 0.0_jprb
@@ -437,14 +439,14 @@ contains
               call radiation_abort()
             end if
 
+            ! Delta-Eddington scaling in both longwave and shortwave
+            ! (assume that particles are larger than wavelength even
+            ! in longwave)
             if (.not. config%do_sw_delta_scaling_with_gases) then
-              ! Delta-Eddington scaling in both longwave and shortwave
-              ! (assume that particles are larger than wavelength even
-              ! in longwave)
               call delta_eddington_scat_od(od_sw_ice, scat_od_sw_ice, g_sw_ice)
             end if
-
             call delta_eddington_scat_od(od_lw_ice, scat_od_lw_ice, g_lw_ice)
+
           else
             ! Ice not present: set properties to zero
             od_lw_ice = 0.0_jprb
