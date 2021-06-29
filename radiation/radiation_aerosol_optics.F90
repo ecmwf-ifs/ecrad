@@ -95,7 +95,6 @@ contains
     use easy_netcdf,                   only : netcdf_file
     use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type
-    use radiation_io,                  only : nulerr, radiation_abort
     use radiation_spectral_definition, only : SolarReferenceTemperature, &
          &                                    TerrestrialReferenceTemperature
 
@@ -369,10 +368,10 @@ contains
       end if
 
       ! Set variables to zero that may not have been previously
-      g_sw = 0.0_jprb
+      g_sw(:,:,istartcol:iendcol) = 0.0_jprb
       if (config%do_lw_aerosol_scattering) then
-        ssa_lw = 0.0_jprb
-        g_lw   = 0.0_jprb
+        ssa_lw(:,:,istartcol:iendcol) = 0.0_jprb
+        g_lw(:,:,istartcol:iendcol)   = 0.0_jprb
       end if
 
       call gas%get(IH2O, IMassMixingRatio, h2o_mmr, istartcol=istartcol)
@@ -478,20 +477,22 @@ contains
           ! Combine aerosol shortwave scattering properties with gas
           ! properties (noting that any gas scattering will have an
           ! asymmetry factor of zero)
-          if (od_sw_aerosol(1) > 0.0_jprb) then
-            do jg = 1,config%n_g_sw
-              iband = config%i_band_from_reordered_g_sw(jg)
+          do jg = 1,config%n_g_sw
+            iband = config%i_band_from_reordered_g_sw(jg)
+            if (od_sw_aerosol(iband) > 0.0_jprb) then
               local_od = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband)
               local_scat = ssa_sw(jg,jlev,jcol) * od_sw(jg,jlev,jcol) &
                    &  + scat_sw_aerosol(iband)
               ! Note that asymmetry_sw of gases is zero so the following
               ! simply weights the aerosol asymmetry by the scattering
               ! optical depth
-              g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(iband) / local_scat
+              if (local_scat > 0.0_jprb) then
+                g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(iband) / local_scat
+              end if
               ssa_sw(jg,jlev,jcol) = local_scat / local_od
               od_sw (jg,jlev,jcol) = local_od
-            end do
-          end if
+            end if
+          end do
 
           ! Combine aerosol longwave scattering properties with gas
           ! properties, noting that in the longwave, gases do not
@@ -509,8 +510,6 @@ contains
                 if (scat_lw_aerosol(iband) > 0.0_jprb) then
                   g_lw(jg,jlev,jcol) = scat_g_lw_aerosol(iband) &
                        &  / scat_lw_aerosol(iband)
-                else
-                  g_lw(jg,jlev,jcol) = 0.0_jprb
                 end if
                 local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband)
                 ssa_lw(jg,jlev,jcol) = scat_lw_aerosol(iband) / local_od
@@ -605,7 +604,7 @@ contains
       iendlev   = ubound(aerosol%od_sw,2)
 
       ! Set variables to zero that may not have been previously
-      g_sw = 0.0_jprb
+      g_sw(:,:,istartcol:iendcol) = 0.0_jprb
 
       ! Loop over position
       do jcol = istartcol,iendcol
@@ -663,8 +662,8 @@ contains
       iendlev   = ubound(aerosol%od_lw,2)
 
       if (config%do_lw_aerosol_scattering) then
-        ssa_lw = 0.0_jprb
-        g_lw   = 0.0_jprb
+        ssa_lw(:,:,istartcol:iendcol) = 0.0_jprb
+        g_lw(:,:,istartcol:iendcol)   = 0.0_jprb
  
         ! Loop over position
         do jcol = istartcol,iendcol
@@ -689,8 +688,6 @@ contains
                 if (scat_lw_aerosol(iband,jlev) > 0.0_jprb) then
                   g_lw(jg,jlev,jcol) = scat_g_lw_aerosol(iband,jlev) &
                        &  / scat_lw_aerosol(iband,jlev)
-                else
-                  g_lw(jg,jlev,jcol) = 0.0_jprb
                 end if
                 local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband,jlev)
                 ssa_lw(jg,jlev,jcol) = scat_lw_aerosol(iband,jlev) / local_od
@@ -752,7 +749,7 @@ contains
     ! Aerosol type and shortwave band as indices to the array
     integer, intent(in) :: itype, iband
     
-    real(jprb) dry_aerosol_sw_mass_extinction
+    real(jprb) :: dry_aerosol_sw_mass_extinction
 
     ! Pointer to the aerosol optics coefficients for brevity of access
     type(aerosol_optics_type), pointer :: ao
