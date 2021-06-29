@@ -1652,7 +1652,7 @@ contains
   ! band/g-point intervals
   subroutine consolidate_sw_albedo_intervals(this)
 
-    use radiation_io, only : nulout, nulerr, radiation_abort
+    use radiation_io, only : nulout
     use radiation_spectral_definition, only : SolarReferenceTemperature
 
     class(config_type),   intent(inout) :: this
@@ -1721,7 +1721,7 @@ contains
   ! band/g-point intervals
   subroutine consolidate_lw_emiss_intervals(this)
 
-    use radiation_io, only : nulout, nulerr, radiation_abort
+    use radiation_io, only : nulout
     use radiation_spectral_definition, only : TerrestrialReferenceTemperature
 
     class(config_type),   intent(inout) :: this

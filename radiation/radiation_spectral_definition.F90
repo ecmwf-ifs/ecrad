@@ -73,14 +73,13 @@ contains
   !---------------------------------------------------------------------
   ! Read the description of a spectral definition from a NetCDF
   ! file of the type used to describe an ecCKD model
-  subroutine read_spectral_definition(this, file, iverbose)
+  subroutine read_spectral_definition(this, file)
 
     use easy_netcdf, only : netcdf_file
     use yomhook,     only : lhook, dr_hook
 
     class(spectral_definition_type), intent(inout) :: this
     type(netcdf_file),               intent(inout) :: file
-    integer,               optional, intent(in)    :: iverbose
 
     real(jprb) :: hook_handle
 
@@ -163,8 +162,6 @@ contains
     class(spectral_definition_type), intent(in) :: this
     real(jprb),                      intent(in) :: wavenumber ! cm-1
     integer                                     :: find_wavenumber
-
-    integer :: iwav
 
     if (wavenumber < this%wavenumber1(1) .or. wavenumber > this%wavenumber2(this%nwav)) then
       ! Wavenumber not present
@@ -761,7 +758,7 @@ contains
     planck_fn_freq = 2.0_jprd * real(PlanckConstant,jprd) * freq**3 &
          &  / (real(SpeedOfLight,jprd)**2 * (exp(real(PlanckConstant,jprd)*freq &
          &     /(real(BoltzmannConstant,jprd)*real(temperature,jprd))) - 1.0_jprd))
-    calc_planck_function_wavenumber = planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd)
+    calc_planck_function_wavenumber = real(planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd), jprb)
 
   end function calc_planck_function_wavenumber
 

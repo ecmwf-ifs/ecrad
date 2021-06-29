@@ -109,16 +109,6 @@ contains
     integer    :: nre  ! Number of effective radii
     integer    :: nwav ! Number of wavenumbers describing cloud
 
-    ! Wavenumbers (cm-1) marking triangle of influence of a cloud
-    ! spectral point
-    real(jprb) :: wavenum0, wavenum1, wavenum2
-
-    ! Indices to wavenumber intervals in spectral definition structure
-    integer    :: isd0, isd1, isd2, isd
-
-    ! Loop indices
-    integer    :: jg, jwav
-
     logical    :: use_bands_local, use_thick_averaging_local
 
     real(jprb) :: hook_handle
@@ -349,7 +339,7 @@ contains
     planck_fn_freq = 2.0_jprd * real(PlanckConstant,jprd) * freq**3 &
          &  / (real(SpeedOfLight,jprd)**2 * (exp(real(PlanckConstant,jprd)*freq &
          &     /(real(BoltzmannConstant,jprd)*real(temperature,jprd))) - 1.0_jprd))
-    calc_planck_function_wavenumber = planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd)
+    calc_planck_function_wavenumber = real(planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd), jprb)
 
   end function calc_planck_function_wavenumber
 

@@ -18,7 +18,7 @@ module radiation_ecckd_interface
 
   implicit none
 
-  public  :: setup_gas_optics, set_gas_units, gas_optics, planck_function
+  public  :: setup_gas_optics, set_gas_units, gas_optics !, planck_function
 
 contains
 
@@ -258,21 +258,21 @@ contains
 
   end subroutine gas_optics
 
-  !---------------------------------------------------------------------
-  ! Externally facing function for computing the Planck function
-  ! without reference to any gas profile; typically this would be used
-  ! for computing the emission by a surface.
-  subroutine planck_function(config, temperature, planck_surf)
+  ! !---------------------------------------------------------------------
+  ! ! Externally facing function for computing the Planck function
+  ! ! without reference to any gas profile; typically this would be used
+  ! ! for computing the emission by a surface.
+  ! subroutine planck_function(config, temperature, planck_surf)
 
-    use parkind1,                 only : jprb
-    use radiation_config,         only : config_type
+  !   use parkind1,                 only : jprb
+  !   use radiation_config,         only : config_type
 
-    type(config_type), intent(in) :: config
-    real(jprb),        intent(in) :: temperature
+  !   type(config_type), intent(in) :: config
+  !   real(jprb),        intent(in) :: temperature
 
-    ! Planck function of the surface (W m-2)
-    real(jprb), dimension(config%n_g_lw), intent(out) :: planck_surf
+  !   ! Planck function of the surface (W m-2)
+  !   real(jprb), dimension(config%n_g_lw), intent(out) :: planck_surf
 
-  end subroutine planck_function
+  ! end subroutine planck_function
 
 end module radiation_ecckd_interface

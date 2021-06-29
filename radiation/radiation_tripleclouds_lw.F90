@@ -152,9 +152,6 @@ contains
     ! top-of-atmosphere
     real(jprb), dimension(config%n_g_lw, nregions, nlev+1) :: total_source
 
-    ! ...equivalent values for clear-skies
-    real(jprb), dimension(config%n_g_lw, nlev+1) :: total_albedo_clear, total_source_clear
-
     ! Total albedo and source of the atmosphere just below a layer interface
     real(jprb), dimension(config%n_g_lw, nregions) &
          &  :: total_albedo_below, total_source_below

@@ -34,7 +34,7 @@ contains
     use parkind1,         only : jprb
     use yomhook,          only : lhook, dr_hook
 
-    use radiation_io,     only : nulout, nulerr, radiation_abort
+    use radiation_io,     only : nulout
     use radiation_config, only : config_type, NMaxCloudTypes
     use radiation_spectral_definition, only : SolarReferenceTemperature, &
          &                                    TerrestrialReferenceTemperature
@@ -135,7 +135,7 @@ contains
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook
 
-    use radiation_io,     only : nulout, nulerr, radiation_abort
+    use radiation_io,     only : nulout
     use radiation_config, only : config_type
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type

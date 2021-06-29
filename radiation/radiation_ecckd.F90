@@ -124,7 +124,7 @@ contains
   subroutine read_ckd_model(this, filename, iverbose)
 
     use easy_netcdf,  only : netcdf_file
-    use radiation_io, only : nulerr, radiation_abort
+    !use radiation_io, only : nulerr, radiation_abort
     use yomhook,      only : lhook, dr_hook
 
     class(ckd_model_type), intent(inout) :: this
@@ -330,7 +330,7 @@ contains
 
     ! Optical depth of single gas at one point in space versus
     ! spectral interval
-    real(jprb) :: od_single_gas(this%ng)
+    !real(jprb) :: od_single_gas(this%ng)
 
     real(jprb) :: multiplier, simple_multiplier, global_multiplier, temperature1
 
@@ -348,7 +348,7 @@ contains
 
     if (lhook) call dr_hook('radiation_ecckd:calc_optical_depth',0,hook_handle)
 
-    optical_depth_fl = 0.0_jprb
+    optical_depth_fl(:,:,istartcol:iendcol) = 0.0_jprb
 
     global_multiplier = 1.0_jprb / (AccelDueToGravity * 0.001_jprb * AirMolarMass)
 

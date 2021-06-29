@@ -366,10 +366,10 @@ contains
                &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
         end if
       else
-        g_sw = 0.0_jprb
+        g_sw(:,:,istartcol:iendcol) = 0.0_jprb
         if (config%do_lw_aerosol_scattering) then
-          ssa_lw = 0.0_jprb
-          g_lw   = 0.0_jprb
+          ssa_lw(:,:,istartcol:iendcol) = 0.0_jprb
+          g_lw(:,:,istartcol:iendcol)   = 0.0_jprb
         end if
       end if
 

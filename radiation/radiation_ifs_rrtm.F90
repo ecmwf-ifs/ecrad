@@ -403,7 +403,7 @@ contains
          &  ZRAT_H2ON2O, ZRAT_H2ON2O_1, ZRAT_H2OCH4, ZRAT_H2OCH4_1, &
          &  ZRAT_N2OCO2, ZRAT_N2OCO2_1, ZRAT_O3CO2, ZRAT_O3CO2_1)   
 
-    ZTAUAERL = 0.0_jprb
+    ZTAUAERL(istartcol:iendcol,:,:) = 0.0_jprb
 
     CALL RRTM_GAS_OPTICAL_DEPTH &
          &( istartcol, iendcol, nlev, ZOD_LW, ZPAVEL, ZCOLDRY, ZCOLBRD, ZWX ,&
