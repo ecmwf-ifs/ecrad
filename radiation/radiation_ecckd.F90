@@ -463,6 +463,10 @@ contains
 
       end do
 
+      ! Ensure the optical depth is not negative
+      optical_depth_fl(:,:,istartcol:iendcol) &
+           &  = max(0.0_jprb, optical_depth_fl(:,:,istartcol:iendcol))
+
       ! Rayleigh scattering
       if (this%is_sw .and. present(rayleigh_od_fl)) then
         do jlev = 1,nlev

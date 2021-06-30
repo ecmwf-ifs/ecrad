@@ -479,8 +479,8 @@ contains
           ! asymmetry factor of zero)
           do jg = 1,config%n_g_sw
             iband = config%i_band_from_reordered_g_sw(jg)
-            if (od_sw_aerosol(iband) > 0.0_jprb) then
-              local_od = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband)
+            local_od = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband)
+            if (local_od > 0.0_jprb .and. od_sw_aerosol(iband) > 0.0_jprb) then
               local_scat = ssa_sw(jg,jlev,jcol) * od_sw(jg,jlev,jcol) &
                    &  + scat_sw_aerosol(iband)
               ! Note that asymmetry_sw of gases is zero so the following
@@ -504,14 +504,14 @@ contains
 
             do jg = 1,config%n_g_lw
               iband = config%i_band_from_reordered_g_lw(jg)
-              if (od_lw_aerosol(iband) > 0.0_jprb) then
+              local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband)
+              if (local_od > 0.0_jprb .and. od_lw_aerosol(iband) > 0.0_jprb) then
                 ! All scattering is due to aerosols, therefore the
                 ! asymmetry factor is equal to the value for aerosols
                 if (scat_lw_aerosol(iband) > 0.0_jprb) then
                   g_lw(jg,jlev,jcol) = scat_g_lw_aerosol(iband) &
                        &  / scat_lw_aerosol(iband)
                 end if
-                local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband)
                 ssa_lw(jg,jlev,jcol) = scat_lw_aerosol(iband) / local_od
                 od_lw (jg,jlev,jcol) = local_od
               end if
@@ -630,20 +630,22 @@ contains
         ! properties (noting that any gas scattering will have an
         ! asymmetry factor of zero)
         do jlev = istartlev,iendlev
-          if (od_sw_aerosol(1,jlev) > 0.0_jprb) then
-            do jg = 1,config%n_g_sw
-              iband = config%i_band_from_reordered_g_sw(jg)
-              local_od = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband,jlev)
+          do jg = 1,config%n_g_sw
+            iband = config%i_band_from_reordered_g_sw(jg)
+            local_od = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband,jlev)
+            if (local_od > 0.0_jprb .and. od_sw_aerosol(iband,jlev) > 0.0_jprb) then
               local_scat = ssa_sw(jg,jlev,jcol) * od_sw(jg,jlev,jcol) &
                    &  + scat_sw_aerosol(iband,jlev)
               ! Note that asymmetry_sw of gases is zero so the following
               ! simply weights the aerosol asymmetry by the scattering
               ! optical depth
-              g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(iband,jlev) / local_scat
+              if (local_scat > 0.0_jprb) then
+                g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(iband,jlev) / local_scat
+              end if
               ssa_sw(jg,jlev,jcol) = local_scat / local_od
               od_sw (jg,jlev,jcol) = local_od
-            end do
-          end if
+            end if
+          end do
         end do
       end do
 
@@ -682,14 +684,14 @@ contains
           do jlev = istartlev,iendlev
             do jg = 1,config%n_g_lw
               iband = config%i_band_from_reordered_g_lw(jg)
-              if (od_lw_aerosol(iband,jlev) > 0.0_jprb) then
+              local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband,jlev)
+              if (local_od > 0.0_jprb .and. od_lw_aerosol(iband,jlev) > 0.0_jprb) then
                 ! All scattering is due to aerosols, therefore the
                 ! asymmetry factor is equal to the value for aerosols
                 if (scat_lw_aerosol(iband,jlev) > 0.0_jprb) then
                   g_lw(jg,jlev,jcol) = scat_g_lw_aerosol(iband,jlev) &
                        &  / scat_lw_aerosol(iband,jlev)
                 end if
-                local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband,jlev)
                 ssa_lw(jg,jlev,jcol) = scat_lw_aerosol(iband,jlev) / local_od
                 od_lw (jg,jlev,jcol) = local_od
               end if
