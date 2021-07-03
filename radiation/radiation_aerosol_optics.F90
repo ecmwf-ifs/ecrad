@@ -125,12 +125,21 @@ contains
     ! Pointer to the aerosol optics coefficients for brevity of access
     type(aerosol_optics_type), pointer :: ao
 
+    ! Target monochromatic wavenumber for interpolation (cm-1)
+    real(jprb) :: wavenumber_target
+
     ! Number of spectral points describing aerosol properties in the
     ! shortwave and longwave
     integer    :: nspecsw, nspeclw
 
-    integer    :: n_type_philic, n_type_phobic, nrh
-    integer    :: jtype
+    ! Number of monochromatic wavelengths required
+    integer    :: nmono
+
+    integer    :: n_type_philic, n_type_phobic, nrh, nwn
+    integer    :: jtype, jwl, iwn
+
+    ! Weight of first point in interpolation
+    real(jprb) :: weight1
 
     real(jprb) :: hook_handle
 
@@ -147,6 +156,7 @@ contains
     end if
  
     call file%get('wavenumber', wavenumber)
+    nwn = size(wavenumber)
 
     ! Read the raw scattering data
     call file%get('mass_ext_hydrophobic',    mass_ext_phobic)
@@ -193,7 +203,14 @@ contains
       nspeclw = config%gas_optics_lw%spectral_def%nband
     end if
 
-    call ao%allocate(n_type_phobic, n_type_philic, nrh, nspeclw, nspecsw, 0)
+    if (allocated(ao%wavelength_mono)) then
+      ! Monochromatic wavelengths also required
+      nmono = size(ao%wavelength_mono)
+    else
+      nmono = 0
+    end if
+
+    call ao%allocate(n_type_phobic, n_type_philic, nrh, nspeclw, nspecsw, nmono)
 
     if (config%do_sw) then
       call config%gas_optics_sw%spectral_def%calc_mapping(SolarReferenceTemperature, &
@@ -239,6 +256,48 @@ contains
                &         / (ao%mass_ext_lw_philic(:,:,jtype)*ao%ssa_lw_philic(:,:,jtype))
         end do
       end if
+    end if
+
+    if (allocated(ao%wavelength_mono)) then
+      ! Monochromatic wavelengths also required
+      do jwl = 1,nmono
+        ! Wavelength (m) to wavenumber (cm-1)
+        wavenumber_target = 0.01_jprb / ao%wavelength_mono(jwl)
+        ! Find index to first interpolation point, and its weight
+        if (wavenumber_target <= wavenumber(1)) then
+          weight1 = 1.0_jprb
+          iwn = 1
+        else if (wavenumber_target >= wavenumber(nwn)) then
+          iwn = nwn-1
+          weight1 = 0.0_jprb
+        else
+          iwn = 1
+          do while (wavenumber(iwn) > wavenumber_target .and. iwn < nwn-1)
+            iwn = iwn + 1
+          end do
+          weight1 = (wavenumber(iwn+1)-wavenumber_target) &
+               &  / (wavenumber(iwn+1)-wavenumber(iwn))
+        end if
+        ! Linear interpolation
+        ao%mass_ext_mono_phobic(jwl,:) = weight1 * mass_ext_phobic(iwn,:) &
+             &             + (1.0_jprb - weight1)* mass_ext_phobic(iwn+1,:)
+        ao%ssa_mono_phobic(jwl,:)      = weight1 * ssa_phobic(iwn,:) &
+             &             + (1.0_jprb - weight1)* ssa_phobic(iwn+1,:)
+        ao%g_mono_phobic(jwl,:)        = weight1 * g_phobic(iwn,:) &
+             &             + (1.0_jprb - weight1)* g_phobic(iwn+1,:)
+        ao%lidar_ratio_mono_phobic(jwl,:) = weight1 * lidar_ratio_phobic(iwn,:) &
+             &                + (1.0_jprb - weight1)* lidar_ratio_phobic(iwn+1,:)
+        if (ao%use_hydrophilic) then
+          ao%mass_ext_mono_philic(jwl,:,:) = weight1 * mass_ext_philic(iwn,:,:) &
+               &               + (1.0_jprb - weight1)* mass_ext_philic(iwn+1,:,:)
+          ao%ssa_mono_philic(jwl,:,:)      = weight1 * ssa_philic(iwn,:,:) &
+               &               + (1.0_jprb - weight1)* ssa_philic(iwn+1,:,:)
+          ao%g_mono_philic(jwl,:,:)        = weight1 * g_philic(iwn,:,:) &
+               &               + (1.0_jprb - weight1)* g_philic(iwn+1,:,:)
+          ao%lidar_ratio_mono_philic(jwl,:,:) = weight1 * lidar_ratio_philic(iwn,:,:) &
+               &                  + (1.0_jprb - weight1)* lidar_ratio_philic(iwn+1,:,:)
+        end if
+      end do
     end if
 
     ! Deallocate memory local to this routine
@@ -734,13 +793,14 @@ contains
   !---------------------------------------------------------------------
   ! Sometimes it is useful to specify aerosol in terms of its optical
   ! depth at a particular wavelength.  This function returns the dry
-  ! shortwave mass-extinction coefficient, i.e. the extinction cross
-  ! section per unit mass, for aerosol of type "itype" at shortwave
-  ! band "iband". For hydrophilic types, the value at the first
-  ! relative humidity bin is taken.
-  function dry_aerosol_sw_mass_extinction(config, itype, iband)
+  ! mass-extinction coefficient, i.e. the extinction cross section per
+  ! unit mass, for aerosol of type "itype" at the specified wavelength
+  ! (m). For hydrophilic types, the value at the first relative
+  ! humidity bin is taken.
+  function dry_aerosol_mass_extinction(config, itype, wavelength)
 
     use parkind1,                      only : jprb
+    use radiation_io,                  only : nulerr, radiation_abort
     use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type, &
          &  IAerosolClassUndefined,   IAerosolClassIgnored, &
@@ -748,35 +808,48 @@ contains
 
     type(config_type), intent(in), target :: config
 
-    ! Aerosol type and shortwave band as indices to the array
-    integer, intent(in) :: itype, iband
+    ! Aerosol type
+    integer, intent(in) :: itype
+
+    ! Wavelength (m)
+    real(jprb), intent(in) :: wavelength
     
-    real(jprb) :: dry_aerosol_sw_mass_extinction
+    real(jprb) :: dry_aerosol_mass_extinction
+
+    ! Index to the monochromatic wavelength requested
+    integer :: imono
 
     ! Pointer to the aerosol optics coefficients for brevity of access
     type(aerosol_optics_type), pointer :: ao
 
     ao => config%aerosol_optics
 
+    imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
+
+    if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.01_jprb) then
+      write(nulerr,'(a,e8.4,a)') '*** Error: requested wavelength ', &
+           &  wavelength, ' not within 1% of stored wavelengths'
+      call radiation_abort()
+     end if
+
     if (ao%iclass(itype) == IAerosolClassHydrophobic) then
-      dry_aerosol_sw_mass_extinction = ao%mass_ext_sw_phobic(iband,ao%itype(itype))
+      dry_aerosol_mass_extinction = ao%mass_ext_mono_phobic(imono,ao%itype(itype))
     else if (ao%iclass(itype) == IAerosolClassHydrophilic) then
       ! Take the value at the first relative-humidity bin for the
       ! "dry" aerosol value
-      dry_aerosol_sw_mass_extinction = ao%mass_ext_sw_philic(iband,1,ao%itype(itype))
+      dry_aerosol_mass_extinction = ao%mass_ext_mono_philic(imono,1,ao%itype(itype))
     else
-      dry_aerosol_sw_mass_extinction = 0.0_jprb
+      dry_aerosol_mass_extinction = 0.0_jprb
     end if
 
-  end function dry_aerosol_sw_mass_extinction
+  end function dry_aerosol_mass_extinction
 
 
   !---------------------------------------------------------------------
-  ! Compute aerosol extinction coefficient at a particular shortwave
-  ! band and a single height - this is useful for visibility
-  ! diagnostics
-  subroutine aerosol_sw_extinction(ncol,istartcol,iendcol, &
-       &  config, iband, mixing_ratio, relative_humidity, extinction)
+  ! Compute aerosol extinction coefficient at a particular wavelength
+  ! and a single height - this is useful for visibility diagnostics
+  subroutine aerosol_extinction(ncol,istartcol,iendcol, &
+       &  config, wavelength, mixing_ratio, relative_humidity, extinction)
 
     use parkind1,                      only : jprb
     use yomhook,                       only : lhook, dr_hook
@@ -789,13 +862,16 @@ contains
     integer, intent(in) :: ncol               ! number of columns
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
     type(config_type), intent(in), target :: config
-    integer, intent(in)     :: iband ! Index of required spectral band
+    real(jprb), intent(in)  :: wavelength ! Requested wavelength (m)
     real(jprb), intent(in)  :: mixing_ratio(ncol,config%n_aerosol_types)
     real(jprb), intent(in)  :: relative_humidity(ncol)
     real(jprb), intent(out) :: extinction(ncol)
 
     ! Local aerosol extinction
     real(jprb) :: ext
+
+    ! Index to the monochromatic wavelength requested
+    integer :: imono
 
     ! Pointer to the aerosol optics coefficients for brevity of access
     type(aerosol_optics_type), pointer :: ao
@@ -808,7 +884,7 @@ contains
 
     real(jprb) :: hook_handle
 
-    if (lhook) call dr_hook('radiation_aerosol_optics:aerosol_sw_extinction',0,hook_handle)
+    if (lhook) call dr_hook('radiation_aerosol_optics:aerosol_extinction',0,hook_handle)
 
     do jtype = 1,config%n_aerosol_types
       if (config%aerosol_optics%iclass(jtype) == IAerosolClassUndefined) then
@@ -819,6 +895,14 @@ contains
 
     ao => config%aerosol_optics
 
+    imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
+
+    if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.01_jprb) then
+      write(nulerr,'(a,e8.4,a)') '*** Error: requested wavelength ', &
+           &  wavelength, ' not within 1% of stored wavelengths'
+      call radiation_abort()
+     end if
+
     ! Loop over position
     do jcol = istartcol,iendcol
       ext = 0.0_jprb
@@ -828,18 +912,18 @@ contains
       do jtype = 1,config%n_aerosol_types
         if (ao%iclass(jtype) == IAerosolClassHydrophobic) then
           ext = ext + mixing_ratio(jcol,jtype) &
-               &    * ao%mass_ext_sw_phobic(iband,ao%itype(jtype))
+               &    * ao%mass_ext_mono_phobic(imono,ao%itype(jtype))
         else if (ao%iclass(jtype) == IAerosolClassHydrophilic) then
           ext = ext + mixing_ratio(jcol,jtype) &
-               &    * ao%mass_ext_sw_philic(iband,irh,ao%itype(jtype))
+               &    * ao%mass_ext_mono_philic(imono,irh,ao%itype(jtype))
         end if
       end do
 
       extinction(jcol) = ext
     end do
 
-    if (lhook) call dr_hook('radiation_aerosol_optics:aerosol_sw_extinction',1,hook_handle)
+    if (lhook) call dr_hook('radiation_aerosol_optics:aerosol_extinction',1,hook_handle)
 
-  end subroutine aerosol_sw_extinction
+  end subroutine aerosol_extinction
 
 end module radiation_aerosol_optics

@@ -1512,7 +1512,7 @@ contains
 
     if (this%n_bands_sw <= 0) then
       write(nulerr,'(a)') '*** Error: get_sw_weights called before number of shortwave bands set'
-      call radiation_abort()      
+      call radiation_abort('Radiation configuration error')
     end if
 
     ! Convert wavelength range (m) to wavenumber (cm-1)
@@ -1537,7 +1537,7 @@ contains
     if (nweights == 0) then
       write(nulerr,'(a,e8.4,a,e8.4,a)') '*** Error: wavelength range ', &
            &  wavelength1, ' to ', wavelength2, ' m is outside shortwave band'
-      call radiation_abort()
+      call radiation_abort('Radiation configuration error')
     else if (this%iverbosesetup >= 2 .and. present(weighting_name)) then
       write(nulout,'(a,a,a,f6.0,a,f6.0,a)') 'Spectral weights for ', &
            &  weighting_name, ' (', wavenumber1, ' to ', &
@@ -1581,7 +1581,7 @@ contains
     if (ninterval > NMaxAlbedoIntervals) then
       write(nulerr,'(a,i0,a,i0)') '*** Error: ', ninterval, &
            &  ' albedo intervals exceeds maximum of ', NMaxAlbedoIntervals
-      call radiation_abort();
+      call radiation_abort('Radiation configuration error')
     end if
 
     if (present(do_nearest)) then
@@ -1627,7 +1627,7 @@ contains
     if (ninterval > NMaxAlbedoIntervals) then
       write(nulerr,'(a,i0,a,i0)') '*** Error: ', ninterval, &
            &  ' emissivity intervals exceeds maximum of ', NMaxAlbedoIntervals
-      call radiation_abort();
+      call radiation_abort('Radiation configuration error')
     end if
 
     if (present(do_nearest)) then
@@ -1645,6 +1645,31 @@ contains
     end if
 
   end subroutine define_lw_emiss_intervals
+
+
+  !---------------------------------------------------------------------
+  ! Set the wavelengths (m) at which monochromatic aerosol properties
+  ! are required. This routine must be called before consolidation of
+  ! settings.
+  subroutine set_aerosol_wavelength_mono(this, wavelength_mono)
+
+    use radiation_io, only : nulout, nulerr, nulrad, radiation_abort
+    
+    class(config_type), intent(inout) :: this
+    real(jprb),         intent(in)    :: wavelength_mono(:)
+
+    if (this%is_consolidated) then
+      write(nulerr,'(a)') '*** Errror: set_aerosol_wavelength_mono must be called before setup_radiation'
+      call radiation_abort('Radiation configuration error')
+    end if
+   
+    if (allocated(this%aerosol_optics%wavelength_mono)) then
+      deallocate(this%aerosol_optics%wavelength_mono)
+    end if
+    allocate(this%aerosol_optics%wavelength_mono(size(wavelength_mono)))
+    this%aerosol_optics%wavelength_mono = wavelength_mono
+
+  end subroutine set_aerosol_wavelength_mono
 
 
   !---------------------------------------------------------------------

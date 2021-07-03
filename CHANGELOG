@@ -16,6 +16,10 @@ version 1.5
 	  bands/g-points, rather than just to find the nearest value
 	  (i.e. do_nearest_spectral_sw_albedo and
 	  do_nearest_spectral_lw_emiss are now false by default)
+	- Replaced dry_sw_aerosol_mass_extinction and
+	  aerosol_sw_extinction routines with dry_aerosol_mass_extinction
+	  and aerosol_extinction, which take wavelength rather than band
+	  number
 
 version 1.4.2 (21 June 2021)
 	- radiation_config:do_write_double_precision writes fluxes as

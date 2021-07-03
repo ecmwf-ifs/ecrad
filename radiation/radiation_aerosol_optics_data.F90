@@ -67,7 +67,7 @@ module radiation_aerosol_optics_data
           &  ssa_lw_phobic,      & ! Single scattering albedo
           &  g_lw_phobic           ! Asymmetry factor
 
-     ! Hydrophilic aerosols are dimensioned (nband, nrh, n_type_philic):
+     ! Hydrophilic aerosols are dimensioned (nband,nrh,n_type_philic):
      real(jprb), allocatable, dimension(:,:,:) :: &
           &  mass_ext_sw_philic, & ! Mass-extinction coefficient (m2 kg-1)
           &  ssa_sw_philic,      & ! Single scattering albedo
@@ -76,13 +76,18 @@ module radiation_aerosol_optics_data
           &  ssa_lw_philic,      & ! Single scattering albedo
           &  g_lw_philic           ! Asymmetry factor
 
-     ! Scattering properties at selected wavelengths
-     ! (n_mono_wl,n_type_phobic/philic)
+     ! Wavelengths at which monochromatic properties are stored,
+     ! dimensioned (n_mono_wl), units metres
+     real(jprb), allocatable :: wavelength_mono(:)
+
+     ! Scattering properties at selected monochromatic wavelengths
+     ! (n_mono_wl,n_type_phobic)
      real(jprb), allocatable, dimension(:,:) :: &
           &  mass_ext_mono_phobic, & ! Mass-extinction coefficient (m2 kg-1)
           &  ssa_mono_phobic,      & ! Single scattering albedo
           &  g_mono_phobic,        & ! Asymmetry factor
           &  lidar_ratio_mono_phobic ! Lidar Ratio
+     ! ...hydrophilic aerosols dimensioned (n_mono_wl,nrh,n_type_philic):
      real(jprb), allocatable, dimension(:,:,:) :: &
           &  mass_ext_mono_philic, & ! Mass-extinction coefficient (m2 kg-1)
           &  ssa_mono_philic,      & ! Single scattering albedo
@@ -148,7 +153,10 @@ contains
 
     ! The NetCDF file containing the aerosol optics data
     type(netcdf_file)  :: file
+
+    real(jprb), allocatable :: wavelength_tmp(:)
     integer            :: iverb
+
     real(jprb)         :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_data:setup',0,hook_handle)
@@ -194,10 +202,35 @@ contains
            &                         this%description_philic_str)
     end if
 
-    ! Read the raw scattering data at selected wavelengths if
-    ! available in the input file
+    ! Read the monochromatic scattering data at selected wavelengths
+    ! if available in the input file
     if (file%exists('mass_ext_mono_hydrophobic')) then
       this%use_monochromatic = .true.
+
+      if (allocated(this%wavelength_mono)) then
+        ! User has provided required monochromatic wavelengths, which
+        ! must match those in the file (in the more recent "general"
+        ! aerosol optics, interpolation provides optical properties at
+        ! the requested wavelengths)
+        call file%get('wavelength_mono', wavelength_tmp)
+        if (size(wavelength_tmp) /= size(this%wavelength_mono)) then
+          write(nulerr,'(a,i0,a,i0,a)') '*** Error: ', size(this%wavelength_mono), &
+               &  ' monochromatic wavelengths requested but ', &
+               &  size(wavelength_tmp), ' in file'
+          call radiation_abort('Radiation configuration error')
+        end if
+        if (any(abs(this%wavelength_mono-wavelength_tmp) &
+               &  / this%wavelength_mono > 0.01_jprb)) then
+          write(nulerr,'(a,a)') '*** Error: requested monochromatic wavelengths', &
+               &  'must all be within 1% of values in file'
+          call radiation_abort('Radiation configuration error')
+        end if
+      else
+        ! User has not provided required wavelengths, so we save the
+        ! monochromatic wavelengths in the file
+        call file%get('wavelength_mono', this%wavelength_mono)
+      end if
+
       call file%get('mass_ext_mono_hydrophobic', this%mass_ext_mono_phobic)
       call file%get('ssa_mono_hydrophobic',      this%ssa_mono_phobic)
       call file%get('asymmetry_mono_hydrophobic',this%g_mono_phobic)
@@ -233,16 +266,16 @@ contains
       if (size(this%mass_ext_lw_philic,1) /= this%n_bands_lw) then
         write(nulerr,'(a,a)') '*** Error: mass extinction for hydrophilic and hydrophobic ', &
              &                'aerosol have different numbers of longwave bands'
-        call radiation_abort()
+        call radiation_abort('Radiation configuration error')
       end if
       if (size(this%mass_ext_sw_philic,1) /= this%n_bands_sw) then
         write(nulerr,'(a,a)') '*** Error: mass extinction for hydrophilic and hydrophobic ', &
              &                'aerosol have different numbers of shortwave bands'
-        call radiation_abort()
+        call radiation_abort('Radiation configuration error')
       end if
       if (size(this%rh_lower) /= this%nrh) then
         write(nulerr,'(a)') '*** Error: size(relative_humidity1) /= size(mass_ext_sw_hydrophilic,2)'
-        call radiation_abort()
+        call radiation_abort('Radiation configuration error')
       end if
 
     else
