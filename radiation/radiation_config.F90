@@ -26,6 +26,7 @@
 !   2019-02-03  R. Hogan  Added ability to fix out-of-physical-bounds inputs
 !   2019-02-10  R. Hogan  Renamed "encroachment" to "entrapment"
 !   2020-05-18  R. Hogan  Moved out_of_bounds_* to radiation_check.F90
+!   2021-07-04  R. Hogan  Numerous changes for ecCKD and general cloud/aerosol optics
 !
 ! Note: The aim is for ecRad in the IFS to be as similar as possible
 ! to the offline version, so if you make any changes to this or any
@@ -596,6 +597,7 @@ module radiation_config
      procedure :: get_sw_weights
      procedure :: define_sw_albedo_intervals
      procedure :: define_lw_emiss_intervals
+     procedure :: set_aerosol_wavelength_mono
      procedure :: consolidate_sw_albedo_intervals
      procedure :: consolidate_lw_emiss_intervals
 
@@ -1653,7 +1655,7 @@ contains
   ! settings.
   subroutine set_aerosol_wavelength_mono(this, wavelength_mono)
 
-    use radiation_io, only : nulout, nulerr, nulrad, radiation_abort
+    use radiation_io, only : nulerr, radiation_abort
     
     class(config_type), intent(inout) :: this
     real(jprb),         intent(in)    :: wavelength_mono(:)

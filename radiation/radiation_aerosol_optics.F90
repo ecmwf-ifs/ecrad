@@ -272,7 +272,7 @@ contains
           weight1 = 0.0_jprb
         else
           iwn = 1
-          do while (wavenumber(iwn) > wavenumber_target .and. iwn < nwn-1)
+          do while (wavenumber(iwn+1) < wavenumber_target .and. iwn < nwn-1)
             iwn = iwn + 1
           end do
           weight1 = (wavenumber(iwn+1)-wavenumber_target) &

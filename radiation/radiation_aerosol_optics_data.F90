@@ -347,6 +347,7 @@ contains
       allocate(this%mass_ext_mono_phobic(n_mono_wl, n_type_phobic))
       allocate(this%ssa_mono_phobic(n_mono_wl, n_type_phobic))
       allocate(this%g_mono_phobic(n_mono_wl, n_type_phobic))
+      allocate(this%lidar_ratio_mono_phobic(n_mono_wl, n_type_phobic))
     end if
 
     if (n_type_philic > 0 .and. nrh > 0) then
@@ -364,6 +365,7 @@ contains
         allocate(this%mass_ext_mono_philic(n_mono_wl, nrh, n_type_philic))
         allocate(this%ssa_mono_philic(n_mono_wl, nrh, n_type_philic))
         allocate(this%g_mono_philic(n_mono_wl, nrh, n_type_philic))
+        allocate(this%lidar_ratio_mono_philic(n_mono_wl, nrh, n_type_philic))
       end if
     end if
 
