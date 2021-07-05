@@ -1492,6 +1492,7 @@ contains
 
     use parkind1, only : jprb
     use radiation_io, only : nulout, nulerr, radiation_abort
+    use radiation_spectral_definition, only : SolarReferenceTemperature
 
     class(config_type), intent(in) :: this
     ! Range of wavelengths to get weights for (m)
@@ -1504,6 +1505,8 @@ contains
     integer,    intent(out)   :: iband(:)
     real(jprb), intent(out)   :: weight(:)
     character(len=*), optional, intent(in) :: weighting_name
+
+    real(jprb), allocatable   :: mapping(:,:)
 
     ! Internally we deal with wavenumber
     real(jprb) :: wavenumber1, wavenumber2 ! cm-1
@@ -1521,18 +1524,18 @@ contains
     wavenumber1 = 0.01_jprb / wavelength2
     wavenumber2 = 0.01_jprb / wavelength1
 
-    nweights = 0
+    call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
+         &  [wavelength1, wavelength2], [1, 2, 3], mapping, &
+         &  use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point), use_fluxes=.true.)
 
-    do jband = 1,this%n_bands_sw
-      wavenumber1_band = this%gas_optics_sw%spectral_def%wavenumber1_band(jband)
-      wavenumber2_band = this%gas_optics_sw%spectral_def%wavenumber2_band(jband)
-      
-      if (wavenumber1 < wavenumber2_band .and. wavenumber2 > wavenumber1_band) then
+    ! "mapping" now contains a 3*nband matrix, where mapping(2,:)
+    ! contains the weights of interest.  We now find the non-zero weights
+    nweights = 0
+    do jband = 1,size(mapping,2)
+      if (mapping(2,jband) > 0.0_jprb) then
         nweights = nweights+1
-        iband(nweights) = jband
-        weight(nweights) = (min(wavenumber2,wavenumber2_band) &
-             &         - max(wavenumber1,wavenumber1_band)) &
-             & / (wavenumber2_band - wavenumber1_band)
+        iband(nweights) = jband;
+        weight(nweights) = mapping(2,jband)
       end if
     end do
 
@@ -1544,13 +1547,19 @@ contains
       write(nulout,'(a,a,a,f6.0,a,f6.0,a)') 'Spectral weights for ', &
            &  weighting_name, ' (', wavenumber1, ' to ', &
            &  wavenumber2, ' cm-1):'
-      do jband = 1, nweights
-        wavenumber1_band = this%gas_optics_sw%spectral_def%wavenumber1_band(iband(jband))
-        wavenumber2_band = this%gas_optics_sw%spectral_def%wavenumber2_band(iband(jband))
-        write(nulout, '(a,i0,a,f6.0,a,f6.0,a,f8.4)') '  Shortwave band ', &
-             &  iband(jband), ' (', wavenumber1_band, ' to ', &
-             &  wavenumber2_band, ' cm-1): ', weight(jband)
-      end do
+      if (this%do_cloud_aerosol_per_sw_g_point) then
+        do jband = 1, nweights
+          write(nulout, '(a,i0,a,f8.4)') '  Shortwave g point ', iband(jband), ': ', weight(jband)
+        end do
+      else
+        do jband = 1, nweights
+          wavenumber1_band = this%gas_optics_sw%spectral_def%wavenumber1_band(iband(jband))
+          wavenumber2_band = this%gas_optics_sw%spectral_def%wavenumber2_band(iband(jband))
+          write(nulout, '(a,i0,a,f6.0,a,f6.0,a,f8.4)') '  Shortwave band ', &
+               &  iband(jband), ' (', wavenumber1_band, ' to ', &
+               &  wavenumber2_band, ' cm-1): ', weight(jband)
+        end do
+      end if
     end if
 
   end subroutine get_sw_weights
@@ -1700,6 +1709,8 @@ contains
       ! The user has not specified shortwave albedo bands - assume
       ! only one
       ninterval = 1
+      this%i_sw_albedo_index(1) = 1
+      this%i_sw_albedo_index(2:) = 0
       if (this%use_canopy_full_spectrum_sw) then
         this%n_canopy_bands_sw = this%n_g_sw
       else 
@@ -1769,6 +1780,8 @@ contains
       ! The user has not specified longwave emissivity bands - assume
       ! only one
       ninterval = 1
+      this%i_lw_emiss_index(1) = 1
+      this%i_lw_emiss_index(2:) = 0
       if (this%use_canopy_full_spectrum_sw) then
         this%n_canopy_bands_lw = this%n_g_lw
       else 

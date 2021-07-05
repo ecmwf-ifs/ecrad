@@ -420,16 +420,21 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Compute a mapping matrix "mapping" that can be used in an
+  ! Under normal operation (if use_fluxes is .false. or not present),
+  ! compute a mapping matrix "mapping" that can be used in an
   ! expression y=matmul(mapping^T,x) where x is a variable containing
   ! optical properties in input bands (e.g. albedo in shortwave albedo
   ! bands), and y is this variable mapped on to the spectral intervals
   ! in the spectral definition "this". Temperature (K) is used to
   ! generate a Planck function to weight each input band
   ! appropriately. Note that "mapping" is here transposed from the
-  ! convention in the calc_mapping routine.
+  ! convention in the calc_mapping routine.  Under the alternative
+  ! operation (if use_fluxes is present and .true.), the mapping works
+  ! in the reverse sense: if y contains fluxes in each ecRad band or
+  ! g-point, then x=matmul(mapping,y) would return fluxes in x
+  ! averaged to user-supplied "input" bands.
   subroutine calc_mapping_from_bands(this, temperature, &
-       &  wavelength_bound, i_intervals, mapping, use_bands)
+       &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
 
     use yomhook,      only : lhook, dr_hook
     use radiation_io, only : nulerr, radiation_abort
@@ -444,17 +449,20 @@ contains
     integer,    intent(in)    :: i_intervals(:)
     real(jprb), allocatable,         intent(inout) :: mapping(:,:)
     logical,    optional,            intent(in)    :: use_bands
+    logical,    optional,            intent(in)    :: use_fluxes
 
     ! Planck function and central wavenumber of each wavenumber
     ! interval of the spectral definition
     real(jprb) :: planck(this%nwav)         ! W m-2 (cm-1)-1
     real(jprb) :: wavenumber_mid(this%nwav) ! cm-1
 
+    real(jprb), allocatable :: mapping_denom(:,:)
+
     real(jprb) :: wavenumber1_bound, wavenumber2_bound
 
     ! To work out weights we sample the Planck function at five points
     ! in the interception between an input interval and a band, and
-    ! use the Trapezium rul
+    ! use the Trapezium Rule
     integer, parameter :: nsample = 5
     integer :: isamp
     real(jprb), dimension(nsample) :: wavenumber_sample, planck_sample
@@ -476,7 +484,7 @@ contains
     ! intervals to each side of the infrared window.
     integer :: ninterval
 
-    logical    :: use_bands_local
+    logical    :: use_bands_local, use_fluxes_local
 
     ! Loop indices
     integer    :: jg, jband, jin, jint
@@ -489,6 +497,12 @@ contains
       use_bands_local = use_bands
     else
       use_bands_local = .false.
+    end if
+
+    if (present(use_fluxes)) then
+      use_fluxes_local = use_fluxes
+    else
+      use_fluxes_local = .false.
     end if
 
     ! Count the number of input intervals 
@@ -510,20 +524,17 @@ contains
     end if
 
     ! Define the mapping matrix
-    if (ninterval < 2) then
-      ! Simple case of one band
-      if (use_bands_local) then
-        allocate(mapping(1, this%nband))
-      else
-        allocate(mapping(1, this%ng))
-      end if
-      mapping = 1.0_jprb
-
-    else if (use_bands_local) then
+    if (use_bands_local) then
       ! Require properties per band
 
       allocate(mapping(ninput, this%nband))
       mapping = 0.0_jprb
+
+      if (use_fluxes_local) then
+        allocate(mapping_denom(ninput, this%nband))
+        mapping_denom = 0.0_jprb
+      end if
+
       do jband = 1,this%nband
         do jint = 1,ninterval
           if (jint == 1) then
@@ -555,10 +566,24 @@ contains
             planck_sample = calc_planck_function_wavenumber(wavenumber_sample, temperature)
             mapping(i_intervals(jint),jband) = mapping(i_intervals(jint),jband) &
                  &  + sum(planck_sample*weight_sample) * (wavenumber2_bound-wavenumber1_bound)
+            if (use_fluxes_local) then
+              ! Compute an equivalent sample containing the entire ecRad band
+              wavenumber_sample = this%wavenumber1_band(jband) + [(isamp,isamp=0,nsample-1)] &
+                   &  * (this%wavenumber2_band(jband)-this%wavenumber1_band(jband)) &
+                   &  / real(nsample-1,jprb)
+              planck_sample = calc_planck_function_wavenumber(wavenumber_sample, temperature)
+              mapping_denom(i_intervals(jint),jband) = mapping_denom(i_intervals(jint),jband) &
+                 &  + sum(planck_sample*weight_sample) * (this%wavenumber2_band(jband)-this%wavenumber1_band(jband))
+            end if
           end if
 
         end do
       end do
+
+      if (use_fluxes_local) then
+        mapping = mapping / max(1.0e-12_jprb, mapping_denom)
+        deallocate(mapping_denom)
+      end if
 
     else
       ! Require properties per g-point
@@ -607,15 +632,20 @@ contains
         do jin = 1,ninput
           mapping(jin,jg) = sum(this%gpoint_fraction(:,jg) * planck, &
                &                 mask=(i_input==jin))
+          if (use_fluxes_local) then
+            mapping(jin,jg) = mapping(jin,jg) / sum(this%gpoint_fraction(:,jg) * planck)
+          end if
         end do
       end do
 
     end if
 
-    ! Normalize mapping matrix
-    do jg = 1,size(mapping,dim=2)
-      mapping(:,jg) = mapping(:,jg) * (1.0_jprb/sum(mapping(:,jg)))
-    end do
+    if (.not. use_fluxes_local) then
+      ! Normalize mapping matrix
+      do jg = 1,size(mapping,dim=2)
+        mapping(:,jg) = mapping(:,jg) * (1.0_jprb/sum(mapping(:,jg)))
+      end do
+    end if
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_bands',1,hook_handle)
 

@@ -80,6 +80,16 @@ program ecrad_driver
   integer, external :: omp_get_thread_num
   double precision, external :: omp_get_wtime
 
+  ! For demonstration of get_sw_weights later on
+  ! Ultraviolet weightings
+  !integer    :: nweight_uv
+  !integer    :: iband_uv(100)
+  !real(jprb) :: weight_uv(100)
+  ! Photosynthetically active radiation weightings
+  !integer    :: nweight_par
+  !integer    :: iband_par(100)
+  !real(jprb) :: weight_par(100)
+
   ! Loop index for repeats (for benchmarking)
   integer :: jrepeat
 
@@ -135,9 +145,30 @@ program ecrad_driver
   !     &  [8.0e-6_jprb, 13.0e-6_jprb], [1,2,1], &
   !     &   do_nearest=.false.)
 
+  ! If monochromatic aerosol properties are required, then the
+  ! wavelengths can be specified (in metres) as follows - these can be
+  ! whatever you like for the general aerosol optics, but must match
+  ! the monochromatic values in the aerosol input file for the older
+  ! aerosol optics
+  call config%set_aerosol_wavelength_mono( &
+       &  [3.4e-07_jprb, 3.55e-07_jprb, 3.8e-07_jprb, 4.0e-07_jprb, 4.4e-07_jprb, &
+       &   4.69e-07_jprb, 5.0e-07_jprb, 5.32e-07_jprb, 5.5e-07_jprb, 6.45e-07_jprb, &
+       &   6.7e-07_jprb, 8.0e-07_jprb, 8.58e-07_jprb, 8.65e-07_jprb, 1.02e-06_jprb, &
+       &   1.064e-06_jprb, 1.24e-06_jprb, 1.64e-06_jprb, 2.13e-06_jprb, 1.0e-05_jprb])
+
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
   call setup_radiation(config)
+
+  ! Demonstration of how to get weights for UV and PAR fluxes
+  !if (config%do_sw) then
+  !  call config%get_sw_weights(0.2e-6_jprb, 0.4415e-6_jprb,&
+  !       &  nweight_uv, iband_uv, weight_uv,&
+  !       &  'ultraviolet')
+  !  call config%get_sw_weights(0.4e-6_jprb, 0.7e-6_jprb,&
+  !       &  nweight_par, iband_par, weight_par,&
+  !       &  'photosynthetically active radiation, PAR')
+  !end if
 
   ! --------------------------------------------------------
   ! Section 3: Read input data file

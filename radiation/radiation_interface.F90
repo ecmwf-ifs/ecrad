@@ -105,8 +105,12 @@ contains
 
     ! Consolidate the albedo/emissivity intervals with the shortwave
     ! and longwave spectral bands
-    call config%consolidate_sw_albedo_intervals
-    call config%consolidate_lw_emiss_intervals
+    if (config%do_sw) then
+      call config%consolidate_sw_albedo_intervals
+    end if
+    if (config%do_lw) then
+      call config%consolidate_lw_emiss_intervals
+    end if
 
     if (config%do_clouds) then
       if (config%i_gas_model == IGasModelMonochromatic) then
