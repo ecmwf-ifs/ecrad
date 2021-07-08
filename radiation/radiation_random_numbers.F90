@@ -165,10 +165,11 @@ contains
       imax = min(this%nmaxstreams, size(randnum))
 
       ! C++ minstd_rand algorithm
-      DO i = 1, imax
+      do i = 1, imax
         this%istate(i) = mod(IMinstdA * this%istate(i), IMinstdM)
         randnum(i) = IMinstdScale * this%istate(i)
-      ENDDO
+      end do
+
     else
 
       call random_number(randnum)
@@ -197,10 +198,10 @@ contains
       ! C++ minstd_ran algorithm
       do jblock = 1,size(randnum,2)
         ! These lines should be vectorizable
-        DO i = 1, imax
+        do i = 1, imax
           this%istate(i) = mod(IMinstdA * this%istate(i), IMinstdM)
           randnum(i,jblock) = IMinstdScale * this%istate(i)
-        ENDDO
+        end do
       end do
 
     else
@@ -233,10 +234,10 @@ contains
       do jblock = 1,size(randnum,2)
         if (mask(jblock)) then
           ! These lines should be vectorizable
-          DO i = 1, imax
+          do i = 1, imax
             this%istate(i) = mod(IMinstdA * this%istate(i), IMinstdM)
             randnum(i,jblock) = IMinstdScale * this%istate(i)
-          ENDDO
+          end do
         end if
       end do
 
