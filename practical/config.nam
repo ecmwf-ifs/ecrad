@@ -62,6 +62,7 @@ do_surface_sw_spectral_flux = false,  ! Save surface fluxes in each band?
 !
 ! CLOUDS
 !
+use_general_cloud_optics = false,
 ice_model_name      = "Fu-IFS",       ! Can be "Fu-IFS" or "Yi"
 sw_solver_name      = "Tripleclouds", ! "Tripleclouds", "McICA" or "SPARTACUS"
 lw_solver_name      = "Tripleclouds", ! "Tripleclouds", "McICA" or "SPARTACUS"
@@ -72,6 +73,7 @@ gas_model_name      = "RRTMG-IFS",    ! "RRTMG-IFS" or "ECCKD"
 ! AEROSOLS
 !
 use_aerosols             = true,      ! Radiation sees aerosols?
+use_general_aerosol_optics=false,
 do_lw_aerosol_scattering = false,     ! Aerosols scatter in the longwave?
 !
 ! 11 IFS aerosol mixing ratios are stored in the ecRad input file: 1-3

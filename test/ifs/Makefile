@@ -7,12 +7,20 @@ CHANGENAM = ../common/change_namelist.sh
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
 CONFIG = configCY47R1.nam
+CONFIG_ECCKD = configCY49R1.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
 
-test: test_default test_noaer test_expran test_expran_vec test_tripleclouds test_spartacus \
-	test_spartacus_maxentr test_ecckd test_ecckd_noaer test_ecckd_spartacus
+test: test_orig test_ecckd
+
+# Tests of CY47R1 configuration with RRTMG gas optics model and
+# various solvers
+test_orig: test_default test_noaer test_expran test_expran_vec test_tripleclouds test_spartacus \
+	test_spartacus_maxentr
+
+# Tests of ecCKD gas optics model and various solvers
+test_ecckd: test_ecckd_mcica test_ecckd_tc test_ecckd_tc_noaer test_ecckd_spartacus
 
 # Default IFS settings: McICA solver with exponential-exponential
 # overlap
@@ -61,43 +69,6 @@ test_spartacus_maxentr:
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
 
-# ecCKD gas optics scheme
-test_ecckd:
-	$(CHANGENAM) $(CONFIG) config_ecckd.nam \
-		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"' \
-		do_nearest_spectral_lw_emiss=false \
-		use_general_cloud_optics=true use_general_aerosol_optics=true
-	$(DRIVER) config_ecckd.nam $(INPUT).nc $(INPUT)_ecckd_out.nc
-#		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"'
-
-test_ecckd_tc:
-	$(CHANGENAM) $(CONFIG) config_ecckd_tc.nam \
-		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"' \
-		 overlap_scheme_name='"Exp-Ran"' \
-		do_nearest_spectral_lw_emiss=false \
-		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
-		use_general_cloud_optics=true use_general_aerosol_optics=true
-	$(DRIVER) config_ecckd_tc.nam $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
-
-# ecCKD gas optics with SPARTACUS solver
-test_ecckd_spartacus:
-	$(CHANGENAM) $(CONFIG) config_ecckd_spartacus.nam \
-		gas_model_name='"ECCKD"' aerosol_optics_override_file_name='"aerosol_ifs_48R1.nc"' \
-		do_nearest_spectral_lw_emiss=false \
-		use_general_cloud_optics=true use_general_aerosol_optics=true \
-		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
-		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
-		do_sw_delta_scaling_with_gases="false"
-	$(DRIVER) config_ecckd_spartacus.nam $(INPUT).nc $(INPUT)_ecckd_spartacus_out.nc
-
-# ecCKD gas optics with no aerosol
-test_ecckd_noaer:
-	$(CHANGENAM) $(CONFIG) config_ecckd_noaer.nam \
-		gas_model_name='"ECCKD"' use_aerosols=false \
-		do_nearest_spectral_lw_emiss=false \
-		use_general_cloud_optics=true use_general_aerosol_optics=true
-	$(DRIVER) config_ecckd_noaer.nam $(INPUT).nc $(INPUT)_ecckd_noaer_out.nc
-
 # "Cloudless" solver
 test_cloudless:
 	$(CHANGENAM) $(CONFIG) config_cloudless.nam \
@@ -110,6 +81,32 @@ test_expran_vec:
 	$(CHANGENAM) $(CONFIG) config_expran_vec.nam \
 		overlap_scheme_name='"Exp-Ran"' use_vectorizable_generator=true
 	$(DRIVER) config_expran_vec.nam $(INPUT).nc $(INPUT)_expran_vec_out.nc
+
+
+### The following targets use the $CONFIG_ECCKD configuration file ###
+
+# ecCKD gas optics scheme (note that default solver is Tripleclouds)
+test_ecckd_mcica:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_mcica.nam \
+		sw_solver_name='"McICA"' lw_solver_name='"McICA"'
+	$(DRIVER) config_ecckd_mcica.nam $(INPUT).nc $(INPUT)_ecckd_mcica_out.nc
+
+# ecCKD with Tripleclouds solver (default)
+test_ecckd_tc:
+	$(DRIVER) $(CONFIG_ECCKD) $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
+
+# ecCKD gas optics with SPARTACUS solver (not currently correct)
+test_ecckd_spartacus:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_spartacus.nam \
+		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
+		do_3d_effects="true" 
+	$(DRIVER) config_ecckd_spartacus.nam $(INPUT).nc $(INPUT)_ecckd_spartacus_out.nc
+
+# ecCKD gas optics with no aerosol
+test_ecckd_tc_noaer:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_tc_noaer.nam \
+		use_aerosols=false 
+	$(DRIVER) config_ecckd_tc_noaer.nam $(INPUT).nc $(INPUT)_ecckd_tc_noaer_out.nc
 
 # Clean data files
 clean:
