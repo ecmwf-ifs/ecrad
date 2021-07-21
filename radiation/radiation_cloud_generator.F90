@@ -39,6 +39,9 @@ contains
        &  frac, overlap_param, decorrelation_scaling, &
        &  fractional_std, pdf_sampler, &
        &  od_scaling, total_cloud_cover, &
+       &  cum_cloud_cover, rand_top, overlap_param_inhom, &
+       &  pair_cloud_cover, overhang, tmp_work_nlev1, &
+       &  tmp_work_nlev2, tmp_work_nlev3, &
        &  use_beta_overlap, use_vectorizable_generator)
 
     use parkind1, only           : jprb
@@ -103,16 +106,19 @@ contains
     ! Local variables
 
     ! Cumulative cloud cover from TOA to the base of each layer
-    real(jprb) :: cum_cloud_cover(nlev)
+    real(jprb), intent(in) :: cum_cloud_cover(nlev)
 
     ! Scaled random number for finding cloud
     real(jprb) :: trigger
 
     ! Uniform deviates between 0 and 1
-    real(jprb) :: rand_top(ng)
+    real(jprb), intent(in) :: rand_top(ng)
 
     ! Overlap parameter of inhomogeneities
-    real(jprb) :: overlap_param_inhom(nlev-1)
+    real(jprb), intent(in) :: overlap_param_inhom(nlev-1)
+
+    real(jprb), intent(in) :: tmp_work_nlev1(nlev), tmp_work_nlev2(nlev), &
+      &  tmp_work_nlev3(nlev)
 
     ! Seed for random number generator and stream for producing random
     ! numbers
@@ -128,7 +134,7 @@ contains
 
     ! Cloud cover of a pair of layers, and amount by which cloud at
     ! next level increases total cloud cover as seen from above
-    real(jprb), dimension(nlev-1) :: pair_cloud_cover, overhang
+    real(jprb), intent(in), dimension(nlev-1) :: pair_cloud_cover, overhang
 
     logical :: use_vec_gen
 
@@ -226,7 +232,7 @@ contains
             call generate_column_exp_exp(ng, nlev, jg, random_stream, pdf_sampler, &
                  &  frac, pair_cloud_cover, &
                  &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-                 &  itrigger, iend, od_scaling)
+                 &  itrigger, iend, od_scaling, tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3)
           end if
           
         end do
@@ -397,7 +403,7 @@ contains
   subroutine generate_column_exp_exp(ng, nlev, ig, random_stream, pdf_sampler, &
        &  frac, pair_cloud_cover, &
        &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-       &  itrigger, iend, od_scaling)
+       &  itrigger, iend, od_scaling, rand_cloud, rand_inhom1, rand_inhom2)
 
     use parkind1,              only : jprb
     use radiation_pdf_sampler, only : pdf_sampler_type
@@ -441,8 +447,8 @@ contains
 
     integer :: iy
 
-    real(jprb) :: rand_cloud(nlev)
-    real(jprb) :: rand_inhom1(nlev), rand_inhom2(nlev)
+    real(jprb), intent(in) :: rand_cloud(nlev)
+    real(jprb), intent(in) :: rand_inhom1(nlev), rand_inhom2(nlev)
 
     ! For each column analysed, this vector locates the clouds. It is
     ! only actually used for Exp-Exp overlap
@@ -506,75 +512,14 @@ contains
     end do
         
     ! Sample from a lognormal or gamma distribution to obtain the
-    ! optical depth scalings
-
-    ! Masked version assuming values outside the range itrigger:iend
-    ! are already zero:
+    ! optical depth scalings, calling the faster masked version and
+    ! assuming values outside the range itrigger:iend are already zero
     call pdf_sampler%masked_sample(n_layers_to_scale, &
          &  fractional_std(itrigger:iend), &
          &  rand_inhom1(1:n_layers_to_scale), od_scaling(ig,itrigger:iend), &
          &  is_cloudy(itrigger:iend))
         
-    ! ! IFS version:
-    ! !$omp simd 
-    ! do jlev=itrigger,iend
-    !    if (.not. is_cloudy(jlev)) then
-    !       od_scaling(ig,jlev) = 0.0_jprb
-    !    else
-    !       call sample_from_pdf_simd(&
-    !            pdf_sampler,fractional_std(jlev),&
-    !            rand_inhom1(jlev-itrigger+1), &
-    !            od_scaling(ig,jlev))
-    !    end if
-    ! end do
-
   end subroutine generate_column_exp_exp
-
-
-  !---------------------------------------------------------------------
-  ! Extract the value of a lognormal distribution with fractional
-  ! standard deviation "fsd" corresponding to the cumulative
-  ! distribution function value "cdf", and return it in x. Since this
-  ! is an elemental subroutine, fsd, cdf and x may be arrays. SIMD version.
-  subroutine sample_from_pdf_simd(this, fsd, cdf, x)
-    use parkind1,              only : jprb
-    use radiation_pdf_sampler, only : pdf_sampler_type
-    implicit none
-#if defined(__GFORTRAN__) || defined(__PGI) || defined(__NEC__)
-#else
-    !$omp declare simd(sample_from_pdf_simd) uniform(this) &
-    !$omp linear(ref(fsd)) linear(ref(cdf))
-#endif
-    type(pdf_sampler_type), intent(in)  :: this
-
-    ! Fractional standard deviation (0 to 4) and cumulative
-    ! distribution function (0 to 1)
-    real(jprb),              intent(in)  :: fsd, cdf
-
-    ! Sample from distribution
-    real(jprb),              intent(out) :: x
-
-    ! Index to look-up table
-    integer    :: ifsd, icdf
-
-    ! Weights in bilinear interpolation
-    real(jprb) :: wfsd, wcdf
-
-    ! Bilinear interpolation with bounds
-    wcdf = cdf * (this%ncdf-1) + 1.0_jprb
-    icdf = max(1, min(int(wcdf), this%ncdf-1))
-    wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
-
-    wfsd = (fsd-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
-    ifsd = max(1, min(int(wfsd), this%nfsd-1))
-    wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
-
-    x =      (1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
-         & + (1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
-         & +           wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
-         & +           wcdf *          wfsd  * this%val(icdf+1,ifsd+1)
-
-  end subroutine sample_from_pdf_simd
 
 
   !---------------------------------------------------------------------
