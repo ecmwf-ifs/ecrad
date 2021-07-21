@@ -129,9 +129,9 @@ contains
     logical :: is_clear_sky_layer(nlev)
 
     ! Temporary working array
-    real(jprb), dimension(nlev) :: tmp_work_nlev, tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3
-    real(jprb), dimension(config%n_g_lw) :: tmp_work_ng
-    real(jprb), dimension(nlev-1) :: tmp_work_nlevm1, tmp_work_nlevm2, tmp_work_nlevm3
+    real(jprb), dimension(nlev, istartcol:iendcol) :: tmp_work_nlev, tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3
+    real(jprb), dimension(config%n_g_lw, istartcol:iendcol) :: tmp_work_ng
+    real(jprb), dimension(nlev-1, istartcol:iendcol) :: tmp_work_nlevm1, tmp_work_nlevm2, tmp_work_nlevm3
 
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
@@ -210,9 +210,9 @@ contains
            &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
            &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
            &  config%pdf_sampler, od_scaling, total_cloud_cover, &
-           &  tmp_work_nlev, tmp_work_ng, tmp_work_nlevm1, &
-           &  tmp_work_nlevm2, tmp_work_nlevm3, &
-           &  tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3, &
+           &  tmp_work_nlev(:,jcol), tmp_work_ng(:,jcol), tmp_work_nlevm1(:,jcol), &
+           &  tmp_work_nlevm2(:,jcol), tmp_work_nlevm3(:,jcol), &
+           &  tmp_work_nlev1(:,jcol), tmp_work_nlev2(:,jcol), tmp_work_nlev3(:,jcol), &
            &  use_beta_overlap=config%use_beta_overlap, &
            &  use_vectorizable_generator=config%use_vectorizable_generator)
       

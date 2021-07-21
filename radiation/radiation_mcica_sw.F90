@@ -121,11 +121,11 @@ contains
     real(jprb), dimension(config%n_g_sw) :: od_cloud_new
 
     ! Temporary working array
-    real(jprb), dimension(nlev) :: tmp_work_nlev, tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3
-    real(jprb), dimension(config%n_g_sw) :: tmp_work_ng
-    real(jprb), dimension(nlev-1) :: tmp_work_nlevm1, tmp_work_nlevm2, tmp_work_nlevm3
-    real(jprb), dimension(config%n_g_sw,nlev+1) :: tmp_work_ngnlevp1, tmp_work_ngnlevp2
-    real(jprb), dimension(config%n_g_sw,nlev) :: tmp_work_ngnlev
+    real(jprb), dimension(nlev,istartcol:iendcol) :: tmp_work_nlev, tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3
+    real(jprb), dimension(config%n_g_sw,istartcol:iendcol) :: tmp_work_ng
+    real(jprb), dimension(nlev-1,istartcol:iendcol) :: tmp_work_nlevm1, tmp_work_nlevm2, tmp_work_nlevm3
+    real(jprb), dimension(config%n_g_sw,nlev+1,istartcol:iendcol) :: tmp_work_ngnlevp1, tmp_work_ngnlevp2
+    real(jprb), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: tmp_work_ngnlev
 
     ! Total cloud cover output from the cloud generator
     real(jprb) :: total_cloud_cover
@@ -193,7 +193,7 @@ contains
              &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), spread(cos_sza,1,ng), &
              &  ref_clear, trans_clear, ref_dir_clear, trans_dir_diff_clear, &
              &  trans_dir_dir_clear, flux_up, flux_dn_diffuse, flux_dn_direct, &
-             &  tmp_work_ngnlevp1, tmp_work_ngnlevp2, tmp_work_ngnlev)
+             &  tmp_work_ngnlevp1(:,:,jcol), tmp_work_ngnlevp2(:,:,jcol), tmp_work_ngnlev(:,:,jcol))
         
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes
@@ -218,9 +218,9 @@ contains
              &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
              &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
              &  config%pdf_sampler, od_scaling, total_cloud_cover, &
-             &  tmp_work_nlev, tmp_work_ng, tmp_work_nlevm1, &
-             &  tmp_work_nlevm2, tmp_work_nlevm3, &
-             &  tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3, &
+             &  tmp_work_nlev(:,jcol), tmp_work_ng(:,jcol), tmp_work_nlevm1(:,jcol), &
+             &  tmp_work_nlevm2(:,jcol), tmp_work_nlevm3(:,jcol), &
+             &  tmp_work_nlev1(:,jcol), tmp_work_nlev2(:,jcol), tmp_work_nlev3(:,jcol), &
              &  use_beta_overlap=config%use_beta_overlap, &
              &  use_vectorizable_generator=config%use_vectorizable_generator)
 
@@ -291,7 +291,7 @@ contains
                &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), spread(cos_sza,1,ng), &
                &  reflectance, transmittance, ref_dir, trans_dir_diff, &
                &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
-               &  tmp_work_ngnlevp1, tmp_work_ngnlevp2, tmp_work_ngnlev)
+               &  tmp_work_ngnlevp1(:,:,jcol), tmp_work_ngnlevp2(:,:,jcol), tmp_work_ngnlev(:,:,jcol))
           
           ! Store overcast broadband fluxes
           flux%sw_up(jcol,:) = sum(flux_up,1)
