@@ -106,18 +106,18 @@ contains
     ! Local variables
 
     ! Cumulative cloud cover from TOA to the base of each layer
-    real(jprb), intent(in) :: cum_cloud_cover(nlev)
+    real(jprb), intent(out) :: cum_cloud_cover(nlev)
 
     ! Scaled random number for finding cloud
     real(jprb) :: trigger
 
     ! Uniform deviates between 0 and 1
-    real(jprb), intent(in) :: rand_top(ng)
+    real(jprb), intent(out) :: rand_top(ng)
 
     ! Overlap parameter of inhomogeneities
-    real(jprb), intent(in) :: overlap_param_inhom(nlev-1)
+    real(jprb), intent(out) :: overlap_param_inhom(nlev-1)
 
-    real(jprb), intent(in) :: tmp_work_nlev1(nlev), tmp_work_nlev2(nlev), &
+    real(jprb), intent(out) :: tmp_work_nlev1(nlev), tmp_work_nlev2(nlev), &
       &  tmp_work_nlev3(nlev)
 
     ! Seed for random number generator and stream for producing random
@@ -134,7 +134,7 @@ contains
 
     ! Cloud cover of a pair of layers, and amount by which cloud at
     ! next level increases total cloud cover as seen from above
-    real(jprb), intent(in), dimension(nlev-1) :: pair_cloud_cover, overhang
+    real(jprb), intent(inout), dimension(nlev-1) :: pair_cloud_cover, overhang
 
     logical :: use_vec_gen
 
@@ -447,8 +447,8 @@ contains
 
     integer :: iy
 
-    real(jprb), intent(in) :: rand_cloud(nlev)
-    real(jprb), intent(in) :: rand_inhom1(nlev), rand_inhom2(nlev)
+    real(jprb), intent(out) :: rand_cloud(nlev)
+    real(jprb), intent(out) :: rand_inhom1(nlev), rand_inhom2(nlev)
 
     ! For each column analysed, this vector locates the clouds. It is
     ! only actually used for Exp-Exp overlap

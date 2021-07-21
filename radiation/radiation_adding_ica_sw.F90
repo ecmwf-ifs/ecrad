@@ -65,14 +65,14 @@ contains
     
     ! Albedo of the entire earth/atmosphere system below each half
     ! level
-    real(jprb), intent(in), dimension(ncol, nlev+1) :: albedo
+    real(jprb), intent(OUT), dimension(ncol, nlev+1) :: albedo
 
     ! Upwelling radiation at each half-level due to scattering of the
     ! direct beam below that half-level (W m-2)
-    real(jprb), intent(in), dimension(ncol, nlev+1) :: source
+    real(jprb), intent(OUT), dimension(ncol, nlev+1) :: source
 
     ! Equal to 1/(1-albedo*reflectance)
-    real(jprb), intent(in), dimension(ncol, nlev)   :: inv_denominator
+    real(jprb), intent(OUT), dimension(ncol, nlev)   :: inv_denominator
 
     ! Loop index for model level and column
     integer :: jlev, jcol
