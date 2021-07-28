@@ -126,6 +126,7 @@ contains
     real(jprb), dimension(nlev-1,istartcol:iendcol) :: tmp_work_nlevm1, tmp_work_nlevm2, tmp_work_nlevm3
     real(jprb), dimension(config%n_g_sw,nlev+1,istartcol:iendcol) :: tmp_work_ngnlevp1, tmp_work_ngnlevp2
     real(jprb), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: tmp_work_ngnlev
+    real(jprb), dimension(999, istartcol:iendcol) :: tmp_work_jpwarmup_lf
 
     ! Total cloud cover output from the cloud generator
     real(jprb) :: total_cloud_cover
@@ -221,6 +222,7 @@ contains
              &  tmp_work_nlev(:,jcol), tmp_work_ng(:,jcol), tmp_work_nlevm1(:,jcol), &
              &  tmp_work_nlevm2(:,jcol), tmp_work_nlevm3(:,jcol), &
              &  tmp_work_nlev1(:,jcol), tmp_work_nlev2(:,jcol), tmp_work_nlev3(:,jcol), &
+             &  tmp_work_jpwarmup_lf(:,jcol), &
              &  use_beta_overlap=config%use_beta_overlap, &
              &  use_vectorizable_generator=config%use_vectorizable_generator)
 

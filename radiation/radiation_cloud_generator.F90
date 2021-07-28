@@ -41,7 +41,7 @@ contains
        &  od_scaling, total_cloud_cover, &
        &  cum_cloud_cover, rand_top, overlap_param_inhom, &
        &  pair_cloud_cover, overhang, tmp_work_nlev1, &
-       &  tmp_work_nlev2, tmp_work_nlev3, &
+       &  tmp_work_nlev2, tmp_work_nlev3, tmp_work_jpwarmup_lfg, &
        &  use_beta_overlap, use_vectorizable_generator)
 
     use parkind1, only           : jprb
@@ -119,6 +119,8 @@ contains
 
     real(jprb), intent(out) :: tmp_work_nlev1(nlev), tmp_work_nlev2(nlev), &
       &  tmp_work_nlev3(nlev)
+
+    real(jprb), intent(out) ::  tmp_work_jpwarmup_lfg(999)
 
     ! Seed for random number generator and stream for producing random
     ! numbers
@@ -207,7 +209,7 @@ contains
 
         ! Expensive operation: initialize random number generator for
         ! this column
-        call initialize_random_numbers(iseed, random_stream)
+        call initialize_random_numbers(iseed, random_stream, tmp_work_jpwarmup_lfg)
 
         ! Compute ng random numbers to use to locate cloud top
         call uniform_distribution(rand_top, random_stream)
