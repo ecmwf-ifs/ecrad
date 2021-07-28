@@ -227,7 +227,8 @@ contains
             call generate_column_exp_ran(ng, nlev, jg, random_stream, pdf_sampler, &
                  &  frac, pair_cloud_cover, &
                  &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-                 &  itrigger, iend, od_scaling)
+                 &  itrigger, iend, od_scaling, &
+                 &  tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3)
           else
             call generate_column_exp_exp(ng, nlev, jg, random_stream, pdf_sampler, &
                  &  frac, pair_cloud_cover, &
@@ -268,7 +269,8 @@ contains
   subroutine generate_column_exp_ran(ng, nlev, ig, random_stream, pdf_sampler, &
        &  frac, pair_cloud_cover, &
        &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-       &  itrigger, iend, od_scaling)
+       &  itrigger, iend, od_scaling, &
+       &  rand_cloud, rand_inhom1, rand_inhom2)
 
     use parkind1,              only : jprb
     use radiation_pdf_sampler, only : pdf_sampler_type
@@ -320,8 +322,8 @@ contains
     ! Is it time to fill the od_scaling variable?
     logical :: do_fill_od_scaling
 
-    real(jprb) :: rand_cloud(nlev)
-    real(jprb) :: rand_inhom1(nlev), rand_inhom2(nlev)
+    real(jprb), intent(out) :: rand_cloud(nlev)
+    real(jprb), intent(out) :: rand_inhom1(nlev), rand_inhom2(nlev)
 
     ! So far our vertically contiguous cloud contains only one layer
     n_layers_to_scale = 1
