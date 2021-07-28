@@ -326,7 +326,7 @@ contains
                &  emission(:,jcol), albedo(:,jcol), &
                &  is_clear_sky_layer, i_cloud_top, flux_dn_clear, &
                &  flux_up, flux_dn, &
-               &  tmp_work_ngnlevp1(:,:,jcol), tmp_work_ngnlevp1(:,:,jcol), tmp_work_ngnlev(:,:,jcol))
+               &  tmp_work_ngnlevp1(:,:,jcol), tmp_work_ngnlevp2(:,:,jcol), tmp_work_ngnlev(:,:,jcol))
         else
           ! Simpler down-then-up method to compute fluxes
           call calc_fluxes_no_scattering_lw(ng, nlev, &
