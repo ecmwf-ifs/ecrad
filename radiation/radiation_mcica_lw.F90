@@ -132,6 +132,8 @@ contains
     real(jprb), dimension(nlev, istartcol:iendcol) :: tmp_work_nlev, tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3
     real(jprb), dimension(config%n_g_lw, istartcol:iendcol) :: tmp_work_ng
     real(jprb), dimension(nlev-1, istartcol:iendcol) :: tmp_work_nlevm1, tmp_work_nlevm2, tmp_work_nlevm3
+    real(jprb), dimension(config%n_g_lw,nlev+1,istartcol:iendcol) :: tmp_work_ngnlevp1, tmp_work_ngnlevp2
+    real(jprb), dimension(config%n_g_lw,nlev,istartcol:iendcol) :: tmp_work_ngnlev
 
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
@@ -323,7 +325,8 @@ contains
           call fast_adding_ica_lw(ng, nlev, reflectance, transmittance, source_up, source_dn, &
                &  emission(:,jcol), albedo(:,jcol), &
                &  is_clear_sky_layer, i_cloud_top, flux_dn_clear, &
-               &  flux_up, flux_dn)
+               &  flux_up, flux_dn, &
+               &  tmp_work_ngnlevp1(:,:,jcol), tmp_work_ngnlevp1(:,:,jcol), tmp_work_ngnlev(:,:,jcol))
         else
           ! Simpler down-then-up method to compute fluxes
           call calc_fluxes_no_scattering_lw(ng, nlev, &

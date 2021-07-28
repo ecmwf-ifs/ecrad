@@ -137,7 +137,8 @@ contains
   subroutine fast_adding_ica_lw(ncol, nlev, &
        &  reflectance, transmittance, source_up, source_dn, emission_surf, albedo_surf, &
        &  is_clear_sky_layer, i_cloud_top, flux_dn_clear, &
-       &  flux_up, flux_dn)
+       &  flux_up, flux_dn,&
+       &  albedo, source, inv_denominator)
 
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook
@@ -172,14 +173,14 @@ contains
     
     ! Albedo of the entire earth/atmosphere system below each half
     ! level
-    real(jprb), dimension(ncol, nlev+1) :: albedo
+    real(jprb), intent(out), dimension(ncol, nlev+1) :: albedo
 
     ! Upwelling radiation at each half-level due to emission below
     ! that half-level (W m-2)
-    real(jprb), dimension(ncol, nlev+1) :: source
+    real(jprb), intent(out), dimension(ncol, nlev+1) :: source
 
     ! Equal to 1/(1-albedo*reflectance)
-    real(jprb), dimension(ncol, nlev)   :: inv_denominator
+    real(jprb), intent(out), dimension(ncol, nlev)   :: inv_denominator
 
     ! Loop index for model level and column
     integer :: jlev, jcol
