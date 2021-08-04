@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name="ecrad_cpu"
 #SBATCH --account="s83"
-#SBATCH --time=00:10:00
+#SBATCH --time=00:01:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-core=1
 #SBATCH --ntasks-per-node=1
