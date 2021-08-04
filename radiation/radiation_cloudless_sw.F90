@@ -153,7 +153,9 @@ contains
              &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), &
              &  spread(cos_sza,1,ng), reflectance, transmittance, ref_dir, trans_dir_diff, &
              &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
-             &  tmp_work_ngnlevp1, tmp_work_ngnlevp2, tmp_work_ngnlev)
+             &  albedo=tmp_work_ngnlevp1, &
+             &  source=tmp_work_ngnlevp2, &
+             &  inv_denominator=tmp_work_ngnlev)
         
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes

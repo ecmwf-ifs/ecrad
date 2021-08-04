@@ -209,7 +209,8 @@ contains
 
         ! Expensive operation: initialize random number generator for
         ! this column
-        call initialize_random_numbers(iseed, random_stream, tmp_work_jpwarmup_lfg)
+        call initialize_random_numbers(iseed, random_stream, &
+          &                            ZWARMUP=tmp_work_jpwarmup_lfg)
 
         ! Compute ng random numbers to use to locate cloud top
         call uniform_distribution(rand_top, random_stream)
@@ -230,7 +231,9 @@ contains
                  &  frac, pair_cloud_cover, &
                  &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
                  &  itrigger, iend, od_scaling, &
-                 &  tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3)
+                 &  rand_cloud=tmp_work_nlev1, &
+                 &  rand_inhom1=tmp_work_nlev2, &
+                 &  rand_inhom2=tmp_work_nlev3)
           else
             call generate_column_exp_exp(ng, nlev, jg, random_stream, pdf_sampler, &
                  &  frac, pair_cloud_cover, &
