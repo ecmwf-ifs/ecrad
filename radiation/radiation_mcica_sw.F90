@@ -121,11 +121,19 @@ contains
     real(jprb), dimension(config%n_g_sw) :: od_cloud_new
 
     ! Temporary working array
-    real(jprb), dimension(nlev,istartcol:iendcol) :: tmp_work_nlev, tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3
+    real(jprb), dimension(nlev,istartcol:iendcol) :: tmp_work_nlev!, &
+      ! &                                              tmp_work_nlev1, &
+      ! &                                              tmp_work_nlev2, &
+      ! &                                              tmp_work_nlev3
     real(jprb), dimension(config%n_g_sw,istartcol:iendcol) :: tmp_work_ng
-    real(jprb), dimension(nlev-1,istartcol:iendcol) :: tmp_work_nlevm1, tmp_work_nlevm2, tmp_work_nlevm3
-    real(jprb), dimension(config%n_g_sw,nlev+1,istartcol:iendcol) :: tmp_work_ngnlevp1, tmp_work_ngnlevp2
-    real(jprb), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: tmp_work_ngnlev
+    real(jprb), dimension(nlev-1,istartcol:iendcol) :: tmp_work_nlevm1, &
+      &                                                tmp_work_nlevm2, &
+      &                                                tmp_work_nlevm3
+    real(jprb), dimension(config%n_g_sw,nlev+1,istartcol:iendcol) :: tmp_work_ngnlevp1, &
+      &                                                              tmp_work_ngnlevp2
+    real(jprb), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: tmp_work_ngnlev1, &
+      &                                                            tmp_work_ngnlev2, &
+      &                                                            tmp_work_ngnlev3
     real(jprb), dimension(999, istartcol:iendcol) :: tmp_work_jpwarmup_lf
 
     ! Total cloud cover output from the cloud generator
@@ -196,7 +204,7 @@ contains
              &  trans_dir_dir_clear, flux_up, flux_dn_diffuse, flux_dn_direct, &
              &  albedo=tmp_work_ngnlevp1(:,:,jcol), &
              &  source=tmp_work_ngnlevp2(:,:,jcol), &
-             &  inv_denominator=tmp_work_ngnlev(:,:,jcol))
+             &  inv_denominator=tmp_work_ngnlev1(:,:,jcol))
         
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes
@@ -226,9 +234,9 @@ contains
              &  overlap_param_inhom=tmp_work_nlevm1(:,jcol), &
              &  pair_cloud_cover=tmp_work_nlevm2(:,jcol), &
              &  overhang=tmp_work_nlevm3(:,jcol), &
-             &  tmp_work_nlev1=tmp_work_nlev1(:,jcol), &
-             &  tmp_work_nlev2=tmp_work_nlev2(:,jcol), &
-             &  tmp_work_nlev3=tmp_work_nlev3(:,jcol), &
+             &  tmp_work_ngnlev1=tmp_work_ngnlev1(:,:,jcol), &
+             &  tmp_work_ngnlev2=tmp_work_ngnlev2(:,:,jcol), &
+             &  tmp_work_ngnlev3=tmp_work_ngnlev3(:,:,jcol), &
              &  tmp_work_jpwarmup_lfg=tmp_work_jpwarmup_lf(:,jcol), &
              &  use_beta_overlap=config%use_beta_overlap, &
              &  use_vectorizable_generator=config%use_vectorizable_generator)
@@ -302,7 +310,7 @@ contains
                &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
                &  albedo=tmp_work_ngnlevp1(:,:,jcol), &
                &  source=tmp_work_ngnlevp2(:,:,jcol), &
-               &  inv_denominator=tmp_work_ngnlev(:,:,jcol))
+               &  inv_denominator=tmp_work_ngnlev1(:,:,jcol))
           
           ! Store overcast broadband fluxes
           flux%sw_up(jcol,:) = sum(flux_up,1)

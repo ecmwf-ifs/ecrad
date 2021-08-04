@@ -40,8 +40,8 @@ contains
        &  fractional_std, pdf_sampler, &
        &  od_scaling, total_cloud_cover, &
        &  cum_cloud_cover, rand_top, overlap_param_inhom, &
-       &  pair_cloud_cover, overhang, tmp_work_nlev1, &
-       &  tmp_work_nlev2, tmp_work_nlev3, tmp_work_jpwarmup_lfg, &
+       &  pair_cloud_cover, overhang, tmp_work_ngnlev1, &
+       &  tmp_work_ngnlev2, tmp_work_ngnlev3, tmp_work_jpwarmup_lfg, &
        &  use_beta_overlap, use_vectorizable_generator)
 
     use parkind1, only           : jprb
@@ -117,8 +117,9 @@ contains
     ! Overlap parameter of inhomogeneities
     real(jprb), intent(out) :: overlap_param_inhom(nlev-1)
 
-    real(jprb), intent(out) :: tmp_work_nlev1(nlev), tmp_work_nlev2(nlev), &
-      &  tmp_work_nlev3(nlev)
+    real(jprb), intent(out) :: tmp_work_ngnlev1(ng,nlev), &
+      &                        tmp_work_ngnlev2(ng,nlev), &
+      &                        tmp_work_ngnlev3(ng,nlev)
 
     real(jprb), intent(out) ::  tmp_work_jpwarmup_lfg(999)
 
@@ -231,14 +232,17 @@ contains
                  &  frac, pair_cloud_cover, &
                  &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
                  &  itrigger, iend, od_scaling, &
-                 &  rand_cloud=tmp_work_nlev1, &
-                 &  rand_inhom1=tmp_work_nlev2, &
-                 &  rand_inhom2=tmp_work_nlev3)
+                 &  rand_cloud=tmp_work_ngnlev1(jg,:), &
+                 &  rand_inhom1=tmp_work_ngnlev2(jg,:), &
+                 &  rand_inhom2=tmp_work_ngnlev3(jg,:))
           else
             call generate_column_exp_exp(ng, nlev, jg, random_stream, pdf_sampler, &
                  &  frac, pair_cloud_cover, &
                  &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-                 &  itrigger, iend, od_scaling, tmp_work_nlev1, tmp_work_nlev2, tmp_work_nlev3)
+                 &  itrigger, iend, od_scaling, &
+                 &  rand_cloud=tmp_work_ngnlev1(jg,:), &
+                 &  rand_inhom1=tmp_work_ngnlev2(jg,:), &
+                 &  rand_inhom2=tmp_work_ngnlev3(jg,:))
           end if
           
         end do
