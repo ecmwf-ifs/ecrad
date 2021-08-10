@@ -42,6 +42,7 @@ contains
        &  cum_cloud_cover, rand_top, overlap_param_inhom, &
        &  pair_cloud_cover, overhang, tmp_work_ngnlev1, &
        &  tmp_work_ngnlev2, tmp_work_ngnlev3, tmp_work_jpwarmup_lfg, &
+       &  random_stream, &
        &  use_beta_overlap, use_vectorizable_generator)
 
     use parkind1, only           : jprb
@@ -125,7 +126,7 @@ contains
 
     ! Seed for random number generator and stream for producing random
     ! numbers
-    type(randomnumberstream) :: random_stream
+    type(randomnumberstream), intent(inout) :: random_stream
     
     ! First and last cloudy layers
     integer :: ibegin, iend

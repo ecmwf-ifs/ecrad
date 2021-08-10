@@ -54,6 +54,7 @@ contains
          &                               calc_reflectance_transmittance_sw
     use radiation_adding_ica_sw, only  : adding_ica_sw
     use radiation_cloud_generator, only: cloud_generator
+    use random_numbers_mix, only       : randomnumberstream
 
     implicit none
 
@@ -132,6 +133,7 @@ contains
       &                                                            tmp_work_ngnlev2, &
       &                                                            tmp_work_ngnlev3
     real(jprb), dimension(999, istartcol:iendcol) :: tmp_work_jpwarmup_lf
+    type(randomnumberstream) :: random_stream
 
     ! Total cloud cover output from the cloud generator
     real(jprb) :: total_cloud_cover
@@ -235,6 +237,7 @@ contains
              &  tmp_work_ngnlev2=tmp_work_ngnlev2(:,:,jcol), &
              &  tmp_work_ngnlev3=tmp_work_ngnlev3(:,:,jcol), &
              &  tmp_work_jpwarmup_lfg=tmp_work_jpwarmup_lf(:,jcol), &
+             &  random_stream=random_stream, &
              &  use_beta_overlap=config%use_beta_overlap, &
              &  use_vectorizable_generator=config%use_vectorizable_generator)
 
