@@ -63,7 +63,9 @@ module radiation_aerosol_optics_data
           &  mass_ext_sw_phobic, & ! Mass-extinction coefficient (m2 kg-1)
           &  ssa_sw_phobic,      & ! Single scattering albedo
           &  g_sw_phobic,        & ! Asymmetry factor
+!          &  ssa_g_sw_phobic,    & ! ssa*g
           &  mass_ext_lw_phobic, & ! Mass-extinction coefficient (m2 kg-1)
+!          &  mass_abs_lw_phobic, & ! Mass-absorption coefficient (m2 kg-1)
           &  ssa_lw_phobic,      & ! Single scattering albedo
           &  g_lw_phobic           ! Asymmetry factor
 
@@ -72,7 +74,9 @@ module radiation_aerosol_optics_data
           &  mass_ext_sw_philic, & ! Mass-extinction coefficient (m2 kg-1)
           &  ssa_sw_philic,      & ! Single scattering albedo
           &  g_sw_philic,        & ! Asymmetry factor
+ !         &  ssa_g_sw_philic,    & ! ssa*g
           &  mass_ext_lw_philic, & ! Mass-extinction coefficient (m2 kg-1)
+ !         &  mass_abs_lw_philic, & ! Mass-absorption coefficient (m2 kg-1)
           &  ssa_lw_philic,      & ! Single scattering albedo
           &  g_lw_philic           ! Asymmetry factor
 
@@ -187,6 +191,10 @@ contains
 
     call file%get_global_attribute('description_hydrophobic', &
          &                         this%description_phobic_str)
+
+    ! Precompute ssa*g for the shortwave and mass-absorption for the
+    ! longwave - TBD FIX
+    !allocate(this%ssa_g_sw_phobic(...
 
     if (this%use_hydrophilic) then
       call file%get('mass_ext_sw_hydrophilic', this%mass_ext_sw_philic)

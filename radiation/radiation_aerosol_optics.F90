@@ -379,13 +379,16 @@ contains
     real(jprb) :: local_od, local_scat
 
     ! Loop indices for column, level, g point, band and aerosol type
-    integer :: jcol, jlev, jg, jtype
+    integer :: jcol, jlev, jg, jtype, jband
 
     ! Range of levels over which aerosols are present
     integer :: istartlev, iendlev
 
     ! Indices to spectral band and relative humidity look-up table
     integer :: iband, irh
+
+    ! Short cut for ao%itype(jtype)
+    integer :: itype
 
     ! Pointer to the aerosol optics coefficients for brevity of access
     type(aerosol_optics_type), pointer :: ao
@@ -457,66 +460,73 @@ contains
           scat_g_lw_aerosol = 0.0_jprb
 
           do jtype = 1,config%n_aerosol_types
+
+            itype = ao%itype(jtype)
+
             ! Add the optical depth, scattering optical depth and
             ! scattering optical depth-weighted asymmetry factor for
             ! this aerosol type to the total for all aerosols.  Note
             ! that the following expressions are array-wise, the
             ! dimension being spectral band.
             if (ao%iclass(jtype) == IAerosolClassHydrophobic) then
-              local_od_sw = factor * aerosol%mixing_ratio(jcol,jlev,jtype) &
-                   &  * ao%mass_ext_sw_phobic(:,ao%itype(jtype))
-              od_sw_aerosol = od_sw_aerosol + local_od_sw
-              scat_sw_aerosol = scat_sw_aerosol &
-                   &  + local_od_sw * ao%ssa_sw_phobic(:,ao%itype(jtype))
-              scat_g_sw_aerosol = scat_g_sw_aerosol &
-                   &  + local_od_sw * ao%ssa_sw_phobic(:,ao%itype(jtype)) &
-                   &  * ao%g_sw_phobic(:,ao%itype(jtype))
+              do jband = 1,config%n_bands_sw
+                local_od_sw(jband) = factor * aerosol%mixing_ratio(jcol,jlev,jtype) &
+                     &  * ao%mass_ext_sw_phobic(jband,itype)
+                od_sw_aerosol(jband) = od_sw_aerosol(jband) + local_od_sw(jband)
+                scat_sw_aerosol(jband) = scat_sw_aerosol(jband) &
+                     &  + local_od_sw(jband) * ao%ssa_sw_phobic(jband,itype)
+                scat_g_sw_aerosol(jband) = scat_g_sw_aerosol(jband) &
+                     &  + local_od_sw(jband) * ao%ssa_sw_phobic(jband,itype) &
+                     &  * ao%g_sw_phobic(jband,itype)
+              end do
               if (config%do_lw_aerosol_scattering) then
                 local_od_lw = factor * aerosol%mixing_ratio(jcol,jlev,jtype) &
-                     &  * ao%mass_ext_lw_phobic(:,ao%itype(jtype))
+                     &  * ao%mass_ext_lw_phobic(:,itype)
                 od_lw_aerosol = od_lw_aerosol + local_od_lw
                 scat_lw_aerosol = scat_lw_aerosol &
-                     &  + local_od_lw * ao%ssa_lw_phobic(:,ao%itype(jtype))
+                     &  + local_od_lw * ao%ssa_lw_phobic(:,itype)
                 scat_g_lw_aerosol = scat_g_lw_aerosol &
-                     &  + local_od_lw * ao%ssa_lw_phobic(:,ao%itype(jtype)) &
-                     &  * ao%g_lw_phobic(:,ao%itype(jtype))
+                     &  + local_od_lw * ao%ssa_lw_phobic(:,itype) &
+                     &  * ao%g_lw_phobic(:,itype)
               else
                 ! If aerosol longwave scattering is not included then we
                 ! weight the optical depth by the single scattering
                 ! co-albedo
                 od_lw_aerosol = od_lw_aerosol &
                      &  + factor * aerosol%mixing_ratio(jcol,jlev,jtype) &
-                     &  * ao%mass_ext_lw_phobic(:,ao%itype(jtype)) &
-                     &  * (1.0_jprb - ao%ssa_lw_phobic(:,ao%itype(jtype)))
+                     &  * ao%mass_ext_lw_phobic(:,itype) &
+                     &  * (1.0_jprb - ao%ssa_lw_phobic(:,itype))
               end if
             else if (ao%iclass(jtype) == IAerosolClassHydrophilic) then
               ! Hydrophilic aerosols require the look-up tables to
               ! be indexed with irh
-              local_od_sw = factor * aerosol%mixing_ratio(jcol,jlev,jtype) &
-                   &  * ao%mass_ext_sw_philic(:,irh,ao%itype(jtype))
-              od_sw_aerosol = od_sw_aerosol + local_od_sw
-              scat_sw_aerosol = scat_sw_aerosol &
-                   &  + local_od_sw * ao%ssa_sw_philic(:,irh,ao%itype(jtype))
-              scat_g_sw_aerosol = scat_g_sw_aerosol &
-                   &  + local_od_sw * ao%ssa_sw_philic(:,irh,ao%itype(jtype)) &
-                   &  * ao%g_sw_philic(:,irh,ao%itype(jtype))
+              do jband = 1,config%n_bands_sw
+                local_od_sw(jband) = factor * aerosol%mixing_ratio(jcol,jlev,jtype) &
+                     &  * ao%mass_ext_sw_philic(jband,irh,itype)
+                od_sw_aerosol(jband) = od_sw_aerosol(jband) + local_od_sw(jband)
+                scat_sw_aerosol(jband) = scat_sw_aerosol(jband) &
+                     &  + local_od_sw(jband) * ao%ssa_sw_philic(jband,irh,itype)
+                scat_g_sw_aerosol(jband) = scat_g_sw_aerosol(jband) &
+                     &  + local_od_sw(jband) * ao%ssa_sw_philic(jband,irh,itype) &
+                     &  * ao%g_sw_philic(jband,irh,itype)
+              end do
               if (config%do_lw_aerosol_scattering) then
                 local_od_lw = factor * aerosol%mixing_ratio(jcol,jlev,jtype) &
-                     &  * ao%mass_ext_lw_philic(:,irh,ao%itype(jtype))
+                     &  * ao%mass_ext_lw_philic(:,irh,itype)
                 od_lw_aerosol = od_lw_aerosol + local_od_lw
                 scat_lw_aerosol = scat_lw_aerosol &
-                     &  + local_od_lw * ao%ssa_lw_philic(:,irh,ao%itype(jtype))
+                     &  + local_od_lw * ao%ssa_lw_philic(:,irh,itype)
                 scat_g_lw_aerosol = scat_g_lw_aerosol &
-                     &  + local_od_lw * ao%ssa_lw_philic(:,irh,ao%itype(jtype)) &
-                     &  * ao%g_lw_philic(:,irh,ao%itype(jtype))
+                     &  + local_od_lw * ao%ssa_lw_philic(:,irh,itype) &
+                     &  * ao%g_lw_philic(:,irh,itype)
               else
                 ! If aerosol longwave scattering is not included then we
                 ! weight the optical depth by the single scattering
                 ! co-albedo
                 od_lw_aerosol = od_lw_aerosol &
                      &  + factor * aerosol%mixing_ratio(jcol,jlev,jtype) &
-                     &  * ao%mass_ext_lw_philic(:,irh,ao%itype(jtype)) &
-                     &  * (1.0_jprb - ao%ssa_lw_philic(:,irh,ao%itype(jtype)))
+                     &  * ao%mass_ext_lw_philic(:,irh,itype) &
+                     &  * (1.0_jprb - ao%ssa_lw_philic(:,irh,itype))
               end if
             end if
             ! Implicitly, if ao%iclass(jtype) == IAerosolClassNone, then
