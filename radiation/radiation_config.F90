@@ -327,9 +327,14 @@ module radiation_config
 ! &
 !         &   = ["mie_droplet                   ", &
 !         &      "baum-general-habit-mixture_ice"]
+
+    ! Spectral averaging method to use with generalized cloud optics;
+    ! see Edwards & Slingo (1996) for definition.  Experimentation
+    ! with ecRad suggests that "thick" averaging is more accurate for
+    ! both liquid and ice clouds.
     logical :: use_thick_cloud_spectral_averaging(NMaxCloudTypes) &
-         &  = [.false.,.false.,.false.,.false.,.false.,.false., &
-         &     .false.,.false.,.false.,.false.,.false.,.false.]
+         &  = [.true.,.true.,.true.,.true.,.true.,.true., &
+         &     .true.,.true.,.true.,.true.,.true.,.true.]
 
     ! To what extent do we include "entrapment" effects in the
     ! SPARTACUS solver? This essentially means that in a situation
