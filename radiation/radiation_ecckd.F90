@@ -348,8 +348,6 @@ contains
 
     if (lhook) call dr_hook('radiation_ecckd:calc_optical_depth',0,hook_handle)
 
-    optical_depth_fl(:,:,istartcol:iendcol) = 0.0_jprb
-
     global_multiplier = 1.0_jprb / (AccelDueToGravity * 0.001_jprb * AirMolarMass)
 
     do jcol = istartcol,iendcol
@@ -378,6 +376,8 @@ contains
         ! Concentration multiplier
         simple_multiplier = global_multiplier &
              &  * (pressure_hl(jcol,jlev+1) - pressure_hl(jcol,jlev))
+
+        optical_depth_fl(:,jlev,jcol) = 0.0_jprb
       
         do jgas = 1,this%ngas
 
@@ -461,11 +461,10 @@ contains
 
         end do
 
-      end do
+        ! Ensure the optical depth is not negative
+        optical_depth_fl(:,jlev,jcol) = max(0.0_jprb, optical_depth_fl(:,jlev,jcol))
 
-      ! Ensure the optical depth is not negative
-      optical_depth_fl(:,:,istartcol:iendcol) &
-           &  = max(0.0_jprb, optical_depth_fl(:,:,istartcol:iendcol))
+      end do
 
       ! Rayleigh scattering
       if (this%is_sw .and. present(rayleigh_od_fl)) then
