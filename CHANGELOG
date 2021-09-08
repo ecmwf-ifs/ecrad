@@ -20,6 +20,7 @@ version 1.5
 	  aerosol_sw_extinction routines with dry_aerosol_mass_extinction
 	  and aerosol_extinction, which take wavelength rather than band
 	  number
+	- "make GPROF=1" compiles with -pg option for the GNU profiler
 
 version 1.4.2 (21 June 2021)
 	- radiation_config:do_write_double_precision writes fluxes as

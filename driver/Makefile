@@ -13,7 +13,7 @@ EXECUTABLE = ../bin/ecrad
 all: $(EXECUTABLE) $(TEST)
 
 $(EXECUTABLE): $(OBJECTS) ../lib/*.a
-	$(FC) $(OBJECTS) $(LIBS) -o $(EXECUTABLE)
+	$(FC) $(FCFLAGS) $(OBJECTS) $(LIBS) -o $(EXECUTABLE)
 
 $(TEST): $(TEST).F90 ../lib/*.a
 	$(FC) $(FCFLAGS) $(TEST).F90 $(LIBS) -o $(TEST)
