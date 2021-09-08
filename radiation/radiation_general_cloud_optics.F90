@@ -34,7 +34,7 @@ contains
     use parkind1,         only : jprb
     use yomhook,          only : lhook, dr_hook
 
-    use radiation_io,     only : nulout, nulerr, radiation_abort
+    use radiation_io,     only : nulout
     use radiation_config, only : config_type, NMaxCloudTypes
     use radiation_spectral_definition, only : SolarReferenceTemperature, &
          &                                    TerrestrialReferenceTemperature
@@ -61,12 +61,14 @@ contains
     end do
 
     ! If cloud_type_name has not been provided then assume liquid,ice
-    ! using thick,thin spectral averaging
+    ! noting that the default spectral averaging (defined in
+    ! radiation_config.F90) is "thick"
     if (config%n_cloud_types == 0) then
       config%cloud_type_name(1) = "mie_droplet"
       config%cloud_type_name(2) = "baum-general-habit-mixture_ice"
-      config%use_thick_cloud_spectral_averaging(1) = .true.
-      config%use_thick_cloud_spectral_averaging(2) = .false.
+      ! Optionally override spectral averaging method
+      !config%use_thick_cloud_spectral_averaging(1) = .false.
+      !config%use_thick_cloud_spectral_averaging(2) = .false.
       config%n_cloud_types = 2
     end if
 
@@ -135,7 +137,7 @@ contains
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook
 
-    use radiation_io,     only : nulout, nulerr, radiation_abort
+    use radiation_io,     only : nulout
     use radiation_config, only : config_type
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type

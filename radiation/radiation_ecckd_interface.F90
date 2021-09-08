@@ -18,7 +18,7 @@ module radiation_ecckd_interface
 
   implicit none
 
-  public  :: setup_gas_optics, set_gas_units, gas_optics, planck_function
+  public  :: setup_gas_optics, set_gas_units, gas_optics !, planck_function
 
 contains
 
@@ -50,23 +50,15 @@ contains
         ! wavenumber space
         config%n_bands_sw = config%gas_optics_sw%spectral_def%nband
       end if
-      allocate(config%wavenumber1_sw(config%n_bands_sw))
-      allocate(config%wavenumber2_sw(config%n_bands_sw))
 
       allocate(config%i_band_from_g_sw          (config%n_g_sw))
       allocate(config%i_band_from_reordered_g_sw(config%n_g_sw))
       allocate(config%i_g_from_reordered_g_sw   (config%n_g_sw))
         
       if (config%do_cloud_aerosol_per_sw_g_point) then
-        config%wavenumber1_sw = config%gas_optics_sw%spectral_def%wavenumber1
-        config%wavenumber2_sw = config%gas_optics_sw%spectral_def%wavenumber2
         config%i_band_from_g_sw           = [ (jj, jj = 1,config%n_g_sw) ]
         config%i_band_from_reordered_g_sw = [ (jj, jj = 1,config%n_g_sw) ]
       else
-        config%wavenumber1_sw &
-             &  = config%gas_optics_sw%spectral_def%wavenumber1_band
-        config%wavenumber2_sw &
-             &  = config%gas_optics_sw%spectral_def%wavenumber2_band
         config%i_band_from_g_sw &
              &  = config%gas_optics_sw%spectral_def%i_band_number
         config%i_band_from_reordered_g_sw &
@@ -97,23 +89,15 @@ contains
         ! wavenumber space
         config%n_bands_lw = config%gas_optics_lw%spectral_def%nband
       end if
-      allocate(config%wavenumber1_lw(config%n_bands_lw))
-      allocate(config%wavenumber2_lw(config%n_bands_lw))
 
       allocate(config%i_band_from_g_lw          (config%n_g_lw))
       allocate(config%i_band_from_reordered_g_lw(config%n_g_lw))
       allocate(config%i_g_from_reordered_g_lw   (config%n_g_lw))
 
       if (config%do_cloud_aerosol_per_lw_g_point) then
-        config%wavenumber1_lw = config%gas_optics_lw%spectral_def%wavenumber1
-        config%wavenumber2_lw = config%gas_optics_lw%spectral_def%wavenumber2
         config%i_band_from_g_lw           = [ (jj, jj = 1,config%n_g_lw) ]
         config%i_band_from_reordered_g_lw = [ (jj, jj = 1,config%n_g_lw) ]
       else
-        config%wavenumber1_lw &
-             &  = config%gas_optics_lw%spectral_def%wavenumber1_band
-        config%wavenumber2_lw &
-             &  = config%gas_optics_lw%spectral_def%wavenumber2_band
         config%i_band_from_g_lw &
              &  = config%gas_optics_lw%spectral_def%i_band_number
         config%i_band_from_reordered_g_lw &
@@ -274,21 +258,21 @@ contains
 
   end subroutine gas_optics
 
-  !---------------------------------------------------------------------
-  ! Externally facing function for computing the Planck function
-  ! without reference to any gas profile; typically this would be used
-  ! for computing the emission by a surface.
-  subroutine planck_function(config, temperature, planck_surf)
+  ! !---------------------------------------------------------------------
+  ! ! Externally facing function for computing the Planck function
+  ! ! without reference to any gas profile; typically this would be used
+  ! ! for computing the emission by a surface.
+  ! subroutine planck_function(config, temperature, planck_surf)
 
-    use parkind1,                 only : jprb
-    use radiation_config,         only : config_type
+  !   use parkind1,                 only : jprb
+  !   use radiation_config,         only : config_type
 
-    type(config_type), intent(in) :: config
-    real(jprb),        intent(in) :: temperature
+  !   type(config_type), intent(in) :: config
+  !   real(jprb),        intent(in) :: temperature
 
-    ! Planck function of the surface (W m-2)
-    real(jprb), dimension(config%n_g_lw), intent(out) :: planck_surf
+  !   ! Planck function of the surface (W m-2)
+  !   real(jprb), dimension(config%n_g_lw), intent(out) :: planck_surf
 
-  end subroutine planck_function
+  ! end subroutine planck_function
 
 end module radiation_ecckd_interface

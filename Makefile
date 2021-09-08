@@ -64,14 +64,14 @@ endif
 ifdef FLOTSAM_DIR
 FLOTSAM_INCLUDE = -DFLOTSAM -I$(FLOTSAM_DIR)/include
 FLOTSAM_LIB = -L$(FLOTSAM_DIR)/lib -L$(FLOTSAM_DIR)/lib64 -Wl,-rpath,$(FLOTSAM_DIR)/lib -Wl,-rpath,$(FLOTSAM_DIR)/lib64 -lflotsam
+export FLOTSAM_DIR
 endif
 
 # Consolidate flags
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
-	$(OPTFLAGS) $(DEBUGFLAGS) $(FLOTSAM_INCLUDE) $(NETCDF_INCLUDE) \
-	$(OMPFLAG)
-export LIBS    = $(LDFLAGS) -L../lib -lradsurf -lradiation -ltcrad -lutilities \
+	$(OPTFLAGS) $(DEBUGFLAGS) $(FLOTSAM_INCLUDE) $(NETCDF_INCLUDE) $(OMPFLAG)
+export LIBS    = $(LDFLAGS) -L../lib -lradiation -ltcrad -lutilities \
 	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(FLOTSAM_LIB) $(NETCDF_LIB) \
 	$(OMPFLAG)
 ifdef DR_HOOK
@@ -98,9 +98,9 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifdef DR_HOOK
-build: directories libifsaux libdrhook libutilities libifsrrtm libtcrad libradiation libradsurf driver symlinks
+build: directories libifsaux libdrhook libutilities libifsrrtm libtcrad libradiation driver symlinks
 else
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libtcrad libradiation libradsurf driver symlinks
+build: directories libifsaux libdummydrhook libutilities libifsrrtm libtcrad libradiation driver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -138,9 +138,6 @@ libtcrad:
 libradiation:
 	cd radiation && $(MAKE)
 
-libradsurf:
-	cd radsurf && $(MAKE)
-
 driver:
 	cd driver && $(MAKE)
 
@@ -159,20 +156,15 @@ test_i3rc:
 test_ckdmip:
 	cd test/ckdmip && $(MAKE) test
 
-test_surface:
-	cd test/surface && $(MAKE) test
-
 clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks
 
 clean-tests:
 	cd test/ifs && $(MAKE) clean
 	cd test/i3rc && $(MAKE) clean
-	cd test/surface && $(MAKE) clean
 	cd test/ckdmip && $(MAKE) clean
 
 clean-toplevel:
 	cd radiation && $(MAKE) clean
-	cd radsurf && $(MAKE) clean
 	cd driver && $(MAKE) clean
 	cd tcrad && $(MAKE) clean
 
@@ -192,6 +184,5 @@ clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
-	libtcrad \
-	libradiation libradsurf driver symlinks clean clean-toplevel test test_ifs \
-	test_i3rc test_surface clean-tests clean-utilities clean-mods clean-symlinks
+	libtcrad libradiation driver symlinks clean clean-toplevel test test_ifs \
+	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks

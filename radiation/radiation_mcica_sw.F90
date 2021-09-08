@@ -210,7 +210,8 @@ contains
              &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
              &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
              &  config%pdf_sampler, od_scaling, total_cloud_cover, &
-             &  is_beta_overlap=config%use_beta_overlap)
+             &  use_beta_overlap=config%use_beta_overlap, &
+             &  use_vectorizable_generator=config%use_vectorizable_generator)
 
         ! Store total cloud cover
         flux%cloud_cover_sw(jcol) = total_cloud_cover
@@ -220,15 +221,16 @@ contains
           do jlev = 1,nlev
             ! Compute combined gas+aerosol+cloud optical properties
             if (cloud%fraction(jcol,jlev) >= config%cloud_fraction_threshold) then
-              od_cloud_new = od_scaling(:,jlev) &
-                   &  * od_cloud(config%i_band_from_reordered_g_sw,jlev,jcol)
-              od_total  = od(:,jlev,jcol) + od_cloud_new
-              ssa_total = 0.0_jprb
-              g_total   = 0.0_jprb
-              ! In single precision we need to protect against the
-              ! case that od_total > 0.0 and ssa_total > 0.0 but
-              ! od_total*ssa_total == 0 due to underflow
               do jg = 1,ng
+                od_cloud_new(jg) = od_scaling(jg,jlev) &
+                   &  * od_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol)
+                od_total(jg)  = od(jg,jlev,jcol) + od_cloud_new(jg)
+                ssa_total(jg) = 0.0_jprb
+                g_total(jg)   = 0.0_jprb
+
+                ! In single precision we need to protect against the
+                ! case that od_total > 0.0 and ssa_total > 0.0 but
+                ! od_total*ssa_total == 0 due to underflow
                 if (od_total(jg) > 0.0_jprb) then
                   scat_od = ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
                        &     + ssa_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &

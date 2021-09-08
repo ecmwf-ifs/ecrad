@@ -23,8 +23,12 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_check.F90   radiation_ecckd_interface.F90 \
 	radiation_gas_constants.F90 radiation_ecckd_gas.F90 \
 	radiation_spectral_definition.F90 radiation_general_cloud_optics.F90 \
-	radiation_general_cloud_optics_data.F90 \
-	radiation_flotsam_sw.F90 radiation_tcrad_lw.F90
+	radiation_general_cloud_optics_data.F90 radiation_random_numbers.F90 \
+	radiation_tcrad_lw.F90
+
+ifdef FLOTSAM_DIR
+SOURCES += radiation_flotsam_sw.F90 
+endif
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBRAD = ../lib/libradiation.a
@@ -51,8 +55,12 @@ radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_homogeneous_lw.o radiation_homogeneous_sw.o \
 	radiation_cloudless_lw.o radiation_cloudless_sw.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o \
-	radiation_tcrad_lw.o radiation_flotsam_sw.o \
+	radiation_tcrad_lw.o \
 	radiation_ecckd_interface.o radiation_general_cloud_optics.o
+
+ifdef FLOTSAM_DIR
+radiation_interface.o: radiation_flotsam_sw.o
+endif
 
 radiation_ifs_rrtm.o radiation_monochromatic.o: radiation_config.o \
 	radiation_thermodynamics.o radiation_gas.o
@@ -88,7 +96,7 @@ radiation_cloudless_lw.o, radiation_tripleclouds_lw.o: radiation_adding_ica_lw.o
 radiation_aerosol_optics.o radiation_cloud_optics.o: \
 	radiation_config.o
 radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
-	radiation_cloud_cover.o
+	radiation_cloud_cover.o radiation_random_numbers.o
 radiation_lw_derivatives.o: radiation_matrix.o
 radiation_tcrad_lw.o: radiation_config.o radiation_cloud.o radiation_flux.o
 radiation_config.o: radiation_cloud_generator.o radiation_ecckd.o radiation_general_cloud_optics_data.o

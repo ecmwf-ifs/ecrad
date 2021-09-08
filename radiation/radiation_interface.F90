@@ -40,6 +40,8 @@ contains
     use yomhook,          only : lhook, dr_hook
     use radiation_config, only : config_type, ISolverMcICA, ISolverFlotsam, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
+    use radiation_spectral_definition, only &
+         &  : SolarReferenceTemperature, TerrestrialReferenceTemperature
 
     ! Currently there are two gas absorption models: RRTMG (default)
     ! and monochromatic
@@ -52,7 +54,9 @@ contains
     use radiation_cloud_optics,   only :  setup_cloud_optics
     use radiation_general_cloud_optics, only :  setup_general_cloud_optics
     use radiation_aerosol_optics, only :  setup_aerosol_optics
+#ifdef FLOTSAM
     use radiation_flotsam_sw, only     :  allocate_ocean_reflectance_model
+#endif
 
     type(config_type), intent(inout) :: config
 
@@ -104,21 +108,19 @@ contains
 
     ! Consolidate the albedo/emissivity intervals with the shortwave
     ! and longwave spectral bands
-    call config%consolidate_intervals(.true., &
-           &  config%do_nearest_spectral_sw_albedo, &
-           &  config%sw_albedo_wavelength_bound, config%i_sw_albedo_index, &
-           &  config%wavenumber1_sw, config%wavenumber2_sw, &
-           &  config%i_albedo_from_band_sw, config%sw_albedo_weights)
-    call config%consolidate_intervals(.false., &
-           &  config%do_nearest_spectral_lw_emiss, &
-           &  config%lw_emiss_wavelength_bound, config%i_lw_emiss_index, &
-           &  config%wavenumber1_lw, config%wavenumber2_lw, &
-           &  config%i_emiss_from_band_lw, config%lw_emiss_weights)
+    if (config%do_sw) then
+      call config%consolidate_sw_albedo_intervals
+    end if
+    if (config%do_lw) then
+      call config%consolidate_lw_emiss_intervals
+    end if
 
+#ifdef FLOTSAM
     ! Setup Cox-Munk model
     if (config%i_solver_sw == ISolverFlotsam) then
       call allocate_ocean_reflectance_model(config)
     end if
+#endif
 
     if (config%do_clouds) then
       if (config%i_gas_model == IGasModelMonochromatic) then
@@ -215,7 +217,9 @@ contains
     use radiation_homogeneous_sw, only : solver_homogeneous_sw
     use radiation_homogeneous_lw, only : solver_homogeneous_lw
     use radiation_tcrad_lw,       only : solver_tcrad_lw, radiance_solver_tcrad_lw
+#ifdef FLOTSAM
     use radiation_flotsam_sw,     only : radiance_solver_flotsam_sw
+#endif
     use radiation_save,           only : save_radiative_properties
 
     ! Treatment of gas and hydrometeor optics 
@@ -380,10 +384,10 @@ contains
                &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
         end if
       else
-        g_sw = 0.0_jprb
+        g_sw(:,:,istartcol:iendcol) = 0.0_jprb
         if (config%do_lw_aerosol_scattering) then
-          ssa_lw = 0.0_jprb
-          g_lw   = 0.0_jprb
+          ssa_lw(:,:,istartcol:iendcol) = 0.0_jprb
+          g_lw(:,:,istartcol:iendcol)   = 0.0_jprb
         end if
       end if
 
@@ -463,12 +467,14 @@ contains
         end if
 
         if (config%do_radiances) then
+#ifdef FLOTSAM
           if (config%i_solver_sw == ISolverFlotsam) then
             call radiance_solver_flotsam_sw(nlev,istartcol,iendcol, &
                  &  config, single_level, cloud, &
                  &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
                  &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, flux)
           end if
+#endif
         else if (config%i_solver_sw == ISolverMcICA) then
           ! Compute fluxes using the McICA shortwave solver
           call solver_mcica_sw(nlev,istartcol,iendcol, &

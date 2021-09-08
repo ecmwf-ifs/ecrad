@@ -12,6 +12,25 @@ version 1.5
 	- Generalized clouds and aerosols can compute optical properties
 	  per g-point or band, controlled with
 	  do_cloud_aerosol_per_[lw|sw]_g_point
+	- Default is to average albedo/emissivity source data to ecRad
+	  bands/g-points, rather than just to find the nearest value
+	  (i.e. do_nearest_spectral_sw_albedo and
+	  do_nearest_spectral_lw_emiss are now false by default)
+	- Replaced dry_sw_aerosol_mass_extinction and
+	  aerosol_sw_extinction routines with dry_aerosol_mass_extinction
+	  and aerosol_extinction, which take wavelength rather than band
+	  number
+	- "make GPROF=1" compiles with -pg option for the GNU profiler
+
+version 1.4.2 (21 June 2021)
+	- radiation_config:do_write_double_precision writes fluxes as
+	  doubles in NetCDF file, which reduces noise in heating rate
+	  differences between two experiments
+	- Added use_vectorizable_generator for vectorizable random number
+	  generator that speeds-up McICA solver on NEC hardware
+	- Numerous modifications to improve performance on DWD's NEC but
+	  which don't affect performance on Intel
+	- Removed unused radsurf code - use SPARTACUS-Surface instead
 
 version 1.4.1 (17 March 2021)
 	- Added Jupyter notebook to the practical directory

@@ -152,9 +152,6 @@ contains
     ! top-of-atmosphere
     real(jprb), dimension(config%n_g_lw, nregions, nlev+1) :: total_source
 
-    ! ...equivalent values for clear-skies
-    real(jprb), dimension(config%n_g_lw, nlev+1) :: total_albedo_clear, total_source_clear
-
     ! Total albedo and source of the atmosphere just below a layer interface
     real(jprb), dimension(config%n_g_lw, nregions) &
          &  :: total_albedo_below, total_source_below
@@ -488,6 +485,7 @@ contains
       ! Compute the fluxes just above the highest cloud
       flux_up(:,1) = total_source(:,1,i_cloud_top) &
            &  + total_albedo(:,1,i_cloud_top)*flux_dn_clear(:,i_cloud_top)
+      flux_up(:,2:) = 0.0_jprb
       flux%lw_up(jcol,i_cloud_top) = sum(flux_up(:,1))
       if (config%do_save_spectral_flux) then
         call indexed_sum(flux_up(:,1), &
