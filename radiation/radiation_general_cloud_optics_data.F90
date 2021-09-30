@@ -278,7 +278,7 @@ contains
       do jcol = 1,ncol
         do jlev = 1,nlev
           if (cloud_fraction(jcol, jlev) > 0.0_jprb) then
-            re_index = max(0.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+            re_index = max(1.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
                  &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
             ire = int(re_index)
             weight2 = re_index - ire
@@ -300,7 +300,7 @@ contains
       do jcol = 1,ncol
         do jlev = 1,nlev
           if (water_path(jcol, jlev) > 0.0_jprb) then
-            re_index = max(0.0, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+            re_index = max(1.0, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
                  &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
             ire = int(re_index)
             weight2 = re_index - ire
