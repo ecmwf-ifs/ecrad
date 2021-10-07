@@ -58,7 +58,7 @@ do_write_double_precision = true,
 iverbose            = 1, 
 iverbosesetup       = 1,
 directory_name      = "data",         ! Location of configuration files
-do_surface_sw_spectral_flux = false,  ! Save surface fluxes in each band?
+do_surface_sw_spectral_flux = true,  ! Save surface fluxes in each band?
 !
 ! CLOUDS
 !
