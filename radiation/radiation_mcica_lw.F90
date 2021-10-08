@@ -140,7 +140,6 @@ contains
     real(jprb), dimension(config%n_g_lw,nlev,istartcol:iendcol) :: tmp_work_ngnlev1, &
       &                                                            tmp_work_ngnlev2, &
       &                                                            tmp_work_ngnlev3
-    real(jprb), dimension(999, istartcol:iendcol) :: tmp_work_jpwarmup_lf
     type(randomnumberstream), dimension(istartcol:iendcol) :: random_stream
 
     ! Index of the highest cloudy layer
@@ -228,7 +227,6 @@ contains
            &  tmp_work_ngnlev1=tmp_work_ngnlev1(:,:,jcol), &
            &  tmp_work_ngnlev2=tmp_work_ngnlev2(:,:,jcol), &
            &  tmp_work_ngnlev3=tmp_work_ngnlev3(:,:,jcol), &
-           &  tmp_work_jpwarmup_lfg=tmp_work_jpwarmup_lf(:,jcol), &
            &  random_stream=random_stream(jcol), &
            &  use_beta_overlap=config%use_beta_overlap, &
            &  use_vectorizable_generator=config%use_vectorizable_generator)

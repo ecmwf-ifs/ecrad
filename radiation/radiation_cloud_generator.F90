@@ -41,7 +41,7 @@ contains
        &  od_scaling, total_cloud_cover, &
        &  cum_cloud_cover, rand_top, overlap_param_inhom, &
        &  pair_cloud_cover, overhang, tmp_work_ngnlev1, &
-       &  tmp_work_ngnlev2, tmp_work_ngnlev3, tmp_work_jpwarmup_lfg, &
+       &  tmp_work_ngnlev2, tmp_work_ngnlev3, &
        &  random_stream, &
        &  use_beta_overlap, use_vectorizable_generator)
 
@@ -122,7 +122,6 @@ contains
       &                        tmp_work_ngnlev2(ng,nlev), &
       &                        tmp_work_ngnlev3(ng,nlev)
 
-    real(jprb), intent(out) ::  tmp_work_jpwarmup_lfg(999)
 
     ! Seed for random number generator and stream for producing random
     ! numbers
@@ -139,6 +138,8 @@ contains
     ! Cloud cover of a pair of layers, and amount by which cloud at
     ! next level increases total cloud cover as seen from above
     real(jprb), intent(inout), dimension(nlev-1) :: pair_cloud_cover, overhang
+
+    real(jprb) ::  tmp_work_jpwarmup_lfg(999)
 
     logical :: use_vec_gen
 
