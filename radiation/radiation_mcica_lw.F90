@@ -130,16 +130,16 @@ contains
     logical :: is_clear_sky_layer(nlev, istartcol:iendcol)
 
     ! Temporary working array
-    real(jprb), dimension(nlev, istartcol:iendcol) :: tmp_work_nlev
+    real(jprb), dimension(nlev) :: tmp_work_nlev
     real(jprb), dimension(config%n_g_lw, istartcol:iendcol) :: tmp_work_ng
-    real(jprb), dimension(nlev-1, istartcol:iendcol) :: tmp_work_nlevm1, &
-      &                                                 tmp_work_nlevm2, &
-      &                                                 tmp_work_nlevm3
-    real(jprb), dimension(config%n_g_lw,nlev+1,istartcol:iendcol) :: tmp_work_ngnlevp1, &
-      &                                                              tmp_work_ngnlevp2
-    real(jprb), dimension(config%n_g_lw,nlev,istartcol:iendcol) :: tmp_work_ngnlev1, &
-      &                                                            tmp_work_ngnlev2, &
-      &                                                            tmp_work_ngnlev3
+    real(jprb), dimension(nlev-1) :: tmp_work_nlevm1, &
+      &                              tmp_work_nlevm2, &
+      &                              tmp_work_nlevm3
+    real(jprb), dimension(config%n_g_lw,nlev+1) :: tmp_work_ngnlevp1, &
+      &                                            tmp_work_ngnlevp2
+    real(jprb), dimension(config%n_g_lw,nlev) :: tmp_work_ngnlev1, &
+      &                                          tmp_work_ngnlev2, &
+      &                                          tmp_work_ngnlev3
     type(randomnumberstream), dimension(istartcol:iendcol) :: random_stream
 
     ! Index of the highest cloudy layer
@@ -192,7 +192,8 @@ contains
         do jlev = 1,nlev
           call calc_no_scattering_transmittance_lw(ng, od(:,jlev,jcol), &
                &  planck_hl(:,jlev,jcol), planck_hl(:,jlev+1, jcol), &
-               &  trans_clear(:,jlev,jcol), source_up_clear(:,jlev,jcol), source_dn_clear(:,jlev,jcol))
+               &  trans_clear(:,jlev,jcol), source_up_clear(:,jlev,jcol), &
+               &  source_dn_clear(:,jlev,jcol))
         end do
         ! Simpler down-then-up method to compute fluxes
         call calc_fluxes_no_scattering_lw(ng, nlev, &
@@ -219,14 +220,14 @@ contains
            &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
            &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
            &  config%pdf_sampler, od_scaling(:,:,jcol), total_cloud_cover, &
-           &  cum_cloud_cover=tmp_work_nlev(:,jcol), &
+           &  cum_cloud_cover=tmp_work_nlev, &
            &  rand_top=tmp_work_ng(:,jcol), &
-           &  overlap_param_inhom=tmp_work_nlevm1(:,jcol), &
-           &  pair_cloud_cover=tmp_work_nlevm2(:,jcol), &
-           &  overhang=tmp_work_nlevm3(:,jcol), &
-           &  tmp_work_ngnlev1=tmp_work_ngnlev1(:,:,jcol), &
-           &  tmp_work_ngnlev2=tmp_work_ngnlev2(:,:,jcol), &
-           &  tmp_work_ngnlev3=tmp_work_ngnlev3(:,:,jcol), &
+           &  overlap_param_inhom=tmp_work_nlevm1, &
+           &  pair_cloud_cover=tmp_work_nlevm2, &
+           &  overhang=tmp_work_nlevm3, &
+           &  tmp_work_ngnlev1=tmp_work_ngnlev1, &
+           &  tmp_work_ngnlev2=tmp_work_ngnlev2, &
+           &  tmp_work_ngnlev3=tmp_work_ngnlev3, &
            &  random_stream=random_stream(jcol), &
            &  use_beta_overlap=config%use_beta_overlap, &
            &  use_vectorizable_generator=config%use_vectorizable_generator)
@@ -305,13 +306,15 @@ contains
               call calc_reflectance_transmittance_lw(ng, &
                    &  od_total(:,jcol), gamma1(:,jcol), gamma2(:,jcol), &
                    &  planck_hl(:,jlev,jcol), planck_hl(:,jlev+1,jcol), &
-                   &  reflectance(:,jlev,jcol), transmittance(:,jlev,jcol), source_up(:,jlev,jcol), source_dn(:,jlev,jcol))
+                   &  reflectance(:,jlev,jcol), transmittance(:,jlev,jcol), &
+                   &  source_up(:,jlev,jcol), source_dn(:,jlev,jcol))
             else
               ! No-scattering case: use simpler functions for
               ! transmission and emission
               call calc_no_scattering_transmittance_lw(ng, od_total(:,jcol), &
                    &  planck_hl(:,jlev,jcol), planck_hl(:,jlev+1, jcol), &
-                   &  transmittance(:,jlev,jcol), source_up(:,jlev,jcol), source_dn(:,jlev,jcol))
+                   &  transmittance(:,jlev,jcol), source_up(:,jlev,jcol), &
+                   &  source_dn(:,jlev,jcol))
             end if
 
           else
@@ -339,9 +342,9 @@ contains
                &  emission(:,jcol), albedo(:,jcol), &
                &  is_clear_sky_layer(:,jcol), i_cloud_top, flux_dn_clear(:,:,jcol), &
                &  flux_up(:,:,jcol), flux_dn(:,:,jcol), &
-               &  albedo=tmp_work_ngnlevp1(:,:,jcol), &
-               &  source=tmp_work_ngnlevp2(:,:,jcol), &
-               &  inv_denominator=tmp_work_ngnlev1(:,:,jcol))
+               &  albedo=tmp_work_ngnlevp1, &
+               &  source=tmp_work_ngnlevp2, &
+               &  inv_denominator=tmp_work_ngnlev1)
         else
           ! Simpler down-then-up method to compute fluxes
           call calc_fluxes_no_scattering_lw(ng, nlev, &
