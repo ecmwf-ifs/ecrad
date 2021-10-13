@@ -502,7 +502,6 @@ contains
 
     if (config%use_aerosols) then
       ! Load aerosol data
-      call aerosol%allocate_direct(config, ncol, 1, nlev)
       call file%get('aerosol_mmr', aerosol%mixing_ratio, ipermute=(/2,3,1/));
       ! Store aerosol level bounds
       aerosol%istartlev = lbound(aerosol%mixing_ratio, 2)
