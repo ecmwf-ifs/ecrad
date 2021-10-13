@@ -55,7 +55,6 @@ contains
          &                               calc_fluxes_no_scattering_lw
     use radiation_lw_derivatives, only : calc_lw_derivatives_ica, modify_lw_derivatives_ica
     use radiation_cloud_generator, only: cloud_generator
-    use random_numbers_mix, only       : randomnumberstream
 
     implicit none
 

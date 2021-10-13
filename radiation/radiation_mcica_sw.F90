@@ -54,7 +54,6 @@ contains
          &                               calc_reflectance_transmittance_sw
     use radiation_adding_ica_sw, only  : adding_ica_sw
     use radiation_cloud_generator, only: cloud_generator
-    use random_numbers_mix, only       : randomnumberstream
 
     implicit none
 
