@@ -42,7 +42,6 @@ contains
        &  cum_cloud_cover, rand_top, overlap_param_inhom, &
        &  pair_cloud_cover, overhang, tmp_work_ngnlev1, &
        &  tmp_work_ngnlev2, tmp_work_ngnlev3, &
-       &  random_stream, &
        &  use_beta_overlap, use_vectorizable_generator)
 
     use parkind1, only           : jprb
@@ -125,7 +124,7 @@ contains
 
     ! Seed for random number generator and stream for producing random
     ! numbers
-    type(randomnumberstream), intent(inout) :: random_stream
+    type(randomnumberstream) :: random_stream
     
     ! First and last cloudy layers
     integer :: ibegin, iend
@@ -138,8 +137,6 @@ contains
     ! Cloud cover of a pair of layers, and amount by which cloud at
     ! next level increases total cloud cover as seen from above
     real(jprb), intent(inout), dimension(nlev-1) :: pair_cloud_cover, overhang
-
-    real(jprb) ::  tmp_work_jpwarmup_lfg(999)
 
     logical :: use_vec_gen
 
@@ -212,8 +209,7 @@ contains
 
         ! Expensive operation: initialize random number generator for
         ! this column
-        call initialize_random_numbers(iseed, random_stream, &
-          &                            ZWARMUP=tmp_work_jpwarmup_lfg)
+        call initialize_random_numbers(iseed, random_stream)
 
         ! Compute ng random numbers to use to locate cloud top
         call uniform_distribution(rand_top, random_stream)

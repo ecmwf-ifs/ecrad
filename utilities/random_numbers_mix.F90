@@ -139,7 +139,7 @@ END TYPE RANDOMNUMBERSTREAM
 
 CONTAINS
 !-------------------------------------------------------------------------------
-SUBROUTINE INITIALIZE_RANDOM_NUMBERS (KSEED, YD_STREAM, ZWARMUP) 
+SUBROUTINE INITIALIZE_RANDOM_NUMBERS (KSEED, YD_STREAM) 
   !-------------------------------------------------------------------------------
   ! Initialize fibgen
   !-------------------------------------------------------------------------------
@@ -149,8 +149,7 @@ SUBROUTINE INITIALIZE_RANDOM_NUMBERS (KSEED, YD_STREAM, ZWARMUP)
   INTEGER, PARAMETER :: JPMASK=123459876
   INTEGER(KIND=JPIM), PARAMETER     :: JPWARMUP_SHFT=64, JPWARMUP_LFG=999
   INTEGER(KIND=JPIM)                :: IDUM,JK,JJ,JBIT
-  REAL(KIND=JPRB), INTENT(OUT), DIMENSION(JPWARMUP_LFG) &
-                                 &  :: ZWARMUP
+  REAL(KIND=JPRB), DIMENSION(JPWARMUP_LFG)   :: ZWARMUP
 
   !-------------------------------------------------------------------------------
   ! Initialize the buffer using a binary shift register (Burns and Pryor, 1999).

@@ -90,39 +90,39 @@ contains
 
     ! Diffuse reflectance and transmittance for each layer in clear
     ! and all skies
-    real(jprb), dimension(config%n_g_sw, nlev, istartcol:iendcol) :: ref_clear, trans_clear, reflectance, transmittance
+    real(jprb), dimension(config%n_g_sw, nlev) :: ref_clear, trans_clear, reflectance, transmittance
 
     ! Fraction of direct beam scattered by a layer into the upwelling
     ! or downwelling diffuse streams, in clear and all skies
-    real(jprb), dimension(config%n_g_sw, nlev, istartcol:iendcol) :: ref_dir_clear, trans_dir_diff_clear, ref_dir, trans_dir_diff
+    real(jprb), dimension(config%n_g_sw, nlev) :: ref_dir_clear, trans_dir_diff_clear, ref_dir, trans_dir_diff
 
     ! Transmittance for the direct beam in clear and all skies
-    real(jprb), dimension(config%n_g_sw, nlev, istartcol:iendcol) :: trans_dir_dir_clear, trans_dir_dir
+    real(jprb), dimension(config%n_g_sw, nlev) :: trans_dir_dir_clear, trans_dir_dir
 
     ! Fluxes per g point
-    real(jprb), dimension(config%n_g_sw, nlev+1, istartcol:iendcol) :: flux_up, flux_dn_diffuse, flux_dn_direct
+    real(jprb), dimension(config%n_g_sw, nlev+1) :: flux_up, flux_dn_diffuse, flux_dn_direct
 
     ! Combined gas+aerosol+cloud optical depth, single scattering
     ! albedo and asymmetry factor
-    real(jprb), dimension(config%n_g_sw,istartcol:iendcol) :: od_total, ssa_total, g_total
+    real(jprb), dimension(config%n_g_sw) :: od_total, ssa_total, g_total
 
     ! Combined scattering optical depth
     real(jprb) :: scat_od
 
     ! Two-stream coefficients
-    real(jprb), dimension(config%n_g_sw,istartcol:iendcol) :: gamma1, gamma2, gamma3
+    real(jprb), dimension(config%n_g_sw) :: gamma1, gamma2, gamma3
 
     ! Optical depth scaling from the cloud generator, zero indicating
     ! clear skies
-    real(jprb), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: od_scaling
+    real(jprb), dimension(config%n_g_sw,nlev) :: od_scaling
 
     ! Modified optical depth after McICA scaling to represent cloud
     ! inhomogeneity
-    real(jprb), dimension(config%n_g_sw,istartcol:iendcol) :: od_cloud_new
+    real(jprb), dimension(config%n_g_sw) :: od_cloud_new
 
     ! Temporary working array
-    real(jprb), dimension(nlev,istartcol:iendcol) :: tmp_work_nlev
-    real(jprb), dimension(config%n_g_sw,istartcol:iendcol) :: tmp_work_ng
+    real(jprb), dimension(nlev) :: tmp_work_nlev
+    real(jprb), dimension(config%n_g_sw) :: tmp_work_ng
     real(jprb), dimension(nlev-1) :: tmp_work_nlevm1, &
       &                              tmp_work_nlevm2, &
       &                              tmp_work_nlevm3
@@ -131,7 +131,6 @@ contains
     real(jprb), dimension(config%n_g_sw,nlev) :: tmp_work_ngnlev1, &
       &                                          tmp_work_ngnlev2, &
       &                                          tmp_work_ngnlev3
-    type(randomnumberstream), dimension(istartcol:iendcol) :: random_stream
 
     ! Total cloud cover output from the cloud generator
     real(jprb) :: total_cloud_cover
@@ -167,57 +166,57 @@ contains
           do jlev = 1,nlev
             call calc_two_stream_gammas_sw(ng, &
                  &  cos_sza, ssa(:,jlev,jcol), g(:,jlev,jcol), &
-                 &  gamma1(:,jcol), gamma2(:,jcol), gamma3(:,jcol))
+                 &  gamma1, gamma2, gamma3)
             call calc_reflectance_transmittance_sw(ng, &
                  &  cos_sza, od(:,jlev,jcol), ssa(:,jlev,jcol), &
-                 &  gamma1(:,jcol), gamma2(:,jcol), gamma3(:,jcol), &
-                 &  ref_clear(:,jlev,jcol), trans_clear(:,jlev,jcol), &
-                 &  ref_dir_clear(:,jlev,jcol), trans_dir_diff_clear(:,jlev,jcol), &
-                 &  trans_dir_dir_clear(:,jlev,jcol) )
+                 &  gamma1, gamma2, gamma3, &
+                 &  ref_clear(:,jlev), trans_clear(:,jlev), &
+                 &  ref_dir_clear(:,jlev), trans_dir_diff_clear(:,jlev), &
+                 &  trans_dir_dir_clear(:,jlev) )
           end do
         else
           ! Apply delta-Eddington scaling to the aerosol-gas mixture
           do jlev = 1,nlev
-            od_total(:,jcol)  =  od(:,jlev,jcol)
-            ssa_total(:,jcol) = ssa(:,jlev,jcol)
-            g_total(:,jcol)   =   g(:,jlev,jcol)
-            call delta_eddington(od_total(:,jcol), ssa_total(:,jcol), g_total(:,jcol))
+            od_total  =  od(:,jlev,jcol)
+            ssa_total = ssa(:,jlev,jcol)
+            g_total   =   g(:,jlev,jcol)
+            call delta_eddington(od_total, ssa_total, g_total)
             call calc_two_stream_gammas_sw(ng, &
-                 &  cos_sza, ssa_total(:,jcol), g_total(:,jcol), &
-                 &  gamma1(:,jcol), gamma2(:,jcol), gamma3(:,jcol))
+                 &  cos_sza, ssa_total, g_total, &
+                 &  gamma1, gamma2, gamma3)
             call calc_reflectance_transmittance_sw(ng, &
-                 &  cos_sza, od_total(:,jcol), ssa_total(:,jcol), &
-                 &  gamma1(:,jcol), gamma2(:,jcol), gamma3(:,jcol), &
-                 &  ref_clear(:,jlev,jcol), trans_clear(:,jlev,jcol), &
-                 &  ref_dir_clear(:,jlev,jcol), trans_dir_diff_clear(:,jlev,jcol), &
-                 &  trans_dir_dir_clear(:,jlev,jcol) )
+                 &  cos_sza, od_total, ssa_total, &
+                 &  gamma1, gamma2, gamma3, &
+                 &  ref_clear(:,jlev), trans_clear(:,jlev), &
+                 &  ref_dir_clear(:,jlev), trans_dir_diff_clear(:,jlev), &
+                 &  trans_dir_dir_clear(:,jlev) )
           end do
         end if
 
         ! Use adding method to compute fluxes
         call adding_ica_sw(ng, nlev, incoming_sw(:,jcol), &
              &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), spread(cos_sza,1,ng), &
-             &  ref_clear(:,:,jcol), trans_clear(:,:,jcol), ref_dir_clear(:,:,jcol), trans_dir_diff_clear(:,:,jcol), &
-             &  trans_dir_dir_clear(:,:,jcol), flux_up(:,:,jcol), flux_dn_diffuse(:,:,jcol), flux_dn_direct(:,:,jcol), &
+             &  ref_clear, trans_clear, ref_dir_clear, trans_dir_diff_clear, &
+             &  trans_dir_dir_clear, flux_up, flux_dn_diffuse, flux_dn_direct, &
              &  albedo=tmp_work_ngnlevp1, &
              &  source=tmp_work_ngnlevp2, &
              &  inv_denominator=tmp_work_ngnlev1)
         
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes
-        flux%sw_up_clear(jcol,:) = sum(flux_up(:,:,jcol),1)
+        flux%sw_up_clear(jcol,:) = sum(flux_up,1)
         if (allocated(flux%sw_dn_direct_clear)) then
           flux%sw_dn_direct_clear(jcol,:) &
-               &  = sum(flux_dn_direct(:,:,jcol),1)
-          flux%sw_dn_clear(jcol,:) = sum(flux_dn_diffuse(:,:,jcol),1) &
+               &  = sum(flux_dn_direct,1)
+          flux%sw_dn_clear(jcol,:) = sum(flux_dn_diffuse,1) &
                &  + flux%sw_dn_direct_clear(jcol,:)
         else
-          flux%sw_dn_clear(jcol,:) = sum(flux_dn_diffuse(:,:,jcol),1) &
-               &  + sum(flux_dn_direct(:,:,jcol),1)
+          flux%sw_dn_clear(jcol,:) = sum(flux_dn_diffuse,1) &
+               &  + sum(flux_dn_direct,1)
         end if
         ! Store spectral downwelling fluxes at surface
-        flux%sw_dn_diffuse_surf_clear_g(:,jcol) = flux_dn_diffuse(:,nlev+1,jcol)
-        flux%sw_dn_direct_surf_clear_g(:,jcol)  = flux_dn_direct(:,nlev+1,jcol)
+        flux%sw_dn_diffuse_surf_clear_g(:,jcol) = flux_dn_diffuse(:,nlev+1)
+        flux%sw_dn_direct_surf_clear_g(:,jcol)  = flux_dn_direct(:,nlev+1)
 
         ! Do cloudy-sky calculation
         call cloud_generator(ng, nlev, config%i_overlap_scheme, &
@@ -225,16 +224,15 @@ contains
              &  config%cloud_fraction_threshold, &
              &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
              &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
-             &  config%pdf_sampler, od_scaling(:,:,jcol), total_cloud_cover, &
+             &  config%pdf_sampler, od_scaling, total_cloud_cover, &
              &  cum_cloud_cover=tmp_work_nlev, &
-             &  rand_top=tmp_work_ng(:,jcol), &
+             &  rand_top=tmp_work_ng, &
              &  overlap_param_inhom=tmp_work_nlevm1, &
              &  pair_cloud_cover=tmp_work_nlevm2, &
              &  overhang=tmp_work_nlevm3, &
              &  tmp_work_ngnlev1=tmp_work_ngnlev1, &
              &  tmp_work_ngnlev2=tmp_work_ngnlev2, &
              &  tmp_work_ngnlev3=tmp_work_ngnlev3, &
-             &  random_stream=random_stream(jcol), &
              &  use_beta_overlap=config%use_beta_overlap, &
              &  use_vectorizable_generator=config%use_vectorizable_generator)
 
@@ -247,25 +245,25 @@ contains
             ! Compute combined gas+aerosol+cloud optical properties
             if (cloud%fraction(jcol,jlev) >= config%cloud_fraction_threshold) then
               do jg = 1,ng
-                od_cloud_new(jg,jcol) = od_scaling(jg,jlev,jcol) &
+                od_cloud_new(jg) = od_scaling(jg,jlev) &
                    &  * od_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol)
-                od_total(jg,jcol)  = od(jg,jlev,jcol) + od_cloud_new(jg,jcol)
-                ssa_total(jg,jcol) = 0.0_jprb
-                g_total(jg,jcol)   = 0.0_jprb
+                od_total(jg)  = od(jg,jlev,jcol) + od_cloud_new(jg)
+                ssa_total(jg) = 0.0_jprb
+                g_total(jg)   = 0.0_jprb
 
                 ! In single precision we need to protect against the
                 ! case that od_total > 0.0 and ssa_total > 0.0 but
                 ! od_total*ssa_total == 0 due to underflow
-                if (od_total(jg,jcol) > 0.0_jprb) then
+                if (od_total(jg) > 0.0_jprb) then
                   scat_od = ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
                        &     + ssa_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &
-                       &     *  od_cloud_new(jg,jcol)
-                  ssa_total(jg,jcol) = scat_od / od_total(jg,jcol)
+                       &     *  od_cloud_new(jg)
+                  ssa_total(jg) = scat_od / od_total(jg)
                   if (scat_od > 0.0_jprb) then
-                    g_total(jg,jcol) = (g(jg,jlev,jcol)*ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
+                    g_total(jg) = (g(jg,jlev,jcol)*ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
                          &     +   g_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &
                          &     * ssa_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &
-                         &     *  od_cloud_new(jg,jcol)) &
+                         &     *  od_cloud_new(jg)) &
                          &     / scat_od
                   end if
                 end if
@@ -274,50 +272,50 @@ contains
               ! Apply delta-Eddington scaling to the cloud-aerosol-gas
               ! mixture
               if (config%do_sw_delta_scaling_with_gases) then
-                call delta_eddington(od_total(:,jcol), ssa_total(:,jcol), g_total(:,jcol))
+                call delta_eddington(od_total, ssa_total, g_total)
               end if
 
              ! Compute cloudy-sky reflectance, transmittance etc at
               ! each model level
               call calc_two_stream_gammas_sw(ng, &
-                   &  cos_sza, ssa_total(:,jcol), g_total(:,jcol), &
-                   &  gamma1(:,jcol), gamma2(:,jcol), gamma3(:,jcol))
+                   &  cos_sza, ssa_total, g_total, &
+                   &  gamma1, gamma2, gamma3)
 
               call calc_reflectance_transmittance_sw(ng, &
-                   &  cos_sza, od_total(:,jcol), ssa_total(:,jcol), &
-                   &  gamma1(:,jcol), gamma2(:,jcol), gamma3(:,jcol), &
-                   &  reflectance(:,jlev,jcol), transmittance(:,jlev,jcol), &
-                   &  ref_dir(:,jlev,jcol), trans_dir_diff(:,jlev,jcol), &
-                   &  trans_dir_dir(:,jlev,jcol) )
+                   &  cos_sza, od_total, ssa_total, &
+                   &  gamma1, gamma2, gamma3, &
+                   &  reflectance(:,jlev), transmittance(:,jlev), &
+                   &  ref_dir(:,jlev), trans_dir_diff(:,jlev), &
+                   &  trans_dir_dir(:,jlev) )
 
             else
               ! Clear-sky layer: copy over clear-sky values
-              reflectance(:,jlev,jcol) = ref_clear(:,jlev,jcol)
-              transmittance(:,jlev,jcol) = trans_clear(:,jlev,jcol)
-              ref_dir(:,jlev,jcol) = ref_dir_clear(:,jlev,jcol)
-              trans_dir_diff(:,jlev,jcol) = trans_dir_diff_clear(:,jlev,jcol)
-              trans_dir_dir(:,jlev,jcol) = trans_dir_dir_clear(:,jlev,jcol)
+              reflectance(:,jlev) = ref_clear(:,jlev)
+              transmittance(:,jlev) = trans_clear(:,jlev)
+              ref_dir(:,jlev) = ref_dir_clear(:,jlev)
+              trans_dir_diff(:,jlev) = trans_dir_diff_clear(:,jlev)
+              trans_dir_dir(:,jlev) = trans_dir_dir_clear(:,jlev)
             end if
           end do
             
           ! Use adding method to compute fluxes for an overcast sky
           call adding_ica_sw(ng, nlev, incoming_sw(:,jcol), &
                &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), spread(cos_sza,1,ng), &
-               &  reflectance(:,:,jcol), transmittance(:,:,jcol), ref_dir(:,:,jcol), trans_dir_diff(:,:,jcol), &
-               &  trans_dir_dir(:,:,jcol), flux_up(:,:,jcol), flux_dn_diffuse(:,:,jcol), flux_dn_direct(:,:,jcol), &
+               &  reflectance, transmittance, ref_dir, trans_dir_diff, &
+               &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
                &  albedo=tmp_work_ngnlevp1, &
                &  source=tmp_work_ngnlevp2, &
                &  inv_denominator=tmp_work_ngnlev1)
           
           ! Store overcast broadband fluxes
-          flux%sw_up(jcol,:) = sum(flux_up(:,:,jcol),1)
+          flux%sw_up(jcol,:) = sum(flux_up,1)
           if (allocated(flux%sw_dn_direct)) then
-            flux%sw_dn_direct(jcol,:) = sum(flux_dn_direct(:,:,jcol),1)
-            flux%sw_dn(jcol,:) = sum(flux_dn_diffuse(:,:,jcol),1) &
+            flux%sw_dn_direct(jcol,:) = sum(flux_dn_direct,1)
+            flux%sw_dn(jcol,:) = sum(flux_dn_diffuse,1) &
                  &  + flux%sw_dn_direct(jcol,:)
           else
-            flux%sw_dn(jcol,:) = sum(flux_dn_diffuse(:,:,jcol),1) &
-                 &  + sum(flux_dn_direct(:,:,jcol),1)
+            flux%sw_dn(jcol,:) = sum(flux_dn_diffuse,1) &
+                 &  + sum(flux_dn_direct,1)
           end if
 
           ! Cloudy flux profiles currently assume completely overcast
@@ -331,8 +329,8 @@ contains
                  &  + (1.0_jprb - total_cloud_cover)*flux%sw_dn_direct_clear(jcol,:)
           end if
           ! Likewise for surface spectral fluxes
-          flux%sw_dn_diffuse_surf_g(:,jcol) = flux_dn_diffuse(:,nlev+1,jcol)
-          flux%sw_dn_direct_surf_g(:,jcol)  = flux_dn_direct(:,nlev+1,jcol)
+          flux%sw_dn_diffuse_surf_g(:,jcol) = flux_dn_diffuse(:,nlev+1)
+          flux%sw_dn_direct_surf_g(:,jcol)  = flux_dn_direct(:,nlev+1)
           flux%sw_dn_diffuse_surf_g(:,jcol) = total_cloud_cover *flux%sw_dn_diffuse_surf_g(:,jcol) &
                &     + (1.0_jprb - total_cloud_cover)*flux%sw_dn_diffuse_surf_clear_g(:,jcol)
           flux%sw_dn_direct_surf_g(:,jcol) = total_cloud_cover *flux%sw_dn_direct_surf_g(:,jcol) &
