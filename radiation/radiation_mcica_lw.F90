@@ -129,16 +129,14 @@ contains
     logical :: is_clear_sky_layer(nlev)
 
     ! Temporary working array
-    real(jprb), dimension(nlev) :: tmp_work_nlev
-    real(jprb), dimension(config%n_g_lw) :: tmp_work_ng
-    real(jprb), dimension(nlev-1) :: tmp_work_nlevm1, &
-      &                              tmp_work_nlevm2, &
-      &                              tmp_work_nlevm3
+    real(jprb), dimension(nlev)                 :: tmp_work_nlev
+    real(jprb), dimension(config%n_g_lw)        :: tmp_work_ng
+    real(jprb), dimension(nlev-1)               :: tmp_work_nlevm1,   &
+      &                                            tmp_work_nlevm2,   &
+      &                                            tmp_work_nlevm3
     real(jprb), dimension(config%n_g_lw,nlev+1) :: tmp_work_ngnlevp1, &
       &                                            tmp_work_ngnlevp2
-    real(jprb), dimension(config%n_g_lw,nlev) :: tmp_work_ngnlev1, &
-      &                                          tmp_work_ngnlev2, &
-      &                                          tmp_work_ngnlev3
+    real(jprb), dimension(config%n_g_lw,nlev)   :: tmp_work_ngnlev1
 
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
@@ -222,9 +220,6 @@ contains
            &  overlap_param_inhom=tmp_work_nlevm1, &
            &  pair_cloud_cover=tmp_work_nlevm2, &
            &  overhang=tmp_work_nlevm3, &
-           &  tmp_work_ngnlev1=tmp_work_ngnlev1, &
-           &  tmp_work_ngnlev2=tmp_work_ngnlev2, &
-           &  tmp_work_ngnlev3=tmp_work_ngnlev3, &
            &  use_beta_overlap=config%use_beta_overlap, &
            &  use_vectorizable_generator=config%use_vectorizable_generator)
       

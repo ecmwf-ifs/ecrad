@@ -40,8 +40,7 @@ contains
        &  fractional_std, pdf_sampler, &
        &  od_scaling, total_cloud_cover, &
        &  cum_cloud_cover, rand_top, overlap_param_inhom, &
-       &  pair_cloud_cover, overhang, tmp_work_ngnlev1, &
-       &  tmp_work_ngnlev2, tmp_work_ngnlev3, &
+       &  pair_cloud_cover, overhang, &
        &  use_beta_overlap, use_vectorizable_generator)
 
     use parkind1, only           : jprb
@@ -116,11 +115,6 @@ contains
 
     ! Overlap parameter of inhomogeneities
     real(jprb), intent(out) :: overlap_param_inhom(nlev-1)
-
-    real(jprb), intent(out) :: tmp_work_ngnlev1(ng,nlev), &
-      &                        tmp_work_ngnlev2(ng,nlev), &
-      &                        tmp_work_ngnlev3(ng,nlev)
-
 
     ! Seed for random number generator and stream for producing random
     ! numbers
@@ -229,18 +223,12 @@ contains
             call generate_column_exp_ran(ng, nlev, jg, random_stream, pdf_sampler, &
                  &  frac, pair_cloud_cover, &
                  &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-                 &  itrigger, iend, od_scaling, &
-                 &  rand_cloud=tmp_work_ngnlev1(jg,:), &
-                 &  rand_inhom1=tmp_work_ngnlev2(jg,:), &
-                 &  rand_inhom2=tmp_work_ngnlev3(jg,:))
+                 &  itrigger, iend, od_scaling)
           else
             call generate_column_exp_exp(ng, nlev, jg, random_stream, pdf_sampler, &
                  &  frac, pair_cloud_cover, &
                  &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-                 &  itrigger, iend, od_scaling, &
-                 &  rand_cloud=tmp_work_ngnlev1(jg,:), &
-                 &  rand_inhom1=tmp_work_ngnlev2(jg,:), &
-                 &  rand_inhom2=tmp_work_ngnlev3(jg,:))
+                 &  itrigger, iend, od_scaling)
           end if
           
         end do
@@ -276,8 +264,7 @@ contains
   subroutine generate_column_exp_ran(ng, nlev, ig, random_stream, pdf_sampler, &
        &  frac, pair_cloud_cover, &
        &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-       &  itrigger, iend, od_scaling, &
-       &  rand_cloud, rand_inhom1, rand_inhom2)
+       &  itrigger, iend, od_scaling)
 
     use parkind1,              only : jprb
     use radiation_pdf_sampler, only : pdf_sampler_type
@@ -329,8 +316,8 @@ contains
     ! Is it time to fill the od_scaling variable?
     logical :: do_fill_od_scaling
 
-    real(jprb), intent(out) :: rand_cloud(nlev)
-    real(jprb), intent(out) :: rand_inhom1(nlev), rand_inhom2(nlev)
+    real(jprb) :: rand_cloud(nlev)
+    real(jprb) :: rand_inhom1(nlev), rand_inhom2(nlev)
 
     ! So far our vertically contiguous cloud contains only one layer
     n_layers_to_scale = 1
@@ -412,7 +399,7 @@ contains
   subroutine generate_column_exp_exp(ng, nlev, ig, random_stream, pdf_sampler, &
        &  frac, pair_cloud_cover, &
        &  cum_cloud_cover, overhang, fractional_std, overlap_param_inhom, &
-       &  itrigger, iend, od_scaling, rand_cloud, rand_inhom1, rand_inhom2)
+       &  itrigger, iend, od_scaling)
 
     use parkind1,              only : jprb
     use radiation_pdf_sampler, only : pdf_sampler_type
@@ -456,8 +443,8 @@ contains
 
     integer :: iy
 
-    real(jprb), intent(out) :: rand_cloud(nlev)
-    real(jprb), intent(out) :: rand_inhom1(nlev), rand_inhom2(nlev)
+    real(jprb) :: rand_cloud(nlev)
+    real(jprb) :: rand_inhom1(nlev), rand_inhom2(nlev)
 
     ! For each column analysed, this vector locates the clouds. It is
     ! only actually used for Exp-Exp overlap

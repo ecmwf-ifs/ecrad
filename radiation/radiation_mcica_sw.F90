@@ -121,16 +121,14 @@ contains
     real(jprb), dimension(config%n_g_sw) :: od_cloud_new
 
     ! Temporary working array
-    real(jprb), dimension(nlev) :: tmp_work_nlev
-    real(jprb), dimension(config%n_g_sw) :: tmp_work_ng
-    real(jprb), dimension(nlev-1) :: tmp_work_nlevm1, &
-      &                              tmp_work_nlevm2, &
-      &                              tmp_work_nlevm3
+    real(jprb), dimension(nlev)                 :: tmp_work_nlev
+    real(jprb), dimension(config%n_g_sw)        :: tmp_work_ng
+    real(jprb), dimension(nlev-1)               :: tmp_work_nlevm1,   &
+      &                                            tmp_work_nlevm2,   &
+      &                                            tmp_work_nlevm3
     real(jprb), dimension(config%n_g_sw,nlev+1) :: tmp_work_ngnlevp1, &
       &                                            tmp_work_ngnlevp2
-    real(jprb), dimension(config%n_g_sw,nlev) :: tmp_work_ngnlev1, &
-      &                                          tmp_work_ngnlev2, &
-      &                                          tmp_work_ngnlev3
+    real(jprb), dimension(config%n_g_sw,nlev)   :: tmp_work_ngnlev
 
     ! Total cloud cover output from the cloud generator
     real(jprb) :: total_cloud_cover
@@ -200,7 +198,7 @@ contains
              &  trans_dir_dir_clear, flux_up, flux_dn_diffuse, flux_dn_direct, &
              &  albedo=tmp_work_ngnlevp1, &
              &  source=tmp_work_ngnlevp2, &
-             &  inv_denominator=tmp_work_ngnlev1)
+             &  inv_denominator=tmp_work_ngnlev)
         
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes
@@ -230,9 +228,6 @@ contains
              &  overlap_param_inhom=tmp_work_nlevm1, &
              &  pair_cloud_cover=tmp_work_nlevm2, &
              &  overhang=tmp_work_nlevm3, &
-             &  tmp_work_ngnlev1=tmp_work_ngnlev1, &
-             &  tmp_work_ngnlev2=tmp_work_ngnlev2, &
-             &  tmp_work_ngnlev3=tmp_work_ngnlev3, &
              &  use_beta_overlap=config%use_beta_overlap, &
              &  use_vectorizable_generator=config%use_vectorizable_generator)
 
@@ -305,7 +300,7 @@ contains
                &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
                &  albedo=tmp_work_ngnlevp1, &
                &  source=tmp_work_ngnlevp2, &
-               &  inv_denominator=tmp_work_ngnlev1)
+               &  inv_denominator=tmp_work_ngnlev)
           
           ! Store overcast broadband fluxes
           flux%sw_up(jcol,:) = sum(flux_up,1)
