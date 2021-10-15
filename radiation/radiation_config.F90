@@ -254,6 +254,9 @@ module radiation_config
     ! method.
     integer :: nregions = 3
 
+    ! Number of cloudy subcolumns to use in solar radiance models
+    integer :: n_cloudy_subcolumns_sw = 2
+
     ! Code specifying the solver to be used: use the enumerations
     ! defined above
     integer :: i_solver_sw = ISolverMcICA

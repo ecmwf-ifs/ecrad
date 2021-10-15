@@ -34,6 +34,7 @@ contains
     use radiation_cloud, only          : cloud_type
     use radiation_cloud_cover, only    : cloud_cover
     use radiation_flux, only           : flux_type
+    use radiation_optimal_columns, only: optimal_columns
 
     implicit none
 
@@ -83,6 +84,13 @@ contains
 
     real(jprb) :: albedo(FLOTSAM_NUM_ALBEDO_COMPONENTS)
 
+    real(jprb) :: weight_sub(config%n_bands_sw,config%n_cloudy_subcolumns_sw)
+    real(jprb) :: od_cloud_sub(config%n_bands_sw,nlev,config%n_cloudy_subcolumns_sw)
+    ! Radiance from one subcolumn
+    real(jprb) :: radiance_band_sub
+
+    real(jprb) :: total_cloud_cover
+
     ! Phase function and components
     real(jprb) :: pf(nlev)
     real(jprb), allocatable :: pf_components(:,:)
@@ -101,8 +109,8 @@ contains
     ! Number of g points in band
     integer :: ng
 
-    ! Loop counter
-    integer :: jcol, jg, jband
+    ! Loop counters
+    integer :: jcol, jg, jband, jsub
 
     real(jprb) :: hook_handle
 
@@ -124,14 +132,19 @@ contains
       if (single_level%cos_sensor_zenith_angle(jcol) > 0.0_jprb &
            &  .and. single_level%cos_sza(jcol) > 0.0_jprb) then
 
-        flux%cloud_cover_sw(jcol) = cloud_cover(nlev, config%i_overlap_scheme, &
-             &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
-             &  config%use_beta_overlap)
+        !flux%cloud_cover_sw(jcol) = cloud_cover(nlev, config%i_overlap_scheme, &
+        !     &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
+        !     &  config%use_beta_overlap)
 
         istatus = flotsam_set_geometry(iband, single_level%cos_sza(jcol), &
              &                      single_level%cos_sensor_zenith_angle(jcol), &
              &  single_level%solar_azimuth_angle(jcol) - single_level%sensor_azimuth_angle(jcol))
-        
+
+        call optimal_columns(config%n_bands_sw, config%n_cloudy_subcolumns_sw, nlev, config%cloud_fraction_threshold, &
+             &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), cloud%fractional_std(jcol,:), &
+             &  od_cloud(:,:,jcol), weight_sub, od_cloud_sub, total_cloud_cover)
+        flux%cloud_cover_sw(jcol) = total_cloud_cover
+
         do jband = 1,config%n_bands_sw
           
           ! Copy gas scattering properties
@@ -173,16 +186,25 @@ contains
                &  ssa_cloud(jband,:,jcol), pf, pf_components, flux%sw_radiance_clear_band(jband,jcol))
 
           if (flux%cloud_cover_sw(jcol) > 0.0_jprb) then
-            ! Rescale cloud optical depth; the od_cloud variable
-            od_cloud_scaled = cloud%fraction(jcol,:) * od_cloud(jband,:,jcol) &
-                 &  * (1.0_jprb / flux%cloud_cover_sw(jcol))
-            ! Cloudy sky
-            istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_scaled, &
-                 &  ssa_cloud(jband,:,jcol), pf, pf_components, flux%sw_radiance_band(jband,jcol))
-            ! Weighted average between clear and cloudy
+            ! Scale clear radiance down according to the cloud cover
             flux%sw_radiance_band(jband,jcol) &
-                 &  = flux%cloud_cover_sw(jcol) * flux%sw_radiance_band(jband,jcol) &
-                 &  + (1.0_jprb-flux%cloud_cover_sw(jcol)) * flux%sw_radiance_clear_band(jband,jcol)
+                 &  = flux%cloud_cover_sw(jcol) * flux%sw_radiance_band(jband,jcol)
+
+            ! Rescale cloud optical depth; the od_cloud variable
+            !od_cloud_scaled = cloud%fraction(jcol,:) * od_cloud(jband,:,jcol) &
+            !     &  * (1.0_jprb / flux%cloud_cover_sw(jcol))
+
+            ! Sum over cloudy subcolumns
+            do jsub = 1,config%n_cloudy_subcolumns_sw
+              istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_sub(jband,:,jsub), &
+                   &  ssa_cloud(jband,:,jcol), pf, pf_components, radiance_band_sub)
+              flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_band(jband,jcol) &
+                   &  + weight_sub(jband,jsub)*radiance_band_sub
+            end do
+            ! Weighted average between clear and cloudy
+            !flux%sw_radiance_band(jband,jcol) &
+            !     &  = flux%cloud_cover_sw(jcol) * flux%sw_radiance_band(jband,jcol) &
+            !     &  + (1.0_jprb-flux%cloud_cover_sw(jcol)) * flux%sw_radiance_clear_band(jband,jcol)
           else
             flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_clear_band(jband,jcol)            
           end if
@@ -190,7 +212,7 @@ contains
         end do
       
       else
-        ! Either the sun or the sensor is below he horizon
+        ! Either the sun or the sensor is below the horizon
         flux%sw_radiance_band(:,jcol) = 0.0_jprb
         flux%sw_radiance_clear_band(:,jcol) = 0.0_jprb
       end if

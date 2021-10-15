@@ -24,9 +24,10 @@ contains
   subroutine optimal_columns(ng, nsub, nlev, frac_threshold, frac, overlap_param, &
        &  fractional_std, od_in, weight, od_out, total_cloud_cover)
 
-    use parkind1, only           : jprb
+    use parkind1, only           : jprb, jpim
     use yomhook,  only           : lhook, dr_hook
     use radiation_cloud_cover, only : cum_cloud_cover_exp_ran
+    use radiation_gen_gauss_laguerre, only : calc_gen_gauss_laguerre
 
     implicit none
 
@@ -61,8 +62,11 @@ contains
     ! of the total gridbox occupied by that sub-column. Since this
     ! code does not simulate a clear column, the weights sum to the
     ! total cloud cover, which might not be 1. It is assumed that the
-    ! calling routine simulates a clear column, if required.
-    real(jprb), intent(out) :: weight(nsub)
+    ! calling routine simulates a clear column, if required. Since the
+    ! optical depth fractional standard deviation may be different in
+    ! each spectral interval, the weights may vary with spectral
+    ! interval.
+    real(jprb), intent(out) :: weight(ng,nsub)
 
     ! Cloud optical depth in each layer, subcolumn and spectral
     ! interval
@@ -73,12 +77,41 @@ contains
 
     ! Local variables
 
+    ! Scaling factor to be multiplied by the optical depth of each
+    ! layer and each spectral interval to spread the optical depth in
+    ! the cloudy part of the layer to the cloud cover
+    real(jprb) :: od_scaling(nlev)
+
+    ! Nodes corresponding to "weight" above
+    real(jprb) :: node(ng,nsub)
+
     ! Cumulative cloud cover from TOA to the base of each layer
     real(jprb) :: cum_cloud_cover(nlev)
 
     ! Cloud cover of a pair of layers, and amount by which cloud at
     ! next level increases total cloud cover as seen from above
-    real(jprb), dimension(nlev-1) :: pair_cloud_cover
+    real(jprb) :: pair_cloud_cover(nlev-1)
+
+    ! Accumulated gridbox-mean optical depth from top-of-atmosphere
+    real(jprb) :: acc_gridbox_od(ng)
+
+    ! Accumulated covariance of the optical depth variations in a
+    ! layer with the optical depth of all the layers above, normalized
+    ! by the standard deviation of the optical depth of the layer (all
+    ! gridbox total variables)
+    real(jprb) :: acc_z(ng)
+
+    ! Accumulated variance of optical depth
+    real(jprb) :: acc_var_od(ng)
+
+    ! Variance and standard-deviation of layer optical depth (gridbox
+    ! total)
+    real(jprb) :: gridbox_var_od(ng), gridbox_std_od(ng)
+    
+    real(jprb) :: cloudy_od(ng), cloudy_std_od(ng), cloudy_fsd_od(ng)
+
+    ! Loop index for level and subcolumn
+    integer(jpim) :: jlev, jsub
 
     real(jprb) :: hook_handle
 
@@ -92,16 +125,19 @@ contains
     if (total_cloud_cover < frac_threshold) then
 
       ! No cloud
-      weight(:) = 0.0_jprb
-      od_scaling(:,:) = 0.0_jprb
+      weight     = 0.0_jprb
+      !od_scaling = 0.0_jprb
+      od_out     = 0.0_jprb
 
     else if (nsub == 1) then
 
       ! Simple case of one cloudy column: dilute the in-cloud mean
       ! optical depth into the total cloud cover fraction
-      weight(1) = total_cloud_cover
-      od_scaling(1,:) = frac / total_cloud_cover
-
+      weight(:,1) = total_cloud_cover
+      od_scaling(:) = frac / total_cloud_cover
+      do jlev = 1,nlev
+        od_out(:,jlev,1) = od_in(:,jlev) * od_scaling(jlev)
+      end do
     else
 
       ! Main optimal subcolumn algorithm
@@ -115,7 +151,7 @@ contains
           ! Only consider cloudy layers
 
           ! Accumulate the gridbox-mean optical depth
-          acc_gridbox_od = acc_total_od + od_in(:,jlev) * frac(jlev)
+          acc_gridbox_od = acc_gridbox_od + od_in(:,jlev) * frac(jlev)
 
           ! Variance of layer optical depth across the whole gridbox
           gridbox_var_od = frac(jlev) * (fractional_std(jlev)**2 + 1.0_jprb - frac(jlev)) &
@@ -127,38 +163,22 @@ contains
         end if
       end do
 
-      ! Trivial case of one homogeneous column: we need an
-      ! optical-depth scaling that dilutes the in-cloud mean optical
-      ! depth into a gridbox mean
-      weight(1) = 1.0_jprb
-      od_scaling(1,:) = frac
-      if (any(frac >= frac_threshold)) then
-        total_cloud_cover = 1.0_jprb
-      else
-        total_cloud_cover = 0.0_jprb
-      end if
-    else
-      ! We have more than one column; work out the cloud cover
-      call cum_cloud_cover_exp_ran(nlev, frac, overlap_param, &
-           &   cum_cloud_cover, pair_cloud_cover)
-      total_cloud_cover = cum_cloud_cover(nlev)
-      ! The first column is clear sky
-      weight(1) = 1.0_jprb - total_cloud_cover
-      od_scaling(1,:) = 0.0_jprb
+      cloudy_od = acc_gridbox_od / total_cloud_cover
+      cloudy_std_od = sqrt((acc_var_od - acc_gridbox_od*acc_gridbox_od &
+           &        *(1.0_jprb-total_cloud_cover)/total_cloud_cover)/total_cloud_cover)
 
-      if (total_cloud_cover > frac_threshold) then
-        if (nsub == 2) then
-          
+      cloudy_fsd_od = cloudy_std_od / cloudy_od
 
+      call calc_gen_gauss_laguerre(ng, nsub, cloudy_fsd_od, weight, node)
 
-        end if
-      else
-        ! Clear-sky profile: set other columns to zero
-        weight(1) = 1.0_jprb
-        weight(2:nsub) = 0.0_jprb
-        od_scaling(2:nsub,:) = 0.0_jprb
-      end if
+      od_scaling(:) = frac / total_cloud_cover
 
+      do jsub = 1,nsub
+        do jlev = 1,nlev
+          od_out(:,jlev,jsub) = node(:,jsub) * od_in(:,jlev) * od_scaling(jlev)
+        end do
+      end do
+      
     end if
 
     if (lhook) call dr_hook('radiation_optimal_columns:optimal_columns',1,hook_handle)
