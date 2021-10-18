@@ -546,8 +546,8 @@ contains
     
     if (config%do_lw) then
       if (.not. config%do_save_spectral_flux) then
-!        call out_file%put("wavenumber1_lw", config%wavenumber1_lw)
-!        call out_file%put("wavenumber2_lw", config%wavenumber2_lw)
+        call out_file%put("wavenumber1_lw", config%gas_optics_lw%spectral_def%wavenumber1_band)
+        call out_file%put("wavenumber2_lw", config%gas_optics_lw%spectral_def%wavenumber2_band)
       end if
 
       if (flux%is_brightness_temperature) then
@@ -560,8 +560,8 @@ contains
 
     if (config%do_sw) then
       if (.not. config%do_save_spectral_flux) then
-!        call out_file%put("wavenumber1_sw", config%wavenumber1_sw)
-!        call out_file%put("wavenumber2_sw", config%wavenumber2_sw)
+        call out_file%put("wavenumber1_sw", config%gas_optics_sw%spectral_def%wavenumber1_band)
+        call out_file%put("wavenumber2_sw", config%gas_optics_sw%spectral_def%wavenumber2_band)
       end if
 
       call out_file%put("radiance_sw_band", flux%sw_radiance_band)
