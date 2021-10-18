@@ -57,15 +57,16 @@ module radiation_config
   enum, bind(c) 
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
           &     ISolverSpartacus, ISolverTripleclouds, ISolverTcrad, &
-          &     ISolverFlotsam
+          &     ISolverFlotsam, ISolverFlotsamICA
   end enum
-  character(len=*), parameter :: SolverName(0:6) = (/ 'Cloudless   ', &
+  character(len=*), parameter :: SolverName(0:7) = (/ 'Cloudless   ', &
        &                                              'Homogeneous ', &
        &                                              'McICA       ', &
        &                                              'SPARTACUS   ', &
        &                                              'Tripleclouds', &
        &                                              'TCRAD       ', &
-       &                                              'FLOTSAM     ' /)
+       &                                              'FLOTSAM     ', &
+       &                                              'FLOTSAMICA  ' /)
 
   ! SPARTACUS shortwave solver can treat the reflection of radiation
   ! back up into different regions in various ways
@@ -677,7 +678,7 @@ contains
     logical :: do_canopy_gases_sw, do_canopy_gases_lw
     logical :: do_cloud_aerosol_per_sw_g_point
     logical :: do_cloud_aerosol_per_lw_g_point
-    integer :: n_regions, iverbose, iverbosesetup, n_aerosol_types
+    integer :: n_regions, iverbose, iverbosesetup, n_aerosol_types, n_cloudy_subcolumns_sw
     real(jprb):: mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od
     real(jprb):: mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo
     real(jprb):: mono_lw_asymmetry_factor, mono_sw_asymmetry_factor
@@ -716,7 +717,7 @@ contains
          &  do_save_spectral_flux, do_save_gpoint_flux, &
          &  do_surface_sw_spectral_flux, do_lw_derivatives, &
          &  do_lw_aerosol_scattering, do_lw_cloud_scattering, &
-         &  n_regions, directory_name, gas_model_name, &
+         &  n_regions, directory_name, gas_model_name, n_cloudy_subcolumns_sw, &
          &  ice_optics_override_file_name, liq_optics_override_file_name, &
          &  aerosol_optics_override_file_name, cloud_pdf_override_file_name, &
          &  gas_optics_sw_override_file_name, gas_optics_lw_override_file_name, &
@@ -768,6 +769,7 @@ contains
     do_canopy_gases_sw = this%do_canopy_gases_sw
     do_canopy_gases_lw = this%do_canopy_gases_lw
     n_regions = this%nregions
+    n_cloudy_subcolumns_sw = this%n_cloudy_subcolumns_sw
     directory_name = this%directory_name
     cloud_pdf_override_file_name = this%cloud_pdf_override_file_name
     liq_optics_override_file_name = this%liq_optics_override_file_name
@@ -918,6 +920,7 @@ contains
     this%do_lw_cloud_scattering = do_lw_cloud_scattering
     this%do_lw_aerosol_scattering = do_lw_aerosol_scattering
     this%nregions = n_regions
+    this%n_cloudy_subcolumns_sw = n_cloudy_subcolumns_sw
     this%do_surface_sw_spectral_flux = do_surface_sw_spectral_flux
     this%do_sw_delta_scaling_with_gases = do_sw_delta_scaling_with_gases
     this%do_fu_lw_ice_optics_bug = do_fu_lw_ice_optics_bug
@@ -1502,7 +1505,7 @@ contains
           call print_real('    Overhang factor', &
                &   'overhang_factor', this%overhang_factor)
         end if
-      else if (this%i_solver_lw == ISolverTCRAD) then
+      else if (this%i_solver_lw == ISolverTcrad) then
         write(nulout, '(a)') '  TCRAD options:'
         call print_integer('    Number of regions', 'n_regions', this%nregions)
         call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &
@@ -1511,6 +1514,11 @@ contains
            &  .or. this%i_solver_lw == ISolverMcICA) then
         call print_logical('  Use vectorizable McICA cloud generator', &
              &   'use_vectorizable_generator', this%use_vectorizable_generator)
+      end if
+      if (this%i_solver_sw == ISolverFlotsam .or. this%i_solver_sw == ISolverFlotsamICA) then
+        write(nulout, '(a)') '  FLOTSAM options:'
+        call print_integer('    Number of cloudy subcolumns', &
+             &             'n_cloudy_subcolumns_sw', this%n_cloudy_subcolumns_sw)
       end if
             
     end if

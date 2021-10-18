@@ -21,6 +21,9 @@ module radiation_gen_gauss_laguerre
 
   public
 
+  ! The look-up table covers fractional standard deviations in the
+  ! range 0 to 4
+
   ! Number of fractional standard deviations in look-up table
   integer(jpim), parameter :: nfsd = 21
 
@@ -28,7 +31,7 @@ module radiation_gen_gauss_laguerre
   real(jprb), parameter :: dfsd = 0.2_jprb
 
   ! Weights and nodes for each value of fractional standard deviation,
-  ! and each order from 2 to 7
+  ! and each order from 2 to 7, assuming a gamma distribution
   real(jprb), parameter :: weights2(2,nfsd) = reshape([ &
    &    0.5497519_jprb,    0.4502481_jprb, &
    &    0.5980581_jprb,    0.4019419_jprb, &
@@ -308,49 +311,86 @@ module radiation_gen_gauss_laguerre
 
 contains
 
+  !---------------------------------------------------------------------
+  ! Compute the weights and nodes for integrating across a gamma
+  ! distribution given the fractional standard deviation (=standard
+  ! deviation divided by the mean) assuming a mean of unity, using
+  ! Generalized Gauss-Laguerre Quadrature. The user can then multiply
+  ! the nodes output from this routine by the mean of the
+  ! distribution.  If the quadrature order "norder" is less than 1,
+  ! the weights and nodes will not be written, while if it is larger
+  ! than 7, only 7 nodes will be written and the remainder will be
+  ! assigned zero weight.
   subroutine calc_gen_gauss_laguerre(ng, norder, fsd, weights, nodes)
 
-    integer(jpim), intent(in)  :: ng, norder
+    ! Number of independent sets of weights required (typically this
+    ! corresponds to spectral interval or atmospheric column)
+    integer(jpim), intent(in)  :: ng
+    ! Number of nodes to be used for the quadrature
+    integer(jpim), intent(in)  :: norder
+    ! Fractional standard deviation
     real(jprb),    intent(in)  :: fsd(ng)
+
+    ! Weighting of each node
     real(jprb),    intent(out) :: weights(ng,norder)
+    ! Value of each node assuming a mean of one
     real(jprb),    intent(out) :: nodes(ng,norder)
 
+    ! Index for look-up table in fractional standard deviation
     integer(jpim) :: ifsd(ng)
+    ! Weights for look-up table
     real(jprb)    :: w1(ng), w2(ng)
 
+    ! Loop index
     integer(jpim) :: jg
 
+    ! Compute look-up table indices as real numbers
     w1 = max(0.0_jprb, min(fsd / dfsd, nfsd-0.0001_jprb))
+    ! Indices of the first point in the interpolation
     ifsd = floor(w1)
+    ! Weight of the second point in the interpolation
     w2 = w1 - ifsd
+    ! Weight of the first point in the interpolation
     w1 = 1.0_jprb - w2
 
+    ! According to the order of the quadrature, we interpolate from
+    ! different parameter arrays weights[2-7] and nodes[2-7]
     select case (norder)
       case (2)
         do jg = 1,ng
           weights(jg,:) = w1(jg) * weights2(:,ifsd(jg)) + w2(jg) * weights2(:,ifsd(jg)+1)
           nodes(jg,:)   = w1(jg) * nodes2(:,ifsd(jg))   + w2(jg) * nodes2(:,ifsd(jg)+1)
         end do
-#ifdef PANTS
       case (3)
-        weights = w1 * weights3(:,ifsd) + w2 * weights3(:,ifsd+1)
-        nodes   = w1 * nodes3(:,ifsd)   + w2 * nodes3(:,ifsd+1)
+        do jg = 1,ng
+          weights(jg,:) = w1(jg) * weights3(:,ifsd(jg)) + w2(jg) * weights3(:,ifsd(jg)+1)
+          nodes(jg,:)   = w1(jg) * nodes3(:,ifsd(jg))   + w2(jg) * nodes3(:,ifsd(jg)+1)
+        end do
       case (4)
-        weights = w1 * weights4(:,ifsd) + w2 * weights4(:,ifsd+1)
-        nodes   = w1 * nodes4(:,ifsd)   + w2 * nodes4(:,ifsd+1)
+        do jg = 1,ng
+          weights(jg,:) = w1(jg) * weights4(:,ifsd(jg)) + w2(jg) * weights4(:,ifsd(jg)+1)
+          nodes(jg,:)   = w1(jg) * nodes4(:,ifsd(jg))   + w2(jg) * nodes4(:,ifsd(jg)+1)
+        end do
       case (5)
-        weights = w1 * weights5(:,ifsd) + w2 * weights5(:,ifsd+1)
-        nodes   = w1 * nodes5(:,ifsd)   + w2 * nodes5(:,ifsd+1)
+        do jg = 1,ng
+          weights(jg,:) = w1(jg) * weights5(:,ifsd(jg)) + w2(jg) * weights5(:,ifsd(jg)+1)
+          nodes(jg,:)   = w1(jg) * nodes5(:,ifsd(jg))   + w2(jg) * nodes5(:,ifsd(jg)+1)
+        end do
       case (6)
-        weights = w1 * weights6(:,ifsd) + w2 * weights6(:,ifsd+1)
-        nodes   = w1 * nodes6(:,ifsd)   + w2 * nodes6(:,ifsd+1)
+        do jg = 1,ng
+          weights(jg,:) = w1(jg) * weights6(:,ifsd(jg)) + w2(jg) * weights6(:,ifsd(jg)+1)
+          nodes(jg,:)   = w1(jg) * nodes6(:,ifsd(jg))   + w2(jg) * nodes6(:,ifsd(jg)+1)
+        end do
+      case (7:)
+        do jg = 1,ng
+          weights(jg,1:7) = w1(jg) * weights7(:,ifsd(jg)) + w2(jg) * weights7(:,ifsd(jg)+1)
+          nodes(jg,1:7)   = w1(jg) * nodes7(:,ifsd(jg))   + w2(jg) * nodes7(:,ifsd(jg)+1)
+        end do
+        weights(:,8:) = 0.0_jprb
+        nodes(:,8:)   = 1.0_jprb
       case (1)
         weights = 1.0_jprb
         nodes   = 1.0_jprb
-      case (7:)
-        weights = w1 * weights7(:,ifsd) + w2 * weights7(:,ifsd+1)
-        nodes   = w1 * nodes7(:,ifsd)   + w2 * nodes7(:,ifsd+1)
-#endif
       case default
         ! norder <= 0: do nothing
     end select

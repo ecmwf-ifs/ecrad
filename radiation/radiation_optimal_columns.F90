@@ -1,4 +1,4 @@
-! radiation_optimal_columns.F90 - Generate optimal sub-columns for a shortwave solver
+! radiation_optimal_columns.F90 - Generate optimal sub-columns for a shortwave radiance solver
 !
 ! (C) Copyright 2021- ECMWF.
 !
@@ -20,7 +20,12 @@ module radiation_optimal_columns
 contains
 
   !---------------------------------------------------------------------
-  ! Generate ncol sub-columns 
+  ! Generate nsub cloudy sub-columns in ng spectral intervals using
+  ! the optimal-column technique in which the standard deviation of
+  ! column optical depth and then Generalized Gauss-Laguerre
+  ! Quadrature is used to select quadrature points assuming the
+  ! distribution of column optical depth (in the cloud-covered part of
+  ! the gridbox) follows a gamma distribution.
   subroutine optimal_columns(ng, nsub, nlev, frac_threshold, frac, overlap_param, &
        &  fractional_std, od_in, weight, od_out, total_cloud_cover)
 
@@ -113,6 +118,8 @@ contains
     ! Loop index for level and subcolumn
     integer(jpim) :: jlev, jsub
 
+    logical :: is_first_layer
+
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_optimal_columns:optimal_columns',0,hook_handle)
@@ -126,7 +133,6 @@ contains
 
       ! No cloud
       weight     = 0.0_jprb
-      !od_scaling = 0.0_jprb
       od_out     = 0.0_jprb
 
     else if (nsub == 1) then
@@ -134,10 +140,11 @@ contains
       ! Simple case of one cloudy column: dilute the in-cloud mean
       ! optical depth into the total cloud cover fraction
       weight(:,1) = total_cloud_cover
-      od_scaling(:) = frac / total_cloud_cover
+      od_scaling = frac / total_cloud_cover
       do jlev = 1,nlev
         od_out(:,jlev,1) = od_in(:,jlev) * od_scaling(jlev)
       end do
+
     else
 
       ! Main optimal subcolumn algorithm
@@ -146,6 +153,8 @@ contains
       acc_z = 0.0_jprb
       acc_var_od = 0.0_jprb
 
+      is_first_layer = .true.
+
       do jlev = 1,nlev
         if (frac(jlev) > frac_threshold) then
           ! Only consider cloudy layers
@@ -153,25 +162,44 @@ contains
           ! Accumulate the gridbox-mean optical depth
           acc_gridbox_od = acc_gridbox_od + od_in(:,jlev) * frac(jlev)
 
+          if (.not. is_first_layer) then
+            acc_z = (acc_z + gridbox_std_od) * overlap_param(jlev-1)
+          end if
+            
           ! Variance of layer optical depth across the whole gridbox
           gridbox_var_od = frac(jlev) * (fractional_std(jlev)**2 + 1.0_jprb - frac(jlev)) &
                &   * od_in(:,jlev)**2
           gridbox_std_od = sqrt(gridbox_var_od)
 
-          acc_z = (acc_z + gridbox_std_od) * overlap_param(jlev)
-          acc_var_od = acc_var_od + gridbox_var_od + 2.0_jprb * acc_z * gridbox_std_od
+          if (is_first_layer) then
+            acc_var_od = gridbox_var_od
+            is_first_layer = .false.
+          else
+            acc_var_od = acc_var_od + gridbox_var_od + 2.0_jprb * acc_z * gridbox_std_od
+          end if
+
         end if
       end do
 
+      ! From the final accumulated values, compute the mean column
+      ! optical depth of the cloud-covered part of the gridbox...
       cloudy_od = acc_gridbox_od / total_cloud_cover
+      ! ...and the standard deviation of optical depth of the
+      ! cloud-covered part of the gridbox...
       cloudy_std_od = sqrt((acc_var_od - acc_gridbox_od*acc_gridbox_od &
            &        *(1.0_jprb-total_cloud_cover)/total_cloud_cover)/total_cloud_cover)
-
+      ! ...from which we calculate the fractional standard deviation.
       cloudy_fsd_od = cloudy_std_od / cloudy_od
-
+      
+      ! Generalized Gauss-Laguerre Quadrature then yields the weights
+      ! and nodes to optimally integrate over the cloudy part of the
+      ! gridbox
       call calc_gen_gauss_laguerre(ng, nsub, cloudy_fsd_od, weight, node)
 
-      od_scaling(:) = frac / total_cloud_cover
+      ! Scale the results into the output "weight" and "od_out"
+      ! variables
+      od_scaling = frac / total_cloud_cover
+      weight = weight * total_cloud_cover
 
       do jsub = 1,nsub
         do jlev = 1,nlev

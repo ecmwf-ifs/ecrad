@@ -530,7 +530,7 @@ contains
       end if
 
       call out_file%define_variable("radiance_sw_band", &
-           &  dim2_name="column", dim1_name="band_sw", &
+           &  dim2_name="column", dim1_name="band_sw",&
            &  units_str=trim(sw_units_str), long_name="Solar radiance")
 
       if (config%do_clear) then

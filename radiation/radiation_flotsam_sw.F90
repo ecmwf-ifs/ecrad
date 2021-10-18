@@ -24,7 +24,7 @@ contains
        &  config, single_level, cloud, & 
        &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, &
        &  albedo_direct, albedo_diffuse, incoming_sw, &
-       &  flux)
+       &  flux, use_stochastic_columns)
 
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook
@@ -35,6 +35,7 @@ contains
     use radiation_cloud_cover, only    : cloud_cover
     use radiation_flux, only           : flux_type
     use radiation_optimal_columns, only: optimal_columns
+    use radiation_cloud_generator, only: cloud_generator
 
     implicit none
 
@@ -64,6 +65,9 @@ contains
     real(jprb), intent(in), dimension(config%n_g_sw,istartcol:iendcol) :: &
          &  albedo_direct, albedo_diffuse, incoming_sw
 
+    ! Do we use stochastic cloud generator or optimal columns?
+    logical, optional, intent(in) :: use_stochastic_columns
+
     ! Output
     type(flux_type), intent(inout):: flux
 
@@ -80,12 +84,22 @@ contains
 
     integer :: ind(nlev)
 
+    ! Solar incoming in each band
     real(jprb) :: weight(config%n_g_sw)
 
     real(jprb) :: albedo(FLOTSAM_NUM_ALBEDO_COMPONENTS)
 
-    real(jprb) :: weight_sub(config%n_bands_sw,config%n_cloudy_subcolumns_sw)
-    real(jprb) :: od_cloud_sub(config%n_bands_sw,nlev,config%n_cloudy_subcolumns_sw)
+    ! Weights and optical depths used by the optimal columns scheme
+    !real(jprb) :: weight_sub(config%n_bands_sw,config%n_cloudy_subcolumns_sw)
+    !real(jprb) :: od_cloud_sub(config%n_bands_sw,nlev,config%n_cloudy_subcolumns_sw)
+    real(jprb), allocatable :: weight_sub_oc(:,:)
+    real(jprb), allocatable :: od_cloud_sub_oc(:,:,:)
+
+    ! Weight and optical depth scalings used by the stochastic columns scheme
+    real(jprb), allocatable :: od_scaling_sub_sc(:,:) ! (config%n_cloudy_subcolumns_sw,nlev)
+    real(jprb) :: od_cloud_sub_sc(nlev)
+    real(jprb) :: weight_sub_sc
+    
     ! Radiance from one subcolumn
     real(jprb) :: radiance_band_sub
 
@@ -94,6 +108,8 @@ contains
     ! Phase function and components
     real(jprb) :: pf(nlev)
     real(jprb), allocatable :: pf_components(:,:)
+
+    logical :: use_stochastic_columns_local
 
     ! Index to FLOTSAM band ID
     integer :: iband, istatus, ig
@@ -127,22 +143,46 @@ contains
     pf_components = 0.0_jprb
     pf_components(1,:) = 1.0_jprb
 
+    ! Allocate relevant arrays depending on whether stochastic or
+    ! optimal columns are being used
+    if (present(use_stochastic_columns)) then
+      use_stochastic_columns_local = use_stochastic_columns
+    else
+      use_stochastic_columns_local = .false.
+    end if
+    if (use_stochastic_columns_local) then
+      allocate(od_scaling_sub_sc(config%n_cloudy_subcolumns_sw,nlev))
+    else
+      allocate(weight_sub_oc(config%n_bands_sw,config%n_cloudy_subcolumns_sw))
+      allocate(od_cloud_sub_oc(config%n_bands_sw,nlev,config%n_cloudy_subcolumns_sw))
+    end if
+
     do jcol = istartcol,iendcol
 
       if (single_level%cos_sensor_zenith_angle(jcol) > 0.0_jprb &
            &  .and. single_level%cos_sza(jcol) > 0.0_jprb) then
 
-        !flux%cloud_cover_sw(jcol) = cloud_cover(nlev, config%i_overlap_scheme, &
-        !     &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
-        !     &  config%use_beta_overlap)
-
         istatus = flotsam_set_geometry(iband, single_level%cos_sza(jcol), &
              &                      single_level%cos_sensor_zenith_angle(jcol), &
              &  single_level%solar_azimuth_angle(jcol) - single_level%sensor_azimuth_angle(jcol))
 
-        call optimal_columns(config%n_bands_sw, config%n_cloudy_subcolumns_sw, nlev, config%cloud_fraction_threshold, &
-             &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), cloud%fractional_std(jcol,:), &
-             &  od_cloud(:,:,jcol), weight_sub, od_cloud_sub, total_cloud_cover)
+        if (use_stochastic_columns_local) then
+          call cloud_generator(config%n_cloudy_subcolumns_sw, nlev, config%i_overlap_scheme, &
+               &  single_level%iseed(jcol), &
+               &  config%cloud_fraction_threshold, &
+               &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
+               &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
+               &  config%pdf_sampler, od_scaling_sub_sc, total_cloud_cover, &
+               &  use_beta_overlap=config%use_beta_overlap, &
+               &  use_vectorizable_generator=config%use_vectorizable_generator)
+          ! Each cloudy subcolumn is weighted equally
+          weight_sub_sc = total_cloud_cover / config%n_cloudy_subcolumns_sw
+        else
+          call optimal_columns(config%n_bands_sw, config%n_cloudy_subcolumns_sw, nlev, config%cloud_fraction_threshold, &
+               &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), cloud%fractional_std(jcol,:), &
+               &  od_cloud(:,:,jcol), weight_sub_oc, od_cloud_sub_oc, total_cloud_cover)
+        end if
+
         flux%cloud_cover_sw(jcol) = total_cloud_cover
 
         do jband = 1,config%n_bands_sw
@@ -188,23 +228,24 @@ contains
           if (flux%cloud_cover_sw(jcol) > 0.0_jprb) then
             ! Scale clear radiance down according to the cloud cover
             flux%sw_radiance_band(jband,jcol) &
-                 &  = flux%cloud_cover_sw(jcol) * flux%sw_radiance_band(jband,jcol)
-
-            ! Rescale cloud optical depth; the od_cloud variable
-            !od_cloud_scaled = cloud%fraction(jcol,:) * od_cloud(jband,:,jcol) &
-            !     &  * (1.0_jprb / flux%cloud_cover_sw(jcol))
+                 &  = (1.0_jprb - flux%cloud_cover_sw(jcol)) * flux%sw_radiance_clear_band(jband,jcol)
 
             ! Sum over cloudy subcolumns
             do jsub = 1,config%n_cloudy_subcolumns_sw
-              istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_sub(jband,:,jsub), &
-                   &  ssa_cloud(jband,:,jcol), pf, pf_components, radiance_band_sub)
-              flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_band(jband,jcol) &
-                   &  + weight_sub(jband,jsub)*radiance_band_sub
+              if (use_stochastic_columns_local) then
+                od_cloud_sub_sc = od_cloud(jband,:,jcol) * od_scaling_sub_sc(jsub,:)
+                istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_sub_sc, &
+                     &  ssa_cloud(jband,:,jcol), pf, pf_components, radiance_band_sub)
+                flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_band(jband,jcol) &
+                     &  + weight_sub_sc*radiance_band_sub
+              else
+                istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_sub_oc(jband,:,jsub), &
+                     &  ssa_cloud(jband,:,jcol), pf, pf_components, radiance_band_sub)
+                flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_band(jband,jcol) &
+                     &  + weight_sub_oc(jband,jsub)*radiance_band_sub
+              end if
             end do
-            ! Weighted average between clear and cloudy
-            !flux%sw_radiance_band(jband,jcol) &
-            !     &  = flux%cloud_cover_sw(jcol) * flux%sw_radiance_band(jband,jcol) &
-            !     &  + (1.0_jprb-flux%cloud_cover_sw(jcol)) * flux%sw_radiance_clear_band(jband,jcol)
+
           else
             flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_clear_band(jband,jcol)            
           end if

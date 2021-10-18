@@ -38,7 +38,7 @@ contains
 
     use parkind1,         only : jprb
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : config_type, ISolverMcICA, ISolverFlotsam, &
+    use radiation_config, only : config_type, ISolverMcICA, ISolverFlotsam, ISolverFlotsamICA, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
     use radiation_spectral_definition, only &
          &  : SolarReferenceTemperature, TerrestrialReferenceTemperature
@@ -117,7 +117,8 @@ contains
 
 #ifdef FLOTSAM
     ! Setup Cox-Munk model
-    if (config%i_solver_sw == ISolverFlotsam) then
+    if (config%i_solver_sw == ISolverFlotsam &
+         &  .or. config%i_solver_sw == ISolverFlotsamICA) then
       call allocate_ocean_reflectance_model(config)
     end if
 #endif
@@ -142,7 +143,8 @@ contains
 
     ! Load cloud water PDF look-up table for McICA
     if (         config%i_solver_sw == ISolverMcICA &
-         &  .or. config%i_solver_lw == ISolverMcICA) then
+         &  .or. config%i_solver_lw == ISolverMcICA &
+         &  .or. config%i_solver_sw == ISolverFlotsamICA) then
       call config%pdf_sampler%setup(config%cloud_pdf_file_name, &
            &                        iverbose=config%iverbosesetup)
     end if
@@ -199,7 +201,8 @@ contains
     use radiation_config,         only : config_type, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, &
          &   ISolverMcICA, ISolverSpartacus, ISolverHomogeneous, &
-         &   ISolverTripleclouds, ISolverTcrad, ISolverFlotsam
+         &   ISolverTripleclouds, ISolverTcrad, ISolverFlotsam, &
+         &   ISolverFlotsamICA
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_gas,            only : gas_type
@@ -473,6 +476,12 @@ contains
                  &  config, single_level, cloud, &
                  &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
                  &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, flux)
+          else if (config%i_solver_sw == ISolverFlotsamICA) then
+            call radiance_solver_flotsam_sw(nlev,istartcol,iendcol, &
+                 &  config, single_level, cloud, &
+                 &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
+                 &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, flux, &
+                 &  use_stochastic_columns=.true.)
           end if
 #endif
         else if (config%i_solver_sw == ISolverMcICA) then

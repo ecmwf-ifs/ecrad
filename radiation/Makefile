@@ -109,7 +109,7 @@ radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_flotsam_sw.o \
 	radiation_optical_depth_scaling.h radiation_overlap.o \
 	radiation_matrix.o radiation_flux.o radiation_regions.o radiation_single_level.o
 
-radiation_flotsam_sw.o: radiation_optimal_columns.o
+radiation_flotsam_sw.o: radiation_optimal_columns.o radiation_cloud_generator.o
 radiation_optimal_columns.o: radiation_gen_gauss_laguerre.o
 radiation_ecckd.o: radiation_ecckd_gas.o radiation_spectral_definition.o
 radiation_ecckd_gas.o: radiation_gas_constants.o
