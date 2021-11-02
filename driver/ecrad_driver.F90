@@ -128,7 +128,7 @@ program ecrad_driver
     write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
     write(nulout,'(a)') 'Copyright (C) 2014- ECMWF'
     write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
-#ifdef SINGLE_PRECISION
+#ifdef PARKIND1_SINGLE
     write(nulout,'(a)') 'Floating-point precision: single'
 #else
     write(nulout,'(a)') 'Floating-point precision: double'

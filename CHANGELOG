@@ -21,6 +21,8 @@ version 1.5
 	  and aerosol_extinction, which take wavelength rather than band
 	  number
 	- "make GPROF=1" compiles with -pg option for the GNU profiler
+	- For consistency with IFS, "PARKIND1_SINGLE" is now the
+	  preprocessor variable to detect single precision
 
 version 1.4.2 (21 June 2021)
 	- radiation_config:do_write_double_precision writes fluxes as

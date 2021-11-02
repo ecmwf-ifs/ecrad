@@ -41,7 +41,7 @@ endif
 # Add single-precision flag if SINGLE_PRECISION=1 was given on the
 # "make" command line
 ifdef SINGLE_PRECISION
-CPPFLAGS += -DSINGLE_PRECISION
+CPPFLAGS += -DPARKIND1_SINGLE
 endif
 
 # If PRINT_ENTRAPMENT_DATA=1 was given on the "make" command line
