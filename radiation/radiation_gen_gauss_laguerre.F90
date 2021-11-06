@@ -345,7 +345,7 @@ contains
     integer(jpim) :: jg
 
     ! Compute look-up table indices as real numbers
-    w1 = max(0.0_jprb, min(fsd / dfsd, nfsd-0.0001_jprb))
+    w1 = 1.0_jprb + max(0.0_jprb, min(fsd / dfsd, nfsd-1.0001_jprb))
     ! Indices of the first point in the interpolation
     ifsd = floor(w1)
     ! Weight of the second point in the interpolation

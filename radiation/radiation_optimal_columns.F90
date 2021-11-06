@@ -27,7 +27,7 @@ contains
   ! distribution of column optical depth (in the cloud-covered part of
   ! the gridbox) follows a gamma distribution.
   subroutine optimal_columns(ng, nsub, nlev, frac_threshold, frac, overlap_param, &
-       &  fractional_std, od_in, weight, od_out, total_cloud_cover)
+       &  fractional_std, od_in, weight, od_out, total_cloud_cover, cloudy_fsd_od)
 
     use parkind1, only           : jprb, jpim
     use yomhook,  only           : lhook, dr_hook
@@ -80,6 +80,10 @@ contains
     ! Total cloud cover using cloud fraction and overlap parameter
     real(jprb), intent(out) :: total_cloud_cover
 
+    ! Fractional standard deviation of the total-column optical depth
+    ! in the cloudy part of the gridbox
+    real(jprb), intent(out), optional :: cloudy_fsd_od(ng)
+
     ! Local variables
 
     ! Scaling factor to be multiplied by the optical depth of each
@@ -113,7 +117,10 @@ contains
     ! total)
     real(jprb) :: gridbox_var_od(ng), gridbox_std_od(ng)
     
-    real(jprb) :: cloudy_od(ng), cloudy_std_od(ng), cloudy_fsd_od(ng)
+    ! Properties of cloudy part of gridbox: mean column optical depth,
+    ! standard deviation of optical depth and fractional standard
+    ! deviation of optical depth
+    real(jprb) :: cloudy_od(ng), cloudy_std_od(ng), cloudy_fsd_od_local(ng)
 
     ! Loop index for level and subcolumn
     integer(jpim) :: jlev, jsub
@@ -128,6 +135,10 @@ contains
     call cum_cloud_cover_exp_ran(nlev, frac, overlap_param, &
          &   cum_cloud_cover, pair_cloud_cover)
     total_cloud_cover = cum_cloud_cover(nlev)
+
+    if (present(cloudy_fsd_od)) then
+      cloudy_fsd_od = 0.0_jprb
+    end if
 
     if (total_cloud_cover < frac_threshold) then
 
@@ -189,12 +200,16 @@ contains
       cloudy_std_od = sqrt((acc_var_od - acc_gridbox_od*acc_gridbox_od &
            &        *(1.0_jprb-total_cloud_cover)/total_cloud_cover)/total_cloud_cover)
       ! ...from which we calculate the fractional standard deviation.
-      cloudy_fsd_od = cloudy_std_od / cloudy_od
+      cloudy_fsd_od_local = cloudy_std_od / cloudy_od
       
+      if (present(cloudy_fsd_od)) then
+        cloudy_fsd_od = cloudy_fsd_od_local
+      end if
+
       ! Generalized Gauss-Laguerre Quadrature then yields the weights
       ! and nodes to optimally integrate over the cloudy part of the
       ! gridbox
-      call calc_gen_gauss_laguerre(ng, nsub, cloudy_fsd_od, weight, node)
+      call calc_gen_gauss_laguerre(ng, nsub, cloudy_fsd_od_local, weight, node)
 
       ! Scale the results into the output "weight" and "od_out"
       ! variables
