@@ -16,6 +16,8 @@ module radiation_flotsam_sw
 
   public
 
+#define SAVE_FRACTIONAL_STD 1
+
 contains
 
   ! This module contains the shortwave "FLOTSAM" solver
@@ -82,6 +84,10 @@ contains
     ! rescaling the cloud optical depth
     real(jprb), dimension(nlev) :: od_cloud_scaled
 
+    ! Fractional standard deviation of the total-column optical depth
+    ! in the cloudy part of the gridbox
+    real(jprb) :: cloudy_fsd_od(config%n_g_sw)
+
     integer :: ind(nlev)
 
     ! Solar incoming in each band
@@ -105,6 +111,14 @@ contains
 
     real(jprb) :: total_cloud_cover
 
+#ifdef SAVE_FRACTIONAL_STD
+    ! Variables required for computing the fractional standard
+    ! deviation of the total optical depth of the cloudy part of the
+    ! gridbox
+    real(jprb) :: total_od
+    real(jprb), dimension(config%n_bands_sw) :: sum_od_cloud, sum_od2_cloud
+#endif
+
     ! Phase function and components
     real(jprb) :: pf(nlev)
     real(jprb), allocatable :: pf_components(:,:)
@@ -126,7 +140,7 @@ contains
     integer :: ng
 
     ! Loop counters
-    integer :: jcol, jg, jband, jsub
+    integer :: jcol, jg, jband, jsub, jlev
 
     real(jprb) :: hook_handle
 
@@ -177,13 +191,29 @@ contains
                &  use_vectorizable_generator=config%use_vectorizable_generator)
           ! Each cloudy subcolumn is weighted equally
           weight_sub_sc = total_cloud_cover / config%n_cloudy_subcolumns_sw
+          do jlev = 1,nlev-1
+            if (cloud%fraction(jcol,jlev) > config%cloud_fraction_threshold &
+                 &  .and. cloud%fraction(jcol,jlev+1) > config%cloud_fraction_threshold) then
+              write(104,*) jcol, jlev, cloud%overlap_param(jcol,jlev), &
+                   &  correlation(config%n_cloudy_subcolumns_sw, od_scaling_sub_sc(:,jlev), od_scaling_sub_sc(:,jlev+1))
+            end if
+          end do
         else
           call optimal_columns(config%n_bands_sw, config%n_cloudy_subcolumns_sw, nlev, config%cloud_fraction_threshold, &
                &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), cloud%fractional_std(jcol,:), &
-               &  od_cloud(:,:,jcol), weight_sub_oc, od_cloud_sub_oc, total_cloud_cover)
+               &  od_cloud(:,:,jcol), weight_sub_oc, od_cloud_sub_oc, total_cloud_cover, &
+               &  cloudy_fsd_od=cloudy_fsd_od)
+#ifdef SAVE_FRACTIONAL_STD
+          write(100,*) jcol, single_level%cos_sza(jcol), cloudy_fsd_od
+#endif
         end if
 
         flux%cloud_cover_sw(jcol) = total_cloud_cover
+
+#ifdef SAVE_FRACTIONAL_STD
+        sum_od_cloud = 0.0_jprb
+        sum_od2_cloud = 0.0_jprb
+#endif
 
         do jband = 1,config%n_bands_sw
           
@@ -234,15 +264,32 @@ contains
             do jsub = 1,config%n_cloudy_subcolumns_sw
               if (use_stochastic_columns_local) then
                 od_cloud_sub_sc = od_cloud(jband,:,jcol) * od_scaling_sub_sc(jsub,:)
+
+#ifdef SAVE_FRACTIONAL_STD
+                ! Store the cumulative summation of the total optical
+                ! depth and its square
+                total_od = sum(od_cloud_sub_sc)
+                sum_od_cloud(jband)  = sum_od_cloud(jband)  + total_od
+                sum_od2_cloud(jband) = sum_od2_cloud(jband) + total_od*total_od
+#endif
+#ifndef SAVE_FRACTIONAL_STD
                 istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_sub_sc, &
                      &  ssa_cloud(jband,:,jcol), pf, pf_components, radiance_band_sub)
                 flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_band(jband,jcol) &
                      &  + weight_sub_sc*radiance_band_sub
+#endif
               else
+#ifndef SAVE_FRACTIONAL_STD
                 istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_sub_oc(jband,:,jsub), &
                      &  ssa_cloud(jband,:,jcol), pf, pf_components, radiance_band_sub)
                 flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_band(jband,jcol) &
                      &  + weight_sub_oc(jband,jsub)*radiance_band_sub
+#else
+                total_od = sum(od_cloud_sub_oc(jband,:,jsub))
+                sum_od_cloud(jband) = sum_od_cloud(jband) + total_od*weight_sub_oc(jband,jsub)/total_cloud_cover
+                sum_od2_cloud(jband) = sum_od2_cloud(jband) &
+                     &  + total_od*total_od*weight_sub_oc(jband,jsub)/total_cloud_cover
+#endif
               end if
             end do
 
@@ -251,6 +298,25 @@ contains
           end if
           
         end do
+
+
+#ifdef SAVE_FRACTIONAL_STD
+        ! The variance is the mean of the square minus the square of
+        ! the mean, which with then convert to a fractional standard
+        ! deviation
+        if (use_stochastic_columns_local) then
+          write(101,*) jcol, total_cloud_cover, sum_od_cloud / config%n_cloudy_subcolumns_sw
+          write(102,*) jcol, single_level%cos_sza(jcol), &
+               &  sqrt(max(sum_od2_cloud / config%n_cloudy_subcolumns_sw &
+               &  - (sum_od_cloud/config%n_cloudy_subcolumns_sw)**2, 0.0_jprb)) &
+               &             / max(sum_od_cloud / config%n_cloudy_subcolumns_sw, 1.0e-12_jprb)
+        else
+          write(101,*) jcol, total_cloud_cover, sum_od_cloud
+          write(102,*) jcol, single_level%cos_sza(jcol), &
+               &  sqrt(max(sum_od2_cloud - sum_od_cloud**2, 0.0_jprb)) &
+               &             / max(sum_od_cloud, 1.0e-12_jprb)
+        end if
+#endif
       
       else
         ! Either the sun or the sensor is below the horizon
@@ -319,5 +385,24 @@ contains
 
   end subroutine allocate_ocean_reflectance_model
 
+  pure function correlation(ns, v1, v2) 
+
+    use parkind1, only : jprb
+
+    integer, intent(in) :: ns
+    real(jprb), intent(in) :: v1(ns), v2(ns)
+    real(jprb) :: correlation
+
+    real(jprb) :: mean1, mean2, cov, var1, var2
+
+    mean1 = sum(v1) / ns
+    mean2 = sum(v2) / ns
+
+    cov = sum((v1-mean1)*(v2-mean2)) / ns
+    var1 = sum((v1-mean1)**2) / ns
+    var2 = sum((v2-mean2)**2) / ns
+    correlation = cov / max(1.0e-12_jprb, sqrt(var1*var2))
+
+  end function correlation
 
 end module radiation_flotsam_sw
