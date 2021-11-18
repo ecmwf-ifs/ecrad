@@ -33,6 +33,7 @@ contains
     use yomhook,  only           : lhook, dr_hook
     use radiation_cloud_cover, only : cum_cloud_cover_exp_ran
     use radiation_gen_gauss_laguerre, only : calc_gen_gauss_laguerre
+    !use radiation_gauss_lognormal, only : calc_gauss_lognormal
 
     implicit none
 
@@ -115,7 +116,11 @@ contains
 
     ! Variance and standard-deviation of layer optical depth (gridbox
     ! total)
-    real(jprb) :: gridbox_var_od(ng), gridbox_std_od(ng)
+    real(jprb) :: gridbox_var_od(ng,nlev), gridbox_std_od(ng,nlev)
+
+    ! Correlation coefficient of gridbox-total optical depth between
+    ! adjacent layers
+    real(jprb) :: gridbox_corr_coeff(nlev-1)
     
     ! Properties of cloudy part of gridbox: mean column optical depth,
     ! standard deviation of optical depth and fractional standard
@@ -124,6 +129,14 @@ contains
 
     ! Loop index for level and subcolumn
     integer(jpim) :: jlev, jsub
+
+    ! Considering two adjacent layers, fracUL is the fraction of the
+    ! gridbox covered in the case that the upper layer U is cloudy (1)
+    ! or clear (0) and equivalently for the lower layer L
+    real(jprb) :: frac00, frac01, frac10, frac11
+
+    ! Correlation coefficient of in-cloud heterogeneities
+    real(jprb) :: cloud_corr_coeff
 
     logical :: is_first_layer
 
@@ -158,6 +171,44 @@ contains
 
     else
 
+      ! Variance of layer optical depth across the whole gridbox
+      gridbox_var_od = 0.0_jprb
+      gridbox_std_od = 0.0_jprb
+      do jlev = 1,nlev
+        if (frac(jlev) > frac_threshold) then
+          gridbox_var_od(:,jlev) = frac(jlev) * (fractional_std(jlev)**2 &
+               &  + 1.0_jprb - frac(jlev)) * od_in(:,jlev)**2
+          gridbox_std_od(:,jlev) = sqrt(gridbox_var_od(:,jlev))
+        end if
+      end do
+
+      ! Correlation coefficient
+      gridbox_corr_coeff = 0.0_jprb
+      do jlev = 1,nlev-1
+        if (frac(jlev) > frac_threshold .and. frac(jlev+1) > frac_threshold) then
+          ! Cloudy in both layers
+          frac11 = frac(jlev) + frac(jlev+1) - pair_cloud_cover(jlev)
+          ! Clear in upper layer, cloudy in lower layer
+          frac01 = pair_cloud_cover(jlev) - frac(jlev)
+          ! Cloudy in upper layer, clear in lower layer
+          frac10 = pair_cloud_cover(jlev) - frac(jlev+1)
+          ! Clear in both layers
+          frac00 = 1.0_jprb - pair_cloud_cover(jlev)
+
+          ! Assume the cloud optical-depth heterogeneities decorrelate
+          ! twice as rapidly as the cloud boundaries
+          cloud_corr_coeff = overlap_param(jlev) * overlap_param(jlev)
+
+          gridbox_corr_coeff(jlev) = od_in(1,jlev)*od_in(1,jlev+1) *&
+               &   ( frac00 * frac(jlev)*frac(jlev+1) &
+               &    +frac01 * (frac(jlev)*frac(jlev+1) - frac(jlev)) &
+               &    +frac10 * (frac(jlev)*frac(jlev+1) - frac(jlev+1)) &
+               &    +frac11 * (1.0_jprb + frac(jlev)*frac(jlev+1)-frac(jlev)-frac(jlev+1) &
+               &               + fractional_std(jlev)*fractional_std(jlev+1)*cloud_corr_coeff) ) &
+               &  / (gridbox_std_od(1,jlev)*gridbox_std_od(1,jlev+1))
+        end if
+      end do 
+
       ! Main optimal subcolumn algorithm
 
       acc_gridbox_od = 0.0_jprb
@@ -174,19 +225,15 @@ contains
           acc_gridbox_od = acc_gridbox_od + od_in(:,jlev) * frac(jlev)
 
           if (.not. is_first_layer) then
-            acc_z = (acc_z + gridbox_std_od) * overlap_param(jlev-1)
+            acc_z = (acc_z + gridbox_std_od(:,jlev-1)) * gridbox_corr_coeff(jlev-1)
           end if
             
-          ! Variance of layer optical depth across the whole gridbox
-          gridbox_var_od = frac(jlev) * (fractional_std(jlev)**2 + 1.0_jprb - frac(jlev)) &
-               &   * od_in(:,jlev)**2
-          gridbox_std_od = sqrt(gridbox_var_od)
-
           if (is_first_layer) then
-            acc_var_od = gridbox_var_od
+            acc_var_od = gridbox_var_od(:,jlev)
             is_first_layer = .false.
           else
-            acc_var_od = acc_var_od + gridbox_var_od + 2.0_jprb * acc_z * gridbox_std_od
+            acc_var_od = acc_var_od + gridbox_var_od(:,jlev) &
+                 &     + 2.0_jprb * acc_z * gridbox_std_od(:,jlev)
           end if
 
         end if
@@ -197,8 +244,8 @@ contains
       cloudy_od = acc_gridbox_od / total_cloud_cover
       ! ...and the standard deviation of optical depth of the
       ! cloud-covered part of the gridbox...
-      cloudy_std_od = sqrt((acc_var_od - acc_gridbox_od*acc_gridbox_od &
-           &        *(1.0_jprb-total_cloud_cover)/total_cloud_cover)/total_cloud_cover)
+      cloudy_std_od = sqrt(max(0.0_jprb, (acc_var_od - acc_gridbox_od*acc_gridbox_od &
+           &        *(1.0_jprb-total_cloud_cover)/total_cloud_cover)/total_cloud_cover))
       ! ...from which we calculate the fractional standard deviation.
       cloudy_fsd_od_local = cloudy_std_od / cloudy_od
       
@@ -210,6 +257,7 @@ contains
       ! and nodes to optimally integrate over the cloudy part of the
       ! gridbox
       call calc_gen_gauss_laguerre(ng, nsub, cloudy_fsd_od_local, weight, node)
+      !call calc_gauss_lognormal(ng, nsub, cloudy_fsd_od_local, weight, node)
 
       ! Scale the results into the output "weight" and "od_out"
       ! variables

@@ -197,7 +197,7 @@ contains
     use parkind1,                 only : jprb
     use yomhook,                  only : lhook, dr_hook
 
-    use radiation_io,             only : nulout
+    use radiation_io,             only : nulout, nulerr, radiation_abort
     use radiation_config,         only : config_type, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, &
          &   ISolverMcICA, ISolverSpartacus, ISolverHomogeneous, &
@@ -482,6 +482,12 @@ contains
                  &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
                  &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, flux, &
                  &  use_stochastic_columns=.true.)
+          end if
+#else
+          if (config%i_solver_sw == ISolverFlotsam &
+               &  .or. config%i_solver_sw == ISolverFlotsamICA) then
+            write(nulerr,'(a)') '*** Error: FLOTSAM solver not available'
+            call radiation_abort('FLOTSAM solver not available')
           end if
 #endif
         else if (config%i_solver_sw == ISolverMcICA) then
