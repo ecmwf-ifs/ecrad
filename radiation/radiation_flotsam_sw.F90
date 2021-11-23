@@ -190,6 +190,11 @@ contains
 
         flux%cloud_cover_sw(jcol) = total_cloud_cover
 
+!#define SAVE_RAW_OD 1
+#ifdef SAVE_RAW_OD
+        write(101,*) jcol, sum(spread(od_cloud(1,:,jcol),1,config%n_cloudy_subcolumns_sw)*od_scaling_sub_sc(:,:),2)
+#endif
+
         do jband = 1,config%n_bands_sw
           
           ! Copy gas scattering properties
@@ -239,10 +244,12 @@ contains
             do jsub = 1,config%n_cloudy_subcolumns_sw
               if (use_stochastic_columns_local) then
                 od_cloud_sub_sc = od_cloud(jband,:,jcol) * od_scaling_sub_sc(jsub,:)
+#ifndef SAVE_RAW_OD
                 istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_sub_sc, &
                      &  ssa_cloud(jband,:,jcol), pf, pf_components, radiance_band_sub)
                 flux%sw_radiance_band(jband,jcol) = flux%sw_radiance_band(jband,jcol) &
                      &  + weight_sub_sc*radiance_band_sub
+#endif
               else
                 istatus = flotsam_reflectance(iband, nalbedo, albedo, nlev, ind, od_cloud_sub_oc(jband,:,jsub), &
                      &  ssa_cloud(jband,:,jcol), pf, pf_components, radiance_band_sub)
