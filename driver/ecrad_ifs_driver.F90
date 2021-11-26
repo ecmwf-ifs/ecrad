@@ -524,15 +524,15 @@ program ecrad_ifs_driver
       zrgp(1:il,iemiss+jemiss,ib)  =  single_level%lw_emissivity(ibeg:iend,jemiss+1)
     enddo
     
-    zrgp(1:il,iccnl,ib)    = 1.0_jprb ! for now, ask Robin
-    zrgp(1:il,iccno,ib)    = 1.0_jprb ! for now, ask Robin
-    zrgp(1:il,igelam,ib)   = 1.0_jprb ! for now, ask Robin
-    zrgp(1:il,igemu,ib)    = 1.0_jprb ! for now, ask Robin
-    zrgp(1:il,islm,ib)     = 1.0_jprb ! for now, ask Robin
+    zrgp(1:il,iccnl,ib)    = 1.0_jprb ! for now, ask Robin    ! CCN over land
+    zrgp(1:il,iccno,ib)    = 1.0_jprb ! for now, ask Robin    ! CCN over sea
+    zrgp(1:il,igelam,ib)   = 1.0_jprb ! for now, ask Robin    ! longitude
+    zrgp(1:il,igemu,ib)    = 1.0_jprb ! for now, ask Robin    ! sine of latitude
+    zrgp(1:il,islm,ib)     = 1.0_jprb ! for now, ask Robin    ! land-sea mask
     
     do jlev=0,nlev
-      zrgp(1:il,ipr,ib)    =  1.0_jprb ! ask Robin
-      zrgp(1:il,iti,ib)    =  1.0_jprb ! ask Robin
+      zrgp(1:il,ipr,ib)    =  1.0_jprb ! ask Robin      ! full level pressure
+      zrgp(1:il,iti,ib)    =  1.0_jprb ! ask Robin      ! full level temperature
     enddo
     
     do jlev=0,nlev+1
@@ -591,14 +591,17 @@ program ecrad_ifs_driver
       ib=(jrl-1)/nproma+1
 
     !  call radiation_scheme &
-    !   & (1, il, nproma, nlev, iradaer, &
-    !   &  zrii0, &
-    !   &  zrgp(1,iamu0,ib), zrgp(1,its,ib),   zrgp(1,iald,ib), zrgp(1,ialp,ib), &
-    !   &  zrgp(1,iemiss,ib), &
-    !   &  zrgp(1,iccnl,ib), zrgp(1,iccno,ib) ,&
-    !   &  zrgp(1,igelam,ib),zrgp(1,igemu,ib), zrgp(1,islm,ib), &
-    !   &  zrgp(1,ipr,ib),   zrgp(1,iti,ib),  &
-    !   &  zrgp(1,iaprs,ib), zrgp(1,ihti,ib), &
+    !   & (1, il, nproma, &                       ! startcol, endcol, ncol
+    !   &  nlev, iradaer, &                       ! nlev, naerosols
+    !   &  zrii0, &                               ! solar_irrad
+    !   &  zrgp(1,iamu0,ib), zrgp(1,its,ib), &    ! mu0, skintemp
+    !   &  zrgp(1,iald,ib), zrgp(1,ialp,ib), &    ! albedo_dif, albedo_dir
+    !   &  zrgp(1,iemiss,ib), &                   ! spectral emissivity
+    !   &  zrgp(1,iccnl,ib), zrgp(1,iccno,ib) ,&  ! CCN concentration, land and sea
+    !   &  zrgp(1,igelam,ib),zrgp(1,igemu,ib), &  ! longitude, sine of latitude
+    !   &  zrgp(1,islm,ib), &                     ! land sea mask
+    !   &  zrgp(1,ipr,ib),   zrgp(1,iti,ib),  &   ! full level pressure and temperature
+    !   &  zrgp(1,iaprs,ib), zrgp(1,ihti,ib), &   ! half-level pressure and temperature
     !   &  zrgp(1,iwv,ib),   zrgp(1,iico2,ib), zrgp(1,iich4,ib),zrgp(1,iin2o,ib), &
     !   &  zrgp(1,ino2,ib),  zrgp(1,ic11,ib),  zrgp(1,ic12,ib), zrgp(1,ic22,ib), &
     !   &  zrgp(1,icl4,ib),  zrgp(1,ioz,ib), &
