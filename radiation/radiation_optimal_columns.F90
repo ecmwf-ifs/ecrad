@@ -34,7 +34,8 @@ contains
     use radiation_cloud_cover, only : cum_cloud_cover_exp_ran
     !use radiation_gen_gauss_laguerre, only : calc_gen_gauss_laguerre
     !use radiation_gauss_lognormal, only : calc_gauss_lognormal
-    use radiation_gauss_gamma, only : calc_gauss_gamma
+    !use radiation_gauss_gamma, only : calc_gauss_gamma
+    use radiation_gauss_logbeta, only : calc_gauss_logbeta
 
     implicit none
 
@@ -259,7 +260,8 @@ contains
       ! gridbox
       !call calc_gen_gauss_laguerre(ng, nsub, cloudy_fsd_od_local, weight, node)
       !call calc_gauss_lognormal(ng, nsub, cloudy_fsd_od_local, weight, node)
-      call calc_gauss_gamma(ng, nsub, cloudy_fsd_od_local, weight, node)
+      !call calc_gauss_gamma(ng, nsub, cloudy_fsd_od_local, weight, node)
+      call calc_gauss_logbeta(ng, nsub, cloudy_fsd_od_local, weight, node)
 
       ! Scale the results into the output "weight" and "od_out"
       ! variables
