@@ -120,12 +120,15 @@ contains
 
 
   !---------------------------------------------------------------------
-  subroutine allocate_gas(this, ncol, nlev)
+  subroutine allocate_gas(this, ncol, nlev, use_acc)
 
     use yomhook, only : lhook, dr_hook
 
     class(gas_type), intent(inout) :: this
     integer,         intent(in)    :: ncol, nlev
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)  :: use_acc
 
     real(jprb)          :: hook_handle
 
@@ -146,11 +149,14 @@ contains
 
   !---------------------------------------------------------------------
   ! Deallocate memory and reset arrays
-  subroutine deallocate_gas(this)
+  subroutine deallocate_gas(this, use_acc)
 
     use yomhook, only : lhook, dr_hook
 
     class(gas_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)  :: use_acc
 
     real(jprb)          :: hook_handle
 
@@ -178,7 +184,7 @@ contains
   ! Put gas mixing ratio corresponding to gas ID "igas" with units
   ! "iunits"
   subroutine put_gas(this, igas, iunits, mixing_ratio, scale_factor, &
-       istartcol)
+       istartcol, use_acc)
 
     use yomhook,        only : lhook, dr_hook
     use radiation_io,   only : nulerr, radiation_abort
@@ -189,6 +195,9 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio(:,:)
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,    optional, intent(in)    :: use_acc
 
     integer :: i1, i2
 
@@ -261,7 +270,7 @@ contains
   ! Put well-mixed gas mixing ratio corresponding to gas ID "igas"
   ! with units "iunits"
   subroutine put_well_mixed_gas(this, igas, iunits, mixing_ratio, &
-       scale_factor, istartcol, iendcol)
+       scale_factor, istartcol, iendcol, use_acc)
 
     use yomhook,        only : lhook, dr_hook
     use radiation_io,   only : nulerr, radiation_abort
@@ -272,6 +281,9 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol, iendcol
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,    optional, intent(in)    :: use_acc
 
     real(jprb)                          :: hook_handle
 

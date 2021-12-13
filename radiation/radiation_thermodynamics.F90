@@ -54,7 +54,7 @@ contains
   !---------------------------------------------------------------------
   ! Allocate variables with specified dimensions
   subroutine allocate_thermodynamics_arrays(this, ncol, nlev, &
-       &                                    use_h2o_sat)
+       &                                    use_h2o_sat, use_acc)
 
     use yomhook,  only : lhook, dr_hook
 
@@ -64,6 +64,9 @@ contains
     logical, intent(in), optional :: use_h2o_sat ! Allocate h2o_sat_liq?
 
     logical :: use_h2o_sat_local
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, intent(in), optional :: use_acc
 
     real(jprb) :: hook_handle
 
@@ -88,11 +91,14 @@ contains
 
   !---------------------------------------------------------------------
   ! Deallocate variables
-  subroutine deallocate_thermodynamics_arrays(this)
+  subroutine deallocate_thermodynamics_arrays(this, use_acc)
 
     use yomhook,  only : lhook, dr_hook
 
     class(thermodynamics_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)             :: use_acc
 
     real(jprb) :: hook_handle
 
@@ -115,12 +121,15 @@ contains
 
   !---------------------------------------------------------------------
   ! Calculate approximate saturation with respect to liquid
-  subroutine calc_saturation_wrt_liquid(this,istartcol,iendcol)
+  subroutine calc_saturation_wrt_liquid(this,istartcol,iendcol,use_acc)
 
     use yomhook,  only : lhook, dr_hook
 
     class(thermodynamics_type), intent(inout) :: this
     integer, intent(in)                       :: istartcol, iendcol
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, intent(in), optional             :: use_acc
 
     ! Pressure and temperature at full levels
     real(jprb) :: pressure, temperature
