@@ -24,10 +24,14 @@ MISC
  - Definition of Tdir in two_stream
 
 DIFFERENCES IN IFS VERSION OF ECRAD
- - Numerous files contain easy_netcdf_with_read_mpi instead of easy_netcdf
- - radiation_cloud_generator.F90 contains SIMD routine
+ - Several files contain easy_netcdf_with_read_mpi instead of
+   easy_netcdf (radiation_aerosol_optics_data,
+   radiation_cloud_optics_data, radiation_pdf_sampler)
+ - radiation_cloud_generator.F90 uses SIMD routine to sample PDF
  - radiation_delta_eddington.h contains SIMD routine
- - radiation_mcica_*.F90 contain Intel optimizations
- - radiation_interface.F90 and radiation_ifs_rrtm.F90 take YDERAD arguments
+ - radiation_interface.F90 and radiation_ifs_rrtm.F90 take YDERAD
+   arguments, the latter has other differences
+ - radiation_constants should use IFS values?
+ - remove radiation_dummy from IFS when PSRAD removed
 
 KNOWN BUGS

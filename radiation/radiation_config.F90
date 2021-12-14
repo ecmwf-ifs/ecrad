@@ -975,7 +975,7 @@ contains
       ! In the IFS, the aerosol optics file should be specified in
       ! ifs/module/radiation_setup.F90, not here
       this%aerosol_optics_file_name &
-           &   = trim(this%directory_name) // "/aerosol_ifs_rrtm_45R2.nc"
+           &   = trim(this%directory_name) // "/aerosol_ifs_rrtm_46R1_with_NI_AM.nc"
     end if
 
     ! Set liquid optics file name
