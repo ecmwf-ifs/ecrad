@@ -85,7 +85,8 @@ contains
   !---------------------------------------------------------------------
   ! Allocate arrays for describing aerosol optical properties
   subroutine allocate_aerosol_arrays_direct(this, config, &
-       &                                    ncol, istartlev, iendlev)
+       &                                    ncol, istartlev, iendlev, &
+       &                                    use_acc)
 
     use yomhook,          only : lhook, dr_hook
     use radiation_config, only : config_type
@@ -94,6 +95,9 @@ contains
     type(config_type),   intent(in)    :: config
     integer, intent(in)                :: ncol  ! Number of columns
     integer, intent(in)                :: istartlev, iendlev ! Level range
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for 
+    ! synchronized interfaces with GPU-port
+    logical, intent(in), optional      :: use_acc
 
     real(jprb)                         :: hook_handle
 
@@ -128,11 +132,14 @@ contains
 
   !---------------------------------------------------------------------
   ! Deallocate array
-  subroutine deallocate_aerosol_arrays(this)
+  subroutine deallocate_aerosol_arrays(this, use_acc)
 
     use yomhook,     only : lhook, dr_hook
 
     class(aerosol_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, intent(in), optional      :: use_acc
 
     real(jprb)                         :: hook_handle
 

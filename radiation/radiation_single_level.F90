@@ -95,7 +95,8 @@ contains
   
   !---------------------------------------------------------------------
   subroutine allocate_single_level(this, ncol, nalbedobands, nemisbands, &
-       &                           use_sw_albedo_direct, is_simple_surface)
+       &                           use_sw_albedo_direct, is_simple_surface, &
+       &                           use_acc)
 
     use yomhook, only : lhook, dr_hook
 
@@ -103,6 +104,9 @@ contains
     integer,                  intent(in)    :: ncol, nalbedobands, nemisbands
     logical,        optional, intent(in)    :: use_sw_albedo_direct
     logical,        optional, intent(in)    :: is_simple_surface
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,        optional, intent(in)    :: use_acc
 
     real(jprb) :: hook_handle
 
@@ -141,11 +145,14 @@ contains
 
 
   !---------------------------------------------------------------------
-  subroutine deallocate_single_level(this)
+  subroutine deallocate_single_level(this, use_acc)
 
     use yomhook, only : lhook, dr_hook
 
     class(single_level_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,        optional, intent(in)    :: use_acc
 
     real(jprb) :: hook_handle
 

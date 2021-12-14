@@ -112,7 +112,7 @@ contains
   ! Allocate arrays for flux profiles, using config to define which
   ! fluxes are needed.  The arrays are dimensioned for columns between
   ! istartcol, iendcol and levels from 1 to nlev+1
-  subroutine allocate_flux_type(this, config, istartcol, iendcol, nlev)
+  subroutine allocate_flux_type(this, config, istartcol, iendcol, nlev, use_acc)
 
     use yomhook,          only : lhook, dr_hook
     use radiation_io,     only : nulerr, radiation_abort
@@ -121,6 +121,9 @@ contains
     integer, intent(in)             :: istartcol, iendcol, nlev
     class(flux_type), intent(inout) :: this
     type(config_type), intent(in)   :: config
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)   :: use_acc
 
     real(jprb)                      :: hook_handle
 
@@ -260,11 +263,14 @@ contains
 
   !---------------------------------------------------------------------
   ! Deallocate flux arrays
-  subroutine deallocate_flux_type(this)
+  subroutine deallocate_flux_type(this, use_acc)
 
     use yomhook,          only : lhook, dr_hook
 
     class(flux_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)   :: use_acc
     real(jprb)                      :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:deallocate',0,hook_handle)

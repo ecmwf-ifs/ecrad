@@ -143,7 +143,7 @@ contains
   ! possibly scale factors) required by the specific gas absorption
   ! model.  This subroutine simply passes the gas object on to the
   ! module of the currently active gas model.
-  subroutine set_gas_units(config, gas)
+  subroutine set_gas_units(config, gas, use_acc)
     
     use radiation_config
     use radiation_gas,           only : gas_type
@@ -152,6 +152,9 @@ contains
 
     type(config_type), intent(in)    :: config
     type(gas_type),    intent(inout) :: gas
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)    :: use_acc
 
     if (config%i_gas_model == IGasModelMonochromatic) then
       call set_gas_units_mono(gas)
@@ -173,7 +176,8 @@ contains
   ! to reverse the order for the computation and then reverse the
   ! order of the output fluxes to match the inputs.
   subroutine radiation(ncol, nlev, istartcol, iendcol, config, &
-       &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+       &  single_level, thermodynamics, gas, cloud, aerosol, flux, &
+       &  use_acc)
 
     use parkind1,                 only : jprb
     use yomhook,                  only : lhook, dr_hook
@@ -222,6 +226,9 @@ contains
     type(aerosol_type),       intent(in)   :: aerosol
     ! Output
     type(flux_type),          intent(inout):: flux
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, intent(in), optional :: use_acc
 
 
     ! Local variables

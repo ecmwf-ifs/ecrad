@@ -94,7 +94,8 @@ contains
   ! Allocate arrays for describing clouds and precipitation, although
   ! in the offline code these are allocated when they are read from
   ! the NetCDF file
-  subroutine allocate_cloud_arrays(this, ncol, nlev, use_inhom_effective_size)
+  subroutine allocate_cloud_arrays(this, ncol, nlev, use_inhom_effective_size, &
+    & use_acc)
 
     use yomhook,     only : lhook, dr_hook
 
@@ -102,6 +103,9 @@ contains
     integer, intent(in)              :: ncol  ! Number of columns
     integer, intent(in)              :: nlev  ! Number of levels
     logical, intent(in), optional    :: use_inhom_effective_size
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, intent(in), optional    :: use_acc
 
     real(jprb)                       :: hook_handle
 
@@ -129,11 +133,14 @@ contains
 
   !---------------------------------------------------------------------
   ! Deallocate arrays
-  subroutine deallocate_cloud_arrays(this)
+  subroutine deallocate_cloud_arrays(this, use_acc)
 
     use yomhook,     only : lhook, dr_hook
 
     class(cloud_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)    :: use_acc
 
     real(jprb)                       :: hook_handle
 
@@ -164,7 +171,7 @@ contains
   ! allocated to be of the correct size relative to the pressure
   ! field. 
   subroutine set_overlap_param(this, thermodynamics, decorrelation_length, &
-       &  istartcol, iendcol)
+       &  istartcol, iendcol, use_acc)
 
     use yomhook,                  only : lhook, dr_hook
     use radiation_thermodynamics, only : thermodynamics_type
@@ -174,6 +181,9 @@ contains
     type(thermodynamics_type), intent(in)    :: thermodynamics
     real(jprb),                intent(in)    :: decorrelation_length ! m
     integer,         optional, intent(in)    :: istartcol, iendcol
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,         optional, intent(in)    :: use_acc
 
     ! Ratio of gas constant for dry air to acceleration due to gravity
     real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
@@ -340,13 +350,16 @@ contains
   !---------------------------------------------------------------------
   ! Create a matrix of constant fractional standard deviations
   ! (dimensionless)
-  subroutine create_fractional_std(this, ncol, nlev, frac_std)
+  subroutine create_fractional_std(this, ncol, nlev, frac_std, use_acc)
 
     use yomhook,                  only : lhook, dr_hook
 
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     real(jprb),        intent(in)    :: frac_std
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)    :: use_acc
 
     real(jprb)             :: hook_handle
 
