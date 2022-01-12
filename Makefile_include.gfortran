@@ -8,7 +8,8 @@ CPPFLAGS = -cpp
 #  to read Fortran unformatted data files as big endian 
 BASICFLAGS = -J../mod -fconvert=big-endian -fno-range-check
 
-# OpenMP flag
+# OpenMP flag; type "make OMPFLAG=-DNO_OPENMP" to compile with OpenMP
+# disabled
 OMPFLAG = -fopenmp
 
 ifndef DEBUG

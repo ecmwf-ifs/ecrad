@@ -77,8 +77,14 @@ program ecrad_driver
 
   ! For parallel processing of multiple blocks
   integer :: jblock, nblock ! Block loop index and number
+
+#ifndef NO_OPENMP
+  ! OpenMP functions
   integer, external :: omp_get_thread_num
-  double precision, external :: omp_get_wtime
+  real(kind=jprd), external :: omp_get_wtime
+  ! Start/stop time in seconds
+  real(kind=jprd) :: tstart, tstop
+#endif
 
   ! For demonstration of get_sw_weights later on
   ! Ultraviolet weightings
@@ -99,9 +105,6 @@ program ecrad_driver
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
-  ! Start/stop time in seconds
-  real(kind=jprd) :: tstart, tstop
- 
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -264,7 +267,9 @@ program ecrad_driver
   
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
+#ifndef NO_OPENMP
   tstart = omp_get_wtime() 
+#endif
   do jrepeat = 1,driver_config%nrepeat
     
     if (driver_config%do_parallel) then
@@ -283,8 +288,12 @@ program ecrad_driver
              &        driver_config%iendcol)
           
         if (driver_config%iverbose >= 3) then
+#ifndef NO_OPENMP
           write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
                &  ' processing columns ', istartcol, '-', iendcol
+#else
+          write(nulout,'(a,i0,a,i0)')  'Processing columns ', istartcol, '-', iendcol
+#endif
         end if
         
         ! Call the ECRAD radiation scheme
@@ -308,8 +317,10 @@ program ecrad_driver
     
   end do
 
+#ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+#endif
 
   ! --------------------------------------------------------
   ! Section 5: Check and save output
