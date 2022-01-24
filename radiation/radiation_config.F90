@@ -1510,6 +1510,8 @@ contains
         call print_integer('    Number of regions', 'n_regions', this%nregions)
         call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &
              &  this%n_angles_per_hemisphere_lw)
+        call print_logical('    3D effects are', 'do_3d_effects', &
+             &             this%do_3d_effects)
       else if (this%i_solver_sw == ISolverMcICA &
            &  .or. this%i_solver_lw == ISolverMcICA) then
         call print_logical('  Use vectorizable McICA cloud generator', &

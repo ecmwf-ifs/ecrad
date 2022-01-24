@@ -24,7 +24,7 @@ subroutine calc_region_properties(nlev, &
   use parkind1,     only : jprb
   use yomhook,      only : lhook, dr_hook
 
-  ! Number of levels and regions
+  ! Number of levels
   integer, intent(in) :: nlev
   
   ! Cloud fraction, i.e. the fraction of the gridbox assigned to all
@@ -32,7 +32,7 @@ subroutine calc_region_properties(nlev, &
   real(jprb), intent(in), dimension(:)  :: cloud_fraction ! (nlev)
 
   ! Fractional area coverage of each region
-  real(jprb), intent(out) :: reg_fracs(1:NREGION,nlev)
+  real(jprb), intent(out) :: reg_fracs(NREGION,nlev)
 
   ! Optical depth scaling for the cloudy regions
   real(jprb), intent(out) :: od_scaling(2:NREGION,nlev)
@@ -43,9 +43,6 @@ subroutine calc_region_properties(nlev, &
   ! In case the user doesn't supply cloud_fraction_threshold we use
   ! a default value
   real(jprb) :: frac_threshold
-  
-  ! Loop indices
-  integer :: jlev
   
   real(jprb) :: hook_handle
 
@@ -117,7 +114,7 @@ subroutine calc_region_properties(nlev, &
   real(jprb), intent(in), dimension(:)  :: frac_std       ! (nlev)
 
   ! Fractional area coverage of each region
-  real(jprb), intent(out) :: reg_fracs(1:NREGION,nlev)
+  real(jprb), intent(out) :: reg_fracs(NREGION,nlev)
 
   ! Optical depth scaling for the cloudy regions
   real(jprb), intent(out) :: od_scaling(2:NREGION,nlev)
@@ -211,4 +208,50 @@ end subroutine calc_region_properties
 
 #endif
 
+subroutine calc_region_edge_areas(nlev, region_fracs, layer_thickness, &
+     &                            inv_cloud_scale, region_edge_area)
 
+  use parkind1,     only : jprb
+  use yomhook,      only : lhook, dr_hook
+
+  ! Number of levels
+  integer, intent(in) :: nlev
+  
+  ! Fractional area coverage of each region
+  real(jprb), intent(in) :: region_fracs(NREGION,nlev)
+
+  ! Layer thickness in metres
+  real(jprb), intent(in) :: layer_thickness(nlev)
+
+  ! Inverse of the cloud horizontal separation scale, in m-1, using
+  ! the definition of Fielding et al. (QJRMS 2020)
+  real(jprb), intent(in) :: inv_cloud_scale(nlev)
+
+  ! Area of the vertical interface between each pair of regions,
+  ! divided by the horizontal area of the domain. For 3 regions there
+  ! are two areas: between regions 1 and 2 and between regions 2 and 3
+  ! (regions 1 and 3 are assumed not to touch).
+  real(jprb), intent(out) :: region_edge_area(NREGION-1,nlev)
+
+  real(jprb) :: hook_handle
+
+  if (lhook) call dr_hook('tcrad:calc_region_edge_areas',0,hook_handle)
+
+  ! Eq. 3 of Fielding et al. (2020), noting that 1-region_fracs(1,:)
+  ! is the cloud fraction
+  region_edge_area(1,:) = 4.0_jprb * layer_thickness * inv_cloud_scale &
+       &  * sqrt(region_fracs(1,:)*(1.0_jprb-region_fracs(1,:)))
+
+#if NUM_REGIONS == 3
+
+  ! Apply the same formula but treating the cloud fraction as the
+  ! fractional coverage of optically thick cloud only (with fraction
+  ! region_fracs(3,:))
+  region_edge_area(2,:) = 4.0_jprb * layer_thickness * inv_cloud_scale &
+       &  * sqrt(region_fracs(3,:)*(1.0_jprb-region_fracs(3,:)))
+
+#endif
+
+  if (lhook) call dr_hook('tcrad:calc_region_edge_areas',1,hook_handle)
+
+end subroutine calc_region_edge_areas

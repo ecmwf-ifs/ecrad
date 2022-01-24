@@ -26,7 +26,7 @@ contains
 
     use parkind1,                 only : jprb, jpim
     use radiation_io,             only : nulout
-    use radiation_config,         only : config_type, ISolverSPARTACUS
+    use radiation_config,         only : config_type, ISolverSPARTACUS, ISolverTCRAD
     use ecrad_driver_config,      only : driver_config_type
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
@@ -383,7 +383,9 @@ contains
       ! --------------------------------------------------------
 
       if (config%i_solver_sw == ISolverSPARTACUS &
-           &  .or.   config%i_solver_lw == ISolverSPARTACUS) then
+           &  .or.   config%i_solver_lw == ISolverSPARTACUS &
+           &  .or. (config%i_solver_lw == ISolverTCRAD &
+           &        .and. config%do_3d_effects)) then
 
         ! 3D radiative effects are governed by the length of cloud
         ! edge per area of gridbox, which is characterized by the
