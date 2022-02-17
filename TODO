@@ -20,6 +20,9 @@ INTERFACE
 ECCKD AND GENERALIZED CLOUD/AEROSOL
  - Generalized cloud works with RRTMG
  - Band-wise averaging works with ecCKD
+ - ***Read pre-averaged cloud properties in bands and map them to
+      ecCKD g points, and faciliate this mathematics to be used
+      outside ecRad by DWD ***
 
 DOCUMENTATION
  - Add chapters on API, internal structure and underpinning science
