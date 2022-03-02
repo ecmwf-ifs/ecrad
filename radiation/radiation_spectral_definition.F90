@@ -271,6 +271,7 @@ contains
                &  * (this%wavenumber1_band(jband)+this%wavenumber2_band(jband))),1)
           write(nulout,'(a,i0,a,i0)') 'Warning: no cloud properties in band ', jband, &
                &  ', using closest in wavenumber space: element ', iwav
+          mapping(jband,:)    = 0.0_jprb
           mapping(jband,iwav) = 1.0_jprb
         end if
       end do
