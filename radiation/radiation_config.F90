@@ -379,6 +379,9 @@ module radiation_config
     ! al. (1997).
     integer :: n_angles_per_hemisphere_lw = 2
 
+    ! Treat surface as specular reflector?  Only in microwave
+    logical :: do_specular_surface = .false.
+
     ! The 3D transfer rate "X" is such that if transport out of a
     ! region was the only process occurring then by the base of a
     ! layer only exp(-X) of the original flux would remain in that
@@ -666,6 +669,7 @@ contains
     logical :: do_3d_effects, use_expm_everywhere, use_aerosols
     logical :: do_lw_side_emissivity, do_radiances
     integer :: n_angles_per_hemisphere_lw
+    logical :: do_specular_surface
     logical :: use_general_cloud_optics, use_general_aerosol_optics
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
@@ -711,7 +715,7 @@ contains
 
     namelist /radiation/ do_sw, do_lw, do_sw_direct, &
          &  do_3d_effects, do_lw_side_emissivity, do_clear, do_radiances, &
-         &  n_angles_per_hemisphere_lw, &
+         &  n_angles_per_hemisphere_lw, do_specular_surface, &
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
@@ -757,6 +761,7 @@ contains
     do_3d_lw_multilayer_effects = this%do_3d_lw_multilayer_effects
     do_lw_side_emissivity = this%do_lw_side_emissivity
     n_angles_per_hemisphere_lw = this%n_angles_per_hemisphere_lw
+    do_specular_surface = this%do_specular_surface
     do_clear = this%do_clear
     do_lw_aerosol_scattering = this%do_lw_aerosol_scattering
     do_lw_cloud_scattering = this%do_lw_cloud_scattering
@@ -915,6 +920,7 @@ contains
     this%do_3d_lw_multilayer_effects = do_3d_lw_multilayer_effects
     this%do_lw_side_emissivity = do_lw_side_emissivity
     this%n_angles_per_hemisphere_lw = n_angles_per_hemisphere_lw
+    this%do_specular_surface = do_specular_surface
     this%use_expm_everywhere = use_expm_everywhere
     this%use_aerosols = use_aerosols
     this%do_lw_cloud_scattering = do_lw_cloud_scattering
@@ -1510,6 +1516,8 @@ contains
         call print_integer('    Number of regions', 'n_regions', this%nregions)
         call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &
              &  this%n_angles_per_hemisphere_lw)
+        call print_logical('    Treat surface as specular reflector','do_specular_surface', &
+             &             this%do_specular_surface)
         call print_logical('    3D effects are', 'do_3d_effects', &
              &             this%do_3d_effects)
       else if (this%i_solver_sw == ISolverMcICA &
