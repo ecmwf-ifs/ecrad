@@ -27,7 +27,7 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
 #endif
      &  od_clear, od_cloud, ssa_cloud, asymmetry_cloud, &
      &  overlap_param, mu, radiance, cloud_cover, &
-     &  layer_thickness, inv_cloud_scale)
+     &  layer_thickness, inv_cloud_scale, do_specular_surface)
 
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook
@@ -36,7 +36,8 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
 
   implicit none
 
-  real(jprb), parameter :: ONE_OVER_PI = 1.0_jprb / acos(-1.0_jprb)
+  real(jprb), parameter :: PI          = acos(-1.0_jprb)
+  real(jprb), parameter :: ONE_OVER_PI = 1.0_jprb / PI
 
   ! Inputs
 
@@ -102,6 +103,10 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! cloud separation scale defined by Fielding et al. (QJRMS 2020)
   real(jprb), intent(in), optional :: inv_cloud_scale(nlev)
 
+  ! Is scattering from the surface treated specularly?  Appropriate
+  ! for microwave scattering by the sea surface.
+  logical, intent(in), optional :: do_specular_surface
+
   ! Local variables
 
   ! Combined gas/aerosol/cloud optical depth in each region
@@ -143,6 +148,9 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Profile of radiances in direction of sensor
   real(jprb), dimension(nspec, nlev+1) :: radiance_profile
 
+  ! Flux up at the surface from radiance, used for specular reflection
+  real(jprb), dimension(nspec,NREGION) :: flux_up_surface
+
   ! Cloud optical depth scaling in each cloudy region
   real(jprb) :: od_scaling(2:NREGION,nlev)
 
@@ -161,6 +169,10 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Do we represent 3D effects in the radiance calculations?
   logical :: do_3d_effects
 
+  ! Is scattering from the surface treated specularly?  Appropriate
+  ! for microwave scattering by the sea surface.
+  logical :: do_specular_surface_local
+
   ! Loop indices for region
   integer(jpim) :: jreg
 
@@ -172,6 +184,12 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     do_3d_effects = .true.
   else
     do_3d_effects = .false.
+  end if
+
+  if (present(do_specular_surface)) then
+    do_specular_surface_local = do_specular_surface
+  else
+    do_specular_surface_local = .false.
   end if
 
   ! Compute the wavelength-independent region fractions and
@@ -233,8 +251,61 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! be initialized to zero
   radiance_profile = 0.0_jprb
 
-  if (mu >= 0.0_jprb) then
-    ! Upward directed radiance measured at top-of-atmosphere
+  if (mu >= 0.0_jprb .and. do_specular_surface_local) then
+    ! Upward directed radiance measured at top-of-atmosphere, but
+    ! first a downward directed radiance which is specularly reflected
+    ! from the surface
+
+    ! Compute transmittance and source towards sensor and towards
+    ! surface
+    call calc_radiance_rates(nspec, nlev, NREGION, mu, &
+         &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+         &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+         &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+         &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
+
+    ! Compute surface radiance excluding 3D effects (not worth
+    ! considering this detail in the downward pass)
+    if (do_3d_effects) then
+      call calc_radiance_trans_source_3d(nspec, nlev, &
+           &  mu, region_fracs, region_edge_area, od, &
+           &  transmittance_mat, &
+           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+           &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
+           &  source_up=source_up, source_dn=source_dn)
+      call calc_radiance_dn_3d(nspec, nlev, ONE_OVER_PI, &
+           &  transmittance_mat, source_dn, &
+           &  v_overlap, radiance_profile)
+      ! Reflect surface downward radiance upwards, spread into the
+      ! regions of the lowest layer, and convert to a flux (with PI)
+      flux_up_surface = spread(surf_emission + PI*surf_albedo*radiance_profile(:,nlev+1),2,NREGION) &
+           &          * spread(region_fracs(:,nlev),1,nspec)
+      call calc_radiance_up_3d(nspec, nlev, ONE_OVER_PI, &
+           &  flux_up_surface, &
+           &  transmittance_mat, source_up, &
+           &  u_overlap, radiance_profile)
+    else
+      call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
+           &  region_fracs, od, transmittance, &
+           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+           &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
+           &  source_up=source_up, source_dn=source_dn)
+      call calc_radiance_dn(nspec, nlev, &
+           &  ONE_OVER_PI, transmittance, source_dn, v_overlap, radiance_profile)
+      ! Reflect surface downward radiance upwards, spread into the
+      ! regions of the lowest layer, and convert to a flux (with PI)
+      flux_up_surface = spread(surf_emission + PI*surf_albedo*radiance_profile(:,nlev+1),2,NREGION) &
+           &          * spread(region_fracs(:,nlev),1,nspec)
+      call calc_radiance_up(nspec, nlev, &
+           &  ONE_OVER_PI, flux_up_surface, &
+           &  transmittance, source_up, u_overlap, radiance_profile)
+    end if
+    ! Extract top-of-atmosphere value
+    radiance = radiance_profile(:,1)
+
+  else if (mu >= 0.0_jprb) then
+    ! Upward directed radiance measured at top-of-atmosphere,
+    ! Lambertian surface
 
     ! Compute transmittance and source towards sensor
     call calc_radiance_rates(nspec, nlev, NREGION, mu, &
