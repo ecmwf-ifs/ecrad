@@ -22,7 +22,7 @@ contains
 
   subroutine radiance_solver_flotsam_sw(nlev,istartcol,iendcol, &
        &  config, single_level, cloud, & 
-       &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, &
+       &  od, ssa, g, od_cloud, ssa_cloud, pf_cloud, &
        &  albedo_direct, albedo_diffuse, incoming_sw, &
        &  flux, use_stochastic_columns)
 
@@ -53,10 +53,13 @@ contains
     real(jprb), intent(in), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: &
          &  od, ssa, g
 
-    ! Cloud and precipitation optical depth, single-scattering albedo and
-    ! asymmetry factor in each shortwave band
+    ! Cloud and precipitation optical depth and single-scattering
+    ! albedo in each shortwave band
     real(jprb), intent(in), dimension(config%n_bands_sw,nlev,istartcol:iendcol) :: &
-         &  od_cloud, ssa_cloud, g_cloud
+         &  od_cloud, ssa_cloud
+
+    ! Phase function components of cloud
+    real(jprb), intent(in) :: pf_cloud(config%n_g_sw,nlev,istartcol:iendcol,config%n_sw_pf)
 
     ! Direct and diffuse surface albedos, and the incoming shortwave
     ! flux into a plane perpendicular to the incoming radiation at
@@ -142,10 +145,6 @@ contains
     n_pf_components = flotsam_n_phase_function_components()
     allocate(pf_components(n_pf_components, nlev))
 
-    pf = 1.0_jprb
-    pf_components = 0.0_jprb
-    pf_components(1,:) = 1.0_jprb
-
     ! Allocate relevant arrays depending on whether stochastic or
     ! optimal columns are being used
     if (present(use_stochastic_columns)) then
@@ -228,6 +227,16 @@ contains
                    &  3.0_jprb, albedo)
             end if
           end if
+
+          ! Copy over cloud phase function properties for current band
+
+          ! For testing: isotropic
+          !pf = 1.0_jprb
+          !pf_components = 0.0_jprb
+          !pf_components(1,:) = 1.0_jprb
+          
+          pf = pf_cloud(jband,:,jcol,1)
+          pf_components = transpose(pf_cloud(jband,:,jcol,2:))
 
           istatus = flotsam_init_band_profile_direct(iband, ng, nlev, weight, &
                &  od_rayleigh, od_abs)

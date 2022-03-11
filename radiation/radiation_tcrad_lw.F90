@@ -231,7 +231,13 @@ contains
       ! Store surface spectral downwelling fluxes
       flux%lw_dn_surf_g(:,jcol) = flux_dn(:,nlev+1)
 
-    end do
+      ! Placeholder ensure derivatives are assigned, even if not
+      ! correct
+      if (config%do_lw_derivatives) then
+        flux%lw_derivatives(jcol,:) = 1.0_jprb
+      end if
+
+    end do ! column
 
     if (lhook) call dr_hook('radiation_tcrad_lw:solver_tcrad_lw',1,hook_handle)
 

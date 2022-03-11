@@ -590,7 +590,7 @@ contains
        &  od_lw, ssa_lw, g_lw, &
        &  od_sw, ssa_sw, g_sw, &
        &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-       &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+       &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
 
     use radiation_config,        only : config_type
     use radiation_single_level,  only : single_level_type
@@ -612,10 +612,13 @@ contains
     ! gases and aerosols at each shortwave g-point
     real(jprb), intent(in), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: od_sw, ssa_sw, g_sw
 
-   ! Layer optical depth, single scattering albedo and asymmetry factor of
-    ! hydrometeors in each shortwave band
+    ! Layer optical depth and single scattering albedo hydrometeors in
+    ! each shortwave band
     real(jprb), intent(in), dimension(config%n_bands_sw,nlev,istartcol:iendcol)   :: &
-         &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud
+         &  od_sw_cloud, ssa_sw_cloud
+
+    ! Phase function components, or asymmetry factor if n_sw_pf=1
+    real(jprb), intent(in) :: pf_sw_cloud(config%n_bands_sw,nlev,istartcol:iendcol,config%n_sw_pf)
 
     ! Direct and diffuse surface albedo, and the incoming shortwave
     ! flux into a plane perpendicular to the incoming radiation at
@@ -652,6 +655,8 @@ contains
     ! Object for output NetCDF file
     type(netcdf_file) :: out_file
 
+    integer :: jcol, jcomp
+
     n_col_local = iendcol + 1 - istartcol
 
     ! Alas the NetCDF library is not thread-safe for writing, so we
@@ -672,6 +677,9 @@ contains
     ! Define dimensions
     !    call out_file%define_dimension("column", n_col_local)
     call out_file%define_dimension("column", 0) ! "Unlimited" dimension
+    if (config%n_sw_pf > 1) then
+      call out_file%define_dimension("pf_sw", config%n_sw_pf)
+    end if
     call out_file%define_dimension("level", nlev)
     call out_file%define_dimension("half_level", nlev+1)
     if (config%do_clouds) then
@@ -713,6 +721,11 @@ contains
       call out_file%define_variable("cos_solar_zenith_angle", &
            &  dim1_name="column", units_str="1", &
            &  long_name="Cosine of the solar zenith angle")
+      if (allocated(single_level%scattering_angle)) then
+        call out_file%define_variable("scattering_angle", &
+             &  dim1_name="column", units_str="radians", &
+             &  long_name="Scattering angle between sun and sensor")
+      end if
     end if
 
     if (config%do_clouds) then
@@ -791,9 +804,15 @@ contains
         call out_file%define_variable("ssa_sw_cloud", &
              &  dim3_name="column", dim2_name="level", dim1_name="band_sw", &
              &  units_str="1", long_name="Cloud shortwave single scattering albedo")
-        call out_file%define_variable("asymmetry_sw_cloud", &
-             &  dim3_name="column", dim2_name="level", dim1_name="band_sw", &
-             &  units_str="1", long_name="Cloud shortwave asymmetry factor")
+        if (config%n_sw_pf > 1) then
+          call out_file%define_variable("phase_function_components_sw_cloud", &
+               &  dim4_name="column", dim3_name="pf_sw", dim2_name="level", dim1_name="band_sw", &
+               &  units_str="1", long_name="Cloud shortwave phase-function components")
+        else
+          call out_file%define_variable("asymmetry_sw_cloud", &
+               &  dim3_name="column", dim2_name="level", dim1_name="band_sw", &
+               &  units_str="1", long_name="Cloud shortwave asymmetry factor")
+        end if
       end if
     end if
    
@@ -829,6 +848,9 @@ contains
 
     if (config%do_sw) then
       call out_file%put("cos_solar_zenith_angle", single_level%cos_sza(istartcol:iendcol))
+      if (allocated(single_level%scattering_angle)) then
+        call out_file%put("scattering_angle", single_level%scattering_angle(istartcol:iendcol))
+      end if
       call out_file%put("sw_albedo", sw_albedo_diffuse, do_transp=.false.)
       call out_file%put("sw_albedo_direct", sw_albedo_direct, do_transp=.false.)
     end if
@@ -863,7 +885,16 @@ contains
       if (config%do_clouds) then
         call out_file%put("od_sw_cloud", od_sw_cloud)
         call out_file%put("ssa_sw_cloud", ssa_sw_cloud)
-        call out_file%put("asymmetry_sw_cloud", g_sw_cloud)
+        if (config%n_sw_pf > 1) then
+          do jcol = istartcol,iendcol
+            do jcomp = 1,config%n_sw_pf
+              call out_file%put("phase_function_components_sw_cloud", &
+                   &  pf_sw_cloud(:,:,jcol,jcomp), jcomp, jcol-istartcol+1, do_transp=.false.)
+            end do
+          end do
+        else
+          call out_file%put("asymmetry_sw_cloud", pf_sw_cloud(:,:,:,1))
+        end if
       end if
     end if
     

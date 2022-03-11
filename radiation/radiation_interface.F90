@@ -29,6 +29,10 @@ module radiation_interface
   public  :: setup_radiation, set_gas_units, radiation
   private :: radiation_reverse
 
+#ifdef FLOTSAM
+#include <flotsam.inc>
+#endif
+
 contains
 
   !---------------------------------------------------------------------
@@ -120,6 +124,10 @@ contains
     if (config%i_solver_sw == ISolverFlotsam &
          &  .or. config%i_solver_sw == ISolverFlotsamICA) then
       call allocate_ocean_reflectance_model(config)
+      ! Number of phase function components includes the basis
+      ! functions plus one for the single-scattering value of the
+      ! phase function at a specific angle
+      config%n_sw_pf = flotsam_n_phase_function_components() + 1
     end if
 #endif
 
@@ -273,10 +281,15 @@ contains
     ! gases and aerosols at each shortwave g-point
     real(jprb), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: od_sw, ssa_sw, g_sw
 
-    ! Layer in-cloud optical depth, single scattering albedo and
-    ! asymmetry factor of hydrometeors in each shortwave band
+    ! Layer in-cloud optical depth and single scattering albedo of
+    ! hydrometeors in each shortwave band
     real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol)   :: &
-         &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud
+         &  od_sw_cloud, ssa_sw_cloud
+
+    ! Variables describing the shortwave phase function; can be just
+    ! asymmetry factor or extra variables if FLOTSAM is being used
+    real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol,config%n_sw_pf) &
+         &  :: pf_sw_cloud
 
     ! The Planck function (emitted flux from a black body) at half
     ! levels
@@ -362,17 +375,17 @@ contains
           call cloud_optics_mono(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, &
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
         elseif (config%use_general_cloud_optics) then
           call general_cloud_optics(nlev, istartcol, iendcol, &
-               &  config, thermodynamics, cloud, & 
+               &  config, single_level, thermodynamics, cloud, & 
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
         else
           call cloud_optics(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, & 
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
         end if
       end if ! do_clouds
 
@@ -410,7 +423,7 @@ contains
              &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, &
              &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw, &
              &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-             &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+             &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
       end if
 
       if (config%do_lw) then
@@ -475,12 +488,12 @@ contains
           if (config%i_solver_sw == ISolverFlotsam) then
             call radiance_solver_flotsam_sw(nlev,istartcol,iendcol, &
                  &  config, single_level, cloud, &
-                 &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
+                 &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, pf_sw_cloud, &
                  &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, flux)
           else if (config%i_solver_sw == ISolverFlotsamICA) then
             call radiance_solver_flotsam_sw(nlev,istartcol,iendcol, &
                  &  config, single_level, cloud, &
-                 &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
+                 &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, pf_sw_cloud, &
                  &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, flux, &
                  &  use_stochastic_columns=.true.)
           end if
@@ -496,28 +509,28 @@ contains
           call solver_mcica_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
-               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         else if (config%i_solver_sw == ISolverSPARTACUS) then
           ! Compute fluxes using the SPARTACUS shortwave solver
           call solver_spartacus_sw(nlev,istartcol,iendcol, &
                &  config, single_level, thermodynamics, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
-               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         else if (config%i_solver_sw == ISolverTripleclouds) then
           ! Compute fluxes using the Tripleclouds shortwave solver
           call solver_tripleclouds_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
-               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         elseif (config%i_solver_sw == ISolverHomogeneous) then
           ! Compute fluxes using the homogeneous solver
           call solver_homogeneous_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
-               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         else
           ! Compute fluxes using the cloudless solver

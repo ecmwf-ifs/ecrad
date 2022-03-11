@@ -23,6 +23,10 @@ module radiation_single_level
   implicit none
   public
 
+#ifdef FLOTSAM
+#include <flotsam.inc>
+#endif
+
   !---------------------------------------------------------------------
   ! Derived type to contain variables that don't vary with height;
   ! mostly they are surface properties
@@ -92,6 +96,10 @@ module radiation_single_level
     real(jprb), allocatable, dimension(:) :: &
          &   solar_azimuth_angle, sensor_azimuth_angle ! (ncol)
 
+    ! Angle between sun and sensor (radians), where pi corresponds to
+    ! the exact backscatter direction
+    real(jprb), allocatable, dimension(:) :: scattering_angle ! (ncol)
+
     ! Zonal and meridional 10-m wind components in m/s, used for
     ! computing specular reflection by sea surface affecting solar
     ! radiances
@@ -107,6 +115,7 @@ module radiation_single_level
     procedure :: init_seed_simple
     procedure :: get_albedos
     procedure :: out_of_physical_bounds
+    procedure :: calc_scattering_angle
 
   end type single_level_type
 
@@ -161,6 +170,7 @@ contains
         allocate(this%cos_sensor_zenith_angle(ncol))
         allocate(this%solar_azimuth_angle(ncol))
         allocate(this%sensor_azimuth_angle(ncol))
+        allocate(this%scattering_angle(ncol))
         allocate(this%u_wind_10m(ncol))
         allocate(this%v_wind_10m(ncol))
         allocate(this%sea_fraction(ncol))
@@ -216,6 +226,9 @@ contains
     end if
     if (allocated(this%sensor_azimuth_angle)) then
       deallocate(this%sensor_azimuth_angle)
+    end if
+    if (allocated(this%scattering_angle)) then
+      deallocate(this%scattering_angle)
     end if
     if (allocated(this%u_wind_10m)) then
       deallocate(this%u_wind_10m)
@@ -301,6 +314,10 @@ contains
       else if (.not. config%do_nearest_spectral_sw_albedo) then
         ! Albedos averaged accurately to ecRad spectral bands
         nalbedoband = size(config%sw_albedo_weights,1)
+        if (nalbedoband /= size(this%sw_albedo,2)) then
+          write(nulerr,'(a)') '*** Error: single_level%sw_albedo has the wrong number of spectral intervals'
+          call radiation_abort()   
+        end if
         sw_albedo_band = 0.0_jprb
         do jband = 1,config%n_bands_sw
           do jalbedoband = 1,nalbedoband
@@ -420,5 +437,21 @@ contains
     if (lhook) call dr_hook('radiation_single_level:out_of_physical_bounds',1,hook_handle)
 
   end function out_of_physical_bounds
+
+#ifdef FLOTSAM
+  !---------------------------------------------------------------------
+  ! Calculate the angle between sun and sensor needed for the single-scattering component of the reflected field
+  subroutine calc_scattering_angle(this)
+    class(single_level_type), intent(inout) :: this
+    integer :: jcol
+    if (.not. allocated(this%scattering_angle)) then
+      allocate(this%scattering_angle(size(this%cos_sza)))
+    end if
+    do jcol = 1,size(this%cos_sza)
+      this%scattering_angle(jcol) = flotsam_scattering_angle(this%cos_sza(jcol), this%cos_sensor_zenith_angle(jcol), &
+           &               this%solar_azimuth_angle(jcol)-this%sensor_azimuth_angle(jcol))
+    end do
+  end subroutine calc_scattering_angle
+#endif
 
 end module radiation_single_level

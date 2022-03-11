@@ -563,6 +563,11 @@ module radiation_config
     ! per band
     integer, allocatable :: i_ocean_reflectance_id_sw(:)
 
+    ! Number of elements describing the shortwave phase function. If
+    ! FLOTSAM is not being used then this is one, corresponding to the
+    ! asymmetry factor; otherwise it is of order 8.
+    integer :: n_sw_pf = 1
+
     ! Data structures containing gas optics description in the case of
     ! ecCKD
     type(ckd_model_type)         :: gas_optics_sw, gas_optics_lw

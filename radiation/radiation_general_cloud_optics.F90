@@ -130,15 +130,16 @@ contains
   !---------------------------------------------------------------------
   ! Compute cloud optical properties
   subroutine general_cloud_optics(nlev,istartcol,iendcol, &
-       &  config, thermodynamics, cloud, & 
+       &  config, single_level, thermodynamics, cloud, & 
        &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-       &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+       &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
 
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook
 
     use radiation_io,     only : nulout
     use radiation_config, only : config_type
+    use radiation_single_level, only      : single_level_type
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type
     use radiation_constants, only         : AccelDueToGravity
@@ -147,11 +148,12 @@ contains
     integer, intent(in) :: nlev               ! number of model levels
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
     type(config_type), intent(in), target :: config
+    type(single_level_type), intent(in)   :: single_level
     type(thermodynamics_type),intent(in)  :: thermodynamics
     type(cloud_type),   intent(in)        :: cloud
 
-    ! Layer optical depth, single scattering albedo and g factor of
-    ! clouds in each longwave band, where the latter two
+    ! Layer optical depth, single scattering albedo and asymmetry
+    ! factor of clouds in each longwave band, where the latter two
     ! variables are only defined if cloud longwave scattering is
     ! enabled (otherwise both are treated as zero).
     real(jprb), dimension(config%n_bands_lw,nlev,istartcol:iendcol), intent(out) :: &
@@ -159,15 +161,19 @@ contains
     real(jprb), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol), &
          &   intent(out) :: ssa_lw_cloud, g_lw_cloud
 
-    ! Layer optical depth, single scattering albedo and g factor of
-    ! clouds in each shortwave band
+    ! Layer optical depth and single scattering albedo of clouds in
+    ! each shortwave band
     real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol), intent(out) :: &
-         &   od_sw_cloud, ssa_sw_cloud, g_sw_cloud
+         &   od_sw_cloud, ssa_sw_cloud
+
+    real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol,config%n_sw_pf), &
+         &  intent(out) :: pf_sw_cloud
 
     ! In-cloud water path of one cloud type (kg m-2)
     real(jprb), dimension(istartcol:iendcol,nlev) :: water_path
 
-    integer :: jtype, jcol, jlev
+    ! Loop indices
+    integer :: jtype, jcol, jlev, jcomp
 
     real(jprb) :: hook_handle
 
@@ -181,7 +187,7 @@ contains
     od_lw_cloud  = 0.0_jprb
     od_sw_cloud  = 0.0_jprb
     ssa_sw_cloud = 0.0_jprb
-    g_sw_cloud   = 0.0_jprb
+    pf_sw_cloud   = 0.0_jprb
     if (config%do_lw_cloud_scattering) then
       ssa_lw_cloud = 0.0_jprb
       g_lw_cloud   = 0.0_jprb
@@ -223,13 +229,22 @@ contains
       end if
       
       if (config%do_sw) then
-        ! For the moment, we use ssa_sw_cloud and g_sw_cloud as
-        ! containers for scattering optical depth and scattering
-        ! coefficient x asymmetry factor, then scale after
-        call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
-             &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
-             &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
-             &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+        ! For the moment, we use ssa_sw_cloud and pf_sw_cloud (if
+        ! normally containing asymmetry factor) as containers for
+        ! scattering optical depth and scattering coefficient x
+        ! asymmetry factor, then scale after
+        if (config%n_sw_pf > 1) then
+          call config%cloud_optics_sw(jtype)%add_optical_properties_flotsam(config%n_bands_sw, nlev, &
+               &  iendcol+1-istartcol, config%n_sw_pf, cloud%fraction(istartcol:iendcol,:), &
+               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
+               &  single_level%scattering_angle, &
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
+        else
+          call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
+               &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
+               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud(:,:,:,1))
+        end if
       end if
     end do
 
@@ -255,12 +270,13 @@ contains
     
     ! Scale the combined shortwave optical properties
     if (config%do_sw) then
-      if (.not. config%do_sw_delta_scaling_with_gases) then
+      if (.not. config%do_sw_delta_scaling_with_gases &
+           &  .and. .not. config%do_radiances) then
         do jcol = istartcol, iendcol
           do jlev = 1,nlev
             if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
               call delta_eddington_extensive(od_sw_cloud(:,jlev,jcol), &
-                   &  ssa_sw_cloud(:,jlev,jcol), g_sw_cloud(:,jlev,jcol))
+                   &  ssa_sw_cloud(:,jlev,jcol), pf_sw_cloud(:,jlev,jcol,1))
             end if
           end do
         end do
@@ -269,9 +285,12 @@ contains
       do jcol = istartcol, iendcol
         do jlev = 1,nlev
           if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
-            ! Scale to get asymmetry factor and single scattering albedo
-            g_sw_cloud(:,jlev,jcol) = g_sw_cloud(:,jlev,jcol) &
-                 &  / max(ssa_sw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+            ! Scale to get phase-function properties (e.g. asymmetry
+            ! factor) and single scattering albedo
+            do jcomp = 1,config%n_sw_pf
+              pf_sw_cloud(:,jlev,jcol,jcomp) = pf_sw_cloud(:,jlev,jcol,jcomp) &
+                   &  / max(ssa_sw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+            end do
             ssa_sw_cloud(:,jlev,jcol) = ssa_sw_cloud(:,jlev,jcol) &
                  &  / max(od_sw_cloud(:,jlev,jcol),  1.0e-15_jprb)
           end if

@@ -22,6 +22,10 @@ module radiation_general_cloud_optics_data
 
   public
 
+#ifdef FLOTSAM
+#include <flotsam.inc>
+#endif
+  
   !---------------------------------------------------------------------
   ! This type holds the configuration information to compute optical
   ! properties for a particular type of cloud or hydrometeor in one of
@@ -37,6 +41,15 @@ module radiation_general_cloud_optics_data
     ! Single-scattering albedo and asymmetry factor (dimensionless)
     real(jprb), allocatable, dimension(:,:) :: &
          &  ssa, asymmetry
+
+#ifdef FLOTSAM
+    ! Scattering angle (radians)
+    real(jprb), allocatable, dimension(:)     :: scattering_angle
+    ! Phase function, dimensioned (nangle,nband,n_effective_radius) 
+    real(jprb), allocatable, dimension(:,:,:) :: phase_function
+    ! Phase function components, dimensioned (ncomp,nband,n_effective_radius) 
+    real(jprb), allocatable, dimension(:,:,:) :: phase_function_components
+#endif
 
     ! Number of effective radius coefficients, start value and
     ! interval in look-up table
@@ -55,6 +68,7 @@ module radiation_general_cloud_optics_data
    contains
      procedure :: setup => setup_general_cloud_optics
      procedure :: add_optical_properties
+     procedure :: add_optical_properties_flotsam
 
   end type general_cloud_optics_type
 
@@ -74,6 +88,7 @@ contains
     use easy_netcdf,                   only : netcdf_file
     use radiation_spectral_definition, only : spectral_definition_type
     use radiation_io,                  only : nulout, nulerr, radiation_abort
+    use radiation_constants,           only : Pi
 
     class(general_cloud_optics_type), intent(inout)    :: this
     character(len=*), intent(in)               :: file_name
@@ -101,6 +116,9 @@ contains
     ! dimensioned (ngpoint,nwav)
     real(jprb), dimension(:,:), allocatable :: mapping
 
+    ! Scattering phase function
+    real(jprb), dimension(:,:,:), allocatable :: phase_function, phase_function_band
+
     ! The NetCDF file containing the coefficients
     type(netcdf_file)  :: file
 
@@ -108,6 +126,12 @@ contains
     integer    :: iverb
     integer    :: nre  ! Number of effective radii
     integer    :: nwav ! Number of wavenumbers describing cloud
+    integer    :: nang ! Number of angles describing phase function
+    integer    :: nband! Number of bands (or g points)
+    integer    :: n_pf_components ! Number of phase-function components for FLOTSAM
+    integer    :: istatus ! Return code from flotsam calls
+
+    integer    :: jband, jwav ! Loop indices
 
     logical    :: use_bands_local, use_thick_averaging_local
 
@@ -146,6 +170,12 @@ contains
     call file%get('mass_extinction_coefficient', mass_ext)
     call file%get('single_scattering_albedo', ssa)
     call file%get('asymmetry_factor', asymmetry)
+
+    if (file%exists('phase_function')) then
+      call file%get('scattering_angle', this%scattering_angle)
+      this%scattering_angle = this%scattering_angle * (Pi/180.0_jprb)
+      call file%get('phase_function',   phase_function)      
+    end if
 
     ! Close scattering file
     call file%close()
@@ -206,6 +236,27 @@ contains
       deallocate(ref_inf)
     end if
 
+#ifdef FLOTSAM
+    nang  = size(this%scattering_angle)
+    nband = size(this%mass_ext,1)
+    if (allocated(phase_function)) then
+      allocate(phase_function_band(nang,nband,this%n_effective_radius))
+      phase_function_band = 0.0_jprb
+      do jwav = 1,nwav
+        do jband = 1,nband
+          phase_function_band(:,jband,:) = phase_function_band(:,jband,:) &
+               &  + mapping(jband,jwav) * phase_function(:,jwav,:)
+        end do
+      end do
+      allocate(this%phase_function(nang,nband,this%n_effective_radius))
+      n_pf_components = flotsam_n_phase_function_components()
+      allocate(this%phase_function_components(n_pf_components,nband,this%n_effective_radius))
+      istatus = flotsam_analyse_phase_functions(nband*this%n_effective_radius, nang, &
+           &  this%scattering_angle, phase_function_band, 4.0_jprb*Pi, &
+           &  this%phase_function, this%phase_function_components)
+    end if
+#endif
+
     deallocate(mapping)
 
     ! Revert back to unscaled quantities
@@ -228,6 +279,11 @@ contains
            &  effective_radius(1)*1.0e6_jprb, '-', effective_radius(nre)*1.0e6_jprb, ' um'
       write(nulout,'(a,i0,a,i0,a)') '  Wavenumber range: ', int(specdef%min_wavenumber()), '-', &
            &  int(specdef%max_wavenumber()), ' cm-1'
+#ifdef FLOTSAM
+      if (allocated(this%phase_function)) then
+        write(nulout,'(a,i0)') '  Phase function angles: ', nang
+      end if
+#endif
     end if
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup',1,hook_handle)
@@ -317,6 +373,98 @@ contains
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',1,hook_handle)
 
   end subroutine add_optical_properties
+
+  !---------------------------------------------------------------------
+  ! Add the optical properties of a particular cloud type to the
+  ! accumulated optical properties of all cloud types, for FLOTSAM
+  subroutine add_optical_properties_flotsam(this, ng, nlev, ncol, npf, &
+       &                            cloud_fraction, &
+       &                            water_path, effective_radius, &
+       &                            scattering_angle, &
+       &                            od, scat_od, pf)
+
+    use yomhook, only : lhook, dr_hook
+
+    class(general_cloud_optics_type), intent(in) :: this
+
+    ! Number of g points, levels, columns and phase-function elements
+    integer, intent(in) :: ng, nlev, ncol, npf
+
+    ! Properties of present cloud type, dimensioned (ncol,nlev)
+    real(jprb), intent(in) :: cloud_fraction(:,:)
+    real(jprb), intent(in) :: water_path(:,:)       ! kg m-2
+    real(jprb), intent(in) :: effective_radius(:,:) ! m
+
+    ! Scattering angle (radians) between sun and sensor, dimensioned
+    ! (ncol)
+    real(jprb), intent(in) :: scattering_angle(ncol)
+
+    ! Optical properties which are additive per cloud type,
+    ! dimensioned (ng,nlev,ncol)
+    real(jprb), intent(inout), dimension(ng,nlev,ncol) &
+         &  :: od, &        ! Optical depth of layer
+         &     scat_od      ! Scattering optical depth of layer
+    ! Phase function elements
+    real(jprb), intent(inout), dimension(ng,nlev,ncol,npf) :: pf
+
+    real(jprb) :: od_local(ng)
+
+    real(jprb) :: re_index, weight1, weight2
+    integer :: ire
+
+    integer :: iang
+    real(jprb) :: w1, w2
+
+    integer :: jcol, jlev, jcomp
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties_flotsam',0,hook_handle)
+
+    do jcol = 1,ncol
+      ! Find indices and weights to bracketing angles
+      iang = 1
+      do while (this%scattering_angle(iang+1) < scattering_angle(jcol) &
+           &    .and. iang < size(this%scattering_angle)-1)
+        iang = iang+1
+      end do
+      w1 = (this%scattering_angle(iang+1)-scattering_angle(jcol)) &
+           &  / (this%scattering_angle(iang+1)-this%scattering_angle(iang))
+      w2 = (scattering_angle(jcol)-this%scattering_angle(iang)) &
+           &  / (this%scattering_angle(iang+1)-this%scattering_angle(iang))
+
+      do jlev = 1,nlev
+        if (cloud_fraction(jcol, jlev) > 0.0_jprb) then
+          re_index = max(1.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+               &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
+          ire = int(re_index)
+          weight2 = re_index - ire
+          weight1 = 1.0_jprb - weight2
+          ! Local extinction optical depth
+          od_local = water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
+               &                              +weight2*this%mass_ext(:,ire+1))
+          od(:,jlev,jcol) = od(:,jlev,jcol) + od_local
+          ! Convert "od_local" to be the scattering optical depth
+          od_local = od_local * (weight1*this%ssa(:,ire) &
+               &                +weight2*this%ssa(:,ire+1))
+          scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
+          pf(:,jlev,jcol,1) = pf(:,jlev,jcol,1) + od_local &
+               &  * (weight1 * (w1*this%phase_function(iang,:,ire) &
+               &               +w2*this%phase_function(iang+1,:,ire)) &
+               &    +weight2 * (w1*this%phase_function(iang,:,ire+1) &
+               &               +w2*this%phase_function(iang+1,:,ire+1)))
+          do jcomp = 1,size(this%phase_function_components,1)
+            pf(:,jlev,jcol,jcomp+1) = pf(:,jlev,jcol,jcomp+1) + od_local &
+                 &  * (weight1 * this%phase_function_components(jcomp,:,ire) &
+                 &    +weight2 * this%phase_function_components(jcomp,:,ire+1))
+          end do
+        end if
+      end do
+    end do
+
+    if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties_flotsam',1,hook_handle)
+
+  end subroutine add_optical_properties_flotsam
 
 
   !---------------------------------------------------------------------

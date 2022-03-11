@@ -86,6 +86,8 @@ contains
     ! if it came from the NetCDF file in the first place
     logical :: is_cloud_size_scalable
 
+    integer :: jcol
+
     ! The following calls read in the data, allocating memory for 1D and
     ! 2D arrays.  The program will stop if any variables are not found.
     
@@ -231,6 +233,10 @@ contains
     else if (config%do_sw .and. config%do_radiances) then
       write(nulout,'(a,a)') '*** Error: sensor_azimuth_angle not provided'
       stop
+    end if
+
+    if (config%do_sw .and. config%do_radiances) then
+      call single_level%calc_scattering_angle()
     end if
 
     if (file%exists('u_wind_10m')) then
@@ -715,6 +721,14 @@ contains
     call gas%scale(IHCFC22, driver_config%hcfc22_scaling, driver_config%iverbose >= 2)
     call gas%scale(ICCL4,   driver_config%ccl4_scaling,   driver_config%iverbose >= 2)
     call gas%scale(INO2,    driver_config%no2_scaling,    driver_config%iverbose >= 2)
+
+
+!    do jcol = 1,ncol
+!      write(101,*) latitude(jcol), longitude(jcol), driver_config%solar_latitude, driver_config%solar_longitude, &
+!           &  driver_config%sensor_latitude, driver_config%sensor_longitude, single_level%cos_sza(jcol), &
+!           &  single_level%cos_sensor_zenith_angle(jcol), single_level%solar_azimuth_angle(jcol), &
+!           &  single_level%sensor_azimuth_angle(jcol), single_level%scattering_angle(jcol)
+!    end do
 
   end subroutine read_input
 
