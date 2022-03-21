@@ -240,6 +240,27 @@ contains
     nang  = size(this%scattering_angle)
     nband = size(this%mass_ext,1)
     if (allocated(phase_function)) then
+
+! Optionally extract phase-function components for all wavenumbers in
+! file
+!#define ANALYSE_ALL_PHASE_FUNCTIONS 1
+#ifdef ANALYSE_ALL_PHASE_FUNCTIONS
+      allocate(this%phase_function(nang,nwav,this%n_effective_radius))
+      n_pf_components = flotsam_n_phase_function_components()
+      allocate(this%phase_function_components(n_pf_components,nwav,this%n_effective_radius))
+      istatus = flotsam_analyse_phase_functions(nwav*this%n_effective_radius, nang, &
+           &  this%scattering_angle, phase_function, 4.0_jprb*Pi, &
+           &  this%phase_function, this%phase_function_components)
+      do jband = 1,this%n_effective_radius
+        do jwav = 1,nwav
+          write(103,*) effective_radius(jband), wavenumber(jwav), ssa(jwav,jband), &
+               &  asymmetry(jwav,jband), this%phase_function_components(:,jwav,jband)
+        end do
+      end do
+      deallocate(this%phase_function)
+      deallocate(this%phase_function_components)
+#endif
+
       allocate(phase_function_band(nang,nband,this%n_effective_radius))
       phase_function_band = 0.0_jprb
       do jwav = 1,nwav
