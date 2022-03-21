@@ -61,6 +61,11 @@ module radiation_cloud
     ! is dimensioned (ncol,nlev).
     real(jprb), allocatable, dimension(:,:) :: inv_cloud_effective_size ! m-1
 
+    ! Optional separate upward and downward effective sizes for the LW
+    ! TCRAD solver
+    real(jprb), allocatable, dimension(:,:) :: inv_cloud_effective_size_up_lw ! m-1
+    real(jprb), allocatable, dimension(:,:) :: inv_cloud_effective_size_dn_lw ! m-1
+
     ! Similarly for the in-cloud heterogeneities, used to compute the
     ! edge length between the optically thin and thick cloudy regions
     ! of the gridbox.
