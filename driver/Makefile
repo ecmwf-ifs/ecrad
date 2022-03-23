@@ -9,8 +9,9 @@ SOURCES = ecrad_driver_read_input.F90 \
 
 OBJECTS := $(SOURCES:.F90=.o)
 EXECUTABLE = ../bin/ecrad
+IFSEXE = ../bin/ecrad_ifs
 
-all: $(EXECUTABLE) $(TEST)
+all: $(EXECUTABLE) $(TEST) $(IFSEXE)
 
 $(EXECUTABLE): $(OBJECTS) ../lib/*.a
 	$(FC) $(OBJECTS) $(LIBS) -o $(EXECUTABLE)
@@ -18,13 +19,17 @@ $(EXECUTABLE): $(OBJECTS) ../lib/*.a
 $(TEST): $(TEST).F90 ../lib/*.a
 	$(FC) $(FCFLAGS) $(TEST).F90 $(LIBS) -o $(TEST)
 
+$(IFSEXE): ecrad_ifs_driver.F90 $(IFSOBJS) ../lib/*.a
+	$(FC) $(FCFLAGS) ecrad_ifs_driver.F90 ecrad_driver_read_input.o ecrad_driver_config.o $(LIBS) -o $(IFSEXE)
+
+
 # Note that the dependence on mod files can mean that rerunning "make"
 # recreates the executable
 %.o: %.F90 ../mod/*.mod
 	$(FC) $(FCFLAGS) -c $<
 
 clean:
-	rm -f *.o $(OBJECTS) $(EXECUTABLE) $(TEST)
+	rm -f *.o $(OBJECTS) $(EXECUTABLE) $(TEST) $(IFSEXE)
 
 ecrad_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_driver_read_input.o: ecrad_driver_config.o
