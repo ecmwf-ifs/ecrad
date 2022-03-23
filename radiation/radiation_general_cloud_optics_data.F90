@@ -68,7 +68,9 @@ module radiation_general_cloud_optics_data
    contains
      procedure :: setup => setup_general_cloud_optics
      procedure :: add_optical_properties
+#ifdef FLOTSAM
      procedure :: add_optical_properties_flotsam
+#endif
 
   end type general_cloud_optics_type
 
@@ -171,11 +173,13 @@ contains
     call file%get('single_scattering_albedo', ssa)
     call file%get('asymmetry_factor', asymmetry)
 
+#ifdef FLOTSAM
     if (file%exists('phase_function')) then
       call file%get('scattering_angle', this%scattering_angle)
       this%scattering_angle = this%scattering_angle * (Pi/180.0_jprb)
       call file%get('phase_function',   phase_function)      
     end if
+#endif
 
     ! Close scattering file
     call file%close()
@@ -395,6 +399,7 @@ contains
 
   end subroutine add_optical_properties
 
+#ifdef FLOTSAM
   !---------------------------------------------------------------------
   ! Add the optical properties of a particular cloud type to the
   ! accumulated optical properties of all cloud types, for FLOTSAM
@@ -486,7 +491,7 @@ contains
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties_flotsam',1,hook_handle)
 
   end subroutine add_optical_properties_flotsam
-
+#endif
 
   !---------------------------------------------------------------------
   ! Return the Planck function (in W m-2 (cm-1)-1) for a given

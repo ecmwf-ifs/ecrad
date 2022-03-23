@@ -233,18 +233,22 @@ contains
         ! normally containing asymmetry factor) as containers for
         ! scattering optical depth and scattering coefficient x
         ! asymmetry factor, then scale after
+#ifdef FLOTSAM
         if (config%n_sw_pf > 1) then
           call config%cloud_optics_sw(jtype)%add_optical_properties_flotsam(config%n_bands_sw, nlev, &
                &  iendcol+1-istartcol, config%n_sw_pf, cloud%fraction(istartcol:iendcol,:), &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
-               &  single_level%scattering_angle, &
+               &  single_level%scattering_angle(istartcol:iendcol), &
                &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
         else
+#endif
           call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
                &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
                &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud(:,:,:,1))
+#ifdef FLOTSAM
         end if
+#endif
       end if
     end do
 

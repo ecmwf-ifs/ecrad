@@ -235,9 +235,11 @@ contains
       stop
     end if
 
+#ifdef FLOTSAM
     if (config%do_sw .and. config%do_radiances) then
       call single_level%calc_scattering_angle()
     end if
+#endif
 
     if (file%exists('u_wind_10m')) then
       call file%get('u_wind_10m', single_level%u_wind_10m)

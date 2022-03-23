@@ -115,7 +115,9 @@ module radiation_single_level
     procedure :: init_seed_simple
     procedure :: get_albedos
     procedure :: out_of_physical_bounds
+#ifdef FLOTSAM
     procedure :: calc_scattering_angle
+#endif
 
   end type single_level_type
 
