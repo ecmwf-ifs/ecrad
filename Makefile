@@ -91,9 +91,9 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifdef DR_HOOK
-build: directories libifsaux libdrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifs libifsaux libdrhook libutilities libifsrrtm libradiation driver symlinks
 else
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifs libifsaux libdummydrhook libutilities libifsrrtm libradiation driver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -109,6 +109,9 @@ deps: clean-deps
 
 clean-deps:
 	rm -f interfaces/include/*.intfb.h
+
+libifs:
+	cd ifs && $(MAKE)
 
 libifsaux:
 	cd ifsaux && $(MAKE)
@@ -154,6 +157,7 @@ clean-toplevel:
 	cd driver && $(MAKE) clean
 
 clean-utilities:
+	cd ifs && $(MAKE) clean
 	cd ifsaux && $(MAKE) clean
 	cd utilities && $(MAKE) clean
 	cd ifsrrtm && $(MAKE) clean
@@ -168,6 +172,7 @@ clean-symlinks:
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
-.PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
-	libradiation driver symlinks clean clean-toplevel test test_ifs \
-	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
+.PHONY: all build help deps clean-deps libifs libifsaux libdrhook \
+	libutilities libifsrrtm libradiation driver symlinks clean \
+	clean-toplevel test test_ifs test_i3rc clean-tests clean-utilities \
+	clean-mods clean-symlinks
