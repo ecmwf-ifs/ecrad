@@ -99,7 +99,7 @@ program ecrad_ifs_driver
 
   ! Are we using a complex surface representation stored in the
   ! "surface" structure?
-  logical :: is_complex_surface
+!  logical :: is_complex_surface
 
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
@@ -207,7 +207,8 @@ program ecrad_ifs_driver
   ! Read input variables from NetCDF file
   call read_input(file, config, driver_config, ncol, nlev, &
 !       &          is_complex_surface, surface, &
-       &          single_level, thermodynamics, gas, cloud, aerosol)
+       &          single_level, thermodynamics, &
+       &          gas, cloud, aerosol)
 
 !  if (is_complex_surface) then
 !    config%do_canopy_fluxes_sw = .true.
@@ -317,7 +318,15 @@ program ecrad_ifs_driver
   ldiagforcing=.false.               ! write input ozone, ghg and aerosol forcing to 3D fields
   lapproxlwupdate=.true.
   lapproxswupdate=.true.
-  
+
+  !
+  ! RADINTG
+  !
+ 
+  !  INITIALISE INDICES FOR VARIABLE
+
+  ! INDRAD is a CONTAIN'd function (at end of this routine)
+ 
   inext  =1
   iinbeg =1                        ! start of input variables
   igi    =indrad(inext,1,lldebug)
@@ -503,6 +512,8 @@ program ecrad_ifs_driver
   ! REPLACED in2o with iin2o due to clash
   ! REPLACED ico2 with iico2 due to clash
 
+  !  INPUT LOOP
+
   !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
   !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB,JAER,JOFF,JLEV,JALB)
   do jrl=1,ncol,nproma
@@ -512,52 +523,52 @@ program ecrad_ifs_driver
     il=iend-ibeg+1
     ib=(jrl-1)/nproma+1
 
+    !* RADINTG:  3.      PREPARE INPUT ARRAYS
+
+    ! zrgp(1:il,imu0,ib)  = ???
     zrgp(1:il,iamu0,ib)  =  single_level%cos_sza(ibeg:iend)   
-    zrgp(1:il,its,ib)    =  single_level%skin_temperature(ibeg:iend)
 
-    do jalb=0,nsw   
-      zrgp(1:il,iald+jalb,ib)  =  single_level%sw_albedo(ibeg:iend,jalb+1)
-      zrgp(1:il,ialp+jalb,ib)  =  single_level%sw_albedo_direct(ibeg:iend,jalb+1)
+    do jemiss=1,nlwemiss
+      zrgp(1:il,iemiss+jemiss-1,ib)  =  single_level%lw_emissivity(ibeg:iend,jemiss)
     enddo
 
-    do jemiss=0,nlwemiss
-      zrgp(1:il,iemiss+jemiss,ib)  =  single_level%lw_emissivity(ibeg:iend,jemiss+1)
-    enddo
-    
+    zrgp(1:il,its,ib)      = single_level%skin_temperature(ibeg:iend)
+    zrgp(1:il,islm,ib)     = 1.0_jprb ! for now, ask Robin    ! land-sea mask
     zrgp(1:il,iccnl,ib)    = 1.0_jprb ! for now, ask Robin    ! CCN over land
     zrgp(1:il,iccno,ib)    = 1.0_jprb ! for now, ask Robin    ! CCN over sea
+    ! zrgp(1:il,ibas,ib)     = ???
+    ! zrgp(1:il,itop,ib)     = ???
     zrgp(1:il,igelam,ib)   = 1.0_jprb ! for now, ask Robin    ! longitude
     zrgp(1:il,igemu,ib)    = 1.0_jprb ! for now, ask Robin    ! sine of latitude
-    zrgp(1:il,islm,ib)     = 1.0_jprb ! for now, ask Robin    ! land-sea mask
-    
-    do jlev=0,nlev
-      zrgp(1:il,ipr,ib)    =  1.0_jprb ! ask Robin      ! full level pressure
-      zrgp(1:il,iti,ib)    =  1.0_jprb ! ask Robin      ! full level temperature
+    ! zrgp(1:il,iclon,ib)    = ???
+    ! zrgp(1:il,islon,ib)    = ???
+
+    do jalb=1,nsw
+      zrgp(1:il,iald+jalb-1,ib)  =  single_level%sw_albedo(ibeg:iend,jalb)
+      zrgp(1:il,ialp+jalb-1,ib)  =  single_level%sw_albedo_direct(ibeg:iend,jalb)
     enddo
     
-    do jlev=0,nlev+1
-      zrgp(1:il,iaprs+jlev,ib)     =  thermodynamics%pressure_hl(ibeg:iend,jlev+1)
-      zrgp(1:il,ihti+jlev,ib)      =  thermodynamics%temperature_hl(ibeg:iend,jlev+1)
+    do jlev=1,nlev
+      zrgp(1:il,iti+jlev-1,ib)   = 1.0_jprb ! ask Robin      ! full level temperature
+      zrgp(1:il,ipr+jlev-1,ib)   = 1.0_jprb ! ask Robin      ! full level pressure
+      ! zrgp(1:il,iqs+jlev-1,ib)   = ???
     enddo
 
-    do jlev=0,nlev-1
-      zrgp(1:il,iwv+jlev,ib)   = gas%mixing_ratio(ibeg:iend,jlev+1,IH2O);
-      zrgp(1:il,iico2+jlev,ib) = gas%mixing_ratio(ibeg:iend,jlev+1,ICO2);
-      zrgp(1:il,iich4+jlev,ib) = gas%mixing_ratio(ibeg:iend,jlev+1,ICH4);
-      zrgp(1:il,iin2o+jlev,ib) = gas%mixing_ratio(ibeg:iend,jlev+1,IN2O);
-      zrgp(1:il,ino2,ib)       = 0._jprb ! not really used?
+    do jlev=1,nlev
+      zrgp(1:il,iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O);
+      zrgp(1:il,iclc+jlev-1,ib)  = cloud%fraction(ibeg:iend,jlev)
+      zrgp(1:il,ilwa+jlev-1,ib)  = cloud%q_liq(ibeg:iend,jlev)
+      zrgp(1:il,iiwa+jlev-1,ib)  = cloud%q_ice(ibeg:iend,jlev)
+      zrgp(1:il,iswa+jlev-1,ib)  = 0._jprb  ! snow
+      zrgp(1:il,irwa+jlev-1,ib)  = 0._jprb  ! rain
 
-      zrgp(1:il,ic11+jlev,ib) = gas%mixing_ratio(ibeg:iend,jlev+1,ICFC11);
-      zrgp(1:il,ic12+jlev,ib) = gas%mixing_ratio(ibeg:iend,jlev+1,ICFC12);
-      zrgp(1:il,ic22+jlev,ib) = gas%mixing_ratio(ibeg:iend,jlev+1,IHCFC22);
-      zrgp(1:il,icl4+jlev,ib) = gas%mixing_ratio(ibeg:iend,jlev+1,ICCL4);
-      zrgp(1:il,ioz+jlev,ib)  = gas%mixing_ratio(ibeg:iend,jlev+1,IO3); ! extra treatment in rad scheme, to check
-      zrgp(1:il,iclc+jlev,ib) = cloud%fraction(ibeg:iend,jlev+1)
-      zrgp(1:il,ilwa+jlev,ib) = cloud%q_liq(ibeg:iend,jlev+1)
-      zrgp(1:il,iiwa+jlev,ib) = cloud%q_ice(ibeg:iend,jlev+1)
-      zrgp(1:il,irwa,ib)      = 0._jprb  ! rain
-      zrgp(1:il,iswa,ib)      = 0._jprb  ! snow
+      ! zrgp(1:il,irra+jlev-1,ib)  = ???
+      ! zrgp(1:il,idp+jlev-1,ib)   = ???
+      ! zrgp(1:il,ifsd+jlev-1,ib)   = ???
+      zrgp(1:il,ioz+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IO3); ! extra treatment in rad scheme, to check
+      ! zrgp(1:il,iecpo3+jlev-1,ib) = ???
     enddo
+
     zrgp(1:il,iaer,ib)  =  0._jprb ! old aerosol, not used
     joff=iaero 
     do jaer=1,iradaer
@@ -565,6 +576,25 @@ program ecrad_ifs_driver
         zrgp(1:il,joff,ib) = aerosol%mixing_ratio(ibeg:iend,jlev,jaer)
         joff=joff+1
       enddo
+    enddo
+
+    do jlev=1,nlev
+      ! zrgp(1:il,ihpr+jlev-1,ib)  = ???
+      zrgp(1:il,iaprs+jlev-1,ib) = thermodynamics%pressure_hl(ibeg:iend,jlev)
+      zrgp(1:il,ihti+jlev-1,ib)  = thermodynamics%temperature_hl(ibeg:iend,jlev)
+    enddo
+
+    ! -- by default, globally averaged concentrations (mmr)
+    do jlev=1,nlev
+      zrgp(1:il,iico2+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICO2);
+      zrgp(1:il,iich4+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICH4);
+      zrgp(1:il,iin2o+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,IN2O);
+      zrgp(1:il,ino2+jlev-1,ib)  = 0._jprb ! not really used?
+
+      zrgp(1:il,ic11+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC11);
+      zrgp(1:il,ic12+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC12);
+      zrgp(1:il,ic22+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IHCFC22);
+      zrgp(1:il,icl4+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICCL4);
     enddo
   enddo
   !$OMP END PARALLEL DO
