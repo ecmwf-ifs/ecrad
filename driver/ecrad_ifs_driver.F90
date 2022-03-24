@@ -36,10 +36,10 @@ program ecrad_ifs_driver
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
   use radiation_config,         only : config_type
   use radiation_single_level,   only : single_level_type
-  use radsurf_properties,       only : surface_type, print_surface_representation
-  use radsurf_intermediate,     only : surface_intermediate_type
-  use radsurf_flux,             only : surface_flux_type
-  use radsurf_save,             only : save_surface_fluxes
+!  use radsurf_properties,       only : surface_type, print_surface_representation
+!  use radsurf_intermediate,     only : surface_intermediate_type
+!  use radsurf_flux,             only : surface_flux_type
+!  use radsurf_save,             only : save_surface_fluxes
   use radiation_thermodynamics, only : thermodynamics_type
   use radiation_gas,            only : gas_type, &
        &   IVolumeMixingRatio, IMassMixingRatio, &
@@ -59,7 +59,7 @@ program ecrad_ifs_driver
   type(netcdf_file)         :: file
 
   ! Derived type for the surface inputs
-  type(surface_type)        :: surface
+!  type(surface_type)        :: surface
 
   ! Derived types for the inputs to the radiation scheme
   type(config_type)         :: config
@@ -70,8 +70,8 @@ program ecrad_ifs_driver
   type(aerosol_type)        :: aerosol
 
   ! Derived types for the surface fluxes
-  type(surface_intermediate_type) :: surface_intermediate
-  type(surface_flux_type)         :: surface_flux
+!  type(surface_intermediate_type) :: surface_intermediate
+!  type(surface_flux_type)         :: surface_flux
 
   ! Configuration specific to this driver
   type(driver_config_type)  :: driver_config
@@ -206,20 +206,20 @@ program ecrad_ifs_driver
 
   ! Read input variables from NetCDF file
   call read_input(file, config, driver_config, ncol, nlev, &
-       &          is_complex_surface, surface, single_level, thermodynamics, &
-       &          gas, cloud, aerosol)
+!       &          is_complex_surface, surface, &
+       &          single_level, thermodynamics, gas, cloud, aerosol)
 
-  if (is_complex_surface) then
-    config%do_canopy_fluxes_sw = .true.
-    config%do_canopy_fluxes_lw = .true.
-  end if
+!  if (is_complex_surface) then
+!    config%do_canopy_fluxes_sw = .true.
+!    config%do_canopy_fluxes_lw = .true.
+!  end if
 
   ! Close input file
   call file%close()
 
-  if (is_complex_surface .and. driver_config%iverbose >= 2) then
-    call print_surface_representation(surface%i_representation)
-  end if
+!  if (is_complex_surface .and. driver_config%iverbose >= 2) then
+!    call print_surface_representation(surface%i_representation)
+!  end if
 
   ! Compute seed from skin temperature residual
   !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
@@ -259,12 +259,12 @@ program ecrad_ifs_driver
   ! hydration) call
   call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
-  if (is_complex_surface) then
-    call surface_intermediate%allocate(driver_config%istartcol, driver_config%iendcol, &
-         &                             config, surface)
-    call surface_flux%allocate(config, driver_config%istartcol, driver_config%iendcol, &
-         &                     surface%i_representation)
-  end if
+!  if (is_complex_surface) then
+!    call surface_intermediate%allocate(driver_config%istartcol, driver_config%iendcol, &
+!         &                             config, surface)
+!    call surface_flux%allocate(config, driver_config%istartcol, driver_config%iendcol, &
+!         &                     surface%i_representation)
+!  end if
 
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
@@ -298,14 +298,14 @@ program ecrad_ifs_driver
   if ( config%use_canopy_full_spectrum_lw ) then
     nlwemiss = config%n_g_lw
   else
-    nlwemiss=surface%nemissbands
+    nlwemiss=2!surface%nemissbands ???
   endif
 
   ! number of shortwave spectral intervals, = 6 in IFS
   if (config%use_canopy_full_spectrum_sw) then
     nsw = config%n_g_sw  
   else
-    nsw = surface%nalbedobands    
+    nsw = 6!surface%nalbedobands    ???
   endif
 
   nlwout=1                           ! number of spectral intervals to pass LW downwelling flux
@@ -675,15 +675,15 @@ program ecrad_ifs_driver
        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
        &   experiment_name=driver_config%experiment_name)
     
-  if (is_complex_surface) then
-    ! Get NetCDF output file name for surface
-    call get_command_argument(4, file_name, status=istatus)
-    if (istatus /= 0) then
-      write(nulout,'(a)') 'Warning: file name for surface-flux outputs not provided'
-    else
-      call save_surface_fluxes(file_name, config, surface_flux, iverbose=driver_config%iverbose)
-    end if
-  end if
+!  if (is_complex_surface) then
+!    ! Get NetCDF output file name for surface
+!    call get_command_argument(4, file_name, status=istatus)
+!    if (istatus /= 0) then
+!      write(nulout,'(a)') 'Warning: file name for surface-flux outputs not provided'
+!    else
+!      call save_surface_fluxes(file_name, config, surface_flux, iverbose=driver_config%iverbose)
+!    end if
+!  end if
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
