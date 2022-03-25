@@ -1,0 +1,4 @@
+interface
+SUBROUTINE SRTM_KGB21
+END SUBROUTINE SRTM_KGB21
+end interface

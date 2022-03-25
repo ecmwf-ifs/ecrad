@@ -1,0 +1,4 @@
+interface
+SUBROUTINE RRTM_CMBGB3
+END SUBROUTINE RRTM_CMBGB3
+end interface

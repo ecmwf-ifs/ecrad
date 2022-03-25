@@ -1,0 +1,4 @@
+interface
+SUBROUTINE RRTM_KGB2
+END SUBROUTINE RRTM_KGB2
+end interface

@@ -1,0 +1,4 @@
+interface
+SUBROUTINE SRTM_KGB17
+END SUBROUTINE SRTM_KGB17
+end interface

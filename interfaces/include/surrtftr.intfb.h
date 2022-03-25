@@ -1,0 +1,4 @@
+interface
+SUBROUTINE SURRTFTR
+END SUBROUTINE SURRTFTR
+end interface
