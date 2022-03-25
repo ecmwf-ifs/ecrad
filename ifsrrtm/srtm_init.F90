@@ -42,7 +42,7 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 #include "srtm_kgb29.intfb.h"
 !#include "susrtop.intfb.h"
 
-#include "modify_wv_continuum.intfb.h"
+!#include "modify_wv_continuum.intfb.h"
 
 #include "srtm_cmbgb16.intfb.h"
 #include "srtm_cmbgb17.intfb.h"
@@ -81,10 +81,10 @@ CALL SRTM_KGB27
 CALL SRTM_KGB28
 CALL SRTM_KGB29
 
-IF (PRESENT(NWVCONTINUUM)) THEN
-  ! Modify the shortwave water vapour continuum, if requested
-  CALL MODIFY_WV_CONTINUUM(NWVCONTINUUM)
-END IF
+!IF (PRESENT(NWVCONTINUUM)) THEN
+!  ! Modify the shortwave water vapour continuum, if requested
+!  CALL MODIFY_WV_CONTINUUM(NWVCONTINUUM)
+!END IF
 
 !-- read in the cloud optical properties
 !- creates module YOESRTOP with EXTLIQ1, SSALIQ1, ASYLIQ1, 
