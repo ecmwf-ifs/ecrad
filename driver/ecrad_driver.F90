@@ -48,6 +48,7 @@ program ecrad_driver
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
+  use yoerdi,                   only : terdi
 
   implicit none
 
@@ -67,6 +68,8 @@ program ecrad_driver
 
   ! Derived type containing outputs from the radiation scheme
   type(flux_type)           :: flux
+
+  type(terdi)               :: yderdi
 
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: istartcol, iendcol ! Range of columns to process
@@ -137,7 +140,7 @@ program ecrad_driver
 
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
-  call setup_radiation(config)
+  call setup_radiation(yderdi, config)
 
   ! --------------------------------------------------------
   ! Section 3: Read input data file
