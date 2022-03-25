@@ -63,7 +63,7 @@ endif
 
 # Consolidate flags
 export FC
-export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
+export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../interfaces/include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
 	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
@@ -108,7 +108,7 @@ deps: clean-deps
 	cd ifsrrtm && $(MAKE) deps
 
 clean-deps:
-	rm -f include/*.intfb.h
+	rm -f interfaces/include/*.intfb.h
 
 libifsaux:
 	cd ifsaux && $(MAKE)

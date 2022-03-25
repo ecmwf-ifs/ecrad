@@ -41,8 +41,6 @@ SOURCES := $(OBJECTS:.o=.F90)
 
 MAKE_DEPS = ../bin/make_deps.sh
 MAKE_DUMMY_INCLUDES = ../bin/make_dummy_includes.sh
-MAKE_INCLUDES = ../bin/make_intfbl.1.pl
-INCLUDE_DIR = ../include
 
 DEPS_FILE = Makefile_deps
 
@@ -66,7 +64,7 @@ dummy_includes:
 	$(MAKE_DUMMY_INCLUDES) $(SOURCES)
 
 includes:
-	LOC_INTFBDIR=$(INCLUDE_DIR) INTFBDIR=$(INCLUDE_DIR) $(MAKE_INCLUDES) $(SOURCES)
+	cd .. && fcm make --config-file=bin/fcm-make-interfaces.cfg interfaces.ns-incl=ifsrrtm interfaces.source=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))/..
 
 count:
 	echo $(OBJECTS) | wc
