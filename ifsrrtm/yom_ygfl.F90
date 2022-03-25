@@ -425,7 +425,7 @@ TYPE(TYPE_GFL_NAML)  :: YUVP_NL(JPUVP)        ! UV-processor outputs
 TYPE(TYPE_GFL_NAML)  :: YRKTH_NL              ! Rasch-Kristjansson H tendency
 TYPE(TYPE_GFL_NAML)  :: YRKTQV_NL             ! Rasch-Kristjansson Qv tendency
 TYPE(TYPE_GFL_NAML)  :: YRKTQC_NL             ! Rasch-Kristjansson Qc tendency
-TYPE(TYPE_GFL_NAML)  :: YCRM_NL(JPCRM)        ! CRM_Prognostics
+!TYPE(TYPE_GFL_NAML)  :: YCRM_NL(JPCRM)        ! CRM_Prognostics
 TYPE(TYPE_GFL_NAML)  :: YPHYCTY_NL            ! PHYS input for MassCTY
 TYPE(TYPE_GFL_NAML)  :: YFSD_NL               ! cloud heterogeneity
 TYPE(TYPE_GFL_NAML)  :: YRSPEC_NL             ! Specific humidity
@@ -438,7 +438,8 @@ TYPE(TYPE_GFL_NAML)  :: YFORC_NL(JPFORC)      ! Forcing precursor
 TYPE(TYPE_GFL_NAML)  :: YEZDIAG_NL(JPEZDIAG)  ! Easy diagnostics
 TYPE(TYPE_GFL_NAML)  :: YEXT_NL(JPGFL-JPNAMED_GFL-JPGHG-JPFORC-JPEZDIAG-JPAERO-JPERA40-&
  &                              JPNOGW-JPSLDIA-JPCH4S-JPAEROUT-JPAEROCLIM-& !NPAERAOT-NPAERLISI-&
- &                              JPUVP-JPCHEM-JPCRM-JPLIMA-JPPHYCTY-JPFSD-JPEDRP) ! Extra fields
+ &                              JPUVP-JPCHEM-JPLIMA-JPPHYCTY-JPFSD-JPEDRP) ! Extra fields
+! &                              JPUVP-JPCHEM-JPCRM-JPLIMA-JPPHYCTY-JPFSD-JPEDRP) ! Extra fields
 
 ! Prognostic convection variables: 6 more namelist components
 TYPE(TYPE_GFL_NAML)  :: YUOM_NL               ! Updraught vert velocity
