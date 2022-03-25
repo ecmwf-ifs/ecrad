@@ -1,10 +1,10 @@
-SUBROUTINE RRTM_ECRT_140GP_MCICA &
- &( KIDIA, KFDIA, KLON, KLEV, KCOLS ,&
- &  PAER , PAPH , PAP , PAERTAUL, PAERASYL, PAEROMGL, &
- &  PTS  , PTH  , PT  , &
- &  PEMIS, PEMIW, &
- &  PQ   , PCO2 , PCH4, PN2O  , PNO2, PC11, PC12, PC22, PCL4, POZN, PCLDF  , PTAUCLDI, &
- &  PCLDFRAC, PTAUCLD, PCOLDRY, PWBRODL, PWKL, PWX , &
+SUBROUTINE RRTM_ECRT_140GP_MCICA&
+ &(YDDIMV, YDEAERATM,YDERAD,YGFL,KIDIA, KFDIA, KLON, KLEV, KCOLS ,&
+ &PAER , PAPH , PAP , PAERTAUL, PAERASYL, PAEROMGL,&
+ &PTS  , PTH  , PT  ,&
+ &PEMIS, PEMIW,&
+ &PQ   , PCO2 , PCH4, PN2O  , PNO2, PC11, PC12, PC22, PCL4, POZN, PCLDF  , PTAUCLDI,&
+ &PCLDFRAC, PTAUCLD, PCOLDRY, PWBRODL, PWKL, PWX ,&
  &  PTAUAERL, PAVEL  , PTAVEL , PZ  , PTZ , PTBOUND, PSEMISS , KREFLECT)  
 
 !----compiled for Cray with -h nopattern----
@@ -21,22 +21,28 @@ SUBROUTINE RRTM_ECRT_140GP_MCICA &
 !     JJMorcrette 20050110  McICA version
 !        NEC           25-Oct-2007 Optimisations
 !     PBechtold+NSemane        09-Jul-2012 Gravity
-!     201305 ABozzo PWBRODL,O2
+!     201305 ABozzo added PWBRODL and O2 mix. ratio as in the latest version of RRTMG-LW
+!     JJMorcrette 20130805 climatol.stratos.aero. with MACC-derived aero.climatol.
 
+USE YOMDIMV  , ONLY : TDIMV
 USE PARKIND1 , ONLY : JPIM, JPRB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
 USE YOMCST   , ONLY : RG
 USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX  
-USE YOERAD   , ONLY : NSPMAPL
+USE YOERAD   , ONLY : TERAD
 USE YOESW    , ONLY : RAER
-USE YOEAERATM, ONLY : LAERRRTM, LAERCSTR, LAERVOL
-USE YOM_YGFL , ONLY : YGFL
+USE YOEAERATM, ONLY : TEAERATM
+USE YOM_YGFL , ONLY : TYPE_GFLD
 USE YOMDYNCORE,ONLY : RPLRG
 
 !------------------------------Arguments--------------------------------
 
 IMPLICIT NONE
 
+TYPE(TDIMV)       ,INTENT(IN)    :: YDDIMV
+TYPE(TEAERATM)    ,INTENT(INOUT) :: YDEAERATM
+TYPE(TERAD)       ,INTENT(INOUT) :: YDERAD
+TYPE(TYPE_GFLD)   ,INTENT(INOUT) :: YGFL
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLON! Number of atmospheres (longitudes) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV! Number of atmospheric layers 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA, KFDIA 
@@ -65,18 +71,18 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: POZN(KLON,KLEV) ! O3 mass mixing ratio
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCLDF(KLON,KCOLS,KLEV)    ! Cloud fraction
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PTAUCLDI(KLON,KLEV,KCOLS) ! Cloud optical depth
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PCLDFRAC(KIDIA:KFDIA,KCOLS,KLEV)   ! Cloud fraction
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTAUCLD(KIDIA:KFDIA,KLEV,KCOLS)    ! Spectral optical thickness
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PCLDFRAC(KIDIA:KFDIA,KCOLS,YDDIMV%NFLEVG)   ! Cloud fraction
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTAUCLD(KIDIA:KFDIA,YDDIMV%NFLEVG,KCOLS)    ! Spectral optical thickness
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PCOLDRY(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWBRODL(KIDIA:KFDIA,KLEV) ! broadening gas column density (mol/cm2)
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWKL(KIDIA:KFDIA,JPINPX,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWX(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PAVEL(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTAVEL(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PZ(KIDIA:KFDIA,0:KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTZ(KIDIA:KFDIA,0:KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PCOLDRY(KIDIA:KFDIA,YDDIMV%NFLEVG) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWBRODL(KIDIA:KFDIA,YDDIMV%NFLEVG) ! broadening gas column density (mol/cm2)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWKL(KIDIA:KFDIA,JPINPX,YDDIMV%NFLEVG) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWX(KIDIA:KFDIA,JPXSEC,YDDIMV%NFLEVG) ! Amount of trace gases
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTAUAERL(KIDIA:KFDIA,YDDIMV%NFLEVG,JPBAND) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PAVEL(KIDIA:KFDIA,YDDIMV%NFLEVG) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTAVEL(KIDIA:KFDIA,YDDIMV%NFLEVG) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PZ(KIDIA:KFDIA,0:YDDIMV%NFLEVG) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTZ(KIDIA:KFDIA,0:YDDIMV%NFLEVG) 
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTBOUND(KIDIA:KFDIA) 
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSEMISS(KIDIA:KFDIA,JPBAND) 
 INTEGER(KIND=JPIM),INTENT(OUT)   :: KREFLECT(KIDIA:KFDIA) 
@@ -90,7 +96,7 @@ INTEGER(KIND=JPIM),INTENT(OUT)   :: KREFLECT(KIDIA:KFDIA)
 !- from AER
 !- from PROFILE             
 !- from SURFACE             
-REAL(KIND=JPRB) :: ztauaer(5)
+REAL(KIND=JPRB) :: ZTAUAER(5)
 REAL(KIND=JPRB) :: ZAMD                  ! Effective molecular weight of dry air (g/mol)
 REAL(KIND=JPRB) :: ZAMW                  ! Molecular weight of water vapor (g/mol)
 REAL(KIND=JPRB) :: ZAMCO2                ! Molecular weight of carbon dioxide (g/mol)
@@ -108,17 +114,17 @@ REAL(KIND=JPRB) :: ZSUMMOL
 
 ! Atomic weights for conversion from mass to volume mixing ratios; these
 !  are the same values used in ECRT to assure accurate conversion to vmr
-data ZAMD   /  28.970_JPRB    /
-data ZAMW   /  18.0154_JPRB   /
-data ZAMCO2 /  44.011_JPRB    /
-data ZAMO   /  47.9982_JPRB   /
-data ZAMCH4 /  16.043_JPRB    /
-data ZAMN2O /  44.013_JPRB    /
-data ZAMC11 / 137.3686_JPRB   /
-data ZAMC12 / 120.9140_JPRB   /
-data ZAMC22 /  86.4690_JPRB   /
-data ZAMCL4 / 153.8230_JPRB   /
-data ZAVGDRO/ 6.02214E23_JPRB /
+DATA ZAMD   /  28.970_JPRB    /
+DATA ZAMW   /  18.0154_JPRB   /
+DATA ZAMCO2 /  44.011_JPRB    /
+DATA ZAMO   /  47.9982_JPRB   /
+DATA ZAMCH4 /  16.043_JPRB    /
+DATA ZAMN2O /  44.013_JPRB    /
+DATA ZAMC11 / 137.3686_JPRB   /
+DATA ZAMC12 / 120.9140_JPRB   /
+DATA ZAMC22 /  86.4690_JPRB   /
+DATA ZAMCL4 / 153.8230_JPRB   /
+DATA ZAVGDRO/ 6.02214E23_JPRB /
 
 INTEGER(KIND=JPIM) :: IATM, JMOL, IXMAX, J1, J2, IAE, IKL, JK, JCOLS, JL, JLW
 INTEGER(KIND=JPIM) :: ITMOL, INXMOL
@@ -152,10 +158,12 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 !      IREFLECT=KREFLECT
 !      NXMOL=KXMOL
 
-ASSOCIATE(NFLEVG=>KLEV, &
- & NACTAERO=>YGFL%NACTAERO)
 IF (LHOOK) CALL DR_HOOK('RRTM_ECRT_140GP_MCICA',0,ZHOOK_HANDLE)
-
+ASSOCIATE(NACTAERO=>YGFL%NACTAERO, &
+ & NFLEVG=>YDDIMV%NFLEVG, &
+ & LAERCSTR=>YDEAERATM%LAERCSTR, LAERRRTM=>YDEAERATM%LAERRRTM, &
+ & LAERADCLI=>YDERAD%LAERADCLI, NAERMACC=>YDERAD%NAERMACC, &
+ & NSPMAPL=>YDERAD%NSPMAPL)
 ZGRAVIT=(RG/RPLRG)*1.E2_JPRB
 
 DO JL = KIDIA, KFDIA
@@ -240,33 +248,30 @@ DO JL = KIDIA, KFDIA
 ENDDO
   ENDDO
 
-!- If prognostic aerosols with proper RRTM optical properties, fill the RRTM aerosol arrays
+!- If prognostic aerosols with proper RRTM optical properties, 
+!  or alternatively if MACC-aerosol climatology is to be used, 
+!  fill the RRTM aerosol arrays without. Stratospheric/tropospheric
+!  background types are added in aer_rrtm when LAERCSRT=F. If 
+!  LAERCSRT=T, only the climatological stratospheric background
+!  is consedered and this is added to the sullphates type in
+!  radlswr.
+!  AB added multiplication by (1-omega) to PAERTAUL 
+!  to compute the absorption optical thickness
+!  (otherwise the extinction is used)
 
-IF (LAERRRTM) THEN
-  IF (LAERCSTR .OR. (LAERVOL .AND. NACTAERO == 15)) THEN
+IF (LAERRRTM .OR. LAERADCLI) THEN
     DO JLW=1,16
       DO JK=1,KLEV
         IKL=KLEV-JK+1
           DO JL=KIDIA,KFDIA
-            PTAUAERL(JL,JK,JLW)=PAERTAUL(JL,IKL,JLW)
+            PTAUAERL(JL,JK,JLW)=PAERTAUL(JL,IKL,JLW)*(1.0_JPRB-PAEROMGL(JL,IKL,JLW))
           ENDDO
       ENDDO
     ENDDO
 
-  ELSEIF (.NOT.LAERCSTR) THEN
-    DO JLW=1,16
-      DO JK=1,KLEV
-        IKL=KLEV-JK+1
-        DO JL=KIDIA,KFDIA
-          PTAUAERL(JL,JK,JLW)=PAERTAUL(JL,IKL,JLW)+RAER(NSPMAPL(JLW),6)*PAER(JL,6,IKL)
-        ENDDO
-      ENDDO
-    ENDDO
-  ENDIF
+ELSEIF (.NOT.LAERRRTM .AND. .NOT.LAERADCLI) THEN
 
-ELSE
-
-!- Fill RRTM aerosol arrays with operational ECMWF aerosols,
+!- Fill RRTM aerosol arrays with operational ECMWF (Tegen) aerosols,
 !  do the mixing and distribute over the 16 spectral intervals
 
   DO JK=1,KLEV
@@ -365,6 +370,6 @@ ENDDO
   ENDDO
 
 !     ------------------------------------------------------------------
-IF (LHOOK) CALL DR_HOOK('RRTM_ECRT_140GP_MCICA',1,ZHOOK_HANDLE)
 END ASSOCIATE
+IF (LHOOK) CALL DR_HOOK('RRTM_ECRT_140GP_MCICA',1,ZHOOK_HANDLE)
 END SUBROUTINE RRTM_ECRT_140GP_MCICA

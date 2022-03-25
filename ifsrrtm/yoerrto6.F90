@@ -1,6 +1,6 @@
 MODULE YOERRTO6
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB, JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -12,6 +12,7 @@ SAVE
 !*    ** *YOERRTO6* - RRTM ORIGINAL COEFFICIENTS FOR INTERVAL 6
 !     BAND 6:  820-980 cm-1 (low - H2O; high - nothing)
 !     ABozzo 201306 update to rrtmg v4.85
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: NO6  = 16

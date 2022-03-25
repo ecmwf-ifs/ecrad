@@ -1,40 +1,41 @@
 rrtm_prepare_gases.o: parrrtm.o 
-rrtm_gas_optical_depth.o: parrrtm.o yoerrtm.o yoerrtab.o 
-rrtm_gasabs1a_140gp.o: parrrtm.o yoerrtm.o yoerrtab.o 
-rrtm_setcoef_140gp.o: parrrtm.o yoerrtrf.o 
-rrtm_taumol1.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta1.o 
-rrtm_taumol10.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta10.o 
-rrtm_taumol11.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta11.o 
-rrtm_taumol12.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta12.o yoerrtrf.o 
-rrtm_taumol13.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta13.o yoerrtrf.o 
-rrtm_taumol14.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta14.o 
-rrtm_taumol15.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta15.o yoerrtrf.o 
-rrtm_taumol16.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta16.o yoerrtrf.o 
-rrtm_taumol2.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta2.o 
-rrtm_taumol3.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta3.o yoerrtrf.o 
-rrtm_taumol4.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta4.o yoerrtrf.o 
-rrtm_taumol5.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta5.o yoerrtrf.o 
-rrtm_taumol6.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta6.o yoerrtrf.o 
-rrtm_taumol7.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta7.o yoerrtrf.o 
-rrtm_taumol8.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta8.o yoerrtrf.o 
-rrtm_taumol9.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta9.o yoerrtrf.o 
-srtm_setcoef.o: yoesrtwn.o 
+rrtm_gas_optical_depth.o: yomdimv.o parrrtm.o yoerrtm.o 
+rrtm_gasabs1a_140gp.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtab.o 
+rrtm_setcoef_140gp.o: yomdimv.o parrrtm.o yoerrtrf.o 
+rrtm_taumol1.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta1.o 
+rrtm_taumol10.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta10.o 
+rrtm_taumol11.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta11.o 
+rrtm_taumol12.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta12.o yoerrtrf.o 
+rrtm_taumol13.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta13.o yoerrtrf.o 
+rrtm_taumol14.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta14.o 
+rrtm_taumol15.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta15.o yoerrtrf.o 
+rrtm_taumol16.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta16.o yoerrtrf.o 
+rrtm_taumol2.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta2.o 
+rrtm_taumol3.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta3.o yoerrtrf.o 
+rrtm_taumol4.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta4.o yoerrtrf.o 
+rrtm_taumol5.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta5.o yoerrtrf.o 
+rrtm_taumol6.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta6.o yoerrtrf.o 
+rrtm_taumol7.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta7.o yoerrtrf.o 
+rrtm_taumol8.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta8.o yoerrtrf.o 
+rrtm_taumol9.o: yomdimv.o parrrtm.o yoerrtm.o yoerrtwn.o yoerrta9.o yoerrtrf.o 
+srtm_setcoef.o: yomdimv.o yoesrtwn.o 
 surrtrf.o: yoerrtrf.o 
-srtm_gas_optical_depth.o: parsrtm.o yoesrtm.o yoesrtwn.o 
-srtm_taumol16.o: parsrtm.o yoesrtm.o yoesrta16.o yoesrtwn.o 
-srtm_taumol17.o: parsrtm.o yoesrtm.o yoesrta17.o yoesrtwn.o 
-srtm_taumol18.o: parsrtm.o yoesrtm.o yoesrta18.o yoesrtwn.o 
-srtm_taumol19.o: parsrtm.o yoesrtm.o yoesrta19.o yoesrtwn.o 
-srtm_taumol20.o: parsrtm.o yoesrtm.o yoesrta20.o yoesrtwn.o 
-srtm_taumol21.o: parsrtm.o yoesrtm.o yoesrta21.o yoesrtwn.o 
-srtm_taumol22.o: parsrtm.o yoesrtm.o yoesrta22.o yoesrtwn.o 
-srtm_taumol23.o: parsrtm.o yoesrtm.o yoesrta23.o yoesrtwn.o 
-srtm_taumol24.o: parsrtm.o yoesrtm.o yoesrta24.o yoesrtwn.o 
-srtm_taumol25.o: parsrtm.o yoesrtm.o yoesrta25.o yoesrtwn.o 
-srtm_taumol26.o: parsrtm.o yoesrtm.o yoesrta26.o 
-srtm_taumol27.o: parsrtm.o yoesrtm.o yoesrta27.o yoesrtwn.o 
-srtm_taumol28.o: parsrtm.o yoesrtm.o yoesrta28.o yoesrtwn.o 
-srtm_taumol29.o: parsrtm.o yoesrtm.o yoesrta29.o yoesrtwn.o 
+srtm_gas_optical_depth.o: parsrtm.o yoesrtm.o yoesrtwn.o yomdimv.o 
+srtm_taumol16.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta16.o yoesrtwn.o 
+srtm_taumol17.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta17.o yoesrtwn.o 
+srtm_taumol18.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta18.o yoesrtwn.o 
+srtm_taumol19.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta19.o yoesrtwn.o 
+srtm_taumol20.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta20.o yoesrtwn.o 
+srtm_taumol21.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta21.o yoesrtwn.o 
+srtm_taumol22.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta22.o yoesrtwn.o 
+srtm_taumol23.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta23.o yoesrtwn.o 
+srtm_taumol24.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta24.o yoesrtwn.o 
+srtm_taumol25.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta25.o yoesrtwn.o 
+srtm_taumol26.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta26.o 
+srtm_taumol27.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta27.o yoesrtwn.o 
+srtm_taumol28.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta28.o yoesrtwn.o 
+srtm_taumol29.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta29.o yoesrtwn.o 
+yom_ygfl.o: par_gfl.o 
 yoerrtm.o: parrrtm.o 
 yoesrtm.o: parsrtm.o 
 rrtm_init_140gp.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrtftr.o yoerrtbg2.o yoerrtrwt.o 

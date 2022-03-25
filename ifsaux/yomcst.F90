@@ -33,5 +33,23 @@ REAL(KIND=JPRB), PARAMETER :: RMV = 18.0153_JPRB
 REAL(KIND=JPRB), PARAMETER :: RMO3 = 47.9942_JPRB
 ! * RI0          : solar constant
 REAL(KIND=JPRB), PARAMETER :: RI0 = 1366.0_JPRB
+! * RMCO2        : CO2 (carbon dioxide) molar mass
+REAL(KIND=JPRB), PARAMETER :: RMCO2 = 0.0_JPRB ! For now, ask Robin
+! * RMCH4        : CH4 (methane) molar mass
+REAL(KIND=JPRB), PARAMETER :: RMCH4 = 0.0_JPRB ! For now, ask Robin
+! * RMN2O        : N2O molar mass
+REAL(KIND=JPRB), PARAMETER :: RMN2O = 0.0_JPRB ! For now, ask Robin
+! * RMNO2        : NO2 (nitrogen dioxide) molar mass
+REAL(KIND=JPRB), PARAMETER :: RMNO2 = 0.0_JPRB ! For now, ask Robin
+! * RMCFC11      : CFC11 molar mass
+REAL(KIND=JPRB), PARAMETER :: RMCFC11 = 0.0_JPRB ! For now, ask Robin
+! * RMCFC12      : CFC12 molar mass
+REAL(KIND=JPRB), PARAMETER :: RMCFC12 = 0.0_JPRB ! For now, ask Robin
+! * RMHCFC12     : HCFC22 molar mass
+REAL(KIND=JPRB), PARAMETER :: RMHCFC22 = 0.0_JPRB ! For now, ask Robin
+! * RMCCL4       : CCl4 molar mass
+REAL(KIND=JPRB), PARAMETER :: RMCCL4 = 0.0_JPRB ! For now, ask Robin
+
+!rcccl4 rcfc11 rccfc12 rch4 rcco2 rccfc22 rcn2o rcno2
 
 END MODULE YOMCST

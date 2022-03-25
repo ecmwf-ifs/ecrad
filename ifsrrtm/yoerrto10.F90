@@ -1,6 +1,6 @@
 MODULE YOERRTO10
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB, JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -12,6 +12,7 @@ SAVE
 !*    ** *YOERRTO14* - RRTM ORIGINAL COEFFICIENTS FOR INTERVAL 10
 !     BAND 10:  1390-1480 cm-1 (low - H2O; high - H2O)
 !     ABozzo 201306 updated to rrtmg v4.85
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: NO10 = 16

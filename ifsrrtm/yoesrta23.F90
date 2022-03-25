@@ -1,6 +1,6 @@
 MODULE YOESRTA23
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -11,6 +11,7 @@ SAVE
 !     -----------------------------------------------------------------
 !*    ** *YOESRTA23* - SRTM COEFFICIENTS FOR INTERVAL 23
 !     BAND 23:  8050-12850 cm-1 (low - H2O; high - nothing)
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG = 16, NG23 = 16

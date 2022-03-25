@@ -9,6 +9,7 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
 !
+!
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
@@ -37,8 +38,10 @@ module easy_netcdf_read_mpi
     procedure :: get_real_vector
     procedure :: get_real_matrix
     procedure :: get_real_array3
+    procedure :: get_real_array4
     generic   :: get => get_real_scalar, get_real_vector, &
-         &              get_real_matrix, get_real_array3
+         &              get_real_matrix, get_real_array3, &
+         &              get_real_array4
     procedure :: get_global_attribute
 
     procedure :: set_verbose
@@ -206,6 +209,7 @@ contains
            &  CDSTRING='EASY_NETCDF_READ_MPI:GET_REAL_VECTOR:SIZE')
 
       if (.not. this%is_master_task) then
+        if(allocated(vector))deallocate(vector)
         allocate(vector(n))
       end if
 
@@ -244,6 +248,7 @@ contains
            &  CDSTRING='EASY_NETCDF_READ_MPI:GET_REAL_MATRIX:SIZE')
 
       if (.not. this%is_master_task) then
+        if(allocated(matrix))deallocate(matrix)
         allocate(matrix(n(1),n(2)))
       end if
 
@@ -281,6 +286,7 @@ contains
            &  CDSTRING='EASY_NETCDF_READ_MPI:GET_REAL_ARRAY3:SIZE')
 
       if (.not. this%is_master_task) then
+        if(allocated(var))deallocate(var)
         allocate(var(n(1),n(2),n(3)))
       end if
 
@@ -289,6 +295,44 @@ contains
     end if
 
   end subroutine get_real_array3
+
+
+  !---------------------------------------------------------------------
+  ! Read 4D array into "var", which must be allocatable and will be
+  ! reallocated if necessary.  Whether to pemute is specifed by the
+  ! final optional argument
+  subroutine get_real_array4(this, var_name, var, ipermute)
+
+    USE MPL_MODULE, ONLY : MPL_BROADCAST, MPL_NPROC
+
+    class(netcdf_file)                   :: this
+    character(len=*), intent(in)         :: var_name
+    real(jprb), allocatable, intent(out) :: var(:,:,:,:)
+    integer, optional, intent(in)        :: ipermute(4)
+
+    integer                              :: n(4)
+
+    n = 0
+
+    if (this%is_master_task) then
+      call this%file%get(var_name, var, ipermute)
+      n = shape(var)
+    end if
+
+    if (MPL_NPROC() > 1) then
+      CALL MPL_BROADCAST(n, mtagrad, 1, &
+           &  CDSTRING='EASY_NETCDF_READ_MPI:GET_REAL_ARRAY4:SIZE')
+
+      if (.not. this%is_master_task) then
+        if(allocated(var))deallocate(var)
+        allocate(var(n(1),n(2),n(3),n(4)))
+      end if
+
+      CALL MPL_BROADCAST(var, mtagrad, 1, &
+           &  CDSTRING='EASY_NETCDF_READ_MPI:GET_REAL_ARRAY4')
+    end if
+
+  end subroutine get_real_array4
 
 
   !---------------------------------------------------------------------

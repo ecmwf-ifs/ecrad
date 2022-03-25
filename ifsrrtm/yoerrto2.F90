@@ -1,6 +1,6 @@
 MODULE YOERRTO2
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB, JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -13,6 +13,7 @@ SAVE
 !     BAND 2:  250-500 cm-1 (low - H2O; high - H2O)
 ! ABozzo May 2013 updated to rrtmg v4.85
 !     band 2:  350-500 cm-1 (low key - h2o; high key - h2o)
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: NO2  = 16

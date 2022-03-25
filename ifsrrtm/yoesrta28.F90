@@ -1,6 +1,6 @@
 MODULE YOESRTA28
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -11,6 +11,7 @@ SAVE
 !     -----------------------------------------------------------------
 !*    ** *YOESRTA28* - SRTM COEFFICIENTS FOR INTERVAL 28
 !     BAND 28: 38000-50000 cm-1 (low - O3, O2; high - O3, O2)
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG = 16, NG28 = 16

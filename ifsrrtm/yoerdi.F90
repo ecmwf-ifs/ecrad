@@ -4,14 +4,13 @@ USE PARKIND1  ,ONLY : JPRB
 
 IMPLICIT NONE
 
-PUBLIC
-
 SAVE
 
 !     -----------------------------------------------------------------
 !*    ** *YOERDI* - COEFFICIENTS WITHIN RADIATION INTERFACE
 !     -----------------------------------------------------------------
 
+TYPE :: TERDI
 REAL(KIND=JPRB) :: RRAE
 REAL(KIND=JPRB) :: RSUNDUR
 REAL(KIND=JPRB) :: RCARDI
@@ -27,6 +26,13 @@ REAL(KIND=JPRB) :: REPCLC
 REAL(KIND=JPRB) :: REPH2O
 REAL(KIND=JPRB) :: RCCO2, RCCH4, RCN2O, RCNO2, RCCFC11, RCCFC12, RCCFC22, RCCCL4
 REAL(KIND=JPRB) :: RSOLINC
+!----------------------------------------------------------------------------
+CONTAINS
+  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION 
+END TYPE TERDI
+!============================================================================
+
+!!TYPE(TERDI), POINTER :: YRERDI => NULL()
 
 !        * E.C.M.W.F. PHYSICS PACKAGE *
 
@@ -39,11 +45,61 @@ REAL(KIND=JPRB) :: RSOLINC
 !  ----  :  ----   : ---------------------------------------------------
 ! RRAE   : EFFECT OF EARTH'S CURVATURE ON COSINE SOLAR ZENITH ANGLE
 ! RSUNDUR: MINIMUM DIRECT SOLAR FOR COMPUTING SOLAR DURATION
-! RCARDI : SPECIFIC ATMOSPHERIC CONTENT IN CO2
-! RCH4, RN2O, RNO2, RO3, RCFC11, RCFC12 MASS MIXING RATIO OF VARIOUS TRACE GASES
-! RCCH4, RCN2O, ... MASS MIXING RATIO OF VARIOUS TRACE GASES IN CLIMATE MODE
+!
+! RCARDI, RCH4, RN2O, RNO2, RO3, RCFC11, RCFC12, RCFC22, RCCL4
+!    Mass mixing ratios of trace gases (CARDI=Carbon Dioxide), updated
+!    each timestep in UPDRGAS (if LHGHG=TRUE).  These can be thought
+!    of as annual-mean concentrations at the surface, and are used to
+!    scale the monthly mean latitude-pressure climatologies
+!
+! RCCO2, RCCH4, RCN2O, RCCFC11, RCCFC12, RCCFC22, RCCCL4
+!    If LHGHG=FALSE then instead we assume the gas concentrations are
+!    constant with time and are taken from these *volume* mixing
+!    ratios, which are set in SUECRAD and may be overridden in the
+!    NAERAD namelist.
+!
 ! REPCLC : SECURITY TO AVOID ZERO OR ONE CLOUD COVERS
 ! REPH2O : SECURITY TO AVOID WATER VAPOUR CONTENT IN A LAYER
 !          TO BE MORE THAN THE RESPECTIVE VALUE AT SATURATION.
 !     -----------------------------------------------------------------
+!     -----------------------------------------------------------------
+
+CONTAINS
+
+SUBROUTINE PRINT_CONFIGURATION(SELF, KDEPTH, KOUTNO)
+IMPLICIT NONE
+CLASS(TERDI), INTENT(IN) :: SELF
+INTEGER     , INTENT(IN) :: KDEPTH
+INTEGER     , INTENT(IN) :: KOUTNO
+
+INTEGER :: IDEPTHLOC
+
+IDEPTHLOC = KDEPTH+2
+
+WRITE(KOUTNO,*) REPEAT(' ',KDEPTH   ) // 'model%yrml_phy_rad%yrerdi : '
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RRAE = ', SELF%RRAE
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RSUNDUR = ', SELF%RSUNDUR
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCARDI = ', SELF%RCARDI
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCH4 = ', SELF%RCH4
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RN2O = ', SELF%RN2O
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RNO2 = ', SELF%RNO2
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RO3 = ', SELF%RO3
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCCL4 = ', SELF%RCCL4
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCFC11 = ', SELF%RCFC11
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCFC12 = ', SELF%RCFC12
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCFC22 = ', SELF%RCFC22
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'REPCLC = ', SELF%REPCLC
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'REPH2O = ', SELF%REPH2O
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCCO2 = ', SELF%RCCO2
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCCH4 = ', SELF%RCCH4
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCN2O = ', SELF%RCN2O
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCNO2 = ', SELF%RCNO2
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCCFC11 = ', SELF%RCCFC11
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCCFC12 = ', SELF%RCCFC12
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCCFC22 = ', SELF%RCCFC22
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RCCCL4 = ', SELF%RCCCL4
+WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RSOLINC = ', SELF%RSOLINC
+
+END SUBROUTINE PRINT_CONFIGURATION
+
 END MODULE YOERDI

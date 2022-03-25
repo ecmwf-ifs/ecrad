@@ -11,6 +11,7 @@
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
+! License: see the COPYING file for details
 !
 ! Modifications
 !   2017-04-11  R. Hogan  Receive "surface" dummy argument
@@ -25,13 +26,13 @@ module radiation_ifs_rrtm
 
   implicit none
 
-  public  :: setup_gas_optics, gas_optics, planck_function, set_gas_units
+  public  :: setup_gas_optics, gas_optics, planck_function
 
 contains
 
   !---------------------------------------------------------------------
   ! Setup the IFS implementation of RRTM-G gas absorption model
-  subroutine setup_gas_optics(config, directory)
+  subroutine setup_gas_optics(YDERDI, config, directory)
 
     use yoerrtm,   only : jpglw
     use yoesrtm,   only : jpgsw
@@ -40,7 +41,9 @@ contains
     use yomhook,   only : lhook, dr_hook
 
     use radiation_config
+    USE YOERDI   , ONLY : TERDI
 
+    TYPE(TERDI)       ,INTENT(INOUT):: YDERDI
     type(config_type), intent(inout), target :: config
     character(len=*), intent(in)     :: directory
 
@@ -80,12 +83,12 @@ contains
     ! the IFS these will have been set up already; otherwise set them
     ! up now.
     if (config%do_setup_ifsrrtm) then
-      call SURDI
+      call SURDI(YDERDI)
       call SURRTAB
       call SURRTPK
       call SURRTRF
-      call RRTM_INIT_140GP(directory)
-      call SRTM_INIT(directory)
+      call RRTM_INIT_140GP
+      call SRTM_INIT
     end if
 
     config%n_g_sw = jpgsw
@@ -196,7 +199,7 @@ contains
     USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX 
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
     USE YOESRTM  , ONLY : JPGPT_SW => JPGPT  
-    !USE YOMDIMV  , ONLY : YRDIMV
+    USE YOMDIMV  , ONLY : TDIMV
     use yomhook  , only : lhook, dr_hook
 
     use radiation_config,         only : config_type, ISolverSpartacus
@@ -237,6 +240,9 @@ contains
     ! g-points
     real(jprb), dimension(config%n_g_sw,istartcol:iendcol), &
          &   intent(out), optional :: incoming_sw
+
+    ! Structure holding number of levels
+    TYPE(TDIMV) :: YDDIMV
 
     real(jprb) :: incoming_sw_scale(istartcol:iendcol)
 
@@ -354,10 +360,8 @@ contains
     ZONEMINUS = 1.0_jprb - 1.0e-6_jprb
     ZONEMINUS_ARRAY = ZONEMINUS
 
-!    if (.not. associated(YRDIMV)) then
-!      allocate(YRDIMV)
-!      YRDIMV%NFLEVG = nlev
-!    end if
+    ! RRTM/SRTM levels indicated, strangely, in two ways
+    YDDIMV%NFLEVG = nlev
 
     pressure_fl(istartcol:iendcol,:) &
          &  = 0.5_jprb * (thermodynamics%pressure_hl(istartcol:iendcol,istartlev:iendlev) &
@@ -369,9 +373,6 @@ contains
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
 
-    ! Warning: O2 is hard-coded within the following function so the
-    ! user-provided concentrations of this gas are ignored for both
-    ! the longwave and shortwave
     CALL RRTM_PREPARE_GASES &
          & ( istartcol, iendcol, ncol, nlev, &
          &   thermodynamics%pressure_hl(:,istartlev:iendlev+1), &
@@ -392,7 +393,7 @@ contains
          &  ZPAVEL , ZTAVEL , ZPZ , ZTZ, IREFLECT)  
 
     CALL RRTM_SETCOEF_140GP &
-         &( istartcol, iendcol, nlev , ZCOLDRY  , ZWBRODL , ZWKL , &
+         &( YDDIMV, istartcol, iendcol, nlev , ZCOLDRY  , ZWBRODL , ZWKL , &
          &  ZFAC00 , ZFAC01   , ZFAC10 , ZFAC11 , ZFORFAC,ZFORFRAC,INDFOR, JP, JT, JT1 , &
          &  ZCOLH2O, ZCOLCO2  , ZCOLO3 , ZCOLN2O, ZCOLCH4, ZCOLO2,ZCO2MULT , ZCOLBRD, & 
          &  ILAYTROP,ILAYSWTCH, ILAYLOW, ZPAVEL , ZTAVEL , ZSELFFAC, ZSELFFRAC, INDSELF, &
@@ -404,7 +405,7 @@ contains
     ZTAUAERL = 0.0_jprb
 
     CALL RRTM_GAS_OPTICAL_DEPTH &
-         &( istartcol, iendcol, nlev, ZOD_LW, ZPAVEL, ZCOLDRY, ZCOLBRD, ZWX ,&
+         &( YDDIMV, istartcol, iendcol, nlev, ZOD_LW, ZPAVEL, ZCOLDRY, ZCOLBRD, ZWX ,&
          &  ZTAUAERL, ZFAC00 , ZFAC01, ZFAC10 , ZFAC11 , ZFORFAC,ZFORFRAC,INDFOR, &
          &  JP, JT, JT1, ZONEMINUS ,&
          &  ZCOLH2O , ZCOLCO2, ZCOLO3, ZCOLN2O, ZCOLCH4, ZCOLO2,ZCO2MULT ,&
@@ -481,7 +482,7 @@ contains
     end if
     
     CALL SRTM_SETCOEF &
-         & ( istartcol, iendcol, nlev,&
+         & ( YDDIMV, istartcol, iendcol, nlev,&
          & ZPAVEL  , ZTAVEL,&
          & ZCOLDRY , ZWKL,&
          & ILAYTROP,&
@@ -520,8 +521,6 @@ contains
       incoming_sw_scale = 1.0_jprb
       do jcol = istartcol,iendcol
         if (single_level%cos_sza(jcol) > 0.0_jprb) then
-! Added for DWD (2020)
-!NEC$ nounroll
           incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(jcol,:))
         end if
       end do
@@ -547,18 +546,17 @@ contains
       end do
     else
       ! G points have not been reordered
-      do jcol = istartcol,iendcol
+      do jg = 1,config%n_g_sw
         do jlev = 1,nlev
-          do jg = 1,config%n_g_sw
+          do jcol = istartcol,iendcol
             ! Check for negative optical depth
             od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
             ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
           end do
         end do
         if (present(incoming_sw)) then
-          do jg = 1,config%n_g_sw
-            incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
-          end do
+          incoming_sw(jg,:) &
+               &  = incoming_sw_scale(:) * ZINCSOL(:,jg)
         end if
       end do
     end if
@@ -606,7 +604,7 @@ contains
     ! Temperature (K) of a half-level
     real(jprb) :: temperature
 
-    real(jprb) :: factor, planck_tmp(istartcol:iendcol,config%n_g_lw)
+    real(jprb) :: factor
     real(jprb) :: ZFLUXFAC
 
     integer :: jlev, jgreorder, jg, ig, iband, jband, jcol, ilevoffset
@@ -691,10 +689,7 @@ contains
         else
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_tmp(:,jg) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
-          end do
-          do jcol = istartcol,iendcol
-            planck_hl(:,jlev,jcol) = planck_tmp(jcol,:)
+            planck_hl(jg,jlev,:) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
           end do
         end if
       end if

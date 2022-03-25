@@ -1,4 +1,4 @@
-SUBROUTINE COS_SZA(KSTART,KEND,KCOL,PGEMU,PGELAM,LDRADIATIONTIMESTEP,PMU0)
+SUBROUTINE COS_SZA(YDERAD,YDERIP,YDRIP,KSTART,KEND,KCOL,PGEMU,PGELAM,LDRADIATIONTIMESTEP,PMU0)
 
 !**** *COS_SZA*   
 !
@@ -79,15 +79,18 @@ SUBROUTINE COS_SZA(KSTART,KEND,KCOL,PGEMU,PGELAM,LDRADIATIONTIMESTEP,PMU0)
 USE PARKIND1 , ONLY : JPIM, JPRB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
 USE YOMCST   , ONLY : RPI, RDAY
-USE YOMRIP   , ONLY : YRRIP
-USE YOERIP   , ONLY : YRERIP
-USE YOERAD   , ONLY : YRERAD
+USE YOMRIP   , ONLY : TRIP
+USE YOERIP   , ONLY : TERIP
+USE YOERAD   , ONLY : TERAD
 USE YOMLUN   , ONLY : NULOUT
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
 
+TYPE(TERAD)       ,INTENT(IN) :: YDERAD
+TYPE(TERIP)       ,INTENT(IN) :: YDERIP
+TYPE(TRIP)        ,INTENT(IN) :: YDRIP
 INTEGER(KIND=JPIM),INTENT(IN) :: KSTART      ! Start column to process
 INTEGER(KIND=JPIM),INTENT(IN) :: KEND        ! Last column to process
 INTEGER(KIND=JPIM),INTENT(IN) :: KCOL        ! Number of columns in arrays
@@ -125,7 +128,7 @@ IF (LHOOK) CALL DR_HOOK('COS_SZA',0,ZHOOK_HANDLE)
 
 ! An average solar zenith angle can only be computed if the solar time
 ! is centred on the time interval
-IF (YRERAD%LAVERAGESZA .AND. .NOT. YRERAD%LCENTREDTIMESZA) THEN
+IF (YDERAD%LAVERAGESZA .AND. .NOT. YDERAD%LCENTREDTIMESZA) THEN
   WRITE(NULOUT,*) 'ERROR IN COS_SZA: LAverageSZA=TRUE but LCentredTimeSZA=FALSE'
   CALL ABOR1('COS_SZA: ABOR1 CALLED')
 ENDIF
@@ -140,11 +143,11 @@ IF (LDRADIATIONTIMESTEP) THEN
 
   ! Precompute quantities that may be used more than once
   DO JCOL = KSTART,KEND
-    ZSINDECSINLAT(JCOL) = YRERIP%RSIDECM * PGEMU(JCOL)
-    ZCOSDECCOSLAT(JCOL) = YRERIP%RCODECM * ZCOSLAT(JCOL)
+    ZSINDECSINLAT(JCOL) = YDERIP%RSIDECM * PGEMU(JCOL)
+    ZCOSDECCOSLAT(JCOL) = YDERIP%RCODECM * ZCOSLAT(JCOL)
   ENDDO
 
-  IF (.NOT. YRERAD%LAVERAGESZA) THEN
+  IF (.NOT. YDERAD%LAVERAGESZA) THEN
     ! Original method: compute the value at the centre of the
     ! radiation timestep (assuming that LCentredTimeSZA=TRUE - see
     ! updtim.F90)
@@ -155,8 +158,8 @@ IF (LDRADIATIONTIMESTEP) THEN
       ! ...but for bit reproducibility with previous cycle we do it
       ! like this:
       PMU0(JCOL) = MAX(0.0_JPRB, ZSINDECSINLAT(JCOL) &
-           & - YRERIP%RCODECM*COS(YRERIP%RWSOVRM)*ZCOSLAT(JCOL)*COS(PGELAM(JCOL)) &
-           & + YRERIP%RCODECM*SIN(YRERIP%RWSOVRM)*ZCOSLAT(JCOL)*SIN(PGELAM(JCOL)))
+           & - YDERIP%RCODECM*COS(YDERIP%RWSOVRM)*ZCOSLAT(JCOL)*COS(PGELAM(JCOL)) &
+           & + YDERIP%RCODECM*SIN(YDERIP%RWSOVRM)*ZCOSLAT(JCOL)*SIN(PGELAM(JCOL)))
     ENDDO
 
   ELSE
@@ -165,19 +168,19 @@ IF (LDRADIATIONTIMESTEP) THEN
 
     ! First compute the sine and cosine of the times of the start and
     ! end of the radiation timestep
-    ZHALFTIMESTEP = YRRIP%TSTEP * REAL(YRERAD%NRADFR) * RPI / RDAY
-    ZSOLARTIMESTART = YRERIP%RWSOVRM - ZHALFTIMESTEP
-    ZSOLARTIMEEND   = YRERIP%RWSOVRM + ZHALFTIMESTEP
+    ZHALFTIMESTEP = YDRIP%TSTEP * REAL(YDERAD%NRADFR) * RPI / RDAY
+    ZSOLARTIMESTART = YDERIP%RWSOVRM - ZHALFTIMESTEP
+    ZSOLARTIMEEND   = YDERIP%RWSOVRM + ZHALFTIMESTEP
 
     ! Compute tangent of solar declination, with check in case someone
     ! simulates a planet completely tipped over
-    ZTANDEC = YRERIP%RSIDECM / MAX(YRERIP%RCODECM, 1.0E-12)
+    ZTANDEC = YDERIP%RSIDECM / MAX(YDERIP%RCODECM, 1.0E-12_JPRB)
 
     DO JCOL = KSTART,KEND
       ! Sunrise equation: cos(hour angle at sunset) =
       ! -tan(declination)*tan(latitude)
-      ZCOSHOURANGLESUNSET = -ZTANDEC * PGEMU(JCOL) &
-           &              / MAX(ZCOSLAT(JCOL), 1.0E-12)
+      ZCOSHOURANGLESUNSET = -ZTANDEC * PGEMU(JCOL)&
+           &              / MAX(ZCOSLAT(JCOL), 1.0E-12_JPRB)
       IF (ZCOSHOURANGLESUNSET > 1.0) THEN
         ! Perpetual darkness
         PMU0(JCOL) = 0.0_JPRB
@@ -187,7 +190,7 @@ IF (LDRADIATIONTIMESTEP) THEN
         ! window is in the range -PI to +PI (equivalent to ensuring
         ! that local solar time = solar time + longitude is in the
         ! range 0 to 2PI)
-        IF (YRERIP%RWSOVRM + PGELAM(JCOL) < 2.0_JPRB*RPI) THEN
+        IF (YDERIP%RWSOVRM + PGELAM(JCOL) < 2.0_JPRB*RPI) THEN
           ZHOURANGLESTART = ZSOLARTIMESTART + PGELAM(JCOL) - RPI
           ZHOURANGLEEND   = ZSOLARTIMEEND   + PGELAM(JCOL) - RPI 
         ELSE
@@ -220,7 +223,7 @@ IF (LDRADIATIONTIMESTEP) THEN
           ! ZHourAngleEnd
           PMU0(JCOL) = ZSINDECSINLAT(JCOL) &
                & + (ZCOSDECCOSLAT(JCOL) &
-               &    * (SIN(ZHOURANGLEEND) - SIN(ZHOURANGLESTART))) &
+               & * (SIN(ZHOURANGLEEND) - SIN(ZHOURANGLESTART))) &
                & / (ZHOURANGLEEND - ZHOURANGLESTART)
 
           ! Just in case...
@@ -241,11 +244,11 @@ ELSE
 
   ! Precompute quantities that may be used more than once
   DO JCOL = KSTART,KEND
-    ZSINDECSINLAT(JCOL) = YRRIP%RSIDEC * PGEMU(JCOL)
-    ZCOSDECCOSLAT(JCOL) = YRRIP%RCODEC * ZCOSLAT(JCOL)
+    ZSINDECSINLAT(JCOL) = YDRIP%RSIDEC * PGEMU(JCOL)
+    ZCOSDECCOSLAT(JCOL) = YDRIP%RCODEC * ZCOSLAT(JCOL)
   ENDDO
 
-  IF (.NOT. YRERAD%LAVERAGESZA) THEN
+  IF (.NOT. YDERAD%LAVERAGESZA) THEN
     ! Original method: compute the value at the centre of the
     ! model timestep
     DO JCOL = KSTART,KEND
@@ -254,9 +257,9 @@ ELSE
       !      & - ZCosDecCosLat(JCOL)*COS(YRRIP%RWSOVR + PGELAM(JCOL)))
       ! ...but for bit reproducibility with previous cycle we do it
       ! like this:
-      PMU0(JCOL) = MAX(0.0_JPRB, ZSINDECSINLAT(JCOL) &
-           & - YRRIP%RCODEC*COS(YRRIP%RWSOVR)*ZCOSLAT(JCOL)*COS(PGELAM(JCOL)) &
-           & + YRRIP%RCODEC*SIN(YRRIP%RWSOVR)*ZCOSLAT(JCOL)*SIN(PGELAM(JCOL)))
+      PMU0(JCOL) = MAX(0.0_JPRB, ZSINDECSINLAT(JCOL)&
+           & - YDRIP%RCODEC*COS(YDRIP%RWSOVR)*ZCOSLAT(JCOL)*COS(PGELAM(JCOL))&
+           & + YDRIP%RCODEC*SIN(YDRIP%RWSOVR)*ZCOSLAT(JCOL)*SIN(PGELAM(JCOL)))
     ENDDO
 
   ELSE
@@ -264,19 +267,19 @@ ELSE
 
     ! First compute the sine and cosine of the times of the start and
     ! end of the model timestep
-    ZHALFTIMESTEP   = YRRIP%TSTEP * RPI / RDAY
-    ZSOLARTIMESTART = YRRIP%RWSOVR - ZHALFTIMESTEP
-    ZSOLARTIMEEND   = YRRIP%RWSOVR + ZHALFTIMESTEP
+    ZHALFTIMESTEP   = YDRIP%TSTEP * RPI / RDAY
+    ZSOLARTIMESTART = YDRIP%RWSOVR - ZHALFTIMESTEP
+    ZSOLARTIMEEND   = YDRIP%RWSOVR + ZHALFTIMESTEP
 
     ! Compute tangent of solar declination, with check in case someone
     ! simulates a planet completely tipped over
-    ZTANDEC = YRRIP%RSIDEC / MAX(YRRIP%RCODEC, 1.0E-12)
+    ZTANDEC = YDRIP%RSIDEC / MAX(YDRIP%RCODEC, 1.0E-12_JPRB)
 
     DO JCOL = KSTART,KEND
       ! Sunrise equation: cos(hour angle at sunset) =
       ! -tan(declination)*tan(latitude)
       ZCOSHOURANGLESUNSET = -ZTANDEC * PGEMU(JCOL) &
-           &              / MAX(ZCOSLAT(JCOL), 1.0E-12)
+           &              / MAX(ZCOSLAT(JCOL), 1.0E-12_JPRB)
       IF (ZCOSHOURANGLESUNSET > 1.0) THEN
         ! Perpetual darkness
         PMU0(JCOL) = 0.0_JPRB
@@ -286,7 +289,7 @@ ELSE
         ! window is in the range -PI to +PI (equivalent to ensuring
         ! that local solar time = solar time + longitude is in the
         ! range 0 to 2PI)
-        IF (YRRIP%RWSOVR + PGELAM(JCOL) < 2.0_JPRB*RPI) THEN
+        IF (YDRIP%RWSOVR + PGELAM(JCOL) < 2.0_JPRB*RPI) THEN
           ZHOURANGLESTART = ZSOLARTIMESTART + PGELAM(JCOL) - RPI
           ZHOURANGLEEND   = ZSOLARTIMEEND   + PGELAM(JCOL) - RPI 
         ELSE

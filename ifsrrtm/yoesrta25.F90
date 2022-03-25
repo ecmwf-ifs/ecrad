@@ -1,6 +1,6 @@
 MODULE YOESRTA25
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -11,6 +11,7 @@ SAVE
 !     -----------------------------------------------------------------
 !*    ** *YOESRTA25* - SRTM COEFFICIENTS FOR INTERVAL 25
 !     BAND 25: 16000-22650 cm-1 (low - H2O; high - nothing)
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG = 16, NG25 = 16

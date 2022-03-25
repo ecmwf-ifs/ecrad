@@ -1,6 +1,6 @@
 MODULE YOERRTO9
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -12,6 +12,7 @@ SAVE
 !*    ** *YOERRTO9* - RRTM ORIGINAL COEFFICIENTS FOR INTERVAL 9
 !     BAND 9:  1180-1390 cm-1 (low - H2O,CH4; high - CH4)
 !     ABozzo 201306 updated to rrtmg v4.85
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: NO9  = 16

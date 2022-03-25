@@ -1,6 +1,6 @@
 MODULE YOESRTA20
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -11,6 +11,7 @@ SAVE
 !     -----------------------------------------------------------------
 !*    ** *YOESRTA20* - SRTM COEFFICIENTS FOR INTERVAL 20
 !     BAND 20:  5150-6150 cm-1 (low - H2O; high - H2O)
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG = 16, NG20 = 16

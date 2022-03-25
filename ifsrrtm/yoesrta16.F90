@@ -1,6 +1,6 @@
 MODULE YOESRTA16
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -11,6 +11,7 @@ SAVE
 !     -----------------------------------------------------------------
 !*    ** *YOESRTA16* - SRTM COEFFICIENTS FOR INTERVAL 16
 !     BAND 16:  2600-3250 cm-1 (low - H2O,CH4; high - CH4)
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG=16, NG16 = 16, NGS15 = 0

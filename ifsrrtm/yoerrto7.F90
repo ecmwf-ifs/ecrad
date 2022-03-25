@@ -1,6 +1,6 @@
 MODULE YOERRTO7
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -12,6 +12,7 @@ SAVE
 !*    ** *YOERRTO7* - RRTM ORIGINAL COEFFICIENTS FOR INTERVAL 7
 !     BAND 7:  980-1080 cm-1 (low - H2O,O3; high - O3)
 !     ABozzo updated to rrtmg v4.85
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: NO7  = 16

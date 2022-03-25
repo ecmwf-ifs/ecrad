@@ -1,6 +1,6 @@
 MODULE YOESRTA22
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -11,6 +11,7 @@ SAVE
 !     -----------------------------------------------------------------
 !*    ** *YOESRTA22* - SRTM COEFFICIENTS FOR INTERVAL 22
 !     BAND 22:  7700-8050 cm-1 (low - H2O,O2; high - O2)
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG = 16, NG22 = 16

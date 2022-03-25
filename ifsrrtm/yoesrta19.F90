@@ -1,6 +1,6 @@
 MODULE YOESRTA19
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -11,6 +11,7 @@ SAVE
 !     -----------------------------------------------------------------
 !*    ** *YOESRTA19* - SRTM COEFFICIENTS FOR INTERVAL 19
 !     BAND 19:  4650-5150 cm-1 (low - H2O,CO2; high - CO2)
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG = 16, NG19 = 16

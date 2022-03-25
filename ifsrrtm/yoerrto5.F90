@@ -1,6 +1,6 @@
 MODULE YOERRTO5
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -12,6 +12,7 @@ SAVE
 !*    ** *YOERRTO5* - RRTM ORIGINAL COEFFICIENTS FOR INTERVAL 5
 !     BAND 5:  700-820 cm-1 (low - H2O,CO2; high - O3,CO2)
 !     ABozzo 201306 updated to rrtmg v4.85
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: NO5  = 16

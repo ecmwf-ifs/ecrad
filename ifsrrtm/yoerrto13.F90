@@ -1,6 +1,6 @@
 MODULE YOERRTO13
 
-USE PARKIND1  ,ONLY : JPIM     ,JPRB, JPRD
+USE PARKIND1  ,ONLY : JPRD, JPIM     ,JPRB
 
 IMPLICIT NONE
 
@@ -12,6 +12,7 @@ SAVE
 !*    ** *YOERRTO13* - RRTM ORIGINAL COEFFICIENTS FOR INTERVAL 13
 !     BAND 13:  2080-2250 cm-1 (low - H2O,N2O; high - nothing)
 !     ABozzo 201306 updated to rrtmg v4.85
+!     F. Vana  05-Mar-2015  Support for single precision
 !     -----------------------------------------------------------------
 
 INTEGER(KIND=JPIM), PARAMETER :: NO13 = 16
