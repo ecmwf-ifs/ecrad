@@ -12,7 +12,7 @@ deps: includes
 $(LIBIFS): $(OBJECTS)
 	ar r $(LIBIFS) $(OBJECTS)
 
-%.o: %.F90
+%.o: %.F90 ../mod/*.mod
 	$(FC) $(FCFLAGS) -c $<
 
 includes:

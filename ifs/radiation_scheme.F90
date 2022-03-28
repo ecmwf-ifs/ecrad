@@ -256,7 +256,7 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
 
 ! Import time functions for iseed calculation
-#include "fcttim.func.h"
+!#include "fcttim.func.h"
 
 #include "liquid_effective_radius.intfb.h"
 #include "ice_effective_radius.intfb.h"

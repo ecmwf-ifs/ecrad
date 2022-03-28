@@ -501,7 +501,6 @@ program ecrad_ifs_driver
     enddo
   enddo
   !$OMP END PARALLEL DO
-  stop
   !
   !
   !  END IFS SETUP
@@ -599,9 +598,6 @@ program ecrad_ifs_driver
   enddo
   !$OMP END PARALLEL DO
  
-  stop
-  ! dealloc 
-
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
@@ -620,33 +616,33 @@ program ecrad_ifs_driver
       il=iend-ibeg+1
       ib=(jrl-1)/nproma+1
 
-    !  call radiation_scheme &
-    !   & (1, il, nproma, &                       ! startcol, endcol, ncol
-    !   &  nlev, iradaer, &                       ! nlev, naerosols
-    !   &  zrii0, &                               ! solar_irrad
-    !   &  zrgp(1,iamu0,ib), zrgp(1,its,ib), &    ! mu0, skintemp
-    !   &  zrgp(1,iald,ib), zrgp(1,ialp,ib), &    ! albedo_dif, albedo_dir
-    !   &  zrgp(1,iemiss,ib), &                   ! spectral emissivity
-    !   &  zrgp(1,iccnl,ib), zrgp(1,iccno,ib) ,&  ! CCN concentration, land and sea
-    !   &  zrgp(1,igelam,ib),zrgp(1,igemu,ib), &  ! longitude, sine of latitude
-    !   &  zrgp(1,islm,ib), &                     ! land sea mask
-    !   &  zrgp(1,ipr,ib),   zrgp(1,iti,ib),  &   ! full level pressure and temperature
-    !   &  zrgp(1,iaprs,ib), zrgp(1,ihti,ib), &   ! half-level pressure and temperature
-    !   &  zrgp(1,iwv,ib),   zrgp(1,iico2,ib), zrgp(1,iich4,ib),zrgp(1,iin2o,ib), &
-    !   &  zrgp(1,ino2,ib),  zrgp(1,ic11,ib),  zrgp(1,ic12,ib), zrgp(1,ic22,ib), &
-    !   &  zrgp(1,icl4,ib),  zrgp(1,ioz,ib), &
-    !   &  zrgp(1,iclc,ib),  zrgp(1,ilwa,ib),  zrgp(1,iiwa,ib), zrgp(1,irwa,ib), &
-    !   &  zrgp(1,iswa,ib), &
-    !   &  zrgp(1,iaer,ib),  zrgp(1,iaero,ib), &
-    !   ! flux outputs
-    !   &  zrgp(1,ifrso,ib), zrgp(1,ifrth,ib), zrgp(1,iswfc,ib),zrgp(1,ilwfc,ib),&
-    !   &  zrgp(1,ifrsod,ib),zrgp(1,ifrted,ib), &
-    !   &  zrgp(1,ifrsodc,ib),zrgp(1,ifrtedc,ib),& 
-    !   &  zrgp(1,ifdir,ib), zrgp(1,icdir,ib), zrgp(1,isudu,ib), &
-    !   &  zrgp(1,iuvdf,ib), zrgp(1,iparf,ib), &
-    !   &  zrgp(1,iparcf,ib),zrgp(1,itincf,ib), &
-    !   &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
-    !   &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib))
+      call radiation_scheme &
+       & (1, il, nproma, &                       ! startcol, endcol, ncol
+       &  nlev, iradaer, &                       ! nlev, naerosols
+       &  zrii0, &                               ! solar_irrad
+       &  zrgp(1,iamu0,ib), zrgp(1,its,ib), &    ! mu0, skintemp
+       &  zrgp(1,iald,ib), zrgp(1,ialp,ib), &    ! albedo_dif, albedo_dir
+       &  zrgp(1,iemiss,ib), &                   ! spectral emissivity
+       &  zrgp(1,iccnl,ib), zrgp(1,iccno,ib) ,&  ! CCN concentration, land and sea
+       &  zrgp(1,igelam,ib),zrgp(1,igemu,ib), &  ! longitude, sine of latitude
+       &  zrgp(1,islm,ib), &                     ! land sea mask
+       &  zrgp(1,ipr,ib),   zrgp(1,iti,ib),  &   ! full level pressure and temperature
+       &  zrgp(1,iaprs,ib), zrgp(1,ihti,ib), &   ! half-level pressure and temperature
+       &  zrgp(1,iwv,ib),   zrgp(1,iico2,ib), zrgp(1,iich4,ib),zrgp(1,iin2o,ib), &
+       &  zrgp(1,ino2,ib),  zrgp(1,ic11,ib),  zrgp(1,ic12,ib), zrgp(1,ic22,ib), &
+       &  zrgp(1,icl4,ib),  zrgp(1,ioz,ib), &
+       &  zrgp(1,iclc,ib),  zrgp(1,ilwa,ib),  zrgp(1,iiwa,ib), zrgp(1,irwa,ib), &
+       &  zrgp(1,iswa,ib), &
+       &  zrgp(1,iaer,ib),  zrgp(1,iaero,ib), &
+       ! flux outputs
+       &  zrgp(1,ifrso,ib), zrgp(1,ifrth,ib), zrgp(1,iswfc,ib),zrgp(1,ilwfc,ib),&
+       &  zrgp(1,ifrsod,ib),zrgp(1,ifrted,ib), &
+       &  zrgp(1,ifrsodc,ib),zrgp(1,ifrtedc,ib),& 
+       &  zrgp(1,ifdir,ib), zrgp(1,icdir,ib), zrgp(1,isudu,ib), &
+       &  zrgp(1,iuvdf,ib), zrgp(1,iparf,ib), &
+       &  zrgp(1,iparcf,ib),zrgp(1,itincf,ib), &
+       &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
+       &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib))
     enddo
     !$OMP END PARALLEL DO
  
