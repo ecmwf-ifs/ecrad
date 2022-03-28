@@ -87,8 +87,8 @@ contains
       call SURRTAB
       call SURRTPK
       call SURRTRF
-      call RRTM_INIT_140GP
-      call SRTM_INIT
+      call RRTM_INIT_140GP(directory)
+      call SRTM_INIT(directory)
     end if
 
     config%n_g_sw = jpgsw

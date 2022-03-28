@@ -1,5 +1,5 @@
 !***************************************************************************
-SUBROUTINE RRTM_INIT_140GP
+SUBROUTINE RRTM_INIT_140GP(DIRECTORY)
 !***************************************************************************
 !     Reformatted for F90 by JJMorcrette, ECMWF, 980714
 
@@ -19,6 +19,9 @@ USE YOERRTRWT, ONLY : FREFA    ,FREFB    ,FREFADF  ,FREFBDF   ,RWGT
 !USE YOMLUN   , ONLY : NULOUT
 
 IMPLICIT NONE
+
+CHARACTER(LEN=*), INTENT(IN) :: DIRECTORY
+
 REAL(KIND=JPRB) :: ZWTSM(JPG)
 
 INTEGER(KIND=JPIM) :: I, IBND, IG, IGC, IGCSM, IND, IPR, IPRSM, IPT
@@ -70,7 +73,7 @@ CALL SURRTFTR
 
 ! Read the absorption-related coefficients over the 16 x 16 g-points
 
-CALL RRTM_KGB1
+CALL RRTM_KGB1(DIRECTORY)
 CALL RRTM_KGB2
 CALL RRTM_KGB3
 CALL RRTM_KGB4
