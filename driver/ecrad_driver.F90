@@ -173,6 +173,10 @@ program ecrad_driver
   !       &  'photosynthetically active radiation, PAR')
   !end if
 
+  if (driver_config%do_save_aerosol_optics) then
+    call config%aerosol_optics%save('aerosol_optics.nc', iverbose=driver_config%iverbose)
+  end if
+
   ! --------------------------------------------------------
   ! Section 3: Read input data file
   ! --------------------------------------------------------

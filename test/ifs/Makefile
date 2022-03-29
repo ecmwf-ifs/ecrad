@@ -8,6 +8,7 @@ CHANGENAM = ../common/change_namelist.sh
 #CONFIG = configCY46R1.nam
 CONFIG = configCY47R1.nam
 CONFIG_ECCKD = configCY49R1.nam
+CONFIG_ECCKD_BANDAER = configCY49R1_bandcloudaer.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
@@ -94,6 +95,10 @@ test_ecckd_mcica:
 # ecCKD with Tripleclouds solver (default)
 test_ecckd_tc:
 	$(DRIVER) $(CONFIG_ECCKD) $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
+
+# As above but with an old aerosol file containing bandwise optical properties
+test_ecckd_tc_bandaer:
+	$(DRIVER) $(CONFIG_ECCKD_BANDAER) $(INPUT).nc $(INPUT)_ecckd_tc_bandaer_out.nc
 
 # ecCKD gas optics with SPARTACUS solver (not currently correct)
 test_ecckd_spartacus:

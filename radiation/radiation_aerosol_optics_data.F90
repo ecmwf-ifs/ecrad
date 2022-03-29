@@ -56,6 +56,12 @@ module radiation_aerosol_optics_data
      ! to specific hydrophilic or hydrophobic aerosol types
      integer, allocatable, dimension(:) :: itype
 
+     ! Wavenumber (cm-1) upper and lower bounds of each spectral
+     ! interval, which if used in the RRTMG gas optics scheme should
+     ! match its band bounds
+     real(jprb), allocatable, dimension(:) :: wavenumber1_sw, wavenumber2_sw
+     real(jprb), allocatable, dimension(:) :: wavenumber1_lw, wavenumber2_lw
+
      ! Scattering properties are provided separately in the shortwave
      ! and longwave for hydrophobic and hydrophilic aerosols.
      ! Hydrophobic aerosols are dimensioned (nband,n_type_phobic):
@@ -112,10 +118,11 @@ module radiation_aerosol_optics_data
 
      ! The number of hydrophobic and hydrophilic types read from the
      ! aerosol optics file
-     integer :: n_type_phobic, n_type_philic
+     integer :: n_type_phobic = 0
+     integer :: n_type_philic = 0
 
      ! Number of relative humidity bins
-     integer :: nrh
+     integer :: nrh = 0
 
      ! Number of longwave and shortwave bands of the data in the file,
      ! and monochromatic wavelengths
@@ -129,6 +136,7 @@ module radiation_aerosol_optics_data
 
    contains
      procedure :: setup => setup_aerosol_optics
+     procedure :: save  => save_aerosol_optics
      procedure :: allocate
      procedure :: initialize_types
      procedure :: set_hydrophobic_type
@@ -180,6 +188,12 @@ contains
     else
       this%use_hydrophilic = .false.
     end if
+
+    ! Read the wavenumber bounds
+    call file%get('wavenumber1_sw', this%wavenumber1_sw)
+    call file%get('wavenumber2_sw', this%wavenumber2_sw)
+    call file%get('wavenumber1_lw', this%wavenumber1_lw)
+    call file%get('wavenumber2_lw', this%wavenumber2_lw)
 
     ! Read the raw scattering data
     call file%get('mass_ext_sw_hydrophobic', this%mass_ext_sw_phobic)
@@ -380,6 +394,108 @@ contains
     if (lhook) call dr_hook('radiation_aerosol_optics_data:allocate',1,hook_handle)
 
   end subroutine allocate
+
+
+  !---------------------------------------------------------------------
+  subroutine save_aerosol_optics(this, file_name, iverbose)
+
+    use yomhook,     only : lhook, dr_hook
+    use easy_netcdf, only : netcdf_file
+
+    class(aerosol_optics_type), intent(inout) :: this
+    character(len=*),           intent(in)    :: file_name
+    integer,          optional, intent(in)    :: iverbose
+
+    ! Object for output NetCDF file
+    type(netcdf_file) :: out_file
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_aerosol_optics_data:save',0,hook_handle)
+
+    ! Create the file
+    call out_file%create(trim(file_name), iverbose=iverbose)
+
+    ! Define dimensions
+    call out_file%define_dimension("band_lw", this%n_bands_lw)
+    call out_file%define_dimension("band_sw", this%n_bands_sw)
+    call out_file%define_dimension("hydrophilic", this%n_type_philic)
+    call out_file%define_dimension("hydrophobic", this%n_type_phobic)
+    call out_file%define_dimension("relative_humidity", this%nrh)
+    !if (this%use_monochromatic) then
+    !  call out_file%define_dimension("wavelength_mono", this%n_mono_wl)
+    !end if
+
+    ! Put global attributes
+    call out_file%put_global_attributes( &
+         &   title_str="Aerosol optical properties in the spectral intervals of the gas-optics scheme for ecRad", &
+         &   source_str="ecRad offline radiation model")
+    call out_file%put_global_attribute( &
+         &  "description_hydrophobic", this%description_phobic_str)
+    call out_file%put_global_attribute( &
+         &  "description_hydrophilic", this%description_philic_str)
+
+    ! Define variables
+    call out_file%define_variable("mass_ext_sw_hydrophobic", units_str="m2 kg-1", &
+         &  long_name="Shortwave mass-extinction coefficient of hydrophobic aerosols", &
+         &  dim2_name="hydrophobic", dim1_name="band_lw")
+    call out_file%define_variable("ssa_sw_hydrophobic", units_str="1", &
+         &  long_name="Shortwave single scattering albedo of hydrophobic aerosols", &
+         &  dim2_name="hydrophobic", dim1_name="band_lw")
+    call out_file%define_variable("asymmetry_sw_hydrophobic", units_str="1", &
+         &  long_name="Shortwave asymmetry factor of hydrophobic aerosols", &
+         &  dim2_name="hydrophobic", dim1_name="band_lw")
+
+    call out_file%define_variable("mass_ext_lw_hydrophobic", units_str="m2 kg-1", &
+         &  long_name="Longwave mass-extinction coefficient of hydrophobic aerosols", &
+         &  dim2_name="hydrophobic", dim1_name="band_lw")
+    call out_file%define_variable("ssa_lw_hydrophobic", units_str="1", &
+         &  long_name="Longwave single scattering albedo of hydrophobic aerosols", &
+         &  dim2_name="hydrophobic", dim1_name="band_lw")
+    call out_file%define_variable("asymmetry_lw_hydrophobic", units_str="1", &
+         &  long_name="Longwave asymmetry factor of hydrophobic aerosols", &
+         &  dim2_name="hydrophobic", dim1_name="band_lw")
+
+    call out_file%define_variable("mass_ext_sw_hydrophilic", units_str="m2 kg-1", &
+         &  long_name="Shortwave mass-extinction coefficient of hydrophilic aerosols", &
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+    call out_file%define_variable("ssa_sw_hydrophilic", units_str="1", &
+         &  long_name="Shortwave single scattering albedo of hydrophilic aerosols", &
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+    call out_file%define_variable("asymmetry_sw_hydrophilic", units_str="1", &
+         &  long_name="Shortwave asymmetry factor of hydrophilic aerosols", &
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+
+    call out_file%define_variable("mass_ext_lw_hydrophilic", units_str="m2 kg-1", &
+         &  long_name="Longwave mass-extinction coefficient of hydrophilic aerosols", &
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+    call out_file%define_variable("ssa_lw_hydrophilic", units_str="1", &
+         &  long_name="Longwave single scattering albedo of hydrophilic aerosols", &
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+    call out_file%define_variable("asymmetry_lw_hydrophilic", units_str="1", &
+         &  long_name="Longwave asymmetry factor of hydrophilic aerosols", &
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+
+    ! Write variables
+    call out_file%put("mass_ext_sw_hydrophobic", this%mass_ext_sw_phobic)
+    call out_file%put("ssa_sw_hydrophobic", this%ssa_sw_phobic)
+    call out_file%put("asymmetry_sw_hydrophobic", this%g_sw_phobic)
+    call out_file%put("mass_ext_lw_hydrophobic", this%mass_ext_lw_phobic)
+    call out_file%put("ssa_lw_hydrophobic", this%ssa_lw_phobic)
+    call out_file%put("asymmetry_lw_hydrophobic", this%g_lw_phobic)
+    call out_file%put("mass_ext_sw_hydrophilic", this%mass_ext_sw_philic)
+    call out_file%put("ssa_sw_hydrophilic", this%ssa_sw_philic)
+    call out_file%put("asymmetry_sw_hydrophilic", this%g_sw_philic)
+    call out_file%put("mass_ext_lw_hydrophilic", this%mass_ext_lw_philic)
+    call out_file%put("ssa_lw_hydrophilic", this%ssa_lw_philic)
+    call out_file%put("asymmetry_lw_hydrophilic", this%g_lw_philic)
+
+    call out_file%close()
+
+    if (lhook) call dr_hook('radiation_aerosol_optics_data:save',1,hook_handle)
+
+  end subroutine save_aerosol_optics
+
 
   !---------------------------------------------------------------------
   ! Map user type "itype" onto stored hydrophobic type "i_type_phobic"
