@@ -8,7 +8,6 @@ CHANGENAM = ../common/change_namelist.sh
 #CONFIG = configCY46R1.nam
 CONFIG = configCY47R1.nam
 CONFIG_ECCKD = configCY49R1.nam
-CONFIG_ECCKD_BANDAER = configCY49R1_bandcloudaer.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
@@ -96,9 +95,32 @@ test_ecckd_mcica:
 test_ecckd_tc:
 	$(DRIVER) $(CONFIG_ECCKD) $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
 
-# As above but with an old aerosol file containing bandwise optical properties
-test_ecckd_tc_bandaer:
-	$(DRIVER) $(CONFIG_ECCKD_BANDAER) $(INPUT).nc $(INPUT)_ecckd_tc_bandaer_out.nc
+# Test the different ways that aerosol optical properties can be
+# averaged, outputing the aerosol properties in each gas-optics
+# spectral interval, producing the following:
+#   aerosol_optics_rrtmg.nc: RRTMG gas optics, aerosol properties from band-wise file
+#   aerosol_optics_ecckd.nc: ecCKD gas optics, aerosol properties from high-res file
+#   aerosol_optics_rrtmg.nc: RRTMG gas optics, aerosol properties from high-res file
+#   aerosol_optics_ecckd.nc: ecCKD gas optics, aerosol properties from band-wise file
+test_aerosol_averaging:
+	$(CHANGENAM) $(CONFIG) config_rrtmg_saveaer.nam \
+		do_save_aerosol_optics=true
+	$(DRIVER) config_rrtmg_saveaer.nam $(INPUT).nc $(INPUT)_rrtmg_saveaer_out.nc
+	mv aerosol_optics.nc aerosol_optics_rrtmg.nc
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_saveaer.nam \
+		do_save_aerosol_optics=true
+	$(DRIVER) config_ecckd_saveaer.nam $(INPUT).nc $(INPUT)_ecckd_saveaer_out.nc
+	mv aerosol_optics.nc aerosol_optics_ecckd.nc
+	$(CHANGENAM) $(CONFIG) config_rrtmg_gen_saveaer.nam \
+		do_save_aerosol_optics=true use_general_aerosol_optics=true \
+		aerosol_optics_override_file_name="'aerosol_ifs_48R1.nc'" 
+	$(DRIVER) config_rrtmg_gen_saveaer.nam $(INPUT).nc $(INPUT)_rrtmg_gen_saveaer_out.nc
+	mv aerosol_optics.nc aerosol_optics_rrtmg_gen.nc
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_band_saveaer.nam \
+		do_save_aerosol_optics=true \
+		aerosol_optics_override_file_name="'aerosol_ifs_rrtm_46R1_with_NI_AM.nc'" 
+	$(DRIVER) config_ecckd_band_saveaer.nam $(INPUT).nc $(INPUT)_ecckd_band_saveaer_out.nc
+	mv aerosol_optics.nc aerosol_optics_ecckd_band.nc
 
 # ecCKD gas optics with SPARTACUS solver (not currently correct)
 test_ecckd_spartacus:

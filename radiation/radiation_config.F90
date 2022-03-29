@@ -1326,6 +1326,10 @@ contains
       call print_enum('  Gas model is', GasModelName, 'i_gas_model', &
            &          this%i_gas_model)
       call print_logical('  Aerosols are', 'use_aerosols', this%use_aerosols)
+      if (this%use_aerosols) then
+        call print_logical('  General aerosol optics', &
+             &             'use_general_aerosol_optics', this%use_general_aerosol_optics)
+      end if
       call print_logical('  Clouds are', 'do_clouds', this%do_clouds)
       if (this%do_sw) then
         call print_logical('  Do cloud/aerosol/surface SW properties per g-point', &
