@@ -438,13 +438,13 @@ contains
     ! Define variables
     call out_file%define_variable("mass_ext_sw_hydrophobic", units_str="m2 kg-1", &
          &  long_name="Shortwave mass-extinction coefficient of hydrophobic aerosols", &
-         &  dim2_name="hydrophobic", dim1_name="band_lw")
+         &  dim2_name="hydrophobic", dim1_name="band_sw")
     call out_file%define_variable("ssa_sw_hydrophobic", units_str="1", &
          &  long_name="Shortwave single scattering albedo of hydrophobic aerosols", &
-         &  dim2_name="hydrophobic", dim1_name="band_lw")
+         &  dim2_name="hydrophobic", dim1_name="band_sw")
     call out_file%define_variable("asymmetry_sw_hydrophobic", units_str="1", &
          &  long_name="Shortwave asymmetry factor of hydrophobic aerosols", &
-         &  dim2_name="hydrophobic", dim1_name="band_lw")
+         &  dim2_name="hydrophobic", dim1_name="band_sw")
 
     call out_file%define_variable("mass_ext_lw_hydrophobic", units_str="m2 kg-1", &
          &  long_name="Longwave mass-extinction coefficient of hydrophobic aerosols", &
@@ -458,13 +458,13 @@ contains
 
     call out_file%define_variable("mass_ext_sw_hydrophilic", units_str="m2 kg-1", &
          &  long_name="Shortwave mass-extinction coefficient of hydrophilic aerosols", &
-         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_sw")
     call out_file%define_variable("ssa_sw_hydrophilic", units_str="1", &
          &  long_name="Shortwave single scattering albedo of hydrophilic aerosols", &
-         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_sw")
     call out_file%define_variable("asymmetry_sw_hydrophilic", units_str="1", &
          &  long_name="Shortwave asymmetry factor of hydrophilic aerosols", &
-         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_lw")
+         &  dim3_name="hydrophilic", dim2_name="relative_humidity", dim1_name="band_sw")
 
     call out_file%define_variable("mass_ext_lw_hydrophilic", units_str="m2 kg-1", &
          &  long_name="Longwave mass-extinction coefficient of hydrophilic aerosols", &
