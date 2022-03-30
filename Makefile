@@ -91,9 +91,9 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifdef DR_HOOK
-build: directories libifs libifsaux libdrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifsaux libdrhook libutilities libifsrrtm libradiation libifs driver symlinks
 else
-build: directories libifs libifsaux libdummydrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation libifs driver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -106,11 +106,12 @@ lib:
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps
 	cd ifsrrtm && $(MAKE) deps
+	cd ifs && $(MAKE) deps
 
 clean-deps:
 	rm -f interfaces/include/*.intfb.h
 
-libifs:
+libifs: libifsrrtm
 	cd ifs && $(MAKE)
 
 libifsaux:
@@ -122,16 +123,16 @@ libdrhook:
 libdummydrhook:
 	cd drhook && $(MAKE) dummy
 
-libutilities:
+libutilities: libifsaux
 	cd utilities && $(MAKE)
 
-libifsrrtm:
+libifsrrtm: libifsaux
 	cd ifsrrtm && $(MAKE)
 
-libradiation:
+libradiation: libutilities libifsaux
 	cd radiation && $(MAKE)
 
-driver:
+driver: libradiation libifsrrtm libifs
 	cd driver && $(MAKE)
 
 symlinks: clean-symlinks
@@ -140,10 +141,10 @@ symlinks: clean-symlinks
 
 test: test_ifs test_i3rc
 
-test_ifs:
+test_ifs: driver
 	cd test/ifs && $(MAKE) test
 
-test_i3rc:
+test_i3rc: driver
 	cd test/i3rc && $(MAKE) test
 
 clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks

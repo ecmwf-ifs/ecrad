@@ -65,13 +65,12 @@ radiation_monochromatic.o radiation_aerosol_optics.o radiation_cloud_optics.o \
 	radiation_cloudless_sw.o radiation_cloudless_lw.o \
 	radiation_spartacus_sw.o radiation_thermodynamics.o \
 	radiation_flux.o: radiation_constants.o
-radiation_cloud_optics.o radiation_config.o: \
-	radiation_cloud_optics_data.o
 radiation_cloud_optics.o: radiation_ice_optics_baran.o radiation_ice_optics_fu.o \
+	radiation_cloud_optics_data.o radiation_cloud.o \
 	radiation_liquid_optics_socrates.o radiation_liquid_optics_slingo.o \
 	radiation_ice_optics_baran2017.o radiation_ice_optics_yi.o
-radiation_aerosol_optics.o radiation_config.o: \
-	radiation_aerosol_optics_data.o
+radiation_aerosol_optics.o: radiation_aerosol_optics_data.o radiation_gas.o
+radiation_config.o: radiation_aerosol_optics_data.o radiation_cloud_optics_data.o
 radiation_mcica_sw.o radiation_homogeneous_sw.o: radiation_adding_ica_sw.o radiation_cloud_generator.o
 radiation_mcica_lw.o radiation_homogeneous_lw.o: radiation_adding_ica_lw.o radiation_cloud_generator.o \
 	radiation_lw_derivatives.o
@@ -84,6 +83,8 @@ radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
 radiation_lw_derivatives.o: radiation_matrix.o
 
 radiation_config.o: radiation_cloud_generator.o
+radiation_gas.o: radiation_config.o
+radiation_thermodynamics.o: radiation_config.o
 
 radiation_aerosol_optics.F90 radiation_cloud_optics.F90 radiation_homogeneous_sw.F90 \
 	radiation_mcica_sw.F90 radiation_cloudless_sw.o: radiation_delta_eddington.h

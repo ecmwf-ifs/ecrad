@@ -20,7 +20,8 @@ includes:
 clean:
 	rm -f *.o $(LIBIFSAUX)
 
-yomlun_ifsaux.o, yomhook.o, random_numbers_mix.o: parkind1.o
-yomlun.o : yomlun_ifsaux.o
+yomlun_ifsaux.o yomhook.o random_numbers_mix.o yomcst.o mpl_module.o yomtag.o yommp0.o yomdyncore.o: parkind1.o
+abor1.o: yomlun_ifsaux.o parkind1.o
+yomlun.o: yomlun_ifsaux.o
 
 .PHONY: deps includes
