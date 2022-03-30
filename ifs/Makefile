@@ -1,6 +1,9 @@
-SOURCES = ice_effective_radius.F90 liquid_effective_radius.F90 radiation_scheme.F90
-MAKE_INCLUDES = ../bin/make_intfbl.1.pl
-INCLUDE_DIR = ../include
+SOURCES = ice_effective_radius.F90 liquid_effective_radius.F90 \
+	radiation_scheme.F90 radiation_setup.F90 yoecldp.F90 yoerdu.F90 \
+	yoethf.F90 satur.F90 type_model.F90 yomrip0.F90 yomrip.F90 \
+	model_general_conf_mod.F90 model_physics_ecmwf_mod.F90 \
+	yoephy.F90 yoecld.F90 model_physics_radiation_mod.F90 \
+	yoeaerop.F90 cloud_overlap_decorr_len.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBIFS = ../lib/libifs.a
@@ -16,12 +19,19 @@ $(LIBIFS): $(OBJECTS)
 	$(FC) $(FCFLAGS) -c $<
 
 includes:
-	LOC_INTFBDIR=$(INCLUDE_DIR) INTFBDIR=$(INCLUDE_DIR) $(MAKE_INCLUDES) $(SOURCES)
+	cd .. && fcm make --config-file=bin/fcm-make-interfaces.cfg interfaces.ns-incl=ifs interfaces.source=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))/..
 
 clean:
 	rm -f *.o $(LIBIFS)
 
-#yomlun_ifsaux.o, yomhook.o, random_numbers_mix.o: parkind1.o
-#yomlun.o : yomlun_ifsaux.o
+.PHONY: deps includes clean-deps
 
-.PHONY: deps includes
+liquid_effective_radius.o: yoecldp.o yoerdu.o
+radiation_scheme.o: type_model.o yomrip0.o radiation_setup.o
+type_model.o: model_general_conf_mod.o model_physics_ecmwf_mod.o model_physics_radiation_mod.o
+model_general_conf_mod.o: yomrip.o
+model_physics_ecmwf_mod.o: yoephy.o yoecld.o yoecldp.o
+model_physics_radiation_mod.o: radiation_setup.o
+radiation_setup.o: yoeaerop.o
+satur.o: yoethf.o
+cloud_overlap_decorr_len.o: yoecld.o

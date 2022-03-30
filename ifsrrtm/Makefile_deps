@@ -35,6 +35,7 @@ srtm_taumol26.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta26.o
 srtm_taumol27.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta27.o yoesrtwn.o 
 srtm_taumol28.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta28.o yoesrtwn.o 
 srtm_taumol29.o: yomdimv.o parsrtm.o yoesrtm.o yoesrta29.o yoesrtwn.o 
+yoerad.o: yoe_spectral_planck.o 
 yom_ygfl.o: par_gfl.o 
 yoerrtm.o: parrrtm.o 
 yoesrtm.o: parsrtm.o 

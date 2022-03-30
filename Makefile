@@ -111,7 +111,7 @@ deps: clean-deps
 clean-deps:
 	rm -f interfaces/include/*.intfb.h
 
-libifs: libifsrrtm
+libifs: libifsrrtm libradiation libifsaux
 	cd ifs && $(MAKE)
 
 libifsaux:

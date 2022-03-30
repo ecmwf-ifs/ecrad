@@ -24,7 +24,7 @@ $(TEST): $(TEST).F90 ../lib/*.a
 	$(FC) $(FCFLAGS) $(TEST).F90 $(LIBS) -o $(TEST)
 
 $(IFSEXE): ecrad_ifs_driver.o $(OBJECTS) ../lib/*.a
-	$(FC) $(FCFLAGS) ecrad_ifs_driver.o $(OBJECTS) $(LIBS) -lifs -o $(IFSEXE)
+	$(FC) $(FCFLAGS) ecrad_ifs_driver.o $(OBJECTS) -lifs $(LIBS) -o $(IFSEXE)
 
 
 clean:
