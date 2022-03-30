@@ -1,22 +1,22 @@
 
 MODULE MODEL_GENERAL_CONF_MOD
-  USE TYPE_GEOMETRY, ONLY : GEOMETRY
-  USE YOMDIMF      , ONLY : TDIMF
+  ! USE TYPE_GEOMETRY, ONLY : GEOMETRY
+  ! USE YOMDIMF      , ONLY : TDIMF
   USE YOM_YGFL     , ONLY : TYPE_GFLD
   USE YOMRIP       , ONLY : TRIP
-  USE YOMMODERRMOD , ONLY : TMODERR
-  USE TYPE_ACV     , ONLY : TACVDIM
+  ! USE YOMMODERRMOD , ONLY : TMODERR
+  ! USE TYPE_ACV     , ONLY : TACVDIM
   IMPLICIT NONE
 
   TYPE MODEL_GENERAL_CONF_TYPE
 
-    TYPE(GEOMETRY), POINTER :: GEOM => NULL()
+    ! TYPE(GEOMETRY), POINTER :: GEOM => NULL()
 
-    TYPE(TDIMF)             :: YRDIMF                  !! number of fields
+    ! TYPE(TDIMF)             :: YRDIMF                  !! number of fields
     TYPE(TYPE_GFLD)         :: YGFL                    !! gfl descriptors
     TYPE(TRIP)              :: YRRIP                   !! TEMPORARY TREATMENT OF TIME, SHOULD CHANGE AT CY45
-    TYPE(TACVDIM)           :: YRDIMACV                !! ACV field
-    TYPE(TMODERR)           :: YRMODERR                !! Model error config
+    ! TYPE(TACVDIM)           :: YRDIMACV                !! ACV field
+    ! TYPE(TMODERR)           :: YRMODERR                !! Model error config
 
     CONTAINS
 
@@ -35,9 +35,9 @@ MODULE MODEL_GENERAL_CONF_MOD
     INTEGER                       , INTENT(IN) :: KOUTNO
 
     WRITE(KOUTNO,*) REPEAT(' ',KDEPTH) // 'model%yrml_gconf : '
-    CALL SELF%YRDIMF%PRINT(KDEPTH+2,KOUTNO)
+    !CALL SELF%YRDIMF%PRINT(KDEPTH+2,KOUTNO)
     CALL SELF%YRRIP%PRINT(KDEPTH+2,KOUTNO)
-    CALL SELF%YRMODERR%PRINT(KDEPTH+2,KOUTNO)
+    !CALL SELF%YRMODERR%PRINT(KDEPTH+2,KOUTNO)
 
   END SUBROUTINE PRINT_CONFIGURATION
 
