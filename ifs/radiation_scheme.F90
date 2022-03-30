@@ -73,6 +73,7 @@ USE YOMCT3         , ONLY : NSTEP
 USE YOMCST         , ONLY : RPI, RSIGMA ! Stefan-Boltzmann constant
 USE YOMLUN         , ONLY : NULERR
 !USE SPP_MOD        , ONLY : YSPP_CONFIG, YSPP
+!USE MPL_MYRANK_MOD , ONLY : MPL_MYRANK
 USE RADIATION_SETUP, ONLY : ITYPE_TROP_BG_AER, ITYPE_STRAT_BG_AER
 
 ! Modules from ecRad radiation library
@@ -253,6 +254,9 @@ CHARACTER(LEN=512) :: CL_FILE_NAME
 
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
+! Dummy from MPL_MYRANK_MOD
+INTEGER(KIND=JPIM) :: MPL_MYRANK
+MPL_MYRANK() = 1
 
 ! Import time functions for iseed calculation
 !#include "fcttim.func.h"
