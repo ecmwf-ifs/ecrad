@@ -119,6 +119,8 @@ contains
     if (allocated(cloud%inv_cloud_effective_size_up_lw) &
          &  .and. allocated(cloud%inv_cloud_effective_size_dn_lw)) then
       do_shadowing = .true.
+    else
+      do_shadowing = .false.
     end if
 
     do jcol = istartcol,iendcol
