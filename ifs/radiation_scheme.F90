@@ -259,7 +259,7 @@ INTEGER(KIND=JPIM) :: MPL_MYRANK
 MPL_MYRANK() = 1
 
 ! Import time functions for iseed calculation
-!#include "fcttim.func.h"
+#include "fcttim.func.h"
 
 #include "liquid_effective_radius.intfb.h"
 #include "ice_effective_radius.intfb.h"
