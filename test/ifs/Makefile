@@ -95,6 +95,12 @@ test_ecckd_mcica:
 test_ecckd_tc:
 	$(DRIVER) $(CONFIG_ECCKD) $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
 
+# ecCKD with no aerosols
+test_ecckd_noaer:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_noaer.nam \
+		use_aerosols=false
+	$(DRIVER) config_ecckd_noaer.nam $(INPUT).nc $(INPUT)_ecckd_noaer_out.nc
+
 # Test the different ways that aerosol optical properties can be
 # averaged, outputing the aerosol properties in each gas-optics
 # spectral interval, producing the following:
