@@ -639,17 +639,26 @@ program ecrad_ifs_driver
     enddo
 
     ! -- by default, globally averaged concentrations (mmr)
-    do jlev=1,nlev
-      zrgp(1:il,iico2+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICO2)
-      zrgp(1:il,iich4+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICH4)
-      zrgp(1:il,iin2o+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,IN2O)
-      zrgp(1:il,ino2+jlev-1,ib)  = 0._jprb ! not really used?
+    call gas%get(ICO2, IMassMixingRatio, zrgp(1:il,iico2:iico2+nlev-1,ib))
+    call gas%get(ICH4, IMassMixingRatio, zrgp(1:il,iich4:iich4+nlev-1,ib))
+    call gas%get(IN2O, IMassMixingRatio, zrgp(1:il,iin2o:iin2o+nlev-1,ib))
+    
+    call gas%get(ICFC11, IMassMixingRatio, zrgp(1:il,ic11:ic11+nlev-1,ib))
+    call gas%get(ICFC12, IMassMixingRatio, zrgp(1:il,ic12:ic12+nlev-1,ib))
+    call gas%get(IHCFC22, IMassMixingRatio, zrgp(1:il,ic22:ic22+nlev-1,ib))
+    call gas%get(ICCL4, IMassMixingRatio, zrgp(1:il,icl4:icl4+nlev-1,ib))
 
-      zrgp(1:il,ic11+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC11)
-      zrgp(1:il,ic12+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC12)
-      zrgp(1:il,ic22+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IHCFC22)
-      zrgp(1:il,icl4+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICCL4)
-    enddo
+    !do jlev=1,nlev
+    !  zrgp(1:il,iico2+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICO2)
+    !  zrgp(1:il,iich4+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICH4)
+    !  zrgp(1:il,iin2o+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,IN2O)
+    !  zrgp(1:il,ino2+jlev-1,ib)  = 0._jprb ! not really used?
+
+    !  zrgp(1:il,ic11+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC11)
+    !  zrgp(1:il,ic12+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC12)
+    !  zrgp(1:il,ic22+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IHCFC22)
+    !  zrgp(1:il,icl4+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICCL4)
+    !enddo
 
     ! local workaround variables for standalone input files
     do jlev=1,nlev
