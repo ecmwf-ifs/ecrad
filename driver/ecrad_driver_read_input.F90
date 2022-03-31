@@ -20,7 +20,8 @@ contains
 
   subroutine read_input(file, config, driver_config, ncol, nlev, &
        &          single_level, thermodynamics, &
-       &          gas, cloud, aerosol)
+       &          gas, cloud, aerosol, &
+       &          lat, lon)
 
     use parkind1,                 only : jprb, jpim
     use radiation_io,             only : nulout
@@ -46,6 +47,7 @@ contains
     type(gas_type),            intent(inout) :: gas
     type(cloud_type),          intent(inout) :: cloud
     type(aerosol_type),        intent(inout) :: aerosol
+    real(kind=jprb),allocatable,intent(out),optional  :: lat(:), lon(:)
 
     ! Number of columns and levels of input data
     integer, intent(out) :: ncol, nlev
@@ -90,6 +92,9 @@ contains
     ! Extract array dimensions
     ncol = size(thermodynamics%pressure_hl,1)
     nlev = size(thermodynamics%pressure_hl,2)-1
+
+    if(present(lat)) call file%get('lat', lat)
+    if(present(lon)) call file%get('lon', lon)
 
     if (driver_config%solar_irradiance_override > 0.0_jprb) then
       ! Optional override of solar irradiance
