@@ -109,10 +109,10 @@ CONTAINS
   ! PRADIATION%rad_config).  The optional input logical LDOUTPUT
   ! controls whether to print lots of information during the setup
   ! stage (default is no).
-  SUBROUTINE SETUP_RADIATION_SCHEME(YDERDI,YDEAERATM,YDCOMPO,YDEPHY,YDERAD,PRADIATION,LDOUTPUT)
+  SUBROUTINE SETUP_RADIATION_SCHEME(YDERDI,YDEAERATM,YDCOMPO,YDEPHY,YDERAD,PRADIATION,LDOUTPUT,FILE_NAME)
 
     USE YOMHOOK,  ONLY : LHOOK, DR_HOOK
-    USE YOMLUN,   ONLY : NULNAM, NULOUT, NULERR
+    USE YOMLUN,   ONLY : NULOUT, NULERR
     !USE YOESRTWN, ONLY : NMPSRTM
     USE YOERAD,   ONLY : TERAD
     USE YOEPHY,   ONLY : TEPHY
@@ -130,6 +130,7 @@ CONTAINS
     TYPE(TEPHY)       ,INTENT(IN)             :: YDEPHY
     TYPE(TERAD)       ,INTENT(INOUT)          :: YDERAD
     TYPE(TRADIATION)  ,INTENT(INOUT), TARGET  :: PRADIATION
+    CHARACTER(LEN=512),INTENT(IN), OPTIONAL   :: FILE_NAME
 
     ! Whether or not to print out information on the radiation scheme
     ! configuration
@@ -153,7 +154,7 @@ CONTAINS
 
     REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
-#include "posname.intfb.h"
+!#include "posname.intfb.h"
 #include "abor1.intfb.h"
 
     IF (LHOOK) CALL DR_HOOK('RADIATION_SETUP:SETUP_RADIATION_SCHEME',0,ZHOOK_HANDLE)
@@ -507,15 +508,18 @@ CONTAINS
     ! the rest of the IFS.  For basic configuration there are specific
     ! variables in the NAERAD namelist available in the YDERAD
     ! structure.
-    CALL POSNAME(NULNAM, 'RADIATION', ISTAT)
-    SELECT CASE (ISTAT)
-      CASE(0)
-        CALL RAD_CONFIG%READ(UNIT=NULNAM)
-      CASE(1)
-        WRITE(NULOUT,'(a)') 'Namelist RADIATION not found, using settings from NAERAD only'
-      CASE DEFAULT
-        CALL ABOR1('RADIATION_SETUP: error reading RADIATION section of namelist file')
-    END SELECT
+    !CALL POSNAME(NULNAM, 'RADIATION', ISTAT)
+    !SELECT CASE (ISTAT)
+    !  CASE(0)
+    !    CALL RAD_CONFIG%READ(UNIT=NULNAM)
+    !  CASE(1)
+    !    WRITE(NULOUT,'(a)') 'Namelist RADIATION not found, using settings from NAERAD only'
+    !  CASE DEFAULT
+    !    CALL ABOR1('RADIATION_SETUP: error reading RADIATION section of namelist file')
+    !END SELECT
+    IF (PRESENT(FILE_NAME)) THEN
+      CALL RAD_CONFIG%READ(FILE_NAME=FILE_NAME)
+    ENDIF
 
     ! Print configuration
     IF (IVERBOSESETUP > 1) THEN
