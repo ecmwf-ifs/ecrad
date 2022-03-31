@@ -218,7 +218,7 @@ CONTAINS
 
     ! Assume IFS has already set-up RRTM, so the setup_radiation
     ! routine below does not have to
-    RAD_CONFIG%DO_SETUP_IFSRRTM = .FALSE.
+    !RAD_CONFIG%DO_SETUP_IFSRRTM = .FALSE.
 
 
     ! *** SETUP CLOUD OPTICS ***
