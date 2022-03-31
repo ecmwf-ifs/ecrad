@@ -341,11 +341,11 @@ THERMODYNAMICS%TEMPERATURE_HL(KIDIA:KFDIA,:) = PTEMPERATURE_H(KIDIA:KFDIA,:)
 ! "2" for the last argument indicates that the routine is not being
 ! called from within the convection scheme.
 ! CALL SATUR(KIDIA, KFDIA, KLON, 1, KLEV, YDMODEL%YRML_PHY_SLIN%YREPHLI%LPHYLIN, &
-CALL SATUR(KIDIA, KFDIA, KLON, 1, KLEV, .false., &
-     &  PPRESSURE, PTEMPERATURE, THERMODYNAMICS%H2O_SAT_LIQ, 2)  
+!!!ifsdriver!!! CALL SATUR(KIDIA, KFDIA, KLON, 1, KLEV, .false., &
+!!!ifsdriver!!!      &  PPRESSURE, PTEMPERATURE, THERMODYNAMICS%H2O_SAT_LIQ, 2)  
 ! Alternative approximate version using temperature and pressure from
 ! the thermodynamics structure
-!CALL thermodynamics%calc_saturation_wrt_liquid(KIDIA, KFDIA)
+CALL thermodynamics%calc_saturation_wrt_liquid(KIDIA, KFDIA)
 
 ! Set single-level fileds
 SINGLE_LEVEL%SOLAR_IRRADIANCE              = PSOLAR_IRRADIANCE
