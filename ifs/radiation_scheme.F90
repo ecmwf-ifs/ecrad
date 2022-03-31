@@ -16,7 +16,7 @@ SUBROUTINE RADIATION_SCHEME &
      &  PFLUX_UV, PFLUX_PAR, PFLUX_PAR_CLEAR, &
      &  PFLUX_SW_DN_TOA, PEMIS_OUT, PLWDERIVATIVE, &
      &  PSWDIFFUSEBAND, PSWDIRECTBAND, & !) !, PPERT, PFSD)
-     &  PRE_LIQ, PRE_ICE)
+     &  PRE_LIQ, PRE_ICE, ISEED)
 
 ! RADIATION_SCHEME - Interface to modular radiation scheme
 !
@@ -203,6 +203,7 @@ REAL(KIND=JPRB),  INTENT(OUT) :: PSWDIRECTBAND (KLON,YDMODEL%YRML_PHY_RAD%YRERAD
 ! Optional input arguments (Added for ecrad standalone!)
 REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PRE_LIQ(KLON, KLEV)
 REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PRE_ICE(KLON, KLEV)
+INTEGER,         INTENT(IN), OPTIONAL :: ISEED(KLON)
 
 
 ! LOCAL VARIABLES
@@ -238,7 +239,7 @@ REAL(KIND=JPRB)           :: ZLAYER_MASS(KIDIA:KFDIA,KLEV)
 ! REAL(KIND=JPRB)           :: ZMU_ZDECORR, ZMU_ZSIGQCW, ZFACTOR
 
 ! Time integers
-INTEGER(KIND=JPIM) :: ITIM, IDAY
+! INTEGER(KIND=JPIM) :: ITIM, IDAY
 
 ! Loop indices
 INTEGER(KIND=JPIM) :: JLON, JLEV, JBAND, JAER
@@ -358,22 +359,29 @@ SINGLE_LEVEL%LW_EMISSIVITY(KIDIA:KFDIA,:)  = PSPECTRALEMISS(KIDIA:KFDIA,:)
 
 ! Create the relevant seed from date and time get the starting day
 ! and number of minutes since start
-IDAY = NDD(NINDAT)
-ITIM = NINT(NSTEP * YDMODEL%YRML_GCONF%YRRIP%TSTEP / 60.0_JPRB)
-DO JLON = KIDIA, KFDIA
-  ! This method gives a unique value for roughly every 1-km square
-  ! on the globe and every minute.  ASIN(PGEMU)*60 gives rough
-  ! latitude in degrees, which we multiply by 100 to give a unique
-  ! value for roughly every km. PGELAM*60*100 gives a unique number
-  ! for roughly every km of longitude around the equator, which we
-  ! multiply by 180*100 so there is no overlap with the latitude
-  ! values.  The result can be contained in a 32-byte integer (but
-  ! since random numbers are generated with the help of integer
-  ! overflow, it should not matter if the number did overflow).
-  SINGLE_LEVEL%ISEED(JLON) = ITIM + IDAY & 
-       &  +  NINT(PGELAM(JLON)*108000000.0_JPRD &
-       &          + ASIN(PGEMU(JLON))*6000.0_JPRD)
-ENDDO
+! IDAY = NDD(NINDAT)
+! ITIM = NINT(NSTEP * YDMODEL%YRML_GCONF%YRRIP%TSTEP / 60.0_JPRB)
+! DO JLON = KIDIA, KFDIA
+!   ! This method gives a unique value for roughly every 1-km square
+!   ! on the globe and every minute.  ASIN(PGEMU)*60 gives rough
+!   ! latitude in degrees, which we multiply by 100 to give a unique
+!   ! value for roughly every km. PGELAM*60*100 gives a unique number
+!   ! for roughly every km of longitude around the equator, which we
+!   ! multiply by 180*100 so there is no overlap with the latitude
+!   ! values.  The result can be contained in a 32-byte integer (but
+!   ! since random numbers are generated with the help of integer
+!   ! overflow, it should not matter if the number did overflow).
+!   SINGLE_LEVEL%ISEED(JLON) = ITIM + IDAY & 
+!        &  +  NINT(PGELAM(JLON)*108000000.0_JPRD &
+!        &          + ASIN(PGEMU(JLON))*6000.0_JPRD)
+! ENDDO
+
+! Simple initialization of the seeds for the Monte Carlo scheme
+call single_level%init_seed_simple(1,klon)
+! Overwrite with user-specified values if available
+if (present(iseed)) then
+  single_level%iseed(:) = iseed(:)
+end if
 
 ! Set the solar spectrum scaling, if required
 IF (YRERAD%NSOLARSPECTRUM == 1) THEN

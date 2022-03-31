@@ -706,7 +706,7 @@ program ecrad_ifs_driver
        &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
        &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib),&
        ! workaround variables
-       &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib) )
+       &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), single_level%iseed(ibeg:iend))
     enddo
     !$OMP END PARALLEL DO
 
