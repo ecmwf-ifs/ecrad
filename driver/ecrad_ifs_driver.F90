@@ -34,7 +34,7 @@ program ecrad_ifs_driver
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
-  use radiation_config,         only : config_type
+  ! use radiation_config,         only : config_type
   use radiation_single_level,   only : single_level_type
 !  use radsurf_properties,       only : surface_type, print_surface_representation
 !  use radsurf_intermediate,     only : surface_intermediate_type
@@ -49,10 +49,11 @@ program ecrad_ifs_driver
   use radiation_aerosol,        only : aerosol_type
   use radiation_flux,           only : flux_type
   use radiation_save,           only : save_fluxes, save_inputs
+  use radiation_setup,          only : tcompo, setup_radiation_scheme
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
-  use yoerdi,                   only : terdi
+  use type_model,               only : model
 
   implicit none
 
@@ -63,7 +64,7 @@ program ecrad_ifs_driver
 !  type(surface_type)        :: surface
 
   ! Derived types for the inputs to the radiation scheme
-  type(config_type)         :: config
+  ! type(config_type)         :: config
   type(single_level_type)   :: single_level
   type(thermodynamics_type) :: thermodynamics
   type(gas_type)            :: gas
@@ -80,8 +81,11 @@ program ecrad_ifs_driver
   ! Derived type containing outputs from the radiation scheme
   type(flux_type)           :: flux
 
-  ! Radiation interface coefficients
-  type(terdi)               :: yderdi
+  ! Model type
+  type(model)               :: ydmodel
+
+  ! Dummy COMPO type
+  type(tcompo)              :: ydcompo
 
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: istartcol, iendcol ! Range of columns to process
@@ -114,6 +118,9 @@ program ecrad_ifs_driver
   ! monolithic IFS data structure to pass to radiation scheme
   real(kind=jprb), allocatable :: zrgp(:,:,:)
 
+  ! latitude, longitute
+  real(kind=jprb), allocatable :: lat(:), lon(:)
+
   ! solar irradiance
   real(kind=jprb) :: zrii0
   ! number of column blocks
@@ -129,6 +136,8 @@ program ecrad_ifs_driver
        &     ifrted, ifrsodc, ifrtedc, iemit, isudu, iuvdf, iparf, iparcf, itincf, ifdir, ifdif,     &
        &     ilwderivative, iswdirectband, iswdiffuseband, ifrso, iswfc, ifrth, ilwfc, iaer,         &
        &     iich4, iin2o, ino2, ic11, ic12, igix, iico2, iccno, ic22, icl4  
+
+  integer :: ire_liq, ire_ice
 
   integer :: nlwout, nsw, nlwemiss, iradaer, naermacc
 
@@ -153,7 +162,41 @@ program ecrad_ifs_driver
   end if
 
   ! Read "radiation" namelist into radiation configuration type
-  call config%read(file_name=file_name)
+  ! call config%read(file_name=file_name)
+
+  associate( &
+    & yderdi=>ydmodel%yrml_phy_rad%yrerdi, &
+    & ydeaeratm=>ydmodel%yrml_phy_rad%yreaeratm, &
+    & ydephy=>ydmodel%yrml_phy_ec%yrephy, &
+    & yderad=>ydmodel%yrml_phy_rad%yrerad, &
+    & ydradiation=>ydmodel%yrml_phy_rad%yradiation &
+  )
+    ! Values from IFS:
+    ! TODO: fill this from ecrad inputs
+
+    ydephy%nalbedoscheme = 2
+    ! ydeaeratm values???
+    yderad%naermacc = 1  ! MACC aerosol climatology
+    yderad%lapproxlwupdate = .true.  ! Hogan and Bozzo (2015) approx longwave updates
+    yderad%lapproxswupdate = .true.  ! Hogan and Bozzo (2015) approx shortwave updates
+    yderad%nliqopt = 4  ! 2 - SLINGO, 4 - SOCRATES
+    yderad%niceopt = 3  ! 3 - ICEMODELFU, 4 - IDEMODELBARAN
+    yderad%lfu_lw_ice_optics_bug = .false.
+    yderad%nlwsolver = 0  ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
+    yderad%nswsolver = 0  ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
+    yderad%nlwscattering = 1  ! 1 - cloud scattering, 2 - cloud + aerosol scattering
+    yderad%ncloudoverlap = 3  ! 1 - MAXIMUMRANDOM, 2 - EXPONENTIAL, 3 - EXPONENTIALRANDOM
+    yderad%nsolarspectrum = 0
+    yderad%ndecolat = 2
+    yderad%nlwout = 1
+    yderad%nlwemiss = 2
+    yderad%nsw = 6
+
+    ydradiation%rad_config%do_setup_ifsrrtm = .true.  ! Make sure ifsrrtm gets initialized
+
+    call setup_radiation_scheme(yderdi, ydeaeratm, ydcompo, ydephy, yderad, &
+                                & ydradiation, ldoutput=.true., file_name=file_name)
+  end associate
 
   ! Read "radiation_driver" namelist into radiation driver config type
   call driver_config%read(file_name)
@@ -167,7 +210,7 @@ program ecrad_ifs_driver
 #else
     write(nulout,'(a)') 'Floating-point precision: double'
 #endif
-    call config%print(driver_config%iverbose)
+    call ydmodel%yrml_phy_rad%yradiation%rad_config%print(driver_config%iverbose)
   end if
 
   ! Albedo/emissivity intervals may be specified like this
@@ -181,7 +224,7 @@ program ecrad_ifs_driver
 
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
-  call setup_radiation(yderdi, config)
+  !call setup_radiation(config)
 
   ! --------------------------------------------------------
   ! Section 3: Read input data file
@@ -209,10 +252,11 @@ program ecrad_ifs_driver
   call file%transpose_matrices(.true.)
 
   ! Read input variables from NetCDF file
-  call read_input(file, config, driver_config, ncol, nlev, &
+  call read_input(file, ydmodel%yrml_phy_rad%yradiation%rad_config, driver_config, ncol, nlev, &
 !       &          is_complex_surface, surface, &
        &          single_level, thermodynamics, &
-       &          gas, cloud, aerosol)
+       &          gas, cloud, aerosol, &
+       &          lat=lat, lon=lon)
 
 !  if (is_complex_surface) then
 !    config%do_canopy_fluxes_sw = .true.
@@ -244,13 +288,13 @@ program ecrad_ifs_driver
   end if
   
   ! Store inputs
-  if (driver_config%do_save_inputs) then
-    call save_inputs('inputs.nc', config, single_level, thermodynamics, &
-         &                gas, cloud, aerosol, &
-         &                lat=spread(0.0_jprb,1,ncol), &
-         &                lon=spread(0.0_jprb,1,ncol), &
-         &                iverbose=driver_config%iverbose)
-  end if
+  ! if (driver_config%do_save_inputs) then
+  !   call save_inputs('inputs.nc', ydmodel%yrml_phy_rad%yradiation%rad_config, single_level, thermodynamics, &
+  !        &                gas, cloud, aerosol, &
+  !        &                lat=spread(0.0_jprb,1,ncol), &
+  !        &                lon=spread(0.0_jprb,1,ncol), &
+  !        &                iverbose=driver_config%iverbose)
+  ! end if
 
   ! --------------------------------------------------------
   ! Section 4: Call radiation scheme
@@ -258,11 +302,11 @@ program ecrad_ifs_driver
 
   ! Ensure the units of the gas mixing ratios are what is required
   ! by the gas absorption model
-  call set_gas_units(config, gas)
+  !call set_gas_units(ydmodel%yrml_phy_rad%yradiation%rad_config, gas)
 
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call
-  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
+  !call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
 !  if (is_complex_surface) then
 !    call surface_intermediate%allocate(driver_config%istartcol, driver_config%iendcol, &
@@ -300,15 +344,15 @@ program ecrad_ifs_driver
   ngpblks=(ncol-1)/nproma+1              ! number of column blocks
 
   ! number of emissivity intervals, = 2 in IFS
-  if ( config%use_canopy_full_spectrum_lw ) then
-    nlwemiss = config%n_g_lw
+  if ( ydmodel%yrml_phy_rad%yradiation%rad_config%use_canopy_full_spectrum_lw ) then
+    nlwemiss = ydmodel%yrml_phy_rad%yradiation%rad_config%n_g_lw
   else
     nlwemiss=2!surface%nemissbands ???
   endif
 
   ! number of shortwave spectral intervals, = 6 in IFS
-  if (config%use_canopy_full_spectrum_sw) then
-    nsw = config%n_g_sw  
+  if (ydmodel%yrml_phy_rad%yradiation%rad_config%use_canopy_full_spectrum_sw) then
+    nsw = ydmodel%yrml_phy_rad%yradiation%rad_config%n_g_sw  
   else
     nsw = 6!surface%nalbedobands    ???
   endif
@@ -317,7 +361,7 @@ program ecrad_ifs_driver
   lrayfm=.false.                     ! key for calling radiation scheme from MF 
   lepo3ra=.false.                    ! true if prognostic o-zone is passed to radiation
   lchem_o3rad=.false.                ! use chemistry o3 in radiation
-  iradaer=config%n_aerosol_types     ! number of aerosol species
+  iradaer=ydmodel%yrml_phy_rad%yradiation%rad_config%n_aerosol_types     ! number of aerosol species
   naermacc=1                         ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
   ldiagforcing=.false.               ! write input ozone, ghg and aerosol forcing to 3D fields
   lapproxlwupdate=.true.
@@ -421,6 +465,11 @@ program ecrad_ifs_driver
   endif
                                  ! end of local variables
 
+                                  ! start of standalone inputs workaround variables
+  ire_liq =indrad(inext,nlev,.true.)
+  ire_ice =indrad(inext,nlev,.true.)
+                                  ! end of standalone inputs workaround variables
+
   ifldsin = iinend - iinbeg +1
   ifldsout= ioutend-ioutbeg +1
   ifldstot= inext  - 1
@@ -491,6 +540,8 @@ program ecrad_ifs_driver
     write(nulout,'("ifldsin=",i0)')ifldsin
     write(nulout,'("ifldsout=",i0)')ifldsout
     write(nulout,'("ifldstot=",i0)')ifldstot
+    write(nulout,'("ire_liq=",i0)')ire_liq
+    write(nulout,'("ire_ice=",i0)')ire_ice
   endif
   
   ! Allocate blocked data structure
@@ -529,20 +580,20 @@ program ecrad_ifs_driver
     !* RADINTG:  3.      PREPARE INPUT ARRAYS
 
     ! zrgp(1:il,imu0,ib)  = ???
-    zrgp(1:il,iamu0,ib)  =  single_level%cos_sza(ibeg:iend)   
+    zrgp(1:il,iamu0,ib)  =  single_level%cos_sza(ibeg:iend)   ! cosine of solar zenith ang (mu0)
 
     do jemiss=1,nlwemiss
       zrgp(1:il,iemiss+jemiss-1,ib)  =  single_level%lw_emissivity(ibeg:iend,jemiss)
     enddo
 
-    zrgp(1:il,its,ib)      = single_level%skin_temperature(ibeg:iend)
-    zrgp(1:il,islm,ib)     = 1.0_jprb ! for now, ask Robin    ! land-sea mask
-    zrgp(1:il,iccnl,ib)    = 1.0_jprb ! for now, ask Robin    ! CCN over land
-    zrgp(1:il,iccno,ib)    = 1.0_jprb ! for now, ask Robin    ! CCN over sea
+    zrgp(1:il,its,ib)      = single_level%skin_temperature(ibeg:iend)  ! skin temperature
+    zrgp(1:il,islm,ib)     = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! land-sea mask
+    zrgp(1:il,iccnl,ib)    = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! CCN over land
+    zrgp(1:il,iccno,ib)    = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! CCN over sea
     ! zrgp(1:il,ibas,ib)     = ???
     ! zrgp(1:il,itop,ib)     = ???
-    zrgp(1:il,igelam,ib)   = 1.0_jprb ! for now, ask Robin    ! longitude
-    zrgp(1:il,igemu,ib)    = 1.0_jprb ! for now, ask Robin    ! sine of latitude
+    zrgp(1:il,igelam,ib)   = lon(ibeg:iend) ! longitude
+    zrgp(1:il,igemu,ib)    = sin(lat(ibeg:iend)) ! sine of latitude
     ! zrgp(1:il,iclon,ib)    = ???
     ! zrgp(1:il,islon,ib)    = ???
 
@@ -552,13 +603,13 @@ program ecrad_ifs_driver
     enddo
     
     do jlev=1,nlev
-      zrgp(1:il,iti+jlev-1,ib)   = 1.0_jprb ! ask Robin      ! full level temperature
-      zrgp(1:il,ipr+jlev-1,ib)   = 1.0_jprb ! ask Robin      ! full level pressure
+      zrgp(1:il,iti+jlev-1,ib)   = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround and disabled SATUR ! full level temperature
+      zrgp(1:il,ipr+jlev-1,ib)   = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround and disabled SATUR ! full level pressure
       ! zrgp(1:il,iqs+jlev-1,ib)   = ???
     enddo
 
     do jlev=1,nlev
-      zrgp(1:il,iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O);
+      zrgp(1:il,iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O)
       zrgp(1:il,iclc+jlev-1,ib)  = cloud%fraction(ibeg:iend,jlev)
       zrgp(1:il,ilwa+jlev-1,ib)  = cloud%q_liq(ibeg:iend,jlev)
       zrgp(1:il,iiwa+jlev-1,ib)  = cloud%q_ice(ibeg:iend,jlev)
@@ -568,7 +619,7 @@ program ecrad_ifs_driver
       ! zrgp(1:il,irra+jlev-1,ib)  = ???
       ! zrgp(1:il,idp+jlev-1,ib)   = ???
       ! zrgp(1:il,ifsd+jlev-1,ib)   = ???
-      zrgp(1:il,ioz+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IO3); ! extra treatment in rad scheme, to check
+      zrgp(1:il,ioz+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IO3) ! extra treatment in rad scheme, to check
       ! zrgp(1:il,iecpo3+jlev-1,ib) = ???
     enddo
 
@@ -581,7 +632,7 @@ program ecrad_ifs_driver
       enddo
     enddo
 
-    do jlev=1,nlev
+    do jlev=1,nlev+1
       ! zrgp(1:il,ihpr+jlev-1,ib)  = ???
       zrgp(1:il,iaprs+jlev-1,ib) = thermodynamics%pressure_hl(ibeg:iend,jlev)
       zrgp(1:il,ihti+jlev-1,ib)  = thermodynamics%temperature_hl(ibeg:iend,jlev)
@@ -589,15 +640,21 @@ program ecrad_ifs_driver
 
     ! -- by default, globally averaged concentrations (mmr)
     do jlev=1,nlev
-      zrgp(1:il,iico2+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICO2);
-      zrgp(1:il,iich4+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICH4);
-      zrgp(1:il,iin2o+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,IN2O);
+      zrgp(1:il,iico2+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICO2)
+      zrgp(1:il,iich4+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICH4)
+      zrgp(1:il,iin2o+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,IN2O)
       zrgp(1:il,ino2+jlev-1,ib)  = 0._jprb ! not really used?
 
-      zrgp(1:il,ic11+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC11);
-      zrgp(1:il,ic12+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC12);
-      zrgp(1:il,ic22+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IHCFC22);
-      zrgp(1:il,icl4+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICCL4);
+      zrgp(1:il,ic11+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC11)
+      zrgp(1:il,ic12+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC12)
+      zrgp(1:il,ic22+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IHCFC22)
+      zrgp(1:il,icl4+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICCL4)
+    enddo
+
+    ! local workaround variables for standalone input files
+    do jlev=1,nlev
+      zrgp(1:il,ire_liq+jlev-1,ib) = cloud%re_liq(ibeg:iend,jlev)
+      zrgp(1:il,ire_ice+jlev-1,ib) = cloud%re_ice(ibeg:iend,jlev)
     enddo
   enddo
   !$OMP END PARALLEL DO
@@ -621,7 +678,8 @@ program ecrad_ifs_driver
       ib=(jrl-1)/nproma+1
 
       call radiation_scheme &
-       & (1, il, nproma, &                       ! startcol, endcol, ncol
+       & (ydmodel, &
+       &  1, il, nproma, &                       ! startcol, endcol, ncol
        &  nlev, iradaer, &                       ! nlev, naerosols
        &  zrii0, &                               ! solar_irrad
        &  zrgp(1,iamu0,ib), zrgp(1,its,ib), &    ! mu0, skintemp
@@ -646,9 +704,21 @@ program ecrad_ifs_driver
        &  zrgp(1,iuvdf,ib), zrgp(1,iparf,ib), &
        &  zrgp(1,iparcf,ib),zrgp(1,itincf,ib), &
        &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
-       &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib))
+       &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib),&
+       ! workaround variables
+       &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib) )
     enddo
     !$OMP END PARALLEL DO
+
+  ! ! Store inputs
+  ! if (driver_config%do_save_inputs) then
+  !   call save_inputs('inputs.nc', ydmodel%yrml_phy_rad%yradiation%rad_config, single_level, thermodynamics, &
+  !        &                gas, cloud, aerosol, &
+  !        &                lat=spread(0.0_jprb,1,ncol), &
+  !        &                lon=spread(0.0_jprb,1,ncol), &
+  !        &                iverbose=driver_config%iverbose)
+  ! end if
+
  
       ! Run radiation scheme over blocks of columns in parallel
       
@@ -701,7 +771,7 @@ program ecrad_ifs_driver
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   ! Store the fluxes in the output file
-  call save_fluxes(file_name, config, thermodynamics, flux, &
+  call save_fluxes(file_name, ydmodel%yrml_phy_rad%yradiation%rad_config, thermodynamics, flux, &
        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
        &   experiment_name=driver_config%experiment_name)
     
