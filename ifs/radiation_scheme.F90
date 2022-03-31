@@ -325,10 +325,10 @@ THERMODYNAMICS%TEMPERATURE_HL(KIDIA:KFDIA,:) = PTEMPERATURE_H(KIDIA:KFDIA,:)
 ! 0.25*Tskin, which can be achieved by setting the atmospheric
 ! temperature at the half-level corresponding to the surface as
 ! follows:
-THERMODYNAMICS%TEMPERATURE_HL(KIDIA:KFDIA,KLEV+1)&
-     &  = PTEMPERATURE(KIDIA:KFDIA,KLEV)&
-     &  + 0.5_JPRB * (PTEMPERATURE_H(KIDIA:KFDIA,KLEV+1)&
-     &               -PTEMPERATURE_H(KIDIA:KFDIA,KLEV))
+!!!ifsdriver!!! THERMODYNAMICS%TEMPERATURE_HL(KIDIA:KFDIA,KLEV+1)&
+!!!ifsdriver!!!      &  = PTEMPERATURE(KIDIA:KFDIA,KLEV)&
+!!!ifsdriver!!!      &  + 0.5_JPRB * (PTEMPERATURE_H(KIDIA:KFDIA,KLEV+1)&
+!!!ifsdriver!!!      &               -PTEMPERATURE_H(KIDIA:KFDIA,KLEV))
 
 ! Alternatively we respect the model's atmospheric temperature in the
 ! lowest model level by setting the temperature at the lowest
