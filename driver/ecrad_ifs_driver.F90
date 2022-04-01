@@ -36,10 +36,6 @@ program ecrad_ifs_driver
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
   ! use radiation_config,         only : config_type
   use radiation_single_level,   only : single_level_type
-!  use radsurf_properties,       only : surface_type, print_surface_representation
-!  use radsurf_intermediate,     only : surface_intermediate_type
-!  use radsurf_flux,             only : surface_flux_type
-!  use radsurf_save,             only : save_surface_fluxes
   use radiation_thermodynamics, only : thermodynamics_type
   use radiation_gas,            only : gas_type, &
        &   IVolumeMixingRatio, IMassMixingRatio, &
@@ -60,9 +56,6 @@ program ecrad_ifs_driver
   ! The NetCDF file containing the input profiles
   type(netcdf_file)         :: file
 
-  ! Derived type for the surface inputs
-!  type(surface_type)        :: surface
-
   ! Derived types for the inputs to the radiation scheme
   ! type(config_type)         :: config
   type(single_level_type)   :: single_level
@@ -70,10 +63,6 @@ program ecrad_ifs_driver
   type(gas_type)            :: gas
   type(cloud_type)          :: cloud
   type(aerosol_type)        :: aerosol
-
-  ! Derived types for the surface fluxes
-!  type(surface_intermediate_type) :: surface_intermediate
-!  type(surface_flux_type)         :: surface_flux
 
   ! Configuration specific to this driver
   type(driver_config_type)  :: driver_config
@@ -262,21 +251,8 @@ program ecrad_ifs_driver
        &          gas, cloud, aerosol, &
        &          lat=lat, lon=lon)
 
-!  if (is_complex_surface) then
-!    config%do_canopy_fluxes_sw = .true.
-!    config%do_canopy_fluxes_lw = .true.
-!  end if
-
   ! Close input file
   call file%close()
-
-!  if (is_complex_surface .and. driver_config%iverbose >= 2) then
-!    call print_surface_representation(surface%i_representation)
-!  end if
-
-  ! Compute seed from skin temperature residual
-  !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
-  !       &                            -int(single_level%skin_temperature)))
 
   ! Set first and last columns to process
   if (driver_config%iendcol < 1 .or. driver_config%iendcol > ncol) then
@@ -290,34 +266,10 @@ program ecrad_ifs_driver
          &  ncol, ')'
     stop 1
   end if
-  
-  ! Store inputs
-  ! if (driver_config%do_save_inputs) then
-  !   call save_inputs('inputs.nc', ydmodel%yrml_phy_rad%yradiation%rad_config, single_level, thermodynamics, &
-  !        &                gas, cloud, aerosol, &
-  !        &                lat=spread(0.0_jprb,1,ncol), &
-  !        &                lon=spread(0.0_jprb,1,ncol), &
-  !        &                iverbose=driver_config%iverbose)
-  ! end if
 
   ! --------------------------------------------------------
   ! Section 4: Call radiation scheme
   ! --------------------------------------------------------
-
-  ! Ensure the units of the gas mixing ratios are what is required
-  ! by the gas absorption model
-  !call set_gas_units(ydmodel%yrml_phy_rad%yradiation%rad_config, gas)
-
-  ! Compute saturation with respect to liquid (needed for aerosol
-  ! hydration) call
-  !call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
-
-!  if (is_complex_surface) then
-!    call surface_intermediate%allocate(driver_config%istartcol, driver_config%iendcol, &
-!         &                             config, surface)
-!    call surface_flux%allocate(config, driver_config%istartcol, driver_config%iendcol, &
-!         &                     surface%i_representation)
-!  end if
 
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
@@ -330,11 +282,6 @@ program ecrad_ifs_driver
        &                                            driver_config%do_correct_unphysical_inputs) &
        & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
        &                                            driver_config%do_correct_unphysical_inputs) 
-  
-  ! Allocate memory for the flux profiles, which may include arrays
-  ! of dimension n_bands_sw/n_bands_lw, so must be called after
-  ! setup_radiation
-  !!!call flux%allocate(config, 1, ncol, nlev)
 
   !
   !
@@ -662,18 +609,6 @@ program ecrad_ifs_driver
             &                         - thermodynamics%pressure_hl(ibeg:iend,jlev))
     enddo
 
-    !do jlev=1,nlev
-    !  zrgp(1:il,iico2+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICO2)
-    !  zrgp(1:il,iich4+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICH4)
-    !  zrgp(1:il,iin2o+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,IN2O)
-    !  zrgp(1:il,ino2+jlev-1,ib)  = 0._jprb ! not really used?
-
-    !  zrgp(1:il,ic11+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC11)
-    !  zrgp(1:il,ic12+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICFC12)
-    !  zrgp(1:il,ic22+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IHCFC22)
-    !  zrgp(1:il,icl4+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,ICCL4)
-    !enddo
-
     ! local workaround variables for standalone input files
     do jlev=1,nlev
       ! missing full-level temperature and pressure as well as land-sea-mask
@@ -696,6 +631,7 @@ program ecrad_ifs_driver
   ! profiling
   do jrepeat = 1,driver_config%nrepeat
       
+    tstart = omp_get_wtime() 
 
     !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
     !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
@@ -740,56 +676,8 @@ program ecrad_ifs_driver
     enddo
     !$OMP END PARALLEL DO
 
-  ! ! Store inputs
-  ! if (driver_config%do_save_inputs) then
-  !   call save_inputs('inputs.nc', ydmodel%yrml_phy_rad%yradiation%rad_config, single_level, thermodynamics, &
-  !        &                gas, cloud, aerosol, &
-  !        &                lat=spread(0.0_jprb,1,ncol), &
-  !        &                lon=spread(0.0_jprb,1,ncol), &
-  !        &                iverbose=driver_config%iverbose)
-  ! end if
-
- 
-      ! Run radiation scheme over blocks of columns in parallel
-      
-      ! Compute number of blocks to process
-      !nblock = (driver_config%iendcol - driver_config%istartcol &
-      !     &  + driver_config%nblocksize) / driver_config%nblocksize
-     
-      !tstart = omp_get_wtime() 
-      !!$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
-      !do jblock = 1, nblock
-      !  ! Specify the range of columns to process.
-      !  istartcol = (jblock-1) * driver_config%nblocksize &
-      !       &    + driver_config%istartcol
-      !  iendcol = min(istartcol + driver_config%nblocksize - 1, &
-      !       &        driver_config%iendcol)
-      !    
-      !  if (driver_config%iverbose >= 3) then
-      !    write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
-      !         &  ' processing columns ', istartcol, '-', iendcol
-      !  end if
-      !  
-      !  if (is_complex_surface) then
-      !    call surface_intermediate%calc_boundary_conditions(driver_config%istartcol, &
-      !         &  driver_config%iendcol, config, surface, thermodynamics, gas, single_level)
-      !  end if
-      !  
-      !  ! Call the ECRAD radiation scheme
-      !  call radiation(ncol, nlev, istartcol, iendcol, config, &
-      !       &  single_level, thermodynamics, gas, cloud, aerosol, flux)
-        
-      !  if (is_complex_surface) then
-      !    call surface_intermediate%partition_fluxes(driver_config%istartcol, &
-      !         &  driver_config%iendcol, config, surface, flux, surface_flux)
-      !  end if
-      !  
-      !end do
-      !!$OMP END PARALLEL DO
-      !tstop = omp_get_wtime()
-      !write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
-      
-    
+    tstop = omp_get_wtime()
+    write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
   end do
 
   !  OUTPUT LOOP
@@ -852,16 +740,6 @@ program ecrad_ifs_driver
        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
        &   experiment_name=driver_config%experiment_name)
     
-!  if (is_complex_surface) then
-!    ! Get NetCDF output file name for surface
-!    call get_command_argument(4, file_name, status=istatus)
-!    if (istatus /= 0) then
-!      write(nulout,'(a)') 'Warning: file name for surface-flux outputs not provided'
-!    else
-!      call save_surface_fluxes(file_name, config, surface_flux, iverbose=driver_config%iverbose)
-!    end if
-!  end if
-
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
