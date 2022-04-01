@@ -609,7 +609,7 @@ program ecrad_ifs_driver
     enddo
 
     do jlev=1,nlev
-      zrgp(1:il,iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O)
+      zrgp(1:il,iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O) ! this is already in MassMixingRatio units
       zrgp(1:il,iclc+jlev-1,ib)  = cloud%fraction(ibeg:iend,jlev)
       zrgp(1:il,ilwa+jlev-1,ib)  = cloud%q_liq(ibeg:iend,jlev)
       zrgp(1:il,iiwa+jlev-1,ib)  = cloud%q_ice(ibeg:iend,jlev)
@@ -619,7 +619,6 @@ program ecrad_ifs_driver
       ! zrgp(1:il,irra+jlev-1,ib)  = ???
       ! zrgp(1:il,idp+jlev-1,ib)   = ???
       ! zrgp(1:il,ifsd+jlev-1,ib)   = ???
-      zrgp(1:il,ioz+jlev-1,ib)  = gas%mixing_ratio(ibeg:iend,jlev,IO3) ! extra treatment in rad scheme, to check
       ! zrgp(1:il,iecpo3+jlev-1,ib) = ???
     enddo
 
@@ -647,6 +646,14 @@ program ecrad_ifs_driver
     call gas%get(ICFC12, IMassMixingRatio, zrgp(1:il,ic12:ic12+nlev-1,ib))
     call gas%get(IHCFC22, IMassMixingRatio, zrgp(1:il,ic22:ic22+nlev-1,ib))
     call gas%get(ICCL4, IMassMixingRatio, zrgp(1:il,icl4:icl4+nlev-1,ib))
+      
+    call gas%get(IO3, IMassMixingRatio, zrgp(1:il,ioz:ioz+nlev-1,ib))
+    ! convert ozone kg/kg to Pa*kg/kg
+    do jlev=1,nlev
+      zrgp(1:il,ioz+jlev-1,ib)  = zrgp(1:il,ioz+jlev-1,ib) &
+            &                       * (thermodynamics%pressure_hl(ibeg:iend,jlev+1) &
+            &                         - thermodynamics%pressure_hl(ibeg:iend,jlev))
+    enddo
 
     !do jlev=1,nlev
     !  zrgp(1:il,iico2+jlev-1,ib) = gas%mixing_ratio(ibeg:iend,jlev,ICO2)
