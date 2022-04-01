@@ -80,7 +80,7 @@ program ecrad_ifs_driver
   integer :: istartcol, iendcol ! Range of columns to process
 
   ! Name of file names specified on command line
-  character(len=512) :: file_name
+  character(len=512) :: file_name, nml_file_name
   integer            :: istatus ! Result of command_argument_count
 
   ! For parallel processing of multiple blocks
@@ -145,16 +145,16 @@ program ecrad_ifs_driver
   end if
 
   ! Use namelist to configure the radiation calculation
-  call get_command_argument(1, file_name, status=istatus)
+  call get_command_argument(1, nml_file_name, status=istatus)
   if (istatus /= 0) then
     stop 'Failed to read name of namelist file as string of length < 512'
   end if
 
   ! Read "radiation" namelist into radiation configuration type
-  call config%read(file_name=file_name)
+  call config%read(file_name=nml_file_name)
 
   ! Read "radiation_driver" namelist into radiation driver config type
-  call driver_config%read(file_name)
+  call driver_config%read(nml_file_name)
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
@@ -167,54 +167,6 @@ program ecrad_ifs_driver
 #endif
     call config%print(driver_config%iverbose)
   end if
-
-  ! Albedo/emissivity intervals may be specified like this
-  !call config%define_sw_albedo_intervals(6, &
-  !     &  [0.25e-6_jprb, 0.44e-6_jprb, 0.69e-6_jprb, &
-  !     &     1.19_jprb, 2.38e-6_jprb], [1,2,3,4,5,6], &
-  !     &   do_nearest=.false.)
-  !call config%define_lw_emiss_intervals(3, &
-  !     &  [8.0e-6_jprb, 13.0e-6_jprb], [1,2,1], &
-  !     &   do_nearest=.false.)
-
-  ! Setup the radiation scheme: load the coefficients for gas and
-  ! cloud optics, currently from RRTMG
-  !call setup_radiation(config)
-
-  associate( &
-    & yderdi=>ydmodel%yrml_phy_rad%yrerdi, &
-    & ydeaeratm=>ydmodel%yrml_phy_rad%yreaeratm, &
-    & ydephy=>ydmodel%yrml_phy_ec%yrephy, &
-    & yderad=>ydmodel%yrml_phy_rad%yrerad, &
-    & ydradiation=>ydmodel%yrml_phy_rad%yradiation &
-  )
-    ! Values from IFS:
-    ! TODO: fill this from ecrad inputs
-
-    ydephy%nalbedoscheme = 2
-    ! ydeaeratm values???
-    yderad%naermacc = 1  ! MACC aerosol climatology
-    yderad%lapproxlwupdate = .true.  ! Hogan and Bozzo (2015) approx longwave updates
-    yderad%lapproxswupdate = .true.  ! Hogan and Bozzo (2015) approx shortwave updates
-    yderad%nliqopt = 4  ! 2 - SLINGO, 4 - SOCRATES
-    yderad%niceopt = 3  ! 3 - ICEMODELFU, 4 - IDEMODELBARAN
-    yderad%lfu_lw_ice_optics_bug = .false.
-    yderad%nlwsolver = 0  ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
-    yderad%nswsolver = 0  ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
-    yderad%nlwscattering = 1  ! 1 - cloud scattering, 2 - cloud + aerosol scattering
-    yderad%ncloudoverlap = 3  ! 1 - MAXIMUMRANDOM, 2 - EXPONENTIAL, 3 - EXPONENTIALRANDOM
-    yderad%nsolarspectrum = 0
-    yderad%ndecolat = 2  ! DECORRELATION LENGTH FOR CF AND CW, 0: SPECIFIED INDEPENDENT OF LATITUDE, 1: SHONK-HOGAN, 2: IMPROVED
-    yderad%nlwout = 1
-    yderad%nlwemiss = 2
-    yderad%nsw = 6
-    yderad%rcloud_frac_std = 1.0_jprb
-
-    ydradiation%rad_config%do_setup_ifsrrtm = .true.  ! Make sure ifsrrtm gets initialized
-
-    call setup_radiation_scheme(yderdi, ydeaeratm, ydcompo, ydephy, yderad, &
-                                & ydradiation, ldoutput=.true., file_name=file_name)
-  end associate
 
   ! --------------------------------------------------------
   ! Section 3: Read input data file
@@ -242,7 +194,7 @@ program ecrad_ifs_driver
   call file%transpose_matrices(.true.)
 
   ! Read input variables from NetCDF file
-  call read_input(file, ydmodel%yrml_phy_rad%yradiation%rad_config, driver_config, ncol, nlev, &
+  call read_input(file, config, driver_config, ncol, nlev, &
        &          single_level, thermodynamics, &
        &          gas, cloud, aerosol, &
        &          lat=lat, lon=lon)
@@ -284,6 +236,39 @@ program ecrad_ifs_driver
   !    IFS SETUP
   !
   !
+
+  associate( &
+    & yderdi=>ydmodel%yrml_phy_rad%yrerdi, &
+    & ydeaeratm=>ydmodel%yrml_phy_rad%yreaeratm, &
+    & ydephy=>ydmodel%yrml_phy_ec%yrephy, &
+    & yderad=>ydmodel%yrml_phy_rad%yrerad, &
+    & ydradiation=>ydmodel%yrml_phy_rad%yradiation &
+  )
+    ! Values from IFS:
+    ! TODO: fill this from ecrad inputs
+
+    ydephy%nalbedoscheme = 2
+    ! ydeaeratm values???
+    yderad%naermacc = 1  ! MACC aerosol climatology
+    yderad%lapproxlwupdate = .true.  ! Hogan and Bozzo (2015) approx longwave updates
+    yderad%lapproxswupdate = .true.  ! Hogan and Bozzo (2015) approx shortwave updates
+    yderad%nliqopt = 4  ! 2 - SLINGO, 4 - SOCRATES
+    yderad%niceopt = 3  ! 3 - ICEMODELFU, 4 - IDEMODELBARAN
+    yderad%lfu_lw_ice_optics_bug = .false.
+    yderad%nlwsolver = 0  ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
+    yderad%nswsolver = 0  ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
+    yderad%nlwscattering = 1  ! 1 - cloud scattering, 2 - cloud + aerosol scattering
+    yderad%ncloudoverlap = 3  ! 1 - MAXIMUMRANDOM, 2 - EXPONENTIAL, 3 - EXPONENTIALRANDOM
+    yderad%nsolarspectrum = 0
+    yderad%ndecolat = 2  ! DECORRELATION LENGTH FOR CF AND CW, 0: SPECIFIED INDEPENDENT OF LATITUDE, 1: SHONK-HOGAN, 2: IMPROVED
+    yderad%nlwout = 1
+    yderad%nlwemiss = 2
+    yderad%nsw = 6
+    yderad%rcloud_frac_std = 1.0_jprb
+
+    call setup_radiation_scheme(yderdi, ydeaeratm, ydcompo, ydephy, yderad, &
+                                & ydradiation, ldoutput=.true., file_name=nml_file_name)
+  end associate
 
   zrii0=single_level%solar_irradiance
   lldebug=(driver_config%iverbose>4)     ! debug 
