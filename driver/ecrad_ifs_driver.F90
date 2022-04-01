@@ -137,7 +137,7 @@ program ecrad_ifs_driver
        &     ilwderivative, iswdirectband, iswdiffuseband, ifrso, iswfc, ifrth, ilwfc, iaer,         &
        &     iich4, iin2o, ino2, ic11, ic12, igix, iico2, iccno, ic22, icl4  
 
-  integer :: ire_liq, ire_ice
+  integer :: ire_liq, ire_ice, ioverlap
 
   integer :: nlwout, nsw, nlwemiss, iradaer, naermacc
 
@@ -187,10 +187,11 @@ program ecrad_ifs_driver
     yderad%nlwscattering = 1  ! 1 - cloud scattering, 2 - cloud + aerosol scattering
     yderad%ncloudoverlap = 3  ! 1 - MAXIMUMRANDOM, 2 - EXPONENTIAL, 3 - EXPONENTIALRANDOM
     yderad%nsolarspectrum = 0
-    yderad%ndecolat = 2
+    yderad%ndecolat = 2  ! DECORRELATION LENGTH FOR CF AND CW, 0: SPECIFIED INDEPENDENT OF LATITUDE, 1: SHONK-HOGAN, 2: IMPROVED
     yderad%nlwout = 1
     yderad%nlwemiss = 2
     yderad%nsw = 6
+    yderad%rcloud_frac_std = 1.0_jprb
 
     ydradiation%rad_config%do_setup_ifsrrtm = .true.  ! Make sure ifsrrtm gets initialized
 
@@ -468,6 +469,7 @@ program ecrad_ifs_driver
                                   ! start of standalone inputs workaround variables
   ire_liq =indrad(inext,nlev,.true.)
   ire_ice =indrad(inext,nlev,.true.)
+  ioverlap =indrad(inext,nlev-1,.true.)
                                   ! end of standalone inputs workaround variables
 
   ifldsin = iinend - iinbeg +1
@@ -542,6 +544,7 @@ program ecrad_ifs_driver
     write(nulout,'("ifldstot=",i0)')ifldstot
     write(nulout,'("ire_liq=",i0)')ire_liq
     write(nulout,'("ire_ice=",i0)')ire_ice
+    write(nulout,'("ioverlap=",i0)')ioverlap
   endif
   
   ! Allocate blocked data structure
@@ -669,8 +672,14 @@ program ecrad_ifs_driver
 
     ! local workaround variables for standalone input files
     do jlev=1,nlev
+      ! missing full-level temperature and pressure as well as land-sea-mask
       zrgp(1:il,ire_liq+jlev-1,ib) = cloud%re_liq(ibeg:iend,jlev)
       zrgp(1:il,ire_ice+jlev-1,ib) = cloud%re_ice(ibeg:iend,jlev)
+    enddo
+    do jlev=1,nlev-1
+      ! for the love of it, I can't figure this one out. Probably to do with
+      ! my crude approach of setting PGEMU?
+      zrgp(1:il,ioverlap+jlev-1,ib) = cloud%overlap_param(ibeg:iend,jlev)
     enddo
   enddo
   !$OMP END PARALLEL DO
@@ -722,7 +731,8 @@ program ecrad_ifs_driver
        &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
        &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib),&
        ! workaround variables
-       &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), single_level%iseed(ibeg:iend))
+       &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), single_level%iseed(ibeg:iend),&
+       &  zrgp(1,ioverlap,ib))
     enddo
     !$OMP END PARALLEL DO
 
