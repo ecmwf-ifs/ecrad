@@ -382,7 +382,7 @@ SINGLE_LEVEL%LW_EMISSIVITY(KIDIA:KFDIA,:)  = PSPECTRALEMISS(KIDIA:KFDIA,:)
 call single_level%init_seed_simple(1,klon)
 ! Overwrite with user-specified values if available
 if (present(iseed)) then
-  single_level%iseed(:) = iseed(:)
+  single_level%iseed(kidia:kfdia) = iseed(kidia:kfdia)
 end if
 
 ! Set the solar spectrum scaling, if required

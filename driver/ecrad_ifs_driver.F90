@@ -34,7 +34,7 @@ program ecrad_ifs_driver
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
-  ! use radiation_config,         only : config_type
+  use radiation_config,         only : config_type
   use radiation_single_level,   only : single_level_type
   use radiation_thermodynamics, only : thermodynamics_type
   use radiation_gas,            only : gas_type, &
@@ -57,7 +57,7 @@ program ecrad_ifs_driver
   type(netcdf_file)         :: file
 
   ! Derived types for the inputs to the radiation scheme
-  ! type(config_type)         :: config
+  type(config_type)         :: config
   type(single_level_type)   :: single_level
   type(thermodynamics_type) :: thermodynamics
   type(gas_type)            :: gas
@@ -94,13 +94,6 @@ program ecrad_ifs_driver
   ! Are any variables out of bounds?
   logical :: is_out_of_bounds
 
-  ! Are we using a complex surface representation stored in the
-  ! "surface" structure?
-!  logical :: is_complex_surface
-
-!  integer    :: iband(20), nweights
-!  real(jprb) :: weight(20)
-
   ! Start/stop time in seconds
   real(kind=jprd) :: tstart, tstop
 
@@ -112,6 +105,9 @@ program ecrad_ifs_driver
 
   ! Per-block flux data structure to validate outputs
   type(flux_type), allocatable :: flux_out(:)
+
+  ! Empty thermodynamics type to store pressure_hl for output at the end
+  type(thermodynamics_type)    :: thermodynamics_out
 
   ! solar irradiance
   real(kind=jprb) :: zrii0
@@ -130,6 +126,7 @@ program ecrad_ifs_driver
        &     iich4, iin2o, ino2, ic11, ic12, igix, iico2, iccno, ic22, icl4  
 
   integer :: ire_liq, ire_ice, ioverlap
+  integer, allocatable :: iseed(:,:)
 
   integer :: nlwout, nsw, nlwemiss, iradaer, naermacc
 
@@ -154,7 +151,35 @@ program ecrad_ifs_driver
   end if
 
   ! Read "radiation" namelist into radiation configuration type
-  ! call config%read(file_name=file_name)
+  call config%read(file_name=file_name)
+
+  ! Read "radiation_driver" namelist into radiation driver config type
+  call driver_config%read(file_name)
+
+  if (driver_config%iverbose >= 2) then
+    write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
+    write(nulout,'(a)') 'Copyright (C) 2014- ECMWF'
+    write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
+#ifdef SINGLE_PRECISION
+    write(nulout,'(a)') 'Floating-point precision: single'
+#else
+    write(nulout,'(a)') 'Floating-point precision: double'
+#endif
+    call config%print(driver_config%iverbose)
+  end if
+
+  ! Albedo/emissivity intervals may be specified like this
+  !call config%define_sw_albedo_intervals(6, &
+  !     &  [0.25e-6_jprb, 0.44e-6_jprb, 0.69e-6_jprb, &
+  !     &     1.19_jprb, 2.38e-6_jprb], [1,2,3,4,5,6], &
+  !     &   do_nearest=.false.)
+  !call config%define_lw_emiss_intervals(3, &
+  !     &  [8.0e-6_jprb, 13.0e-6_jprb], [1,2,1], &
+  !     &   do_nearest=.false.)
+
+  ! Setup the radiation scheme: load the coefficients for gas and
+  ! cloud optics, currently from RRTMG
+  !call setup_radiation(config)
 
   associate( &
     & yderdi=>ydmodel%yrml_phy_rad%yrerdi, &
@@ -191,34 +216,6 @@ program ecrad_ifs_driver
                                 & ydradiation, ldoutput=.true., file_name=file_name)
   end associate
 
-  ! Read "radiation_driver" namelist into radiation driver config type
-  call driver_config%read(file_name)
-
-  if (driver_config%iverbose >= 2) then
-    write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
-    write(nulout,'(a)') 'Copyright (C) 2014- ECMWF'
-    write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
-#ifdef SINGLE_PRECISION
-    write(nulout,'(a)') 'Floating-point precision: single'
-#else
-    write(nulout,'(a)') 'Floating-point precision: double'
-#endif
-    call ydmodel%yrml_phy_rad%yradiation%rad_config%print(driver_config%iverbose)
-  end if
-
-  ! Albedo/emissivity intervals may be specified like this
-  !call config%define_sw_albedo_intervals(6, &
-  !     &  [0.25e-6_jprb, 0.44e-6_jprb, 0.69e-6_jprb, &
-  !     &     1.19_jprb, 2.38e-6_jprb], [1,2,3,4,5,6], &
-  !     &   do_nearest=.false.)
-  !call config%define_lw_emiss_intervals(3, &
-  !     &  [8.0e-6_jprb, 13.0e-6_jprb], [1,2,1], &
-  !     &   do_nearest=.false.)
-
-  ! Setup the radiation scheme: load the coefficients for gas and
-  ! cloud optics, currently from RRTMG
-  !call setup_radiation(config)
-
   ! --------------------------------------------------------
   ! Section 3: Read input data file
   ! --------------------------------------------------------
@@ -246,7 +243,6 @@ program ecrad_ifs_driver
 
   ! Read input variables from NetCDF file
   call read_input(file, ydmodel%yrml_phy_rad%yradiation%rad_config, driver_config, ncol, nlev, &
-!       &          is_complex_surface, surface, &
        &          single_level, thermodynamics, &
        &          gas, cloud, aerosol, &
        &          lat=lat, lon=lon)
@@ -293,6 +289,8 @@ program ecrad_ifs_driver
   lldebug=(driver_config%iverbose>4)     ! debug 
   nproma=driver_config%nblocksize        ! nproma size
   ngpblks=(ncol-1)/nproma+1              ! number of column blocks
+
+  write(nulout,'("ncol = ",i0,", nproma = ",i0,", ngpblks = ",i0)') ncol, nproma, ngpblks
 
   ! number of emissivity intervals, = 2 in IFS
   if ( ydmodel%yrml_phy_rad%yradiation%rad_config%use_canopy_full_spectrum_lw ) then
@@ -499,7 +497,9 @@ program ecrad_ifs_driver
   
   ! Allocate blocked data structure
   allocate(zrgp(nproma,ifldstot,ngpblks))
+  allocate(iseed(nproma,ngpblks))
   allocate(flux_out(ngpblks))
+  allocate(thermodynamics_out%pressure_hl(ncol,nlev+1))
 
   ! First touch
   !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
@@ -508,6 +508,7 @@ program ecrad_ifs_driver
     do ifld=1,ifldstot
       zrgp(:,ifld,ib) = 0._jprb
     enddo
+    iseed(:,ib) = 0
   enddo
   !$OMP END PARALLEL DO
   !
@@ -620,8 +621,19 @@ program ecrad_ifs_driver
       ! my crude approach of setting PGEMU?
       zrgp(1:il,ioverlap+jlev-1,ib) = cloud%overlap_param(ibeg:iend,jlev)
     enddo
+    iseed(1:il,ib) = single_level%iseed(ibeg:iend)
   enddo
   !$OMP END PARALLEL DO
+
+  ! Store pressure for output
+  thermodynamics_out%pressure_hl(:,:) = thermodynamics%pressure_hl(:,:)
+
+  ! Deallocate input data structures
+  call single_level%deallocate
+  call thermodynamics%deallocate
+  call gas%deallocate
+  call cloud%deallocate
+  call aerosol%deallocate
  
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -671,7 +683,8 @@ program ecrad_ifs_driver
        &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
        &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib),&
        ! workaround variables
-       &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), single_level%iseed(ibeg:iend),&
+       !&  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), single_level%iseed(ibeg:iend),&
+       &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), iseed(1,ib),&
        &  zrgp(1,ioverlap,ib), flux_out(ib))
     enddo
     !$OMP END PARALLEL DO
@@ -736,13 +749,16 @@ program ecrad_ifs_driver
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   ! Store the fluxes in the output file
-  call save_fluxes(file_name, ydmodel%yrml_phy_rad%yradiation%rad_config, thermodynamics, flux, &
+  call save_fluxes(file_name, ydmodel%yrml_phy_rad%yradiation%rad_config, thermodynamics_out, flux, &
        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
        &   experiment_name=driver_config%experiment_name)
     
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
+
+  call flux%deallocate
+  deallocate(thermodynamics_out%pressure_hl)
 
 contains
 
