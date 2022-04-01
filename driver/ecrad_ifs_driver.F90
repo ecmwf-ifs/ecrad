@@ -121,6 +121,9 @@ program ecrad_ifs_driver
   ! latitude, longitute
   real(kind=jprb), allocatable :: lat(:), lon(:)
 
+  ! Per-block flux data structure to validate outputs
+  type(flux_type), allocatable :: flux_out(:)
+
   ! solar irradiance
   real(kind=jprb) :: zrii0
   ! number of column blocks
@@ -549,6 +552,7 @@ program ecrad_ifs_driver
   
   ! Allocate blocked data structure
   allocate(zrgp(nproma,ifldstot,ngpblks))
+  allocate(flux_out(ngpblks))
 
   ! First touch
   !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
@@ -732,7 +736,7 @@ program ecrad_ifs_driver
        &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib),&
        ! workaround variables
        &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), single_level%iseed(ibeg:iend),&
-       &  zrgp(1,ioverlap,ib))
+       &  zrgp(1,ioverlap,ib), flux_out(ib))
     enddo
     !$OMP END PARALLEL DO
 
@@ -788,6 +792,53 @@ program ecrad_ifs_driver
     
   end do
 
+  !  OUTPUT LOOP
+
+  ! Allocate memory for the flux profiles, which may include arrays
+  ! of dimension n_bands_sw/n_bands_lw, so must be called after
+  ! setup_radiation
+  call flux%allocate(ydmodel%yrml_phy_rad%yradiation%rad_config, 1, ncol, nlev)
+
+  !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
+  !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB,JAER,JOFF,JLEV,JALB)
+  do jrl=1,ncol,nproma
+
+    ibeg=jrl
+    iend=min(ibeg+nproma-1,ncol)
+    il=iend-ibeg+1
+    ib=(jrl-1)/nproma+1
+
+    flux%lw_up(ibeg:iend,:) = flux_out(ib)%lw_up(1:il,:)
+    flux%lw_dn(ibeg:iend,:) = flux_out(ib)%lw_dn(1:il,:)
+    flux%lw_up_clear(ibeg:iend,:) = flux_out(ib)%lw_up_clear(1:il,:)
+    flux%lw_dn_clear(ibeg:iend,:) = flux_out(ib)%lw_dn_clear(1:il,:)
+
+    flux%lw_derivatives(ibeg:iend,:) = flux_out(ib)%lw_derivatives(1:il,:)
+    flux%lw_dn_surf_canopy(:,ibeg:iend) = flux_out(ib)%lw_dn_surf_canopy(:,1:il)
+
+    flux%sw_up(ibeg:iend,:) = flux_out(ib)%sw_up(1:il,:)
+    flux%sw_dn(ibeg:iend,:) = flux_out(ib)%sw_dn(1:il,:)
+    flux%sw_dn_direct(ibeg:iend,:) = flux_out(ib)%sw_dn_direct(1:il,:)
+
+    flux%sw_up_clear(ibeg:iend,:) = flux_out(ib)%sw_up_clear(1:il,:)
+    flux%sw_dn_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_clear(1:il,:)
+    flux%sw_dn_direct_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_direct_clear(1:il,:)
+
+    flux%sw_dn_direct_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_canopy(:,1:il)
+    flux%sw_dn_diffuse_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_diffuse_surf_canopy(:,1:il)
+
+    flux%cloud_cover_lw(ibeg:iend) = flux_out(ib)%cloud_cover_lw(1:il)
+    flux%cloud_cover_sw(ibeg:iend) = flux_out(ib)%cloud_cover_sw(1:il)
+
+    flux%sw_dn_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_band(:,1:il)
+    flux%sw_dn_direct_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_band(:,1:il)
+    flux%sw_dn_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_clear_band(:,1:il)
+    flux%sw_dn_direct_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_clear_band(:,1:il)
+
+    call flux_out(ib)%deallocate
+  end do
+
+  deallocate(flux_out)
   deallocate(zrgp)
 
   ! --------------------------------------------------------

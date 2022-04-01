@@ -16,7 +16,7 @@ SUBROUTINE RADIATION_SCHEME &
      &  PFLUX_UV, PFLUX_PAR, PFLUX_PAR_CLEAR, &
      &  PFLUX_SW_DN_TOA, PEMIS_OUT, PLWDERIVATIVE, &
      &  PSWDIFFUSEBAND, PSWDIRECTBAND, & !) !, PPERT, PFSD)
-     &  PRE_LIQ, PRE_ICE, ISEED, PCLOUD_OVERLAP)
+     &  PRE_LIQ, PRE_ICE, ISEED, PCLOUD_OVERLAP, flux_out)
 
 ! RADIATION_SCHEME - Interface to modular radiation scheme
 !
@@ -205,6 +205,7 @@ REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PRE_LIQ(KLON, KLEV)
 REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PRE_ICE(KLON, KLEV)
 INTEGER,         INTENT(IN), OPTIONAL :: ISEED(KLON)
 REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PCLOUD_OVERLAP(KLON, KLEV-1)
+type(flux_type), INTENT(INOUT), OPTIONAL :: flux_out
 
 
 ! LOCAL VARIABLES
@@ -582,9 +583,47 @@ CALL GAS%PUT_WELL_MIXED(IO2, IVOLUMEMIXINGRATIO, 0.20944_JPRB)
 ! the gas absorption model
 CALL SET_GAS_UNITS(RAD_CONFIG, GAS)
 
+! call save_inputs('inputs.nc', rad_config, single_level, thermodynamics, &
+!      &           gas, ylcloud, aerosol, &
+!      &           lat=spread(0.0_jprb,1,klon), &
+!      &           lon=spread(0.0_jprb,1,klon), &
+!      &           iverbose=2)
+
 ! Call radiation scheme
 CALL RADIATION(KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,&
      &  SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, FLUX)
+
+! Copy fluxes to output data structure (for ifsdriver)
+IF(PRESENT(FLUX_OUT)) THEN
+  CALL FLUX_OUT%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
+
+  flux_out%lw_up(kidia:kfdia,:) = flux%lw_up(kidia:kfdia,:)
+  flux_out%lw_dn(kidia:kfdia,:) = flux%lw_dn(kidia:kfdia,:)
+  flux_out%lw_up_clear(kidia:kfdia,:) = flux%lw_up_clear(kidia:kfdia,:)
+  flux_out%lw_dn_clear(kidia:kfdia,:) = flux%lw_dn_clear(kidia:kfdia,:)
+
+  flux_out%lw_derivatives(kidia:kfdia,:) = flux%lw_derivatives(kidia:kfdia,:)
+  flux_out%lw_dn_surf_canopy(:,kidia:kfdia) = flux%lw_dn_surf_canopy(:,kidia:kfdia)
+
+  flux_out%sw_up(kidia:kfdia,:) = flux%sw_up(kidia:kfdia,:)
+  flux_out%sw_dn(kidia:kfdia,:) = flux%sw_dn(kidia:kfdia,:)
+  flux_out%sw_dn_direct(kidia:kfdia,:) = flux%sw_dn_direct(kidia:kfdia,:)
+
+  flux_out%sw_up_clear(kidia:kfdia,:) = flux%sw_up_clear(kidia:kfdia,:)
+  flux_out%sw_dn_clear(kidia:kfdia,:) = flux%sw_dn_clear(kidia:kfdia,:)
+  flux_out%sw_dn_direct_clear(kidia:kfdia,:) = flux%sw_dn_direct_clear(kidia:kfdia,:)
+
+  flux_out%sw_dn_direct_surf_canopy(:,kidia:kfdia) = flux%sw_dn_direct_surf_canopy(:,kidia:kfdia)
+  flux_out%sw_dn_diffuse_surf_canopy(:,kidia:kfdia) = flux%sw_dn_diffuse_surf_canopy(:,kidia:kfdia)
+
+  flux_out%cloud_cover_lw(kidia:kfdia) = flux%cloud_cover_lw(kidia:kfdia)
+  flux_out%cloud_cover_sw(kidia:kfdia) = flux%cloud_cover_sw(kidia:kfdia)
+
+  flux_out%sw_dn_surf_band(:,kidia:kfdia) = flux%sw_dn_surf_band(:,kidia:kfdia)
+  flux_out%sw_dn_direct_surf_band(:,kidia:kfdia) = flux%sw_dn_direct_surf_band(:,kidia:kfdia)
+  flux_out%sw_dn_surf_clear_band(:,kidia:kfdia) = flux%sw_dn_surf_clear_band(:,kidia:kfdia)
+  flux_out%sw_dn_direct_surf_clear_band(:,kidia:kfdia) = flux%sw_dn_direct_surf_clear_band(:,kidia:kfdia)
+ENDIF
 
 ! Check fluxes are within physical bounds
 IF (YRERAD%NDUMPBADINPUTS /= 0 &
