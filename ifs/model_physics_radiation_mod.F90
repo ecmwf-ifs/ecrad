@@ -8,7 +8,7 @@ MODULE MODEL_PHYSICS_RADIATION_MOD
   USE YOEAERATM      , ONLY : TEAERATM
   ! USE YOE_UVRAD      , ONLY : TEUVRAD
   USE YOERDI         , ONLY : TERDI
-  USE YOE_MCICA      , ONLY : TEMCICA
+  ! USE YOE_MCICA      , ONLY : TEMCICA
   ! USE YOMRCOEF       , ONLY : TRCOEF
   ! USE YOMTRC         , ONLY : TTRC
   ! USE YOMPRAD        , ONLY : RADIATION_GRID_STRUCT
@@ -29,7 +29,7 @@ MODULE MODEL_PHYSICS_RADIATION_MOD
   TYPE(TEAERATM)              :: YREAERATM  !! control parameters for atmos aerosols
   ! TYPE(TEUVRAD)               :: YREUVRAD   !! UV radiation coefs 
   TYPE(TERDI)                 :: YRERDI     !! coefs in radiation interface 
-  TYPE(TEMCICA)               :: YREMCICA   !! cloud generator stuff
+  ! TYPE(TEMCICA)               :: YREMCICA   !! cloud generator stuff
   ! TYPE(TRCOEF)                :: YRRCOEF    !! read & write radiation coefs 
   ! TYPE(TTRC)                  :: YRTRC      !! storage for solar optical depths, 
                                             !! perhaps only for MF phys ? 
@@ -68,7 +68,7 @@ MODULE MODEL_PHYSICS_RADIATION_MOD
   CALL SELF%YREAERATM%PRINT(KDEPTH+2, KOUTNO)
   ! CALL SELF%YREUVRAD%PRINT(KDEPTH+2, KOUTNO)
   CALL SELF%YRERDI%PRINT(KDEPTH+2, KOUTNO)
-  CALL SELF%YREMCICA%PRINT(KDEPTH+2, KOUTNO)
+  ! CALL SELF%YREMCICA%PRINT(KDEPTH+2, KOUTNO)
   ! CALL SELF%YRRCOEF%PRINT(KDEPTH+2, KOUTNO)
   ! CALL SELF%YRTRC%PRINT(KDEPTH+2, KOUTNO)
   ! CALL SELF%RADGRID%PRINT(KDEPTH+2, KOUTNO)
