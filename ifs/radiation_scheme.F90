@@ -69,7 +69,7 @@ SUBROUTINE RADIATION_SCHEME &
 USE TYPE_MODEL     , ONLY : MODEL
 USE PARKIND1       , ONLY : JPIM, JPRB, JPRD
 USE YOMHOOK        , ONLY : LHOOK, DR_HOOK
-USE YOMRIP0        , ONLY : NINDAT
+! USE YOMRIP0        , ONLY : NINDAT
 !USE YOMCT3         , ONLY : NSTEP
 USE YOMCST         , ONLY : RPI, RSIGMA ! Stefan-Boltzmann constant
 USE YOMLUN         , ONLY : NULERR
@@ -264,7 +264,7 @@ CHARACTER(LEN=512) :: CL_FILE_NAME
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
 ! Dummy from YOMCT3
-INTEGER(KIND=JPIM) :: NSTEP = 0
+! INTEGER(KIND=JPIM) :: NSTEP = 0
 
 ! Dummy from MPL_MYRANK_MOD
 INTEGER(KIND=JPIM) :: MPL_MYRANK
@@ -379,7 +379,7 @@ SINGLE_LEVEL%LW_EMISSIVITY(KIDIA:KFDIA,:)  = PSPECTRALEMISS(KIDIA:KFDIA,:)
 ! ENDDO
 
 ! Simple initialization of the seeds for the Monte Carlo scheme
-call single_level%init_seed_simple(1,klon)
+call single_level%init_seed_simple(kidia, kfdia)
 ! Overwrite with user-specified values if available
 if (present(iseed)) then
   single_level%iseed(kidia:kfdia) = iseed(kidia:kfdia)

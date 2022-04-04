@@ -77,14 +77,14 @@ program ecrad_ifs_driver
   type(tcompo)              :: ydcompo
 
   integer :: ncol, nlev         ! Number of columns and levels
-  integer :: istartcol, iendcol ! Range of columns to process
+  !integer :: istartcol, iendcol ! Range of columns to process
 
   ! Name of file names specified on command line
   character(len=512) :: file_name, nml_file_name
   integer            :: istatus ! Result of command_argument_count
 
   ! For parallel processing of multiple blocks
-  integer :: jblock, nblock ! Block loop index and number
+  !integer :: jblock, nblock ! Block loop index and number
   integer, external :: omp_get_thread_num
   double precision, external :: omp_get_wtime
 
@@ -450,6 +450,7 @@ program ecrad_ifs_driver
   ifldstot= inext  - 1
 
   if( lldebug )then
+    call ydmodel%PRINT("ECRAD")
     write(nulout,'("imu0   =",i0)')imu0
     write(nulout,'("iamu0  =",i0)')iamu0
     write(nulout,'("iemiss =",i0)')iemiss
@@ -504,20 +505,20 @@ program ecrad_ifs_driver
     write(nulout,'("igi    =",i0)')igi
     write(nulout,'("iaer   =",i0)')iaer
     write(nulout,'("iaero  =",i0)')iaero
-    write(nulout,'("iico2  =",i0)')ico2
-    write(nulout,'("iich4  =",i0)')ich4
-    write(nulout,'("iin2o  =",i0)')in2o
+    write(nulout,'("iico2  =",i0)')iico2
+    write(nulout,'("iich4  =",i0)')iich4
+    write(nulout,'("iin2o  =",i0)')iin2o
     write(nulout,'("ino2   =",i0)')ino2
     write(nulout,'("ic11   =",i0)')ic11
     write(nulout,'("ic12   =",i0)')ic12
     write(nulout,'("ic22   =",i0)')ic22
     write(nulout,'("icl4   =",i0)')icl4
-    write(nulout,'("ifldsin=",i0)')ifldsin
-    write(nulout,'("ifldsout=",i0)')ifldsout
-    write(nulout,'("ifldstot=",i0)')ifldstot
     write(nulout,'("ire_liq=",i0)')ire_liq
     write(nulout,'("ire_ice=",i0)')ire_ice
     write(nulout,'("ioverlap=",i0)')ioverlap
+    write(nulout,'("ifldsin=",i0)')ifldsin
+    write(nulout,'("ifldsout=",i0)')ifldsout
+    write(nulout,'("ifldstot=",i0)')ifldstot
   endif
   
   ! Allocate blocked data structure
@@ -710,7 +711,6 @@ program ecrad_ifs_driver
        &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
        &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib),&
        ! workaround variables
-       !&  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), single_level%iseed(ibeg:iend),&
        &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), iseed(1,ib),&
        &  zrgp(1,ioverlap,ib), flux_out(ib))
     enddo
