@@ -246,6 +246,46 @@ program ecrad_ifs_driver
   )
     ! Values from IFS:
     ! TODO: fill this from ecrad inputs
+    ydephy%NEMISSSCHEME = 0
+
+    !!! From suecrad: !!!
+    ! Number of longwave surface emissivity intervals to use
+    IF (YDEPHY%NEMISSSCHEME == 1) THEN
+      ! We do a more accurate mapping for emissivity if NEMISSSCHEME==1.
+      ! See susrad_mod.F90 for values for different surface types.
+      YDERAD%NLWEMISS = 6
+      IF (YDERAD%LAPPROXLWUPDATE) THEN
+        ! Pass the same number of longwave downwelling surface spectral
+        ! fluxes from ecRad to RADHEATN so that longwave approximate
+        ! update scheme can be as accurate as possible
+        YDERAD%NLWOUT = 6
+      ELSE
+        YDERAD%NLWOUT = 1
+      ENDIF
+      ! Create a spectral Planck look-up table, used by RADHEATN.  Note
+      ! that this routine makes use of the length of its third argument.
+      ! The following wavelength bounds (metres) match the RRTM band
+      ! boundaries.
+      CALL YDERAD%YSPECTPLANCK%INIT(6, &
+          &  [ 8.4746E-6_JPRB, 10.2041E-6_JPRB, 12.1951E-6_JPRB, 15.8730E-6_JPRB, 28.5714E-6_JPRB ], &
+          &  [ 1,2,3,4,5,6 ])
+    ELSEIF (YDEPHY%NEMISSSCHEME == 0) THEN
+      ! Traditional approach: one value of emissivty for parts of the
+      ! spectrum on either side of the infrared atmospheric window
+      ! (PEMIR), and one value for the window itself (PEMIW)
+      YDERAD%NLWEMISS = 2
+      ! ...and the longwave approximate update scheme uses a single
+      ! broadband emissivity
+      YDERAD%NLWOUT   = 1
+      ! Create a spectral Planck look-up table, used by RADHEATN.  Note
+      ! that this routine makes use of the length of its third argument.
+      ! The wavelength bounds (metres) allow for the first emissivity to
+      ! represent values outside the infrared atmospheric window, and the
+      ! second emissivity to represent values within it.
+      CALL YDERAD%YSPECTPLANCK%INIT(2, [ 8.0E-6_JPRB, 13.0E-6_JPRB ], [ 1,2,1 ])
+    ELSE
+      CALL ABOR1('RADIATION_SETUP: NEMISSSCHEME must be 0 or 1')
+    ENDIF
 
     ydephy%nalbedoscheme = 2
     ! ydeaeratm values???
