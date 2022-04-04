@@ -195,262 +195,262 @@ TYPE TYPE_GFLD
 SEQUENCE ! daand: necessary to avoid memory corruption with gfortran 4.3.3
 
 ! Overall descriptor,dimensioning etc.
-INTEGER(KIND=JPIM) :: NUMFLDS     = 0  ! Number of GFL fields
-INTEGER(KIND=JPIM) :: NDERS       = 0  ! Number of horizontal derivatives fields
-INTEGER(KIND=JPIM) :: NUMSPFLDS   = 0  ! Number of spectrally represented GFL fields
-INTEGER(KIND=JPIM) :: NUMGPFLDS   = 0  ! Number of grid-point GFL fields
-INTEGER(KIND=JPIM) :: NUMFLDS9    = 0  ! Number of GFL fields in (t-dt) part
-INTEGER(KIND=JPIM) :: NUMFLDS1    = 0  ! Number of GFL fields in (t+dt) array
-INTEGER(KIND=JPIM) :: NUMSPFLDS1  = 0  ! Number of spectrally represented GFL fields (t+dt)
-INTEGER(KIND=JPIM) :: NUMFLDS5    = 0  ! Number of GFL fields (trajectory)
-INTEGER(KIND=JPIM) :: NUMFLDSPHY  = 0  ! Number of GFL fields (phys.)
-INTEGER(KIND=JPIM) :: NUMFLDS_SPL = 0  ! Number of GFL fields (S.L. spline interpolation)
-INTEGER(KIND=JPIM) :: NUMFLDS_SL1 = 0  ! Number of GFL fields in S.L. buffer 1
-INTEGER(KIND=JPIM) :: NUMFLDSPC   = 0  ! Number of GFL fields (predictor/corrector)
-INTEGER(KIND=JPIM) :: NDIM        = 0  ! Dimension of main array holding GFL fields(GFL)
-INTEGER(KIND=JPIM) :: NUMFLDSPT   = 0  ! Number of GFL fields (phy. tend.)
-INTEGER(KIND=JPIM) :: NDIM0       = 0  ! Dimension of t0 part of GFL
-INTEGER(KIND=JPIM) :: NDIM9       = 0  ! Dimension of t-dt part of GFL
-INTEGER(KIND=JPIM) :: NDIM1       = 0  ! Dimension of t+dt array (GFLT1)
-INTEGER(KIND=JPIM) :: NDIM5       = 0  ! Dimension of traj. GFL array (GFL5)
-INTEGER(KIND=JPIM) :: NDIMSLP     = 0  ! Diminsion of S.L. phys. GFL array (GFLSLP)
-INTEGER(KIND=JPIM) :: NDIM_SPL    = 0  ! Dim. of arrays holding GFL fields (S.L.spline int.)
-INTEGER(KIND=JPIM) :: NDIMPT      = 0  ! Dimension of phy. tend. GFL array (GFLPT)
-INTEGER(KIND=JPIM) :: NDIMPC      = 0  ! Dimension of iterative scheme auxiliary array (GFLPC)
+! INTEGER(KIND=JPIM) :: NUMFLDS     = 0  ! Number of GFL fields
+! INTEGER(KIND=JPIM) :: NDERS       = 0  ! Number of horizontal derivatives fields
+! INTEGER(KIND=JPIM) :: NUMSPFLDS   = 0  ! Number of spectrally represented GFL fields
+! INTEGER(KIND=JPIM) :: NUMGPFLDS   = 0  ! Number of grid-point GFL fields
+! INTEGER(KIND=JPIM) :: NUMFLDS9    = 0  ! Number of GFL fields in (t-dt) part
+! INTEGER(KIND=JPIM) :: NUMFLDS1    = 0  ! Number of GFL fields in (t+dt) array
+! INTEGER(KIND=JPIM) :: NUMSPFLDS1  = 0  ! Number of spectrally represented GFL fields (t+dt)
+! INTEGER(KIND=JPIM) :: NUMFLDS5    = 0  ! Number of GFL fields (trajectory)
+! INTEGER(KIND=JPIM) :: NUMFLDSPHY  = 0  ! Number of GFL fields (phys.)
+! INTEGER(KIND=JPIM) :: NUMFLDS_SPL = 0  ! Number of GFL fields (S.L. spline interpolation)
+! INTEGER(KIND=JPIM) :: NUMFLDS_SL1 = 0  ! Number of GFL fields in S.L. buffer 1
+! INTEGER(KIND=JPIM) :: NUMFLDSPC   = 0  ! Number of GFL fields (predictor/corrector)
+! INTEGER(KIND=JPIM) :: NDIM        = 0  ! Dimension of main array holding GFL fields(GFL)
+! INTEGER(KIND=JPIM) :: NUMFLDSPT   = 0  ! Number of GFL fields (phy. tend.)
+! INTEGER(KIND=JPIM) :: NDIM0       = 0  ! Dimension of t0 part of GFL
+! INTEGER(KIND=JPIM) :: NDIM9       = 0  ! Dimension of t-dt part of GFL
+! INTEGER(KIND=JPIM) :: NDIM1       = 0  ! Dimension of t+dt array (GFLT1)
+! INTEGER(KIND=JPIM) :: NDIM5       = 0  ! Dimension of traj. GFL array (GFL5)
+! INTEGER(KIND=JPIM) :: NDIMSLP     = 0  ! Diminsion of S.L. phys. GFL array (GFLSLP)
+! INTEGER(KIND=JPIM) :: NDIM_SPL    = 0  ! Dim. of arrays holding GFL fields (S.L.spline int.)
+! INTEGER(KIND=JPIM) :: NDIMPT      = 0  ! Dimension of phy. tend. GFL array (GFLPT)
+! INTEGER(KIND=JPIM) :: NDIMPC      = 0  ! Dimension of iterative scheme auxiliary array (GFLPC)
 
-INTEGER(KIND=JPIM) :: NGFL_EXT
-INTEGER(KIND=JPIM) :: NGFL_FORC
-INTEGER(KIND=JPIM) :: NGFL_EZDIAG
-INTEGER(KIND=JPIM) :: NGHG
-INTEGER(KIND=JPIM) :: NGHG_ASSIM
-INTEGER(KIND=JPIM) :: NAERO
+! INTEGER(KIND=JPIM) :: NGFL_EXT
+! INTEGER(KIND=JPIM) :: NGFL_FORC
+! INTEGER(KIND=JPIM) :: NGFL_EZDIAG
+! INTEGER(KIND=JPIM) :: NGHG
+! INTEGER(KIND=JPIM) :: NGHG_ASSIM
+! INTEGER(KIND=JPIM) :: NAERO
 INTEGER(KIND=JPIM) :: NACTAERO
-INTEGER(KIND=JPIM) :: NDDHAERO
-INTEGER(KIND=JPIM) :: NERA40
-INTEGER(KIND=JPIM) :: NNOGW
-INTEGER(KIND=JPIM) :: NEDRP
-INTEGER(KIND=JPIM) :: NAEROUT
-INTEGER(KIND=JPIM) :: NAEROCLIM
-INTEGER(KIND=JPIM) :: NUVP
-INTEGER(KIND=JPIM) :: NSLDIA
-INTEGER(KIND=JPIM) :: NSLDIAGP
-INTEGER(KIND=JPIM) :: NCRM
-INTEGER(KIND=JPIM) :: NFSD
+! INTEGER(KIND=JPIM) :: NDDHAERO
+! INTEGER(KIND=JPIM) :: NERA40
+! INTEGER(KIND=JPIM) :: NNOGW
+! INTEGER(KIND=JPIM) :: NEDRP
+! INTEGER(KIND=JPIM) :: NAEROUT
+! INTEGER(KIND=JPIM) :: NAEROCLIM
+! INTEGER(KIND=JPIM) :: NUVP
+! INTEGER(KIND=JPIM) :: NSLDIA
+! INTEGER(KIND=JPIM) :: NSLDIAGP
+! INTEGER(KIND=JPIM) :: NCRM
+! INTEGER(KIND=JPIM) :: NFSD
 
-LOGICAL :: LAERCHEM    = .FALSE.   ! Couple sulphur cycle between chemistry and aerosol
-LOGICAL :: LTRCMFIX    = .FALSE.   ! Activates tracer mass fixer
-LOGICAL :: LTRCMFIX_PS = .FALSE.   ! Adjust pressure to conserve dry mass in mass fixer calculations
-LOGICAL :: LAERAOT     = .FALSE.
-LOGICAL :: LAERLISI    = .FALSE.
-LOGICAL :: LAEROUT     = .FALSE.
-LOGICAL :: LAEROCLIM   = .FALSE.
-LOGICAL :: LUVPOUT     = .FALSE.
-LOGICAL :: LSPPTGFL    = .FALSE.   ! Activates SPPT perturbations to CHEM tendencies (C-IFS ensemble)
+! LOGICAL :: LAERCHEM    = .FALSE.   ! Couple sulphur cycle between chemistry and aerosol
+! LOGICAL :: LTRCMFIX    = .FALSE.   ! Activates tracer mass fixer
+! LOGICAL :: LTRCMFIX_PS = .FALSE.   ! Adjust pressure to conserve dry mass in mass fixer calculations
+! LOGICAL :: LAERAOT     = .FALSE.
+! LOGICAL :: LAERLISI    = .FALSE.
+! LOGICAL :: LAEROUT     = .FALSE.
+! LOGICAL :: LAEROCLIM   = .FALSE.
+! LOGICAL :: LUVPOUT     = .FALSE.
+! LOGICAL :: LSPPTGFL    = .FALSE.   ! Activates SPPT perturbations to CHEM tendencies (C-IFS ensemble)
 
-INTEGER(KIND=JPIM) :: NGEMS   ! The total number of "GEMS" fields.
-INTEGER(KIND=JPIM) :: NCHEM
-INTEGER(KIND=JPIM) :: NCHEM_ASSIM
-INTEGER(KIND=JPIM) :: NCHEM_FLX 
-INTEGER(KIND=JPIM) :: NCHEM_FLXO 
-INTEGER(KIND=JPIM) :: NCHEM_DV
-INTEGER(KIND=JPIM) :: NCHEM_TC
-INTEGER(KIND=JPIM) :: NCHEM_SCV
-INTEGER(KIND=JPIM) :: NLIMA  ! Total number of LIMA fields
-INTEGER(KIND=JPIM) :: NAERO_WVL_DIAG
-INTEGER(KIND=JPIM) :: NAERO_WVL_DIAG_TYPES
+! INTEGER(KIND=JPIM) :: NGEMS   ! The total number of "GEMS" fields.
+! INTEGER(KIND=JPIM) :: NCHEM
+! INTEGER(KIND=JPIM) :: NCHEM_ASSIM
+! INTEGER(KIND=JPIM) :: NCHEM_FLX 
+! INTEGER(KIND=JPIM) :: NCHEM_FLXO 
+! INTEGER(KIND=JPIM) :: NCHEM_DV
+! INTEGER(KIND=JPIM) :: NCHEM_TC
+! INTEGER(KIND=JPIM) :: NCHEM_SCV
+! INTEGER(KIND=JPIM) :: NLIMA  ! Total number of LIMA fields
+! INTEGER(KIND=JPIM) :: NAERO_WVL_DIAG
+! INTEGER(KIND=JPIM) :: NAERO_WVL_DIAG_TYPES
 
 !     ------------------------------------------------------------------
 !      Mass fixers
 !     ------------------------------------------------------------------
-INTEGER(KIND=JPIM) :: NNEGAFIX     ! Num of fields to apply -ve fixer
-INTEGER(KIND=JPIM) :: NOPTNEGFIX   ! 1: simple negative fixer (reset to 0)
-                                   ! 2: reset to local minimum
+! INTEGER(KIND=JPIM) :: NNEGAFIX     ! Num of fields to apply -ve fixer
+! INTEGER(KIND=JPIM) :: NOPTNEGFIX   ! 1: simple negative fixer (reset to 0)
+!                                    ! 2: reset to local minimum
 
-LOGICAL :: LQM3DCONS    = .FALSE.  ! Bermejo & Staniforth quasi-monotone limiter with improved
-                                   ! conservation option. When true, applied to all GFL s.t. LQM3D=true
-LOGICAL :: LADVNEGFIX   = .FALSE.  ! Activates negative fixer for advection
-LOGICAL :: LTRCMFBC     = .FALSE.  ! Activate Bermejo & Conde mass fixer if true
-LOGICAL :: LTRCMFPR     = .FALSE.  ! Activate Priestley mass fixer if true
-LOGICAL :: LTRCMFMG     = .FALSE.  ! Activate Mac Gregor's mass fixer if true
-LOGICAL :: LTRCMFP      = .FALSE.  ! Activate proportional mass fixer  
-LOGICAL :: LTRCMFA_DIF  = .FALSE.  ! Activate additive mass fixer based on t - t+1 diff 
-LOGICAL :: LTRCMFA_LAP  = .FALSE.  ! Activate additive mass fixer based on horizontal laplace 
-LOGICAL :: LTRCMFA_VER  = .FALSE.  ! Activate additive mass fixer based on vertical laplace
+! LOGICAL :: LQM3DCONS    = .FALSE.  ! Bermejo & Staniforth quasi-monotone limiter with improved
+!                                    ! conservation option. When true, applied to all GFL s.t. LQM3D=true
+! LOGICAL :: LADVNEGFIX   = .FALSE.  ! Activates negative fixer for advection
+! LOGICAL :: LTRCMFBC     = .FALSE.  ! Activate Bermejo & Conde mass fixer if true
+! LOGICAL :: LTRCMFPR     = .FALSE.  ! Activate Priestley mass fixer if true
+! LOGICAL :: LTRCMFMG     = .FALSE.  ! Activate Mac Gregor's mass fixer if true
+! LOGICAL :: LTRCMFP      = .FALSE.  ! Activate proportional mass fixer  
+! LOGICAL :: LTRCMFA_DIF  = .FALSE.  ! Activate additive mass fixer based on t - t+1 diff 
+! LOGICAL :: LTRCMFA_LAP  = .FALSE.  ! Activate additive mass fixer based on horizontal laplace 
+! LOGICAL :: LTRCMFA_VER  = .FALSE.  ! Activate additive mass fixer based on vertical laplace
 
-LOGICAL :: LEXTRADF     = .FALSE.  ! Extra diagnostics 
+! LOGICAL :: LEXTRADF     = .FALSE.  ! Extra diagnostics 
 
 
-INTEGER(KIND=JPIM) :: NFLDSFIX     ! Number of fields to be fixed
-INTEGER(KIND=JPIM) :: NOPTMFBC     ! Bermejo & Conde fixer version
-INTEGER(KIND=JPIM) :: NOPTMFPR     ! Priestley fixer version
-INTEGER(KIND=JPIM) :: NOPTVFE      ! Use Vertical FE in calculation of column mass total
-INTEGER(KIND=JPIM) :: NMFDIAGLEV   ! Determines global diagnostic output level for fixer:
-                                   ! 0 - nothing, 1 - norms printed, 2 - norms + monotonicity
-INTEGER(KIND=JPIM) :: NMFIXFLDS(JPNAMED_GFL+JPGHG+JPCHEM+JPAERO) 
-                                   ! Index of fields to be corrected by mass fixers
-INTEGER(KIND=JPIM) :: NNEGFLDS(JPNAMED_GFL+JPGHG+JPCHEM+JPAERO)  
-                                   ! Index of fields to be corrected by SL -ve fixer
-REAL(KIND=JPRB)    :: ZMFIXEPS     ! Threshold for mass fixing scheme
-INTEGER(KIND=JPIM) :: NFMG         ! Number of fields for mgrid simulations
-INTEGER(KIND=JPIM) :: NMGFLDS(JPNAMED_GFL+JPGHG+JPCHEM+JPAERO)
+! INTEGER(KIND=JPIM) :: NFLDSFIX     ! Number of fields to be fixed
+! INTEGER(KIND=JPIM) :: NOPTMFBC     ! Bermejo & Conde fixer version
+! INTEGER(KIND=JPIM) :: NOPTMFPR     ! Priestley fixer version
+! INTEGER(KIND=JPIM) :: NOPTVFE      ! Use Vertical FE in calculation of column mass total
+! INTEGER(KIND=JPIM) :: NMFDIAGLEV   ! Determines global diagnostic output level for fixer:
+!                                    ! 0 - nothing, 1 - norms printed, 2 - norms + monotonicity
+! INTEGER(KIND=JPIM) :: NMFIXFLDS(JPNAMED_GFL+JPGHG+JPCHEM+JPAERO) 
+!                                    ! Index of fields to be corrected by mass fixers
+! INTEGER(KIND=JPIM) :: NNEGFLDS(JPNAMED_GFL+JPGHG+JPCHEM+JPAERO)  
+!                                    ! Index of fields to be corrected by SL -ve fixer
+! REAL(KIND=JPRB)    :: ZMFIXEPS     ! Threshold for mass fixing scheme
+! INTEGER(KIND=JPIM) :: NFMG         ! Number of fields for mgrid simulations
+! INTEGER(KIND=JPIM) :: NMGFLDS(JPNAMED_GFL+JPGHG+JPCHEM+JPAERO)
                                    ! Index of fields for mgrid simulations
 
 
-TYPE(TYPE_GFL_COMP) :: YCOMP(JPGFL)    ! General descriptor of all components
+! TYPE(TYPE_GFL_COMP) :: YCOMP(JPGFL)    ! General descriptor of all components
 
-TYPE(TYPE_GFL_COMP),POINTER  :: YLASTCOMP   => NULL() ! General descriptor of last component
+! TYPE(TYPE_GFL_COMP),POINTER  :: YLASTCOMP   => NULL() ! General descriptor of last component
 
-TYPE(TYPE_GFL_COMP),POINTER  :: YQ          => NULL() ! Specific humidity
-TYPE(TYPE_GFL_COMP),POINTER  :: YI          => NULL() ! Ice water
-TYPE(TYPE_GFL_COMP),POINTER  :: YL          => NULL() ! Liquid water
-TYPE(TYPE_GFL_COMP),POINTER  :: YLCONV      => NULL() ! Liquid water (CONV. PART)
-TYPE(TYPE_GFL_COMP),POINTER  :: YICONV      => NULL() ! Ice    water (CONV. PART)
-TYPE(TYPE_GFL_COMP),POINTER  :: YRCONV      => NULL() ! Rain         (CONV. PART)
-TYPE(TYPE_GFL_COMP),POINTER  :: YSCONV      => NULL() ! Snow         (CONV. PART)
-TYPE(TYPE_GFL_COMP),POINTER  :: YIRAD       => NULL() ! Radiative cloud Ice water
-TYPE(TYPE_GFL_COMP),POINTER  :: YLRAD       => NULL() ! Radiative cloud Liquid water
-TYPE(TYPE_GFL_COMP),POINTER  :: YS          => NULL() ! Snow
-TYPE(TYPE_GFL_COMP),POINTER  :: YR          => NULL() ! Rain
-TYPE(TYPE_GFL_COMP),POINTER  :: YG          => NULL() ! Graupel
-TYPE(TYPE_GFL_COMP),POINTER  :: YH          => NULL() ! Hail
-TYPE(TYPE_GFL_COMP),POINTER  :: YTKE        => NULL() ! Turbulent Kinetic Energy
-TYPE(TYPE_GFL_COMP),POINTER  :: YTTE        => NULL() ! Turbulent Total Energy
-TYPE(TYPE_GFL_COMP),POINTER  :: YEFB1       => NULL() ! First variable EFB scheme
-TYPE(TYPE_GFL_COMP),POINTER  :: YEFB2       => NULL() ! Second variable EFB scheme
-TYPE(TYPE_GFL_COMP),POINTER  :: YEFB3       => NULL() ! Third variable EFB scheme
-TYPE(TYPE_GFL_COMP),POINTER  :: YA          => NULL() ! Cloud fraction
-TYPE(TYPE_GFL_COMP),POINTER  :: YO3         => NULL() ! Ozone
-TYPE(TYPE_GFL_COMP),POINTER  :: YSRC        => NULL() ! Second-order flux for AROME s'rc'/2Sigma_s2 multiplied by Lambda_3
-TYPE(TYPE_GFL_COMP),POINTER  :: YMXL        => NULL() ! Prognostic mixing length
-TYPE(TYPE_GFL_COMP),POINTER  :: YSHTUR      => NULL() ! Shear source term for turbulence.
-TYPE(TYPE_GFL_COMP),POINTER  :: YFQTUR      => NULL() ! Flux form source term for turbulence -moisture.
-TYPE(TYPE_GFL_COMP),POINTER  :: YFSTUR      => NULL() ! Flux form source term for turbulence -enthalpy.
-TYPE(TYPE_GFL_COMP),POINTER  :: YCPF        => NULL() ! Convective precipitation flux
-TYPE(TYPE_GFL_COMP),POINTER  :: YSPF        => NULL() ! Stratiform precipitation flux
-TYPE(TYPE_GFL_COMP),POINTER  :: YCVGQ       => NULL() ! Moisture Convergence for french physics
-TYPE(TYPE_GFL_COMP),POINTER  :: YQVA        => NULL() ! total humidity variation
-TYPE(TYPE_GFL_COMP),POINTER  :: YGHG(:)     => NULL() ! Greenhouse Gases
-TYPE(TYPE_GFL_COMP),POINTER  :: YCHEM(:)    => NULL() ! Chemistry
-TYPE(TYPE_GFL_COMP),POINTER  :: YAERO(:)    => NULL() ! Aerosols
-TYPE(TYPE_GFL_COMP),POINTER  :: YLRCH4      => NULL() ! CH4 loss rate (instantaneous field)
-TYPE(TYPE_GFL_COMP),POINTER  :: YFORC(:)    => NULL() ! large scale forcing
-TYPE(TYPE_GFL_COMP),POINTER  :: YEZDIAG(:)  => NULL() ! easy diagnostics
-TYPE(TYPE_GFL_COMP),POINTER  :: YERA40(:)   => NULL() ! ERA40 diagnostic fields
-TYPE(TYPE_GFL_COMP),POINTER  :: YNOGW(:)    => NULL() ! NORO GWD SCHEME
-TYPE(TYPE_GFL_COMP),POINTER  :: YEDRP(:)    => NULL() ! turbulence diagnostics EDR Parameter
-TYPE(TYPE_GFL_COMP),POINTER  :: YSLDIA(:)   => NULL() ! SL dynamics diagnostics
-TYPE(TYPE_GFL_COMP),POINTER  :: YAERAOT(:)  => NULL() ! Aerosol optical thicknesses
-TYPE(TYPE_GFL_COMP),POINTER  :: YAERLISI(:) => NULL() ! Aerosol lidar simulator
-TYPE(TYPE_GFL_COMP),POINTER  :: YAEROUT(:)  => NULL() ! Aerosol outputs
-TYPE(TYPE_GFL_COMP),POINTER  :: YAEROCLIM(:) => NULL() ! Aerosol climatology
-TYPE(TYPE_GFL_COMP),POINTER  :: YUVP(:)     => NULL() ! UV-processor output
-TYPE(TYPE_GFL_COMP),POINTER  :: YPHYS(:)    => NULL() ! PHYS output
-TYPE(TYPE_GFL_COMP),POINTER  :: YPHYCTY     => NULL() ! PHYS input for MassCTY
+! TYPE(TYPE_GFL_COMP),POINTER  :: YQ          => NULL() ! Specific humidity
+! TYPE(TYPE_GFL_COMP),POINTER  :: YI          => NULL() ! Ice water
+! TYPE(TYPE_GFL_COMP),POINTER  :: YL          => NULL() ! Liquid water
+! TYPE(TYPE_GFL_COMP),POINTER  :: YLCONV      => NULL() ! Liquid water (CONV. PART)
+! TYPE(TYPE_GFL_COMP),POINTER  :: YICONV      => NULL() ! Ice    water (CONV. PART)
+! TYPE(TYPE_GFL_COMP),POINTER  :: YRCONV      => NULL() ! Rain         (CONV. PART)
+! TYPE(TYPE_GFL_COMP),POINTER  :: YSCONV      => NULL() ! Snow         (CONV. PART)
+! TYPE(TYPE_GFL_COMP),POINTER  :: YIRAD       => NULL() ! Radiative cloud Ice water
+! TYPE(TYPE_GFL_COMP),POINTER  :: YLRAD       => NULL() ! Radiative cloud Liquid water
+! TYPE(TYPE_GFL_COMP),POINTER  :: YS          => NULL() ! Snow
+! TYPE(TYPE_GFL_COMP),POINTER  :: YR          => NULL() ! Rain
+! TYPE(TYPE_GFL_COMP),POINTER  :: YG          => NULL() ! Graupel
+! TYPE(TYPE_GFL_COMP),POINTER  :: YH          => NULL() ! Hail
+! TYPE(TYPE_GFL_COMP),POINTER  :: YTKE        => NULL() ! Turbulent Kinetic Energy
+! TYPE(TYPE_GFL_COMP),POINTER  :: YTTE        => NULL() ! Turbulent Total Energy
+! TYPE(TYPE_GFL_COMP),POINTER  :: YEFB1       => NULL() ! First variable EFB scheme
+! TYPE(TYPE_GFL_COMP),POINTER  :: YEFB2       => NULL() ! Second variable EFB scheme
+! TYPE(TYPE_GFL_COMP),POINTER  :: YEFB3       => NULL() ! Third variable EFB scheme
+! TYPE(TYPE_GFL_COMP),POINTER  :: YA          => NULL() ! Cloud fraction
+! TYPE(TYPE_GFL_COMP),POINTER  :: YO3         => NULL() ! Ozone
+! TYPE(TYPE_GFL_COMP),POINTER  :: YSRC        => NULL() ! Second-order flux for AROME s'rc'/2Sigma_s2 multiplied by Lambda_3
+! TYPE(TYPE_GFL_COMP),POINTER  :: YMXL        => NULL() ! Prognostic mixing length
+! TYPE(TYPE_GFL_COMP),POINTER  :: YSHTUR      => NULL() ! Shear source term for turbulence.
+! TYPE(TYPE_GFL_COMP),POINTER  :: YFQTUR      => NULL() ! Flux form source term for turbulence -moisture.
+! TYPE(TYPE_GFL_COMP),POINTER  :: YFSTUR      => NULL() ! Flux form source term for turbulence -enthalpy.
+! TYPE(TYPE_GFL_COMP),POINTER  :: YCPF        => NULL() ! Convective precipitation flux
+! TYPE(TYPE_GFL_COMP),POINTER  :: YSPF        => NULL() ! Stratiform precipitation flux
+! TYPE(TYPE_GFL_COMP),POINTER  :: YCVGQ       => NULL() ! Moisture Convergence for french physics
+! TYPE(TYPE_GFL_COMP),POINTER  :: YQVA        => NULL() ! total humidity variation
+! TYPE(TYPE_GFL_COMP),POINTER  :: YGHG(:)     => NULL() ! Greenhouse Gases
+! TYPE(TYPE_GFL_COMP),POINTER  :: YCHEM(:)    => NULL() ! Chemistry
+! TYPE(TYPE_GFL_COMP),POINTER  :: YAERO(:)    => NULL() ! Aerosols
+! TYPE(TYPE_GFL_COMP),POINTER  :: YLRCH4      => NULL() ! CH4 loss rate (instantaneous field)
+! TYPE(TYPE_GFL_COMP),POINTER  :: YFORC(:)    => NULL() ! large scale forcing
+! TYPE(TYPE_GFL_COMP),POINTER  :: YEZDIAG(:)  => NULL() ! easy diagnostics
+! TYPE(TYPE_GFL_COMP),POINTER  :: YERA40(:)   => NULL() ! ERA40 diagnostic fields
+! TYPE(TYPE_GFL_COMP),POINTER  :: YNOGW(:)    => NULL() ! NORO GWD SCHEME
+! TYPE(TYPE_GFL_COMP),POINTER  :: YEDRP(:)    => NULL() ! turbulence diagnostics EDR Parameter
+! TYPE(TYPE_GFL_COMP),POINTER  :: YSLDIA(:)   => NULL() ! SL dynamics diagnostics
+! TYPE(TYPE_GFL_COMP),POINTER  :: YAERAOT(:)  => NULL() ! Aerosol optical thicknesses
+! TYPE(TYPE_GFL_COMP),POINTER  :: YAERLISI(:) => NULL() ! Aerosol lidar simulator
+! TYPE(TYPE_GFL_COMP),POINTER  :: YAEROUT(:)  => NULL() ! Aerosol outputs
+! TYPE(TYPE_GFL_COMP),POINTER  :: YAEROCLIM(:) => NULL() ! Aerosol climatology
+! TYPE(TYPE_GFL_COMP),POINTER  :: YUVP(:)     => NULL() ! UV-processor output
+! TYPE(TYPE_GFL_COMP),POINTER  :: YPHYS(:)    => NULL() ! PHYS output
+! TYPE(TYPE_GFL_COMP),POINTER  :: YPHYCTY     => NULL() ! PHYS input for MassCTY
 
-TYPE(TYPE_GFL_COMP),POINTER  :: YRSPEC      => NULL() ! Specific gas constant
+! TYPE(TYPE_GFL_COMP),POINTER  :: YRSPEC      => NULL() ! Specific gas constant
 
 
-TYPE(TYPE_GFL_COMP),POINTER  :: YSDSAT      => NULL() ! Standard Deviation of the
-                                                      ! SATuration Depression (Sigma_s) 
-TYPE(TYPE_GFL_COMP),POINTER  :: YCVV        => NULL() ! Convective Vertical Velocity
-TYPE(TYPE_GFL_COMP),POINTER  :: YRKTH       => NULL() ! Rasch-Kristjansson H tendency
-TYPE(TYPE_GFL_COMP),POINTER  :: YRKTQV      => NULL() ! Rasch-Kristjansson Qv tendency
-TYPE(TYPE_GFL_COMP),POINTER  :: YRKTQC      => NULL() ! Rasch-Kristjansson Qc tendency
+! TYPE(TYPE_GFL_COMP),POINTER  :: YSDSAT      => NULL() ! Standard Deviation of the
+!                                                       ! SATuration Depression (Sigma_s) 
+! TYPE(TYPE_GFL_COMP),POINTER  :: YCVV        => NULL() ! Convective Vertical Velocity
+! TYPE(TYPE_GFL_COMP),POINTER  :: YRKTH       => NULL() ! Rasch-Kristjansson H tendency
+! TYPE(TYPE_GFL_COMP),POINTER  :: YRKTQV      => NULL() ! Rasch-Kristjansson Qv tendency
+! TYPE(TYPE_GFL_COMP),POINTER  :: YRKTQC      => NULL() ! Rasch-Kristjansson Qc tendency
 
-! Prognostic convection variables: add 6 named components
-TYPE(TYPE_GFL_COMP),POINTER  :: YUOM        => NULL() ! Updraught vert velocity
-TYPE(TYPE_GFL_COMP),POINTER  :: YUAL        => NULL() ! Updraught mesh fraction
-TYPE(TYPE_GFL_COMP),POINTER  :: YDOM        => NULL() ! Downdraught vert velocity
-TYPE(TYPE_GFL_COMP),POINTER  :: YDAL        => NULL() ! Downdraught mesh fraction
-TYPE(TYPE_GFL_COMP),POINTER  :: YUEN        => NULL() ! Updraught entrainment
-TYPE(TYPE_GFL_COMP),POINTER  :: YUNEBH      => NULL() ! pseudo-historic convective
+! ! Prognostic convection variables: add 6 named components
+! TYPE(TYPE_GFL_COMP),POINTER  :: YUOM        => NULL() ! Updraught vert velocity
+! TYPE(TYPE_GFL_COMP),POINTER  :: YUAL        => NULL() ! Updraught mesh fraction
+! TYPE(TYPE_GFL_COMP),POINTER  :: YDOM        => NULL() ! Downdraught vert velocity
+! TYPE(TYPE_GFL_COMP),POINTER  :: YDAL        => NULL() ! Downdraught mesh fraction
+! TYPE(TYPE_GFL_COMP),POINTER  :: YUEN        => NULL() ! Updraught entrainment
+! TYPE(TYPE_GFL_COMP),POINTER  :: YUNEBH      => NULL() ! pseudo-historic convective
 
-! prognostic variables for superparameterization:
-TYPE(TYPE_GFL_COMP),POINTER  :: YCRM(:)     => NULL() ! CRM prognostic fields
+! ! prognostic variables for superparameterization:
+! TYPE(TYPE_GFL_COMP),POINTER  :: YCRM(:)     => NULL() ! CRM prognostic fields
 
-TYPE(TYPE_GFL_COMP),POINTER  :: YLIMA(:)    => NULL() ! LIMA prognostic fields
+! TYPE(TYPE_GFL_COMP),POINTER  :: YLIMA(:)    => NULL() ! LIMA prognostic fields
 
-! cloud heterogeneity FSD
-TYPE(TYPE_GFL_COMP),POINTER  :: YFSD        => NULL() ! PHYS output
+! ! cloud heterogeneity FSD
+! TYPE(TYPE_GFL_COMP),POINTER  :: YFSD        => NULL() ! PHYS output
 
-! Extra fields
+! ! Extra fields
 
-TYPE(TYPE_GFL_COMP),POINTER  :: YEXT(:)     => NULL() ! Extra fields
+! TYPE(TYPE_GFL_COMP),POINTER  :: YEXT(:)     => NULL() ! Extra fields
 
-TYPE(TYPE_GFL_NAML)  :: YQ_NL                 ! Specific humidity
-TYPE(TYPE_GFL_NAML)  :: YI_NL                 ! Ice water
-TYPE(TYPE_GFL_NAML)  :: YL_NL                 ! Liquid water
-TYPE(TYPE_GFL_NAML)  :: YLCONV_NL             ! Liquid water (CONV. PART)
-TYPE(TYPE_GFL_NAML)  :: YICONV_NL             ! Ice    water (CONV. PART)
-TYPE(TYPE_GFL_NAML)  :: YRCONV_NL             ! Rain         (CONV. PART)
-TYPE(TYPE_GFL_NAML)  :: YSCONV_NL             ! Snow         (CONV. PART)
-TYPE(TYPE_GFL_NAML)  :: YIRAD_NL              ! Radiative cloud Ice water
-TYPE(TYPE_GFL_NAML)  :: YLRAD_NL              ! Radiative cloud Liquid water
-TYPE(TYPE_GFL_NAML)  :: YS_NL                 ! Snow
-TYPE(TYPE_GFL_NAML)  :: YR_NL                 ! Rain
-TYPE(TYPE_GFL_NAML)  :: YG_NL                 ! Graupels
-TYPE(TYPE_GFL_NAML)  :: YH_NL                 ! Hail
-TYPE(TYPE_GFL_NAML)  :: YTKE_NL               ! Turbulent Kinetic Energy
-TYPE(TYPE_GFL_NAML)  :: YTTE_NL               ! Turbulent Total Energy
-TYPE(TYPE_GFL_NAML)  :: YEFB1_NL              ! First variable EFB scheme
-TYPE(TYPE_GFL_NAML)  :: YEFB2_NL              ! Second variable EFB scheme
-TYPE(TYPE_GFL_NAML)  :: YEFB3_NL              ! Third variable EFB scheme
-TYPE(TYPE_GFL_NAML)  :: YA_NL                 ! Cloud fraction
-TYPE(TYPE_GFL_NAML)  :: YO3_NL                ! Ozone
-TYPE(TYPE_GFL_NAML)  :: YSRC_NL               ! Second-order flux for AROME
-                                              ! s'rc'/2Sigma_s2
-                                              ! multiplied by Lambda_3
-TYPE(TYPE_GFL_NAML)  :: YMXL_NL               ! Prognostic mixing length
-TYPE(TYPE_GFL_NAML)  :: YSHTUR_NL             ! Shear source term for turbulence.
-TYPE(TYPE_GFL_NAML)  :: YFQTUR_NL             ! Flux form source term for turbulence -moisture.
-TYPE(TYPE_GFL_NAML)  :: YFSTUR_NL             ! Flux form source term for turbulence -enthalpy.
-TYPE(TYPE_GFL_NAML)  :: YCPF_NL               ! Convective precipitation flux
-TYPE(TYPE_GFL_NAML)  :: YSPF_NL               ! Stratiform precipitation flux
-TYPE(TYPE_GFL_NAML)  :: YCVGQ_NL              ! Moisture Convergence for french physics
-TYPE(TYPE_GFL_NAML)  :: YQVA_NL               ! Total humidity variation
+! TYPE(TYPE_GFL_NAML)  :: YQ_NL                 ! Specific humidity
+! TYPE(TYPE_GFL_NAML)  :: YI_NL                 ! Ice water
+! TYPE(TYPE_GFL_NAML)  :: YL_NL                 ! Liquid water
+! TYPE(TYPE_GFL_NAML)  :: YLCONV_NL             ! Liquid water (CONV. PART)
+! TYPE(TYPE_GFL_NAML)  :: YICONV_NL             ! Ice    water (CONV. PART)
+! TYPE(TYPE_GFL_NAML)  :: YRCONV_NL             ! Rain         (CONV. PART)
+! TYPE(TYPE_GFL_NAML)  :: YSCONV_NL             ! Snow         (CONV. PART)
+! TYPE(TYPE_GFL_NAML)  :: YIRAD_NL              ! Radiative cloud Ice water
+! TYPE(TYPE_GFL_NAML)  :: YLRAD_NL              ! Radiative cloud Liquid water
+! TYPE(TYPE_GFL_NAML)  :: YS_NL                 ! Snow
+! TYPE(TYPE_GFL_NAML)  :: YR_NL                 ! Rain
+! TYPE(TYPE_GFL_NAML)  :: YG_NL                 ! Graupels
+! TYPE(TYPE_GFL_NAML)  :: YH_NL                 ! Hail
+! TYPE(TYPE_GFL_NAML)  :: YTKE_NL               ! Turbulent Kinetic Energy
+! TYPE(TYPE_GFL_NAML)  :: YTTE_NL               ! Turbulent Total Energy
+! TYPE(TYPE_GFL_NAML)  :: YEFB1_NL              ! First variable EFB scheme
+! TYPE(TYPE_GFL_NAML)  :: YEFB2_NL              ! Second variable EFB scheme
+! TYPE(TYPE_GFL_NAML)  :: YEFB3_NL              ! Third variable EFB scheme
+! TYPE(TYPE_GFL_NAML)  :: YA_NL                 ! Cloud fraction
+! TYPE(TYPE_GFL_NAML)  :: YO3_NL                ! Ozone
+! TYPE(TYPE_GFL_NAML)  :: YSRC_NL               ! Second-order flux for AROME
+!                                               ! s'rc'/2Sigma_s2
+!                                               ! multiplied by Lambda_3
+! TYPE(TYPE_GFL_NAML)  :: YMXL_NL               ! Prognostic mixing length
+! TYPE(TYPE_GFL_NAML)  :: YSHTUR_NL             ! Shear source term for turbulence.
+! TYPE(TYPE_GFL_NAML)  :: YFQTUR_NL             ! Flux form source term for turbulence -moisture.
+! TYPE(TYPE_GFL_NAML)  :: YFSTUR_NL             ! Flux form source term for turbulence -enthalpy.
+! TYPE(TYPE_GFL_NAML)  :: YCPF_NL               ! Convective precipitation flux
+! TYPE(TYPE_GFL_NAML)  :: YSPF_NL               ! Stratiform precipitation flux
+! TYPE(TYPE_GFL_NAML)  :: YCVGQ_NL              ! Moisture Convergence for french physics
+! TYPE(TYPE_GFL_NAML)  :: YQVA_NL               ! Total humidity variation
 
-TYPE(TYPE_GFL_NAML)  :: YGHG_NL(JPGHG)        ! Greenhouse Gases
-TYPE(TYPE_GFL_NAML)  :: YCHEM_NL(JPCHEM)      ! Chemical species
-TYPE(TYPE_GFL_NAML)  :: YAERO_NL(JPAERO)      ! Aerosol fields
-TYPE(TYPE_GFL_NAML)  :: YERA40_NL(JPERA40)    ! ERA40 diagnostic fields
-TYPE(TYPE_GFL_NAML)  :: YNOGW_NL(JPNOGW)      ! NORO GWD SCHEME
-TYPE(TYPE_GFL_NAML)  :: YEDRP_NL(JPEDRP)      ! EDR Parameter turbulence diagnostics
-TYPE(TYPE_GFL_NAML)  :: YSLDIA_NL(JPSLDIA)    ! SL dynamics diagnostics
-TYPE(TYPE_GFL_NAML)  :: YLRCH4_NL             ! CH4 loss rate
-!TYPE(TYPE_GFL_NAML)  :: YAERAOT_NL(NPAERAOT)  ! Aerosol optical thicknesses
-!TYPE(TYPE_GFL_NAML)  :: YAERLISI_NL(NPAERLISI_WVL,NPAERLISI_VAR) ! Aerosol lidar simulator
-TYPE(TYPE_GFL_NAML)  :: YAEROUT_NL(JPAEROUT)  ! Aerosol outputs
-TYPE(TYPE_GFL_NAML)  :: YAEROCLIM_NL(JPAEROCLIM)  ! Aerosol climatology
-TYPE(TYPE_GFL_NAML)  :: YUVP_NL(JPUVP)        ! UV-processor outputs
-TYPE(TYPE_GFL_NAML)  :: YRKTH_NL              ! Rasch-Kristjansson H tendency
-TYPE(TYPE_GFL_NAML)  :: YRKTQV_NL             ! Rasch-Kristjansson Qv tendency
-TYPE(TYPE_GFL_NAML)  :: YRKTQC_NL             ! Rasch-Kristjansson Qc tendency
-!TYPE(TYPE_GFL_NAML)  :: YCRM_NL(JPCRM)        ! CRM_Prognostics
-TYPE(TYPE_GFL_NAML)  :: YPHYCTY_NL            ! PHYS input for MassCTY
-TYPE(TYPE_GFL_NAML)  :: YFSD_NL               ! cloud heterogeneity
-TYPE(TYPE_GFL_NAML)  :: YRSPEC_NL             ! Specific humidity
+! TYPE(TYPE_GFL_NAML)  :: YGHG_NL(JPGHG)        ! Greenhouse Gases
+! TYPE(TYPE_GFL_NAML)  :: YCHEM_NL(JPCHEM)      ! Chemical species
+! TYPE(TYPE_GFL_NAML)  :: YAERO_NL(JPAERO)      ! Aerosol fields
+! TYPE(TYPE_GFL_NAML)  :: YERA40_NL(JPERA40)    ! ERA40 diagnostic fields
+! TYPE(TYPE_GFL_NAML)  :: YNOGW_NL(JPNOGW)      ! NORO GWD SCHEME
+! TYPE(TYPE_GFL_NAML)  :: YEDRP_NL(JPEDRP)      ! EDR Parameter turbulence diagnostics
+! TYPE(TYPE_GFL_NAML)  :: YSLDIA_NL(JPSLDIA)    ! SL dynamics diagnostics
+! TYPE(TYPE_GFL_NAML)  :: YLRCH4_NL             ! CH4 loss rate
+! !TYPE(TYPE_GFL_NAML)  :: YAERAOT_NL(NPAERAOT)  ! Aerosol optical thicknesses
+! !TYPE(TYPE_GFL_NAML)  :: YAERLISI_NL(NPAERLISI_WVL,NPAERLISI_VAR) ! Aerosol lidar simulator
+! TYPE(TYPE_GFL_NAML)  :: YAEROUT_NL(JPAEROUT)  ! Aerosol outputs
+! TYPE(TYPE_GFL_NAML)  :: YAEROCLIM_NL(JPAEROCLIM)  ! Aerosol climatology
+! TYPE(TYPE_GFL_NAML)  :: YUVP_NL(JPUVP)        ! UV-processor outputs
+! TYPE(TYPE_GFL_NAML)  :: YRKTH_NL              ! Rasch-Kristjansson H tendency
+! TYPE(TYPE_GFL_NAML)  :: YRKTQV_NL             ! Rasch-Kristjansson Qv tendency
+! TYPE(TYPE_GFL_NAML)  :: YRKTQC_NL             ! Rasch-Kristjansson Qc tendency
+! !TYPE(TYPE_GFL_NAML)  :: YCRM_NL(JPCRM)        ! CRM_Prognostics
+! TYPE(TYPE_GFL_NAML)  :: YPHYCTY_NL            ! PHYS input for MassCTY
+! TYPE(TYPE_GFL_NAML)  :: YFSD_NL               ! cloud heterogeneity
+! TYPE(TYPE_GFL_NAML)  :: YRSPEC_NL             ! Specific humidity
 
-! Extra fields
-TYPE(TYPE_GFL_NAML)  :: YSDSAT_NL             ! Standard Deviation of the
-                                              ! SATuration Depression (Sigma_s) 
-TYPE(TYPE_GFL_NAML)  :: YCVV_NL               ! Convective Vertical Velocity
-TYPE(TYPE_GFL_NAML)  :: YFORC_NL(JPFORC)      ! Forcing precursor
-TYPE(TYPE_GFL_NAML)  :: YEZDIAG_NL(JPEZDIAG)  ! Easy diagnostics
-TYPE(TYPE_GFL_NAML)  :: YEXT_NL(JPGFL-JPNAMED_GFL-JPGHG-JPFORC-JPEZDIAG-JPAERO-JPERA40-&
- &                              JPNOGW-JPSLDIA-JPCH4S-JPAEROUT-JPAEROCLIM-& !NPAERAOT-NPAERLISI-&
- &                              JPUVP-JPCHEM-JPLIMA-JPPHYCTY-JPFSD-JPEDRP) ! Extra fields
-! &                              JPUVP-JPCHEM-JPCRM-JPLIMA-JPPHYCTY-JPFSD-JPEDRP) ! Extra fields
+! ! Extra fields
+! TYPE(TYPE_GFL_NAML)  :: YSDSAT_NL             ! Standard Deviation of the
+!                                               ! SATuration Depression (Sigma_s) 
+! TYPE(TYPE_GFL_NAML)  :: YCVV_NL               ! Convective Vertical Velocity
+! TYPE(TYPE_GFL_NAML)  :: YFORC_NL(JPFORC)      ! Forcing precursor
+! TYPE(TYPE_GFL_NAML)  :: YEZDIAG_NL(JPEZDIAG)  ! Easy diagnostics
+! TYPE(TYPE_GFL_NAML)  :: YEXT_NL(JPGFL-JPNAMED_GFL-JPGHG-JPFORC-JPEZDIAG-JPAERO-JPERA40-&
+!  &                              JPNOGW-JPSLDIA-JPCH4S-JPAEROUT-JPAEROCLIM-& !NPAERAOT-NPAERLISI-&
+!  &                              JPUVP-JPCHEM-JPLIMA-JPPHYCTY-JPFSD-JPEDRP) ! Extra fields
+! ! &                              JPUVP-JPCHEM-JPCRM-JPLIMA-JPPHYCTY-JPFSD-JPEDRP) ! Extra fields
 
-! Prognostic convection variables: 6 more namelist components
-TYPE(TYPE_GFL_NAML)  :: YUOM_NL               ! Updraught vert velocity
-TYPE(TYPE_GFL_NAML)  :: YUAL_NL               ! Updraught mesh fraction
-TYPE(TYPE_GFL_NAML)  :: YDOM_NL               ! Downdraught vert velocity
-TYPE(TYPE_GFL_NAML)  :: YDAL_NL               ! Downdraught mesh fraction
-TYPE(TYPE_GFL_NAML)  :: YUEN_NL               ! Updraught entrainment
-TYPE(TYPE_GFL_NAML)  :: YUNEBH_NL             ! Pseudi Hist Conv cloud fraction
+! ! Prognostic convection variables: 6 more namelist components
+! TYPE(TYPE_GFL_NAML)  :: YUOM_NL               ! Updraught vert velocity
+! TYPE(TYPE_GFL_NAML)  :: YUAL_NL               ! Updraught mesh fraction
+! TYPE(TYPE_GFL_NAML)  :: YDOM_NL               ! Downdraught vert velocity
+! TYPE(TYPE_GFL_NAML)  :: YDAL_NL               ! Downdraught mesh fraction
+! TYPE(TYPE_GFL_NAML)  :: YUEN_NL               ! Updraught entrainment
+! TYPE(TYPE_GFL_NAML)  :: YUNEBH_NL             ! Pseudi Hist Conv cloud fraction
 
-!TYPE(TYPE_AERO_WVL_DIAG) :: YAERO_WVL_DIAG_NL(NPAERO_WVL_DIAG) ! Per-wavelength aerosol optical diagnostics
-TYPE(TYPE_GFL_NAML)  :: YLIMA_NL(JPLIMA)      ! LIMA prognostic fields
+! !TYPE(TYPE_AERO_WVL_DIAG) :: YAERO_WVL_DIAG_NL(NPAERO_WVL_DIAG) ! Per-wavelength aerosol optical diagnostics
+! TYPE(TYPE_GFL_NAML)  :: YLIMA_NL(JPLIMA)      ! LIMA prognostic fields
 
 END TYPE TYPE_GFLD
 
