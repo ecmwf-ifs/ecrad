@@ -34,7 +34,13 @@ program ecrad_ifs_driver
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
-  use radiation_config,         only : config_type
+  use radiation_config,         only : config_type, &
+       &                       ISolverMcICA, ISolverSpartacus, &
+       &                       ISolverTripleclouds, &
+       &                       ILiquidModelSlingo, ILiquidModelSOCRATES, &
+       &                       IIceModelFu, IIceModelBaran, &
+       &                       IOverlapExponential, IOverlapMaximumRandom, &
+       &                       IOverlapExponentialRandom
   use radiation_single_level,   only : single_level_type
   use radiation_thermodynamics, only : thermodynamics_type
   use radiation_gas,            only : gas_type, &
@@ -128,9 +134,7 @@ program ecrad_ifs_driver
   integer :: ire_liq, ire_ice, ioverlap
   integer, allocatable :: iseed(:,:)
 
-  integer :: nlwout, nsw, nlwemiss, iradaer, naermacc
-
-  logical :: lrayfm, lepo3ra, lchem_o3rad, ldiagforcing, lapproxlwupdate, lapproxswupdate, lldebug
+  logical :: lldebug, lrayfm
 
   integer :: jrl, ibeg, iend, ib, il, ifld, jlev, jaer, joff, jalb, jemiss
 
@@ -215,40 +219,108 @@ program ecrad_ifs_driver
     stop 1
   end if
 
-  ! --------------------------------------------------------
-  ! Section 4: Call radiation scheme
-  ! --------------------------------------------------------
-
-  ! Check inputs are within physical bounds, printing message if not
-  is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) &
-       & .or.   single_level%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) &
-       & .or. thermodynamics%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) &
-       & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) &
-       & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) 
-
-  !
-  !
-  !    IFS SETUP
-  !
-  !
-
   associate( &
     & yderdi=>ydmodel%yrml_phy_rad%yrerdi, &
     & ydeaeratm=>ydmodel%yrml_phy_rad%yreaeratm, &
     & ydephy=>ydmodel%yrml_phy_ec%yrephy, &
     & yderad=>ydmodel%yrml_phy_rad%yrerad, &
-    & ydradiation=>ydmodel%yrml_phy_rad%yradiation &
+    & ydradiation=>ydmodel%yrml_phy_rad%yradiation, &
+    & rad_config=>ydmodel%yrml_phy_rad%yradiation%rad_config &
   )
-    ! Values from IFS:
-    ! TODO: fill this from ecrad inputs
-    ydephy%NEMISSSCHEME = 0
 
-    !!! From suecrad: !!!
+    !  -------------------------------------------------------
+    !
+    !    IFS SETUP  -  EXCERPT FROM SUECRAD AND RADINTG
+    !
+    !  -------------------------------------------------------
+
+    lrayfm=.false.                     ! key for calling radiation scheme from MF 
+    zrii0=single_level%solar_irradiance
+    lldebug=(driver_config%iverbose>4)     ! debug 
+    nproma=driver_config%nblocksize        ! nproma size
+    ngpblks=(ncol-1)/nproma+1              ! number of column blocks
+
+    write(nulout,'("ncol = ",i0,", nproma = ",i0,", ngpblks = ",i0)') ncol, nproma, ngpblks
+
+    !
+    ! Values from IFS  ! Unclear, ask Robin!
+    !
+    ydephy%nemissscheme = 0
+    ydephy%nalbedoscheme = 2
+
+    !
+    ! Hard-coded in SUECRAD  ! Do they need to be configurable? Ask Robin!
+    !
+    yderad%naermacc = 1  ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
+    yderad%lapproxlwupdate = .true.  ! Hogan and Bozzo (2015) approx longwave updates
+    yderad%lapproxswupdate = .true.  ! Hogan and Bozzo (2015) approx shortwave updates
+    yderad%nliqopt = 4  ! 2 - SLINGO, 4 - SOCRATES
+    yderad%niceopt = 3  ! 3 - ICEMODELFU, 4 - IDEMODELBARAN
+    yderad%nsolarspectrum = 0
+    yderad%ndecolat = 2  ! DECORRELATION LENGTH FOR CF AND CW, 0: SPECIFIED INDEPENDENT OF LATITUDE, 1: SHONK-HOGAN, 2: IMPROVED
+    yderad%rcloud_frac_std = 1.0_jprb
+    yderad%ldiagforcing = .false.  ! write input ozone, ghg and aerosol forcing to 3D fields
+
+    !
+    ! Reconstruct IFS configuration values from ecRad's config
+    !
+    yderad%lfu_lw_ice_optics_bug = config%do_fu_lw_ice_optics_bug
+    
+    ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
+    if(config%i_solver_lw == ISolverMcICA) then
+      yderad%nlwsolver = 0
+    elseif(config%i_solver_lw == ISolverSpartacus) then
+      yderad%nlwsolver = 1
+    elseif(config%i_solver_lw == ISolverTripleclouds) then
+      yderad%nlwsolver = 3
+    else
+      call abor1('Unknown longwave solver type')
+    endif
+
+    ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
+    if(config%i_solver_sw == ISolverMcICA) then
+      yderad%nswsolver = 0
+    elseif(config%i_solver_sw == ISolverSpartacus) then
+      yderad%nswsolver = 1
+    elseif(config%i_solver_sw == ISolverTripleclouds) then
+      yderad%nswsolver = 3
+    else
+      call abor1('Unknown shortwave solver type')
+    endif
+
+    ! 1 - cloud scattering, 2 - cloud + aerosol scattering
+    if(config%do_lw_cloud_scattering) then
+      if(config%do_lw_aerosol_scattering) then
+        yderad%nlwscattering = 2
+      else
+        yderad%nlwscattering = 1
+      endif
+    else
+      yderad%nlwscattering = 0
+    endif
+
+    ! 1 - MAXIMUMRANDOM, 2 - EXPONENTIAL, 3 - EXPONENTIALRANDOM
+    if(config%i_overlap_scheme == IOverlapMaximumRandom) then
+      yderad%ncloudoverlap = 1
+    elseif(config%i_overlap_scheme == IOverlapExponential) then
+      yderad%ncloudoverlap = 2
+    elseif(config%i_overlap_scheme == IOverlapExponentialRandom) then
+      yderad%ncloudoverlap = 3
+    else
+      call abor1('Unknown cloud overlap scheme')
+    endif
+
+    ! number of shortwave spectral intervals, = 6 in IFS
+    if (rad_config%use_canopy_full_spectrum_sw) then
+      yderad%nsw = rad_config%n_g_sw  
+    else
+      yderad%nsw = 6
+    endif
+
+    !
+    ! SUECRAD
+    !
+
     ! Number of longwave surface emissivity intervals to use
     IF (YDEPHY%NEMISSSCHEME == 1) THEN
       ! We do a more accurate mapping for emissivity if NEMISSSCHEME==1.
@@ -287,394 +359,224 @@ program ecrad_ifs_driver
       CALL ABOR1('RADIATION_SETUP: NEMISSSCHEME must be 0 or 1')
     ENDIF
 
-    ydephy%nalbedoscheme = 2
-    ! ydeaeratm values???
-    yderad%naermacc = 1  ! MACC aerosol climatology
-    yderad%lapproxlwupdate = .true.  ! Hogan and Bozzo (2015) approx longwave updates
-    yderad%lapproxswupdate = .true.  ! Hogan and Bozzo (2015) approx shortwave updates
-    yderad%nliqopt = 4  ! 2 - SLINGO, 4 - SOCRATES
-    yderad%niceopt = 3  ! 3 - ICEMODELFU, 4 - IDEMODELBARAN
-    yderad%lfu_lw_ice_optics_bug = .false.
-    yderad%nlwsolver = 0  ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
-    yderad%nswsolver = 0  ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
-    yderad%nlwscattering = 1  ! 1 - cloud scattering, 2 - cloud + aerosol scattering
-    yderad%ncloudoverlap = 3  ! 1 - MAXIMUMRANDOM, 2 - EXPONENTIAL, 3 - EXPONENTIALRANDOM
-    yderad%nsolarspectrum = 0
-    yderad%ndecolat = 2  ! DECORRELATION LENGTH FOR CF AND CW, 0: SPECIFIED INDEPENDENT OF LATITUDE, 1: SHONK-HOGAN, 2: IMPROVED
-    yderad%nlwout = 1
-    yderad%nlwemiss = 2
-    yderad%nsw = 6
-    yderad%rcloud_frac_std = 1.0_jprb
-
     call setup_radiation_scheme(yderdi, ydeaeratm, ydcompo, ydephy, yderad, &
                                 & ydradiation, ldoutput=.true., file_name=nml_file_name)
-  end associate
 
-  zrii0=single_level%solar_irradiance
-  lldebug=(driver_config%iverbose>4)     ! debug 
-  nproma=driver_config%nblocksize        ! nproma size
-  ngpblks=(ncol-1)/nproma+1              ! number of column blocks
-
-  write(nulout,'("ncol = ",i0,", nproma = ",i0,", ngpblks = ",i0)') ncol, nproma, ngpblks
-
-  ! number of emissivity intervals, = 2 in IFS
-  if ( ydmodel%yrml_phy_rad%yradiation%rad_config%use_canopy_full_spectrum_lw ) then
-    nlwemiss = ydmodel%yrml_phy_rad%yradiation%rad_config%n_g_lw
-  else
-    nlwemiss=2!surface%nemissbands ???
-  endif
-
-  ! number of shortwave spectral intervals, = 6 in IFS
-  if (ydmodel%yrml_phy_rad%yradiation%rad_config%use_canopy_full_spectrum_sw) then
-    nsw = ydmodel%yrml_phy_rad%yradiation%rad_config%n_g_sw  
-  else
-    nsw = 6!surface%nalbedobands    ???
-  endif
-
-  nlwout=1                           ! number of spectral intervals to pass LW downwelling flux
-  lrayfm=.false.                     ! key for calling radiation scheme from MF 
-  lepo3ra=.false.                    ! true if prognostic o-zone is passed to radiation
-  lchem_o3rad=.false.                ! use chemistry o3 in radiation
-  iradaer=ydmodel%yrml_phy_rad%yradiation%rad_config%n_aerosol_types     ! number of aerosol species
-  naermacc=1                         ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
-  ldiagforcing=.false.               ! write input ozone, ghg and aerosol forcing to 3D fields
-  lapproxlwupdate=.true.
-  lapproxswupdate=.true.
-
-  !
-  ! RADINTG
-  !
- 
-  !  INITIALISE INDICES FOR VARIABLE
-
-  ! INDRAD is a CONTAIN'd function (at end of this routine)
- 
-  inext  =1
-  iinbeg =1                        ! start of input variables
-  igi    =indrad(inext,1,lldebug)
-  imu0   =indrad(inext,1,.true.)
-  iamu0  =indrad(inext,1,.true.)
-  iemiss =indrad(inext,nlwemiss,.true.)
-  its    =indrad(inext,1,.true.)
-  islm   =indrad(inext,1,.true.)
-  iccnl  =indrad(inext,1,.true.)
-  iccno  =indrad(inext,1,.true.)
-  ibas   =indrad(inext,1,.true.)
-  itop   =indrad(inext,1,.true.)
-  igelam =indrad(inext,1,.true.)
-  igemu  =indrad(inext,1,.true.)
-  iclon  =indrad(inext,1,.true.)
-  islon  =indrad(inext,1,.true.)
-  iald   =indrad(inext,nsw,.true.)
-  ialp   =indrad(inext,nsw,.true.)
-  iti    =indrad(inext,nlev,.true.)
-  ipr    =indrad(inext,nlev,.true.)
-  iqs    =indrad(inext,nlev,.true.)
-  iwv    =indrad(inext,nlev,.true.)
-  iclc   =indrad(inext,nlev,.true.)
-  ilwa   =indrad(inext,nlev,.true.)
-  iiwa   =indrad(inext,nlev,.true.)
-  iswa   =indrad(inext,nlev,.true.)
-  irwa   =indrad(inext,nlev,.true.)
-  irra   =indrad(inext,nlev,.true.)
-  idp    =indrad(inext,nlev,.true.)
-  ioz    =indrad(inext,nlev,lrayfm)
-  iecpo3 =indrad(inext,nlev ,.false.)
-  ihpr   =indrad(inext,nlev+1,.true.) ! not used in ecrad
-  iaprs  =indrad(inext,nlev+1,.true.)
-  ihti   =indrad(inext,nlev+1,.true.)
-  iaero  =indrad(inext,iradaer*nlev,.false.)
-
-  iinend =inext-1                  ! end of input variables
-
-  ioutbeg=inext                    ! start of output variables
-  if (naermacc == 1) iaero = indrad(inext,iradaer*nlev,ldiagforcing)
-  ifrsod =indrad(inext,1,.true.)
-  ifrted =indrad(inext,nlwout,.true.)
-  ifrsodc=indrad(inext,1,.true.)
-  ifrtedc=indrad(inext,1,.true.)
-  iemit  =indrad(inext,1,.true.)
-  isudu  =indrad(inext,1,.true.)
-  iuvdf  =indrad(inext,1,.true.)
-  iparf  =indrad(inext,1,.true.)
-  iparcf =indrad(inext,1,.true.)
-  itincf =indrad(inext,1,.true.)
-  ifdir  =indrad(inext,1,.true.)
-  ifdif  =indrad(inext,1,.true.)
-  icdir  =indrad(inext,1,.true.)
-  ilwderivative =indrad(inext,nlev+1, lapproxlwupdate)
-  iswdirectband =indrad(inext,nsw,lapproxswupdate)
-  iswdiffuseband=indrad(inext,nsw,lapproxswupdate)
-  ifrso  =indrad(inext,nlev+1,.true.)
-  iswfc  =indrad(inext,nlev+1,.true.)
-  ifrth  =indrad(inext,nlev+1,.true.)
-  ilwfc  =indrad(inext,nlev+1,.true.)
-  iaer   =indrad(inext,6*nlev,ldiagforcing)
-  ioz    =indrad(inext,nlev,ldiagforcing)
-  iico2  =indrad(inext,nlev,ldiagforcing)
-  iich4  =indrad(inext,nlev,ldiagforcing)
-  iin2o  =indrad(inext,nlev,ldiagforcing)
-  ino2   =indrad(inext,nlev,ldiagforcing)
-  ic11   =indrad(inext,nlev,ldiagforcing)
-  ic12   =indrad(inext,nlev,ldiagforcing)
-  ic22   =indrad(inext,nlev,ldiagforcing)
-  icl4   =indrad(inext,nlev,ldiagforcing)
-  igix   =indrad(inext,1,lldebug)
-
-  ioutend=inext-1                  ! end of output variables
-
-                                 ! start of local variables
-  if(.not.ldiagforcing) then
-    if (naermacc == 1)  iaero = indrad(inext,iradaer*nlev,.true.)
-    iaer   =indrad(inext,nlev*6,.true.)
-    ioz    =indrad(inext,nlev,.not.lrayfm)
-    iico2  =indrad(inext,nlev,.true.)
-    iich4  =indrad(inext,nlev,.true.)
-    iin2o  =indrad(inext,nlev,.true.)
-    ino2   =indrad(inext,nlev,.true.)
-    ic11   =indrad(inext,nlev,.true.)
-    ic12   =indrad(inext,nlev,.true.)
-    ic22   =indrad(inext,nlev,.true.)
-    icl4   =indrad(inext,nlev,.true.)
-  endif
-                                 ! end of local variables
-
-                                  ! start of standalone inputs workaround variables
-  ire_liq =indrad(inext,nlev,.true.)
-  ire_ice =indrad(inext,nlev,.true.)
-  ioverlap =indrad(inext,nlev-1,.true.)
-                                  ! end of standalone inputs workaround variables
-
-  ifldsin = iinend - iinbeg +1
-  ifldsout= ioutend-ioutbeg +1
-  ifldstot= inext  - 1
-
-  if( lldebug )then
-    call ydmodel%PRINT("ECRAD")
-    write(nulout,'("imu0   =",i0)')imu0
-    write(nulout,'("iamu0  =",i0)')iamu0
-    write(nulout,'("iemiss =",i0)')iemiss
-    write(nulout,'("its    =",i0)')its
-    write(nulout,'("islm   =",i0)')islm
-    write(nulout,'("iccnl  =",i0)')iccnl
-    write(nulout,'("iccno  =",i0)')iccno
-    write(nulout,'("ibas   =",i0)')ibas
-    write(nulout,'("itop   =",i0)')itop
-    write(nulout,'("igelam =",i0)')igelam
-    write(nulout,'("igemu  =",i0)')igemu
-    write(nulout,'("iclon  =",i0)')iclon
-    write(nulout,'("islon  =",i0)')islon
-    write(nulout,'("iald   =",i0)')iald
-    write(nulout,'("ialp   =",i0)')ialp
-    write(nulout,'("iti    =",i0)')iti
-    write(nulout,'("ipr    =",i0)')ipr
-    write(nulout,'("iqs    =",i0)')iqs
-    write(nulout,'("iwv    =",i0)')iwv
-    write(nulout,'("iclc   =",i0)')iclc
-    write(nulout,'("ilwa   =",i0)')ilwa
-    write(nulout,'("iiwa   =",i0)')iiwa
-    write(nulout,'("iswa   =",i0)')iswa
-    write(nulout,'("irwa   =",i0)')irwa
-    write(nulout,'("irra   =",i0)')irra
-    write(nulout,'("idp    =",i0)')idp
-    write(nulout,'("ioz    =",i0)')ioz
-    write(nulout,'("iecpo3 =",i0)')iecpo3
-    write(nulout,'("ihpr   =",i0)')ihpr
-    write(nulout,'("iaprs  =",i0)')iaprs
-    write(nulout,'("ihti   =",i0)')ihti
-    write(nulout,'("ifrsod =",i0)')ifrsod
-    write(nulout,'("ifrted=",i0)')ifrted 
-    write(nulout,'("ifrsodc=",i0)')ifrsodc 
-    write(nulout,'("ifrtedc=",i0)')ifrtedc 
-    write(nulout,'("iemit  =",i0)')iemit
-    write(nulout,'("isudu  =",i0)')isudu
-    write(nulout,'("iuvdf  =",i0)')iuvdf
-    write(nulout,'("iparf  =",i0)')iparf
-    write(nulout,'("iparcf =",i0)')iparcf
-    write(nulout,'("itincf =",i0)')itincf
-    write(nulout,'("ifdir  =",i0)')ifdir
-    write(nulout,'("ifdif  =",i0)')ifdif
-    write(nulout,'("icdir  =",i0)')icdir
-    write(nulout,'("ilwderivative  =",i0)')ilwderivative
-    write(nulout,'("iswdirectband  =",i0)')iswdirectband
-    write(nulout,'("iswdiffuseband =",i0)')iswdiffuseband
-    write(nulout,'("ifrso  =",i0)')ifrso
-    write(nulout,'("iswfc  =",i0)')iswfc
-    write(nulout,'("ifrth  =",i0)')ifrth
-    write(nulout,'("ilwfc  =",i0)')ilwfc
-    write(nulout,'("igi    =",i0)')igi
-    write(nulout,'("iaer   =",i0)')iaer
-    write(nulout,'("iaero  =",i0)')iaero
-    write(nulout,'("iico2  =",i0)')iico2
-    write(nulout,'("iich4  =",i0)')iich4
-    write(nulout,'("iin2o  =",i0)')iin2o
-    write(nulout,'("ino2   =",i0)')ino2
-    write(nulout,'("ic11   =",i0)')ic11
-    write(nulout,'("ic12   =",i0)')ic12
-    write(nulout,'("ic22   =",i0)')ic22
-    write(nulout,'("icl4   =",i0)')icl4
-    write(nulout,'("ire_liq=",i0)')ire_liq
-    write(nulout,'("ire_ice=",i0)')ire_ice
-    write(nulout,'("ioverlap=",i0)')ioverlap
-    write(nulout,'("ifldsin=",i0)')ifldsin
-    write(nulout,'("ifldsout=",i0)')ifldsout
-    write(nulout,'("ifldstot=",i0)')ifldstot
-  endif
+    !
+    ! RADINTG
+    !
   
-  ! Allocate blocked data structure
-  allocate(zrgp(nproma,ifldstot,ngpblks))
-  allocate(iseed(nproma,ngpblks))
-  allocate(flux_out(ngpblks))
-  allocate(thermodynamics_out%pressure_hl(ncol,nlev+1))
+    !  INITIALISE INDICES FOR VARIABLE
 
-  ! First touch
-  !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
-  !$OMP&PRIVATE(IB,IFLD)
-  do ib=1,ngpblks
-    do ifld=1,ifldstot
-      zrgp(:,ifld,ib) = 0._jprb
-    enddo
-    iseed(:,ib) = 0
-  enddo
-  !$OMP END PARALLEL DO
-  !
-  !
-  !  END IFS SETUP
-  !
-  !
+    ! INDRAD is a CONTAIN'd function (at end of this routine)
+  
+    inext  =1
+    iinbeg =1                        ! start of input variables
+    igi    =indrad(inext,1,lldebug)
+    imu0   =indrad(inext,1,.true.)
+    iamu0  =indrad(inext,1,.true.)
+    iemiss =indrad(inext,yderad%nlwemiss,.true.)
+    its    =indrad(inext,1,.true.)
+    islm   =indrad(inext,1,.true.)
+    iccnl  =indrad(inext,1,.true.)
+    iccno  =indrad(inext,1,.true.)
+    ibas   =indrad(inext,1,.true.)
+    itop   =indrad(inext,1,.true.)
+    igelam =indrad(inext,1,.true.)
+    igemu  =indrad(inext,1,.true.)
+    iclon  =indrad(inext,1,.true.)
+    islon  =indrad(inext,1,.true.)
+    iald   =indrad(inext,yderad%nsw,.true.)
+    ialp   =indrad(inext,yderad%nsw,.true.)
+    iti    =indrad(inext,nlev,.true.)
+    ipr    =indrad(inext,nlev,.true.)
+    iqs    =indrad(inext,nlev,.true.)
+    iwv    =indrad(inext,nlev,.true.)
+    iclc   =indrad(inext,nlev,.true.)
+    ilwa   =indrad(inext,nlev,.true.)
+    iiwa   =indrad(inext,nlev,.true.)
+    iswa   =indrad(inext,nlev,.true.)
+    irwa   =indrad(inext,nlev,.true.)
+    irra   =indrad(inext,nlev,.true.)
+    idp    =indrad(inext,nlev,.true.)
+    ioz    =indrad(inext,nlev,lrayfm)
+    iecpo3 =indrad(inext,nlev ,.false.)
+    ihpr   =indrad(inext,nlev+1,.true.) ! not used in ecrad
+    iaprs  =indrad(inext,nlev+1,.true.)
+    ihti   =indrad(inext,nlev+1,.true.)
+    iaero  =indrad(inext,rad_config%n_aerosol_types*nlev,.false.)
 
-  ! REPLACED ich4 with iich4 due to clash
-  ! REPLACED in2o with iin2o due to clash
-  ! REPLACED ico2 with iico2 due to clash
+    iinend =inext-1                  ! end of input variables
 
-  !  INPUT LOOP
+    ioutbeg=inext                    ! start of output variables
+    if (yderad%naermacc == 1) iaero = indrad(inext,rad_config%n_aerosol_types*nlev,yderad%ldiagforcing)
+    ifrsod =indrad(inext,1,.true.)
+    ifrted =indrad(inext,yderad%nlwout,.true.)
+    ifrsodc=indrad(inext,1,.true.)
+    ifrtedc=indrad(inext,1,.true.)
+    iemit  =indrad(inext,1,.true.)
+    isudu  =indrad(inext,1,.true.)
+    iuvdf  =indrad(inext,1,.true.)
+    iparf  =indrad(inext,1,.true.)
+    iparcf =indrad(inext,1,.true.)
+    itincf =indrad(inext,1,.true.)
+    ifdir  =indrad(inext,1,.true.)
+    ifdif  =indrad(inext,1,.true.)
+    icdir  =indrad(inext,1,.true.)
+    ilwderivative =indrad(inext,nlev+1, yderad%lapproxlwupdate)
+    iswdirectband =indrad(inext,yderad%nsw,yderad%lapproxswupdate)
+    iswdiffuseband=indrad(inext,yderad%nsw,yderad%lapproxswupdate)
+    ifrso  =indrad(inext,nlev+1,.true.)
+    iswfc  =indrad(inext,nlev+1,.true.)
+    ifrth  =indrad(inext,nlev+1,.true.)
+    ilwfc  =indrad(inext,nlev+1,.true.)
+    iaer   =indrad(inext,6*nlev,yderad%ldiagforcing)
+    ioz    =indrad(inext,nlev,yderad%ldiagforcing)
+    iico2  =indrad(inext,nlev,yderad%ldiagforcing)
+    iich4  =indrad(inext,nlev,yderad%ldiagforcing)
+    iin2o  =indrad(inext,nlev,yderad%ldiagforcing)
+    ino2   =indrad(inext,nlev,yderad%ldiagforcing)
+    ic11   =indrad(inext,nlev,yderad%ldiagforcing)
+    ic12   =indrad(inext,nlev,yderad%ldiagforcing)
+    ic22   =indrad(inext,nlev,yderad%ldiagforcing)
+    icl4   =indrad(inext,nlev,yderad%ldiagforcing)
+    igix   =indrad(inext,1,lldebug)
 
-  !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
-  !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB,JAER,JOFF,JLEV,JALB)
-  do jrl=1,ncol,nproma
+    ioutend=inext-1                  ! end of output variables
 
-    ibeg=jrl
-    iend=min(ibeg+nproma-1,ncol)
-    il=iend-ibeg+1
-    ib=(jrl-1)/nproma+1
-
-    !* RADINTG:  3.      PREPARE INPUT ARRAYS
-
-    ! zrgp(1:il,imu0,ib)  = ???
-    zrgp(1:il,iamu0,ib)  =  single_level%cos_sza(ibeg:iend)   ! cosine of solar zenith ang (mu0)
-
-    do jemiss=1,nlwemiss
-      zrgp(1:il,iemiss+jemiss-1,ib)  =  single_level%lw_emissivity(ibeg:iend,jemiss)
-    enddo
-
-    zrgp(1:il,its,ib)      = single_level%skin_temperature(ibeg:iend)  ! skin temperature
-    zrgp(1:il,islm,ib)     = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! land-sea mask
-    zrgp(1:il,iccnl,ib)    = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! CCN over land
-    zrgp(1:il,iccno,ib)    = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! CCN over sea
-    ! zrgp(1:il,ibas,ib)     = ???
-    ! zrgp(1:il,itop,ib)     = ???
-    zrgp(1:il,igelam,ib)   = lon(ibeg:iend) ! longitude
-    zrgp(1:il,igemu,ib)    = sin(lat(ibeg:iend)) ! sine of latitude
-    ! zrgp(1:il,iclon,ib)    = ???
-    ! zrgp(1:il,islon,ib)    = ???
-
-    do jalb=1,nsw
-      zrgp(1:il,iald+jalb-1,ib)  =  single_level%sw_albedo(ibeg:iend,jalb)
-      zrgp(1:il,ialp+jalb-1,ib)  =  single_level%sw_albedo_direct(ibeg:iend,jalb)
-    enddo
-    
-    do jlev=1,nlev
-      zrgp(1:il,iti+jlev-1,ib)   = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround and disabled SATUR ! full level temperature
-      zrgp(1:il,ipr+jlev-1,ib)   = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround and disabled SATUR ! full level pressure
-      ! zrgp(1:il,iqs+jlev-1,ib)   = ???
-    enddo
-
-    do jlev=1,nlev
-      zrgp(1:il,iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O) ! this is already in MassMixingRatio units
-      zrgp(1:il,iclc+jlev-1,ib)  = cloud%fraction(ibeg:iend,jlev)
-      zrgp(1:il,ilwa+jlev-1,ib)  = cloud%q_liq(ibeg:iend,jlev)
-      zrgp(1:il,iiwa+jlev-1,ib)  = cloud%q_ice(ibeg:iend,jlev)
-      zrgp(1:il,iswa+jlev-1,ib)  = 0._jprb  ! snow
-      zrgp(1:il,irwa+jlev-1,ib)  = 0._jprb  ! rain
-
-      ! zrgp(1:il,irra+jlev-1,ib)  = ???
-      ! zrgp(1:il,idp+jlev-1,ib)   = ???
-      ! zrgp(1:il,ifsd+jlev-1,ib)   = ???
-      ! zrgp(1:il,iecpo3+jlev-1,ib) = ???
-    enddo
-
-    zrgp(1:il,iaer,ib)  =  0._jprb ! old aerosol, not used
-    if (naermacc == 1) then
-      joff=iaero 
-      do jaer=1,iradaer
-        do jlev=1,nlev
-          zrgp(1:il,joff,ib) = aerosol%mixing_ratio(ibeg:iend,jlev,jaer)
-          joff=joff+1
-        enddo
-      enddo
+                                  ! start of local variables
+    if(.not.yderad%ldiagforcing) then
+      if (yderad%naermacc == 1)  iaero = indrad(inext,rad_config%n_aerosol_types*nlev,.true.)
+      iaer   =indrad(inext,nlev*6,.true.)
+      ioz    =indrad(inext,nlev,.not.lrayfm)
+      iico2  =indrad(inext,nlev,.true.)
+      iich4  =indrad(inext,nlev,.true.)
+      iin2o  =indrad(inext,nlev,.true.)
+      ino2   =indrad(inext,nlev,.true.)
+      ic11   =indrad(inext,nlev,.true.)
+      ic12   =indrad(inext,nlev,.true.)
+      ic22   =indrad(inext,nlev,.true.)
+      icl4   =indrad(inext,nlev,.true.)
     endif
+                                  ! end of local variables
 
-    do jlev=1,nlev+1
-      ! zrgp(1:il,ihpr+jlev-1,ib)  = ???
-      zrgp(1:il,iaprs+jlev-1,ib) = thermodynamics%pressure_hl(ibeg:iend,jlev)
-      zrgp(1:il,ihti+jlev-1,ib)  = thermodynamics%temperature_hl(ibeg:iend,jlev)
-    enddo
+                                    ! start of standalone inputs workaround variables
+    ire_liq =indrad(inext,nlev,.true.)
+    ire_ice =indrad(inext,nlev,.true.)
+    ioverlap =indrad(inext,nlev-1,.true.)
+                                    ! end of standalone inputs workaround variables
 
-    ! -- by default, globally averaged concentrations (mmr)
-    call gas%get(ICO2, IMassMixingRatio, zrgp(1:il,iico2:iico2+nlev-1,ib), istartcol=ibeg)
-    call gas%get(ICH4, IMassMixingRatio, zrgp(1:il,iich4:iich4+nlev-1,ib), istartcol=ibeg)
-    call gas%get(IN2O, IMassMixingRatio, zrgp(1:il,iin2o:iin2o+nlev-1,ib), istartcol=ibeg)
+    ifldsin = iinend - iinbeg +1
+    ifldsout= ioutend-ioutbeg +1
+    ifldstot= inext  - 1
+
+    if( lldebug )then
+      call ydmodel%PRINT("ECRAD")
+      write(nulout,'("imu0   =",i0)')imu0
+      write(nulout,'("iamu0  =",i0)')iamu0
+      write(nulout,'("iemiss =",i0)')iemiss
+      write(nulout,'("its    =",i0)')its
+      write(nulout,'("islm   =",i0)')islm
+      write(nulout,'("iccnl  =",i0)')iccnl
+      write(nulout,'("iccno  =",i0)')iccno
+      write(nulout,'("ibas   =",i0)')ibas
+      write(nulout,'("itop   =",i0)')itop
+      write(nulout,'("igelam =",i0)')igelam
+      write(nulout,'("igemu  =",i0)')igemu
+      write(nulout,'("iclon  =",i0)')iclon
+      write(nulout,'("islon  =",i0)')islon
+      write(nulout,'("iald   =",i0)')iald
+      write(nulout,'("ialp   =",i0)')ialp
+      write(nulout,'("iti    =",i0)')iti
+      write(nulout,'("ipr    =",i0)')ipr
+      write(nulout,'("iqs    =",i0)')iqs
+      write(nulout,'("iwv    =",i0)')iwv
+      write(nulout,'("iclc   =",i0)')iclc
+      write(nulout,'("ilwa   =",i0)')ilwa
+      write(nulout,'("iiwa   =",i0)')iiwa
+      write(nulout,'("iswa   =",i0)')iswa
+      write(nulout,'("irwa   =",i0)')irwa
+      write(nulout,'("irra   =",i0)')irra
+      write(nulout,'("idp    =",i0)')idp
+      write(nulout,'("ioz    =",i0)')ioz
+      write(nulout,'("iecpo3 =",i0)')iecpo3
+      write(nulout,'("ihpr   =",i0)')ihpr
+      write(nulout,'("iaprs  =",i0)')iaprs
+      write(nulout,'("ihti   =",i0)')ihti
+      write(nulout,'("ifrsod =",i0)')ifrsod
+      write(nulout,'("ifrted=",i0)')ifrted 
+      write(nulout,'("ifrsodc=",i0)')ifrsodc 
+      write(nulout,'("ifrtedc=",i0)')ifrtedc 
+      write(nulout,'("iemit  =",i0)')iemit
+      write(nulout,'("isudu  =",i0)')isudu
+      write(nulout,'("iuvdf  =",i0)')iuvdf
+      write(nulout,'("iparf  =",i0)')iparf
+      write(nulout,'("iparcf =",i0)')iparcf
+      write(nulout,'("itincf =",i0)')itincf
+      write(nulout,'("ifdir  =",i0)')ifdir
+      write(nulout,'("ifdif  =",i0)')ifdif
+      write(nulout,'("icdir  =",i0)')icdir
+      write(nulout,'("ilwderivative  =",i0)')ilwderivative
+      write(nulout,'("iswdirectband  =",i0)')iswdirectband
+      write(nulout,'("iswdiffuseband =",i0)')iswdiffuseband
+      write(nulout,'("ifrso  =",i0)')ifrso
+      write(nulout,'("iswfc  =",i0)')iswfc
+      write(nulout,'("ifrth  =",i0)')ifrth
+      write(nulout,'("ilwfc  =",i0)')ilwfc
+      write(nulout,'("igi    =",i0)')igi
+      write(nulout,'("iaer   =",i0)')iaer
+      write(nulout,'("iaero  =",i0)')iaero
+      write(nulout,'("iico2  =",i0)')iico2
+      write(nulout,'("iich4  =",i0)')iich4
+      write(nulout,'("iin2o  =",i0)')iin2o
+      write(nulout,'("ino2   =",i0)')ino2
+      write(nulout,'("ic11   =",i0)')ic11
+      write(nulout,'("ic12   =",i0)')ic12
+      write(nulout,'("ic22   =",i0)')ic22
+      write(nulout,'("icl4   =",i0)')icl4
+      write(nulout,'("ire_liq=",i0)')ire_liq
+      write(nulout,'("ire_ice=",i0)')ire_ice
+      write(nulout,'("ioverlap=",i0)')ioverlap
+      write(nulout,'("ifldsin=",i0)')ifldsin
+      write(nulout,'("ifldsout=",i0)')ifldsout
+      write(nulout,'("ifldstot=",i0)')ifldstot
+    endif
     
-    call gas%get(ICFC11, IMassMixingRatio, zrgp(1:il,ic11:ic11+nlev-1,ib), istartcol=ibeg)
-    call gas%get(ICFC12, IMassMixingRatio, zrgp(1:il,ic12:ic12+nlev-1,ib), istartcol=ibeg)
-    call gas%get(IHCFC22, IMassMixingRatio, zrgp(1:il,ic22:ic22+nlev-1,ib), istartcol=ibeg)
-    call gas%get(ICCL4, IMassMixingRatio, zrgp(1:il,icl4:icl4+nlev-1,ib), istartcol=ibeg)
-    
-    call gas%get(IO3, IMassMixingRatio, zrgp(1:il,ioz:ioz+nlev-1,ib), istartcol=ibeg)
-    ! convert ozone kg/kg to Pa*kg/kg
-    do jlev=1,nlev
-      zrgp(1:il,ioz+jlev-1,ib)  = zrgp(1:il,ioz+jlev-1,ib) &
-            &                       * (thermodynamics%pressure_hl(ibeg:iend,jlev+1) &
-            &                         - thermodynamics%pressure_hl(ibeg:iend,jlev))
-    enddo
+    ! Allocate blocked data structure
+    allocate(zrgp(nproma,ifldstot,ngpblks))
+    allocate(iseed(nproma,ngpblks))
+    allocate(flux_out(ngpblks))
+    allocate(thermodynamics_out%pressure_hl(ncol,nlev+1))
 
-    ! local workaround variables for standalone input files
-    do jlev=1,nlev
-      ! missing full-level temperature and pressure as well as land-sea-mask
-      zrgp(1:il,ire_liq+jlev-1,ib) = cloud%re_liq(ibeg:iend,jlev)
-      zrgp(1:il,ire_ice+jlev-1,ib) = cloud%re_ice(ibeg:iend,jlev)
+    ! First touch
+    !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
+    !$OMP&PRIVATE(IB,IFLD)
+    do ib=1,ngpblks
+      do ifld=1,ifldstot
+        zrgp(:,ifld,ib) = 0._jprb
+      enddo
+      iseed(:,ib) = 0
     enddo
-    do jlev=1,nlev-1
-      ! for the love of it, I can't figure this one out. Probably to do with
-      ! my crude approach of setting PGEMU?
-      zrgp(1:il,ioverlap+jlev-1,ib) = cloud%overlap_param(ibeg:iend,jlev)
-    enddo
-    iseed(1:il,ib) = single_level%iseed(ibeg:iend)
-  enddo
-  !$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-  ! Store pressure for output
-  thermodynamics_out%pressure_hl(:,:) = thermodynamics%pressure_hl(:,:)
+    !  -------------------------------------------------------
+    !
+    !  END IFS SETUP
+    !
+    !  -------------------------------------------------------
 
-  ! Deallocate input data structures
-  call single_level%deallocate
-  call thermodynamics%deallocate
-  call gas%deallocate
-  call cloud%deallocate
-  call aerosol%deallocate
- 
-  if (driver_config%iverbose >= 2) then
-    write(nulout,'(a)')  'Performing radiative transfer calculations'
-  end if
-  
-  ! Option of repeating calculation multiple time for more accurate
-  ! profiling
-  do jrepeat = 1,driver_config%nrepeat
-      
-    tstart = omp_get_wtime() 
+    ! REPLACED ich4 with iich4 due to clash
+    ! REPLACED in2o with iin2o due to clash
+    ! REPLACED ico2 with iico2 due to clash
+
+    !  -------------------------------------------------------
+    !
+    !  INPUT LOOP
+    !
+    !  -------------------------------------------------------
 
     !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
-    !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
+    !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB,JAER,JOFF,JLEV,JALB)
     do jrl=1,ncol,nproma
 
       ibeg=jrl
@@ -682,89 +584,235 @@ program ecrad_ifs_driver
       il=iend-ibeg+1
       ib=(jrl-1)/nproma+1
 
-      call radiation_scheme &
-       & (ydmodel, &
-       &  1, il, nproma, &                       ! startcol, endcol, ncol
-       &  nlev, iradaer, &                       ! nlev, naerosols
-       &  zrii0, &                               ! solar_irrad
-       &  zrgp(1,iamu0,ib), zrgp(1,its,ib), &    ! mu0, skintemp
-       &  zrgp(1,iald,ib), zrgp(1,ialp,ib), &    ! albedo_dif, albedo_dir
-       &  zrgp(1,iemiss,ib), &                   ! spectral emissivity
-       &  zrgp(1,iccnl,ib), zrgp(1,iccno,ib) ,&  ! CCN concentration, land and sea
-       &  zrgp(1,igelam,ib),zrgp(1,igemu,ib), &  ! longitude, sine of latitude
-       &  zrgp(1,islm,ib), &                     ! land sea mask
-       &  zrgp(1,ipr,ib),   zrgp(1,iti,ib),  &   ! full level pressure and temperature
-       &  zrgp(1,iaprs,ib), zrgp(1,ihti,ib), &   ! half-level pressure and temperature
-       &  zrgp(1,iwv,ib),   zrgp(1,iico2,ib), zrgp(1,iich4,ib),zrgp(1,iin2o,ib), &
-       &  zrgp(1,ino2,ib),  zrgp(1,ic11,ib),  zrgp(1,ic12,ib), zrgp(1,ic22,ib), &
-       &  zrgp(1,icl4,ib),  zrgp(1,ioz,ib), &
-       &  zrgp(1,iclc,ib),  zrgp(1,ilwa,ib),  zrgp(1,iiwa,ib), zrgp(1,irwa,ib), &
-       &  zrgp(1,iswa,ib), &
-       &  zrgp(1,iaer,ib),  zrgp(1,iaero,ib), &
-       ! flux outputs
-       &  zrgp(1,ifrso,ib), zrgp(1,ifrth,ib), zrgp(1,iswfc,ib),zrgp(1,ilwfc,ib),&
-       &  zrgp(1,ifrsod,ib),zrgp(1,ifrted,ib), &
-       &  zrgp(1,ifrsodc,ib),zrgp(1,ifrtedc,ib),& 
-       &  zrgp(1,ifdir,ib), zrgp(1,icdir,ib), zrgp(1,isudu,ib), &
-       &  zrgp(1,iuvdf,ib), zrgp(1,iparf,ib), &
-       &  zrgp(1,iparcf,ib),zrgp(1,itincf,ib), &
-       &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
-       &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib),&
-       ! workaround variables
-       &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), iseed(1,ib),&
-       &  zrgp(1,ioverlap,ib), flux_out(ib))
+      !* RADINTG:  3.      PREPARE INPUT ARRAYS
+
+      ! zrgp(1:il,imu0,ib)  = ???
+      zrgp(1:il,iamu0,ib)  =  single_level%cos_sza(ibeg:iend)   ! cosine of solar zenith ang (mu0)
+
+      do jemiss=1,yderad%nlwemiss
+        zrgp(1:il,iemiss+jemiss-1,ib)  =  single_level%lw_emissivity(ibeg:iend,jemiss)
+      enddo
+
+      zrgp(1:il,its,ib)      = single_level%skin_temperature(ibeg:iend)  ! skin temperature
+      zrgp(1:il,islm,ib)     = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! land-sea mask
+      zrgp(1:il,iccnl,ib)    = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! CCN over land
+      zrgp(1:il,iccno,ib)    = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! CCN over sea
+      ! zrgp(1:il,ibas,ib)     = ???
+      ! zrgp(1:il,itop,ib)     = ???
+      zrgp(1:il,igelam,ib)   = lon(ibeg:iend) ! longitude
+      zrgp(1:il,igemu,ib)    = sin(lat(ibeg:iend)) ! sine of latitude
+      ! zrgp(1:il,iclon,ib)    = ???
+      ! zrgp(1:il,islon,ib)    = ???
+
+      do jalb=1,yderad%nsw
+        zrgp(1:il,iald+jalb-1,ib)  =  single_level%sw_albedo(ibeg:iend,jalb)
+        zrgp(1:il,ialp+jalb-1,ib)  =  single_level%sw_albedo_direct(ibeg:iend,jalb)
+      enddo
+      
+      do jlev=1,nlev
+        zrgp(1:il,iti+jlev-1,ib)   = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround and disabled SATUR ! full level temperature
+        zrgp(1:il,ipr+jlev-1,ib)   = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround and disabled SATUR ! full level pressure
+        ! zrgp(1:il,iqs+jlev-1,ib)   = ???
+      enddo
+
+      do jlev=1,nlev
+        zrgp(1:il,iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O) ! this is already in MassMixingRatio units
+        zrgp(1:il,iclc+jlev-1,ib)  = cloud%fraction(ibeg:iend,jlev)
+        zrgp(1:il,ilwa+jlev-1,ib)  = cloud%q_liq(ibeg:iend,jlev)
+        zrgp(1:il,iiwa+jlev-1,ib)  = cloud%q_ice(ibeg:iend,jlev)
+        zrgp(1:il,iswa+jlev-1,ib)  = 0._jprb  ! snow
+        zrgp(1:il,irwa+jlev-1,ib)  = 0._jprb  ! rain
+
+        ! zrgp(1:il,irra+jlev-1,ib)  = ???
+        ! zrgp(1:il,idp+jlev-1,ib)   = ???
+        ! zrgp(1:il,ifsd+jlev-1,ib)   = ???
+        ! zrgp(1:il,iecpo3+jlev-1,ib) = ???
+      enddo
+
+      zrgp(1:il,iaer,ib)  =  0._jprb ! old aerosol, not used
+      if (yderad%naermacc == 1) then
+        joff=iaero 
+        do jaer=1,rad_config%n_aerosol_types
+          do jlev=1,nlev
+            zrgp(1:il,joff,ib) = aerosol%mixing_ratio(ibeg:iend,jlev,jaer)
+            joff=joff+1
+          enddo
+        enddo
+      endif
+
+      do jlev=1,nlev+1
+        ! zrgp(1:il,ihpr+jlev-1,ib)  = ???
+        zrgp(1:il,iaprs+jlev-1,ib) = thermodynamics%pressure_hl(ibeg:iend,jlev)
+        zrgp(1:il,ihti+jlev-1,ib)  = thermodynamics%temperature_hl(ibeg:iend,jlev)
+      enddo
+
+      ! -- by default, globally averaged concentrations (mmr)
+      call gas%get(ICO2, IMassMixingRatio, zrgp(1:il,iico2:iico2+nlev-1,ib), istartcol=ibeg)
+      call gas%get(ICH4, IMassMixingRatio, zrgp(1:il,iich4:iich4+nlev-1,ib), istartcol=ibeg)
+      call gas%get(IN2O, IMassMixingRatio, zrgp(1:il,iin2o:iin2o+nlev-1,ib), istartcol=ibeg)
+      
+      call gas%get(ICFC11, IMassMixingRatio, zrgp(1:il,ic11:ic11+nlev-1,ib), istartcol=ibeg)
+      call gas%get(ICFC12, IMassMixingRatio, zrgp(1:il,ic12:ic12+nlev-1,ib), istartcol=ibeg)
+      call gas%get(IHCFC22, IMassMixingRatio, zrgp(1:il,ic22:ic22+nlev-1,ib), istartcol=ibeg)
+      call gas%get(ICCL4, IMassMixingRatio, zrgp(1:il,icl4:icl4+nlev-1,ib), istartcol=ibeg)
+      
+      call gas%get(IO3, IMassMixingRatio, zrgp(1:il,ioz:ioz+nlev-1,ib), istartcol=ibeg)
+      ! convert ozone kg/kg to Pa*kg/kg
+      do jlev=1,nlev
+        zrgp(1:il,ioz+jlev-1,ib)  = zrgp(1:il,ioz+jlev-1,ib) &
+              &                       * (thermodynamics%pressure_hl(ibeg:iend,jlev+1) &
+              &                         - thermodynamics%pressure_hl(ibeg:iend,jlev))
+      enddo
+
+      ! local workaround variables for standalone input files
+      do jlev=1,nlev
+        ! missing full-level temperature and pressure as well as land-sea-mask
+        zrgp(1:il,ire_liq+jlev-1,ib) = cloud%re_liq(ibeg:iend,jlev)
+        zrgp(1:il,ire_ice+jlev-1,ib) = cloud%re_ice(ibeg:iend,jlev)
+      enddo
+      do jlev=1,nlev-1
+        ! for the love of it, I can't figure this one out. Probably to do with
+        ! my crude approach of setting PGEMU?
+        zrgp(1:il,ioverlap+jlev-1,ib) = cloud%overlap_param(ibeg:iend,jlev)
+      enddo
+      iseed(1:il,ib) = single_level%iseed(ibeg:iend)
     enddo
     !$OMP END PARALLEL DO
 
-    tstop = omp_get_wtime()
-    write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
-  end do
+    ! Store pressure for output
+    thermodynamics_out%pressure_hl(:,:) = thermodynamics%pressure_hl(:,:)
 
-  !  OUTPUT LOOP
+    ! --------------------------------------------------------
+    ! Section 4: Call radiation scheme
+    ! --------------------------------------------------------
 
-  ! Allocate memory for the flux profiles, which may include arrays
-  ! of dimension n_bands_sw/n_bands_lw, so must be called after
-  ! setup_radiation
-  call flux%allocate(ydmodel%yrml_phy_rad%yradiation%rad_config, 1, ncol, nlev)
+    ! Check inputs are within physical bounds, printing message if not
+    is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+        &                                            driver_config%do_correct_unphysical_inputs) &
+        & .or.   single_level%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+        &                                            driver_config%do_correct_unphysical_inputs) &
+        & .or. thermodynamics%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+        &                                            driver_config%do_correct_unphysical_inputs) &
+        & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+        &                                            driver_config%do_correct_unphysical_inputs) &
+        & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+        &                                            driver_config%do_correct_unphysical_inputs) 
+  
+    ! Deallocate input data structures
+    call single_level%deallocate
+    call thermodynamics%deallocate
+    call gas%deallocate
+    call cloud%deallocate
+    call aerosol%deallocate
 
-  !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
-  !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB,JAER,JOFF,JLEV,JALB)
-  do jrl=1,ncol,nproma
+    if (driver_config%iverbose >= 2) then
+      write(nulout,'(a)')  'Performing radiative transfer calculations'
+    end if
+    
+    ! Option of repeating calculation multiple time for more accurate
+    ! profiling
+    do jrepeat = 1,driver_config%nrepeat
+        
+      tstart = omp_get_wtime() 
 
-    ibeg=jrl
-    iend=min(ibeg+nproma-1,ncol)
-    il=iend-ibeg+1
-    ib=(jrl-1)/nproma+1
+      !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
+      !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
+      do jrl=1,ncol,nproma
 
-    flux%lw_up(ibeg:iend,:) = flux_out(ib)%lw_up(1:il,:)
-    flux%lw_dn(ibeg:iend,:) = flux_out(ib)%lw_dn(1:il,:)
-    flux%lw_up_clear(ibeg:iend,:) = flux_out(ib)%lw_up_clear(1:il,:)
-    flux%lw_dn_clear(ibeg:iend,:) = flux_out(ib)%lw_dn_clear(1:il,:)
+        ibeg=jrl
+        iend=min(ibeg+nproma-1,ncol)
+        il=iend-ibeg+1
+        ib=(jrl-1)/nproma+1
 
-    flux%lw_derivatives(ibeg:iend,:) = flux_out(ib)%lw_derivatives(1:il,:)
-    flux%lw_dn_surf_canopy(:,ibeg:iend) = flux_out(ib)%lw_dn_surf_canopy(:,1:il)
+        call radiation_scheme &
+        & (ydmodel, &
+        &  1, il, nproma, &                       ! startcol, endcol, ncol
+        &  nlev, rad_config%n_aerosol_types, &    ! nlev, naerosols
+        &  zrii0, &                               ! solar_irrad
+        &  zrgp(1,iamu0,ib), zrgp(1,its,ib), &    ! mu0, skintemp
+        &  zrgp(1,iald,ib), zrgp(1,ialp,ib), &    ! albedo_dif, albedo_dir
+        &  zrgp(1,iemiss,ib), &                   ! spectral emissivity
+        &  zrgp(1,iccnl,ib), zrgp(1,iccno,ib) ,&  ! CCN concentration, land and sea
+        &  zrgp(1,igelam,ib),zrgp(1,igemu,ib), &  ! longitude, sine of latitude
+        &  zrgp(1,islm,ib), &                     ! land sea mask
+        &  zrgp(1,ipr,ib),   zrgp(1,iti,ib),  &   ! full level pressure and temperature
+        &  zrgp(1,iaprs,ib), zrgp(1,ihti,ib), &   ! half-level pressure and temperature
+        &  zrgp(1,iwv,ib),   zrgp(1,iico2,ib), zrgp(1,iich4,ib),zrgp(1,iin2o,ib), &
+        &  zrgp(1,ino2,ib),  zrgp(1,ic11,ib),  zrgp(1,ic12,ib), zrgp(1,ic22,ib), &
+        &  zrgp(1,icl4,ib),  zrgp(1,ioz,ib), &
+        &  zrgp(1,iclc,ib),  zrgp(1,ilwa,ib),  zrgp(1,iiwa,ib), zrgp(1,irwa,ib), &
+        &  zrgp(1,iswa,ib), &
+        &  zrgp(1,iaer,ib),  zrgp(1,iaero,ib), &
+        ! flux outputs
+        &  zrgp(1,ifrso,ib), zrgp(1,ifrth,ib), zrgp(1,iswfc,ib),zrgp(1,ilwfc,ib),&
+        &  zrgp(1,ifrsod,ib),zrgp(1,ifrted,ib), &
+        &  zrgp(1,ifrsodc,ib),zrgp(1,ifrtedc,ib),& 
+        &  zrgp(1,ifdir,ib), zrgp(1,icdir,ib), zrgp(1,isudu,ib), &
+        &  zrgp(1,iuvdf,ib), zrgp(1,iparf,ib), &
+        &  zrgp(1,iparcf,ib),zrgp(1,itincf,ib), &
+        &  zrgp(1,iemit,ib) ,zrgp(1,ilwderivative,ib), &
+        &  zrgp(1,iswdiffuseband,ib), zrgp(1,iswdirectband,ib),&
+        ! workaround variables
+        &  zrgp(1,ire_liq,ib), zrgp(1,ire_ice,ib), iseed(1,ib),&
+        &  zrgp(1,ioverlap,ib), flux_out(ib))
+      enddo
+      !$OMP END PARALLEL DO
 
-    flux%sw_up(ibeg:iend,:) = flux_out(ib)%sw_up(1:il,:)
-    flux%sw_dn(ibeg:iend,:) = flux_out(ib)%sw_dn(1:il,:)
-    flux%sw_dn_direct(ibeg:iend,:) = flux_out(ib)%sw_dn_direct(1:il,:)
+      tstop = omp_get_wtime()
+      write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+    end do
 
-    flux%sw_up_clear(ibeg:iend,:) = flux_out(ib)%sw_up_clear(1:il,:)
-    flux%sw_dn_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_clear(1:il,:)
-    flux%sw_dn_direct_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_direct_clear(1:il,:)
+    !  -------------------------------------------------------
+    !
+    !  OUTPUT LOOP
+    !
+    !  -------------------------------------------------------
 
-    flux%sw_dn_direct_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_canopy(:,1:il)
-    flux%sw_dn_diffuse_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_diffuse_surf_canopy(:,1:il)
+    ! Allocate memory for the flux profiles, which may include arrays
+    ! of dimension n_bands_sw/n_bands_lw, so must be called after
+    ! setup_radiation
+    call flux%allocate(ydmodel%yrml_phy_rad%yradiation%rad_config, 1, ncol, nlev)
 
-    flux%cloud_cover_lw(ibeg:iend) = flux_out(ib)%cloud_cover_lw(1:il)
-    flux%cloud_cover_sw(ibeg:iend) = flux_out(ib)%cloud_cover_sw(1:il)
+    !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
+    !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB,JAER,JOFF,JLEV,JALB)
+    do jrl=1,ncol,nproma
 
-    flux%sw_dn_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_band(:,1:il)
-    flux%sw_dn_direct_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_band(:,1:il)
-    flux%sw_dn_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_clear_band(:,1:il)
-    flux%sw_dn_direct_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_clear_band(:,1:il)
+      ibeg=jrl
+      iend=min(ibeg+nproma-1,ncol)
+      il=iend-ibeg+1
+      ib=(jrl-1)/nproma+1
 
-    call flux_out(ib)%deallocate
-  end do
+      flux%lw_up(ibeg:iend,:) = flux_out(ib)%lw_up(1:il,:)
+      flux%lw_dn(ibeg:iend,:) = flux_out(ib)%lw_dn(1:il,:)
+      flux%lw_up_clear(ibeg:iend,:) = flux_out(ib)%lw_up_clear(1:il,:)
+      flux%lw_dn_clear(ibeg:iend,:) = flux_out(ib)%lw_dn_clear(1:il,:)
+
+      flux%lw_derivatives(ibeg:iend,:) = flux_out(ib)%lw_derivatives(1:il,:)
+      flux%lw_dn_surf_canopy(:,ibeg:iend) = flux_out(ib)%lw_dn_surf_canopy(:,1:il)
+
+      flux%sw_up(ibeg:iend,:) = flux_out(ib)%sw_up(1:il,:)
+      flux%sw_dn(ibeg:iend,:) = flux_out(ib)%sw_dn(1:il,:)
+      flux%sw_dn_direct(ibeg:iend,:) = flux_out(ib)%sw_dn_direct(1:il,:)
+
+      flux%sw_up_clear(ibeg:iend,:) = flux_out(ib)%sw_up_clear(1:il,:)
+      flux%sw_dn_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_clear(1:il,:)
+      flux%sw_dn_direct_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_direct_clear(1:il,:)
+
+      flux%sw_dn_direct_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_canopy(:,1:il)
+      flux%sw_dn_diffuse_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_diffuse_surf_canopy(:,1:il)
+
+      flux%cloud_cover_lw(ibeg:iend) = flux_out(ib)%cloud_cover_lw(1:il)
+      flux%cloud_cover_sw(ibeg:iend) = flux_out(ib)%cloud_cover_sw(1:il)
+
+      flux%sw_dn_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_band(:,1:il)
+      flux%sw_dn_direct_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_band(:,1:il)
+      flux%sw_dn_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_clear_band(:,1:il)
+      flux%sw_dn_direct_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_clear_band(:,1:il)
+
+      call flux_out(ib)%deallocate
+    end do
+
+  end associate
 
   deallocate(flux_out)
   deallocate(zrgp)
