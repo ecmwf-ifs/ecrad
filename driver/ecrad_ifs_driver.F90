@@ -603,13 +603,15 @@ program ecrad_ifs_driver
     enddo
 
     zrgp(1:il,iaer,ib)  =  0._jprb ! old aerosol, not used
-    joff=iaero 
-    do jaer=1,iradaer
-      do jlev=1,nlev
-        zrgp(1:il,joff,ib) = aerosol%mixing_ratio(ibeg:iend,jlev,jaer)
-        joff=joff+1
+    if (naermacc == 1) then
+      joff=iaero 
+      do jaer=1,iradaer
+        do jlev=1,nlev
+          zrgp(1:il,joff,ib) = aerosol%mixing_ratio(ibeg:iend,jlev,jaer)
+          joff=joff+1
+        enddo
       enddo
-    enddo
+    endif
 
     do jlev=1,nlev+1
       ! zrgp(1:il,ihpr+jlev-1,ib)  = ???
@@ -618,16 +620,16 @@ program ecrad_ifs_driver
     enddo
 
     ! -- by default, globally averaged concentrations (mmr)
-    call gas%get(ICO2, IMassMixingRatio, zrgp(1:il,iico2:iico2+nlev-1,ib))
-    call gas%get(ICH4, IMassMixingRatio, zrgp(1:il,iich4:iich4+nlev-1,ib))
-    call gas%get(IN2O, IMassMixingRatio, zrgp(1:il,iin2o:iin2o+nlev-1,ib))
+    call gas%get(ICO2, IMassMixingRatio, zrgp(1:il,iico2:iico2+nlev-1,ib), istartcol=ibeg)
+    call gas%get(ICH4, IMassMixingRatio, zrgp(1:il,iich4:iich4+nlev-1,ib), istartcol=ibeg)
+    call gas%get(IN2O, IMassMixingRatio, zrgp(1:il,iin2o:iin2o+nlev-1,ib), istartcol=ibeg)
     
-    call gas%get(ICFC11, IMassMixingRatio, zrgp(1:il,ic11:ic11+nlev-1,ib))
-    call gas%get(ICFC12, IMassMixingRatio, zrgp(1:il,ic12:ic12+nlev-1,ib))
-    call gas%get(IHCFC22, IMassMixingRatio, zrgp(1:il,ic22:ic22+nlev-1,ib))
-    call gas%get(ICCL4, IMassMixingRatio, zrgp(1:il,icl4:icl4+nlev-1,ib))
-      
-    call gas%get(IO3, IMassMixingRatio, zrgp(1:il,ioz:ioz+nlev-1,ib))
+    call gas%get(ICFC11, IMassMixingRatio, zrgp(1:il,ic11:ic11+nlev-1,ib), istartcol=ibeg)
+    call gas%get(ICFC12, IMassMixingRatio, zrgp(1:il,ic12:ic12+nlev-1,ib), istartcol=ibeg)
+    call gas%get(IHCFC22, IMassMixingRatio, zrgp(1:il,ic22:ic22+nlev-1,ib), istartcol=ibeg)
+    call gas%get(ICCL4, IMassMixingRatio, zrgp(1:il,icl4:icl4+nlev-1,ib), istartcol=ibeg)
+    
+    call gas%get(IO3, IMassMixingRatio, zrgp(1:il,ioz:ioz+nlev-1,ib), istartcol=ibeg)
     ! convert ozone kg/kg to Pa*kg/kg
     do jlev=1,nlev
       zrgp(1:il,ioz+jlev-1,ib)  = zrgp(1:il,ioz+jlev-1,ib) &
