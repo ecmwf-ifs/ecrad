@@ -597,32 +597,86 @@ CALL RADIATION(KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,&
 IF(PRESENT(FLUX_OUT)) THEN
   CALL FLUX_OUT%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
 
-  flux_out%lw_up(kidia:kfdia,:) = flux%lw_up(kidia:kfdia,:)
-  flux_out%lw_dn(kidia:kfdia,:) = flux%lw_dn(kidia:kfdia,:)
-  flux_out%lw_up_clear(kidia:kfdia,:) = flux%lw_up_clear(kidia:kfdia,:)
-  flux_out%lw_dn_clear(kidia:kfdia,:) = flux%lw_dn_clear(kidia:kfdia,:)
+  if (rad_config%do_lw) then
+    flux_out%lw_up(kidia:kfdia,:) = flux%lw_up(kidia:kfdia,:)
+    flux_out%lw_dn(kidia:kfdia,:) = flux%lw_dn(kidia:kfdia,:)
+  
+    if (rad_config%do_clear) then
+      flux_out%lw_up_clear(kidia:kfdia,:) = flux%lw_up_clear(kidia:kfdia,:)
+      flux_out%lw_dn_clear(kidia:kfdia,:) = flux%lw_dn_clear(kidia:kfdia,:)
+    endif
 
-  flux_out%lw_derivatives(kidia:kfdia,:) = flux%lw_derivatives(kidia:kfdia,:)
-  flux_out%lw_dn_surf_canopy(:,kidia:kfdia) = flux%lw_dn_surf_canopy(:,kidia:kfdia)
+    if (rad_config%do_lw_derivatives) then
+      flux_out%lw_derivatives(kidia:kfdia,:) = flux%lw_derivatives(kidia:kfdia,:)
+    endif
 
-  flux_out%sw_up(kidia:kfdia,:) = flux%sw_up(kidia:kfdia,:)
-  flux_out%sw_dn(kidia:kfdia,:) = flux%sw_dn(kidia:kfdia,:)
-  flux_out%sw_dn_direct(kidia:kfdia,:) = flux%sw_dn_direct(kidia:kfdia,:)
+    if (rad_config%do_save_spectral_flux) then
+      flux_out%lw_up_band(:,kidia:kfdia,:) = flux%lw_up_band(:,kidia:kfdia,:)
+      flux_out%lw_dn_band(:,kidia:kfdia,:) = flux%lw_dn_band(:,kidia:kfdia,:)
+      if (rad_config%do_clear) then
+        flux_out%lw_up_clear_band(:,kidia:kfdia,:) = flux%lw_up_clear_band(:,kidia:kfdia,:)
+        flux_out%lw_dn_clear_band(:,kidia:kfdia,:) = flux%lw_dn_clear_band(:,kidia:kfdia,:)
+      endif
+    endif
 
-  flux_out%sw_up_clear(kidia:kfdia,:) = flux%sw_up_clear(kidia:kfdia,:)
-  flux_out%sw_dn_clear(kidia:kfdia,:) = flux%sw_dn_clear(kidia:kfdia,:)
-  flux_out%sw_dn_direct_clear(kidia:kfdia,:) = flux%sw_dn_direct_clear(kidia:kfdia,:)
+    if (rad_config%do_canopy_fluxes_lw) then
+      flux_out%lw_dn_surf_canopy(:,kidia:kfdia) = flux%lw_dn_surf_canopy(:,kidia:kfdia)
+    endif
+  endif
 
-  flux_out%sw_dn_direct_surf_canopy(:,kidia:kfdia) = flux%sw_dn_direct_surf_canopy(:,kidia:kfdia)
-  flux_out%sw_dn_diffuse_surf_canopy(:,kidia:kfdia) = flux%sw_dn_diffuse_surf_canopy(:,kidia:kfdia)
+  if (rad_config%do_sw) then
+    flux_out%sw_up(kidia:kfdia,:) = flux%sw_up(kidia:kfdia,:)
+    flux_out%sw_dn(kidia:kfdia,:) = flux%sw_dn(kidia:kfdia,:)
+    if (rad_config%do_sw_direct) then
+      flux_out%sw_dn_direct(kidia:kfdia,:) = flux%sw_dn_direct(kidia:kfdia,:)
+    endif
 
-  flux_out%cloud_cover_lw(kidia:kfdia) = flux%cloud_cover_lw(kidia:kfdia)
-  flux_out%cloud_cover_sw(kidia:kfdia) = flux%cloud_cover_sw(kidia:kfdia)
+    if (rad_config%do_clear) then
+      flux_out%sw_up_clear(kidia:kfdia,:) = flux%sw_up_clear(kidia:kfdia,:)
+      flux_out%sw_dn_clear(kidia:kfdia,:) = flux%sw_dn_clear(kidia:kfdia,:)
+      if (rad_config%do_sw_direct) then
+        flux_out%sw_dn_direct_clear(kidia:kfdia,:) = flux%sw_dn_direct_clear(kidia:kfdia,:)
+      endif
+    endif
 
-  flux_out%sw_dn_surf_band(:,kidia:kfdia) = flux%sw_dn_surf_band(:,kidia:kfdia)
-  flux_out%sw_dn_direct_surf_band(:,kidia:kfdia) = flux%sw_dn_direct_surf_band(:,kidia:kfdia)
-  flux_out%sw_dn_surf_clear_band(:,kidia:kfdia) = flux%sw_dn_surf_clear_band(:,kidia:kfdia)
-  flux_out%sw_dn_direct_surf_clear_band(:,kidia:kfdia) = flux%sw_dn_direct_surf_clear_band(:,kidia:kfdia)
+    if (rad_config%do_save_spectral_flux) then
+      flux_out%sw_up_band(:,kidia:kfdia,:) = flux%sw_up_band(:,kidia:kfdia,:)
+      flux_out%sw_dn_band(:,kidia:kfdia,:) = flux%sw_dn_band(:,kidia:kfdia,:)
+
+      if (rad_config%do_sw_direct) then
+        flux_out%sw_dn_direct_band(:,kidia:kfdia,:) = flux%sw_dn_direct_band(:,kidia:kfdia,:)
+      endif
+
+      if (rad_config%do_clear) then
+        flux_out%sw_up_clear_band(:,kidia:kfdia,:) = flux%sw_up_clear_band(:,kidia:kfdia,:)
+        flux_out%sw_dn_clear_band(:,kidia:kfdia,:) = flux%sw_dn_clear_band(:,kidia:kfdia,:)
+        if (rad_config%do_sw_direct) then
+          flux_out%sw_dn_direct_clear_band(:,kidia:kfdia,:) = flux%sw_dn_direct_band(:,kidia:kfdia,:)
+        endif
+      endif
+    
+    else if (rad_config%do_surface_sw_spectral_flux) then
+      flux_out%sw_dn_surf_band(:,kidia:kfdia) = flux%sw_dn_surf_band(:,kidia:kfdia)
+      flux_out%sw_dn_direct_surf_band(:,kidia:kfdia) = flux%sw_dn_direct_surf_band(:,kidia:kfdia)
+        
+      if (rad_config%do_clear) then
+        flux_out%sw_dn_surf_clear_band(:,kidia:kfdia) = flux%sw_dn_surf_clear_band(:,kidia:kfdia)
+        flux_out%sw_dn_direct_surf_clear_band(:,kidia:kfdia) = flux%sw_dn_direct_surf_clear_band(:,kidia:kfdia)
+      endif
+    endif
+
+    if (rad_config%do_canopy_fluxes_sw) then
+      flux_out%sw_dn_direct_surf_canopy(:,kidia:kfdia) = flux%sw_dn_direct_surf_canopy(:,kidia:kfdia)
+      flux_out%sw_dn_diffuse_surf_canopy(:,kidia:kfdia) = flux%sw_dn_diffuse_surf_canopy(:,kidia:kfdia)
+    endif
+  endif
+
+  if (rad_config%do_lw .and. rad_config%do_clouds) then
+    flux_out%cloud_cover_lw(kidia:kfdia) = flux%cloud_cover_lw(kidia:kfdia)
+  endif
+  if (rad_config%do_sw .and. rad_config%do_clouds) then
+    flux_out%cloud_cover_sw(kidia:kfdia) = flux%cloud_cover_sw(kidia:kfdia)
+  endif
 ENDIF
 
 ! Check fluxes are within physical bounds

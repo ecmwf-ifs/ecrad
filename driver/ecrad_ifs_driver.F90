@@ -251,7 +251,6 @@ program ecrad_ifs_driver
     !
     ! Hard-coded in SUECRAD  ! Do they need to be configurable? Ask Robin!
     !
-    yderad%naermacc = 1  ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
     yderad%lapproxlwupdate = .true.  ! Hogan and Bozzo (2015) approx longwave updates
     yderad%lapproxswupdate = .true.  ! Hogan and Bozzo (2015) approx shortwave updates
     yderad%nliqopt = 4  ! 2 - SLINGO, 4 - SOCRATES
@@ -311,10 +310,16 @@ program ecrad_ifs_driver
     endif
 
     ! number of shortwave spectral intervals, = 6 in IFS
-    if (rad_config%use_canopy_full_spectrum_sw) then
-      yderad%nsw = rad_config%n_g_sw  
+    if (config%use_canopy_full_spectrum_sw) then
+      yderad%nsw = config%n_g_sw  
     else
       yderad%nsw = 6
+    endif
+
+    if (config%use_aerosols) then
+      yderad%naermacc = 1  ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
+    else
+      yderad%naermacc = 0
     endif
 
     !
@@ -771,7 +776,7 @@ program ecrad_ifs_driver
     ! Allocate memory for the flux profiles, which may include arrays
     ! of dimension n_bands_sw/n_bands_lw, so must be called after
     ! setup_radiation
-    call flux%allocate(ydmodel%yrml_phy_rad%yradiation%rad_config, 1, ncol, nlev)
+    call flux%allocate(rad_config, 1, ncol, nlev)
 
     !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
     !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB,JAER,JOFF,JLEV,JALB)
@@ -782,55 +787,109 @@ program ecrad_ifs_driver
       il=iend-ibeg+1
       ib=(jrl-1)/nproma+1
 
-      flux%lw_up(ibeg:iend,:) = flux_out(ib)%lw_up(1:il,:)
-      flux%lw_dn(ibeg:iend,:) = flux_out(ib)%lw_dn(1:il,:)
-      flux%lw_up_clear(ibeg:iend,:) = flux_out(ib)%lw_up_clear(1:il,:)
-      flux%lw_dn_clear(ibeg:iend,:) = flux_out(ib)%lw_dn_clear(1:il,:)
+      if (rad_config%do_lw) then
+        flux%lw_up(ibeg:iend,:) = flux_out(ib)%lw_up(1:il,:)
+        flux%lw_dn(ibeg:iend,:) = flux_out(ib)%lw_dn(1:il,:)
+      
+        if (rad_config%do_clear) then
+          flux%lw_up_clear(ibeg:iend,:) = flux_out(ib)%lw_up_clear(1:il,:)
+          flux%lw_dn_clear(ibeg:iend,:) = flux_out(ib)%lw_dn_clear(1:il,:)
+        endif
 
-      flux%lw_derivatives(ibeg:iend,:) = flux_out(ib)%lw_derivatives(1:il,:)
-      flux%lw_dn_surf_canopy(:,ibeg:iend) = flux_out(ib)%lw_dn_surf_canopy(:,1:il)
+        if (rad_config%do_lw_derivatives) then
+          flux%lw_derivatives(ibeg:iend,:) = flux_out(ib)%lw_derivatives(1:il,:)
+        endif
 
-      flux%sw_up(ibeg:iend,:) = flux_out(ib)%sw_up(1:il,:)
-      flux%sw_dn(ibeg:iend,:) = flux_out(ib)%sw_dn(1:il,:)
-      flux%sw_dn_direct(ibeg:iend,:) = flux_out(ib)%sw_dn_direct(1:il,:)
+        if (rad_config%do_save_spectral_flux) then
+          flux%lw_up_band(:,ibeg:iend,:) = flux_out(ib)%lw_up_band(:,1:il,:)
+          flux%lw_dn_band(:,ibeg:iend,:) = flux_out(ib)%lw_dn_band(:,1:il,:)
+          if (rad_config%do_clear) then
+            flux%lw_up_clear_band(:,ibeg:iend,:) = flux_out(ib)%lw_up_clear_band(:,1:il,:)
+            flux%lw_dn_clear_band(:,ibeg:iend,:) = flux_out(ib)%lw_dn_clear_band(:,1:il,:)
+          endif
+        endif
 
-      flux%sw_up_clear(ibeg:iend,:) = flux_out(ib)%sw_up_clear(1:il,:)
-      flux%sw_dn_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_clear(1:il,:)
-      flux%sw_dn_direct_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_direct_clear(1:il,:)
+        if (rad_config%do_canopy_fluxes_lw) then
+          flux%lw_dn_surf_canopy(:,ibeg:iend) = flux_out(ib)%lw_dn_surf_canopy(:,1:il)
+        endif
+      endif
 
-      flux%sw_dn_direct_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_canopy(:,1:il)
-      flux%sw_dn_diffuse_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_diffuse_surf_canopy(:,1:il)
+      if (rad_config%do_sw) then
+        flux%sw_up(ibeg:iend,:) = flux_out(ib)%sw_up(1:il,:)
+        flux%sw_dn(ibeg:iend,:) = flux_out(ib)%sw_dn(1:il,:)
+        if (rad_config%do_sw_direct) then
+          flux%sw_dn_direct(ibeg:iend,:) = flux_out(ib)%sw_dn_direct(1:il,:)
+        endif
 
-      flux%cloud_cover_lw(ibeg:iend) = flux_out(ib)%cloud_cover_lw(1:il)
-      flux%cloud_cover_sw(ibeg:iend) = flux_out(ib)%cloud_cover_sw(1:il)
+        if (rad_config%do_clear) then
+          flux%sw_up_clear(ibeg:iend,:) = flux_out(ib)%sw_up_clear(1:il,:)
+          flux%sw_dn_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_clear(1:il,:)
+          if (rad_config%do_sw_direct) then
+            flux%sw_dn_direct_clear(ibeg:iend,:) = flux_out(ib)%sw_dn_direct_clear(1:il,:)
+          endif
+        endif
 
-      flux%sw_dn_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_band(:,1:il)
-      flux%sw_dn_direct_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_band(:,1:il)
-      flux%sw_dn_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_clear_band(:,1:il)
-      flux%sw_dn_direct_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_clear_band(:,1:il)
+        if (rad_config%do_save_spectral_flux) then
+          flux%sw_up_band(:,ibeg:iend,:) = flux_out(ib)%sw_up_band(:,1:il,:)
+          flux%sw_dn_band(:,ibeg:iend,:) = flux_out(ib)%sw_dn_band(:,1:il,:)
+
+          if (rad_config%do_sw_direct) then
+            flux%sw_dn_direct_band(:,ibeg:iend,:) = flux_out(ib)%sw_dn_direct_band(:,1:il,:)
+          endif
+
+          if (rad_config%do_clear) then
+            flux%sw_up_clear_band(:,ibeg:iend,:) = flux_out(ib)%sw_up_clear_band(:,1:il,:)
+            flux%sw_dn_clear_band(:,ibeg:iend,:) = flux_out(ib)%sw_dn_clear_band(:,1:il,:)
+            if (rad_config%do_sw_direct) then
+              flux%sw_dn_direct_clear_band(:,ibeg:iend,:) = flux_out(ib)%sw_dn_direct_band(:,1:il,:)
+            endif
+          endif
+        
+        else if (rad_config%do_surface_sw_spectral_flux) then
+          flux%sw_dn_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_band(:,1:il)
+          flux%sw_dn_direct_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_band(:,1:il)
+            
+          if (rad_config%do_clear) then
+            flux%sw_dn_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_clear_band(:,1:il)
+            flux%sw_dn_direct_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_clear_band(:,1:il)
+          endif
+        endif
+
+        if (rad_config%do_canopy_fluxes_sw) then
+          flux%sw_dn_direct_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_canopy(:,1:il)
+          flux%sw_dn_diffuse_surf_canopy(:,ibeg:iend) = flux_out(ib)%sw_dn_diffuse_surf_canopy(:,1:il)
+        endif
+      endif
+
+      if (rad_config%do_lw .and. rad_config%do_clouds) then
+        flux%cloud_cover_lw(ibeg:iend) = flux_out(ib)%cloud_cover_lw(1:il)
+      endif
+      if (rad_config%do_sw .and. rad_config%do_clouds) then
+        flux%cloud_cover_sw(ibeg:iend) = flux_out(ib)%cloud_cover_sw(1:il)
+      endif
 
       call flux_out(ib)%deallocate
     end do
 
+    deallocate(flux_out)
+    deallocate(zrgp)
+
+    ! --------------------------------------------------------
+    ! Section 5: Check and save output
+    ! --------------------------------------------------------
+
+    is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
+
+    ! Store the fluxes in the output file
+    call save_fluxes(file_name, ydmodel%yrml_phy_rad%yradiation%rad_config, thermodynamics_out, flux, &
+        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+        &   experiment_name=driver_config%experiment_name)
+      
+    if (driver_config%iverbose >= 2) then
+      write(nulout,'(a)') '------------------------------------------------------------------------------------'
+    end if
+
   end associate
-
-  deallocate(flux_out)
-  deallocate(zrgp)
-
-  ! --------------------------------------------------------
-  ! Section 5: Check and save output
-  ! --------------------------------------------------------
-
-  is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
-
-  ! Store the fluxes in the output file
-  call save_fluxes(file_name, ydmodel%yrml_phy_rad%yradiation%rad_config, thermodynamics_out, flux, &
-       &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
-       &   experiment_name=driver_config%experiment_name)
-    
-  if (driver_config%iverbose >= 2) then
-    write(nulout,'(a)') '------------------------------------------------------------------------------------'
-  end if
 
   call flux%deallocate
   deallocate(thermodynamics_out%pressure_hl)
