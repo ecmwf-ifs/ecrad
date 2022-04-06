@@ -11,11 +11,9 @@ CONFIG = configCY47R1.nam
 # Typing "make" will run radiation scheme on IFS profiles
 all: test test_ifs
 
-# test: test_default test_noaer test_expran test_expran_vec test_tripleclouds \
-# 	test_spartacus test_spartacus_maxentr
+test: test_default test_noaer test_expran test_expran_vec test_tripleclouds \
+	test_spartacus test_spartacus_maxentr
 
-test: test_ifs_default test_ifs_expran test_ifs_expran_vec test_ifs_tripleclouds
-	
 test_ifs: test_ifs_default test_ifs_expran test_ifs_expran_vec test_ifs_tripleclouds
 #	test_ifs_spartacus test_ifs_spartacus_maxentr
 
