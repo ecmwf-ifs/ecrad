@@ -578,7 +578,9 @@ static int watch_count = 0; /* No. of *active* watch points */
 #define SYS_gettid __NR_gettid
 #endif
 
-static pid_t gettid() {
+/* In GLIBC >= 2.30 the gettid function is declared in unistd.h so we
+   call it my_gettid here */
+static pid_t my_gettid() {
 #if defined(DARWIN)
   uint64_t tid64;
   pthread_threadid_np(NULL, &tid64);
@@ -593,7 +595,7 @@ static pid_t gettid() {
 
 void gettid_c_(int *tid)
 {
-  if (tid) *tid = (int)gettid();
+  if (tid) *tid = (int)my_gettid();
 }
 
 void gettid_c(int *tid) { gettid_c_(tid); } 
@@ -603,7 +605,7 @@ static void set_ec_drhook_label(const char *hostname, int hlen)
   int tid = get_thread_id_();
   int j = tid - 1;
   int slen = sizeof(ec_drhook[j].s);
-  pid_t unixtid = gettid();
+  pid_t unixtid = my_gettid();
   snprintf(ec_drhook[j].s,slen,"[EC_DRHOOK:%*s:%d:%d:%lld:%lld]",
 	   hlen,hostname,myproc,tid,
 	   (long long int)pid, (long long int)unixtid);
@@ -637,8 +639,8 @@ static void set_killer_timer(const int *ntids, const int *target_omptid,
 
 #if defined(SIGEV_THREAD_ID)
       sev.sigev_notify = SIGEV_THREAD_ID | SIGEV_SIGNAL;
-      /* sev.sigev_notify_thread_id = gettid(); */
-      sev._sigev_un._tid = gettid();
+      /* sev.sigev_notify_thread_id = my_gettid(); */
+      sev._sigev_un._tid = my_gettid();
 #elif defined(SIGEV_THREAD)
       sev.sigev_notify = SIGEV_THREAD | SIGEV_SIGNAL;
 #else
@@ -1762,7 +1764,7 @@ signal_drhook(int sig SIG_EXTRA_ARGS)
 
   trace_size = backtrace(trace, GNUC_BTRACE);
 
-  unixtid = gettid();
+  unixtid = my_gettid();
 
   tid = get_thread_id_();
   pfx = PREFIX(tid);

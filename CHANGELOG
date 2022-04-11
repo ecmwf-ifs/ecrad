@@ -32,7 +32,7 @@ version 1.5
 	  test_aerosol_averaging" in test/ifs to test the various
 	  combinations of gas optics scheme and aerosol optics file
 
-version 1.4.2 (21 June 2021)
+version 1.4.2 (15 October 2021)
 	- radiation_config:do_write_double_precision writes fluxes as
 	  doubles in NetCDF file, which reduces noise in heating rate
 	  differences between two experiments
