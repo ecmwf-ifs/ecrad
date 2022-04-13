@@ -283,14 +283,24 @@ contains
     ho => config%cloud_optics
 
     ! Array-wise assignment
-    od_lw_cloud  = 0.0_jprb
-    od_sw_cloud  = 0.0_jprb
-    ssa_sw_cloud = 0.0_jprb
-    g_sw_cloud   = 0.0_jprb
-    if (config%do_lw_cloud_scattering) then
-      ssa_lw_cloud = 0.0_jprb
-      g_lw_cloud   = 0.0_jprb
-    end if
+    do jcol=istartcol, iendcol
+      do jlev=1, nlev
+        do jb=1, config%n_bands_sw
+          od_sw_cloud(jb,jlev,jcol) = 0.0_jprb
+          ssa_sw_cloud(jb,jlev,jcol) = 0.0_jprb
+          g_sw_cloud(jb,jlev,jcol) = 0.0_jprb
+        end do
+        do jb=1, config%n_bands_lw
+          od_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+        end do
+        if (config%do_lw_cloud_scattering) then
+          do jb=1, config%n_bands_lw_if_scattering
+            ssa_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+            g_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+          end do
+        end if
+      end do
+    end do
 
     do jlev = 1,nlev
       do jcol = istartcol,iendcol
@@ -477,8 +487,10 @@ contains
             ! to the absorption optical depth
 ! Added for DWD (2020)
 !NEC$ shortloop
-            od_lw_cloud(:,jlev,jcol) = od_lw_liq - scat_od_lw_liq &
-                 &                   + od_lw_ice - scat_od_lw_ice
+            do jb = 1, config%n_bands_lw
+              od_lw_cloud(jb,jlev,jcol) = od_lw_liq(jb) - scat_od_lw_liq(jb) &
+                    &                   + od_lw_ice(jb) - scat_od_lw_ice(jb)
+            end do
           end if
 ! Added for DWD (2020)
 !NEC$ shortloop
