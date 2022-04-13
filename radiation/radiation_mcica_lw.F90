@@ -188,7 +188,12 @@ contains
         
         ! Ensure that clear-sky reflectance is zero since it may be
         ! used in cloudy-sky case
-        ref_clear = 0.0_jprb
+        do jlev = 1,nlev
+          do jg = 1,ng
+            ref_clear(jg,jlev) = 0.0_jprb
+          end do
+        end do
+
       end if
 
       ! Sum over g-points to compute broadband fluxes
@@ -293,10 +298,12 @@ contains
 
           else
             ! Clear-sky layer: copy over clear-sky values
-            reflectance(:,jlev) = ref_clear(:,jlev)
-            transmittance(:,jlev) = trans_clear(:,jlev)
-            source_up(:,jlev) = source_up_clear(:,jlev)
-            source_dn(:,jlev) = source_dn_clear(:,jlev)
+            do jg = 1,ng
+              reflectance(jg,jlev) = ref_clear(jg,jlev)
+              transmittance(jg,jlev) = trans_clear(jg,jlev)
+              source_up(jg,jlev) = source_up_clear(jg,jlev)
+              source_dn(jg,jlev) = source_dn_clear(jg,jlev)
+            end do
           end if
         end do
         

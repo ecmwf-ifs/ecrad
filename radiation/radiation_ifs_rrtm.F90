@@ -358,13 +358,16 @@ contains
 !      allocate(YRDIMV)
 !      YRDIMV%NFLEVG = nlev
 !    end if
-
-    pressure_fl(istartcol:iendcol,:) &
-         &  = 0.5_jprb * (thermodynamics%pressure_hl(istartcol:iendcol,istartlev:iendlev) &
-         &               +thermodynamics%pressure_hl(istartcol:iendcol,istartlev+1:iendlev+1))
-    temperature_fl(istartcol:iendcol,:) &
-         &  = 0.5_jprb * (thermodynamics%temperature_hl(istartcol:iendcol,istartlev:iendlev) &
-         &               +thermodynamics%temperature_hl(istartcol:iendcol,istartlev+1:iendlev+1))
+    do jlev=1,nlev
+      do jcol= istartcol,iendcol
+        pressure_fl(jcol,jlev) &
+            &  = 0.5_jprb * (thermodynamics%pressure_hl(jcol,jlev+istartlev-1) &
+            &               +thermodynamics%pressure_hl(jcol,jlev+istartlev))
+        temperature_fl(jcol,jlev) &
+            &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev+istartlev-1) &
+            &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
+      end do
+    end do
     
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
@@ -431,7 +434,11 @@ contains
         
         ! lw_emission at this point is actually the planck function of
         ! the surface
-        lw_emission = lw_emission * (1.0_jprb - lw_albedo)
+        do jcol = istartcol,iendcol
+          do jg= 1,config%n_g_lw
+            lw_emission(jg,jcol) = lw_emission(jg,jcol) * (1.0_jprb - lw_albedo(jg,jcol))
+          end do
+        end do
       else
       ! Longwave emission has already been computed
         if (config%use_canopy_full_spectrum_lw) then
@@ -474,8 +481,10 @@ contains
       ! G points have not been reordered 
       do jcol = istartcol,iendcol
         do jlev = 1,nlev
-          ! Check for negative optical depth
-          od_lw(:,jlev,jcol) = max(config%min_gas_od_lw, ZOD_LW(:,nlev+1-jlev,jcol))
+          do jg= 1,config%n_g_lw
+            ! Check for negative optical depth
+            od_lw(jg,jlev,jcol) = max(config%min_gas_od_lw, ZOD_LW(jg,nlev+1-jlev,jcol))
+          end do
         end do
       end do
     end if
@@ -493,10 +502,19 @@ contains
     
     ! SRTM_GAS_OPTICAL_DEPTH will not initialize profiles when the sun
     ! is below the horizon, so we do it here
-    ZOD_SW(istartcol:iendcol,:,:)  = 0.0_jprb
-    ZSSA_SW(istartcol:iendcol,:,:) = 0.0_jprb
-    ZINCSOL(istartcol:iendcol,:)   = 0.0_jprb
-
+      do jg = 1, JPGPT_SW
+      do jlev = 1,nlev
+        do jcol = istartcol,iendcol
+          ZOD_SW(jcol,jlev,jg)  = 0.0_jprb
+          ZSSA_SW(jcol,jlev,jg) = 0.0_jprb
+        end do
+      end do
+    end do
+    do jg = 1, JPGPT_SW
+      do jcol = istartcol,iendcol
+        ZINCSOL(jcol,jg)   = 0.0_jprb
+      end do
+    end do
     CALL SRTM_GAS_OPTICAL_DEPTH &
          &( istartcol, iendcol , nlev  , ZONEMINUS_ARRAY,&
          & single_level%cos_sza(istartcol:iendcol), ILAYTROP,&
@@ -508,21 +526,25 @@ contains
     
     ! Scale the incoming solar per band, if requested
     if (config%use_spectral_solar_scaling) then
-      ZINCSOL(istartcol:iendcol,:) = ZINCSOL(istartcol:iendcol,:) &
-         & * spread(single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw), &
-         &                                              1,iendcol-istartcol+1)
+      do jg = 1,JPGPT_SW
+        do jcol = istartcol,iendcol 
+          ZINCSOL(jcol,jg) = ZINCSOL(jcol,jg) * &
+            &   single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw(jg))
+        end do
+      end do
     end if
 
     ! Scaling factor to ensure that the total solar irradiance is as
     ! requested.  Note that if the sun is below the horizon then
     ! ZINCSOL will be zero.
     if (present(incoming_sw)) then
-      incoming_sw_scale = 1.0_jprb
       do jcol = istartcol,iendcol
         if (single_level%cos_sza(jcol) > 0.0_jprb) then
 ! Added for DWD (2020)
 !NEC$ nounroll
           incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(jcol,:))
+        else
+          incoming_sw_scale(jcol) = 1.0_jprb
         end if
       end do
     end if
@@ -686,15 +708,21 @@ contains
           ! levels not half levels
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_hl(jg,1,:) = planck_store(:,iband) * PFRAC(:,jg,nlev)
+            do jcol = istartcol,iendcol
+              planck_hl(jg,1,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg,nlev)
+            end do
           end do
         else
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_tmp(:,jg) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
+            do jcol = istartcol,iendcol
+              planck_tmp(jcol,jg) = planck_store(jcol,iband) * PFRAC(jcol,jg,nlev+2-jlev)
+            end do
           end do
           do jcol = istartcol,iendcol
-            planck_hl(:,jlev,jcol) = planck_tmp(jcol,:)
+            do jg = 1,config%n_g_lw
+              planck_hl(jg,jlev,jcol) = planck_tmp(jcol,jg)
+            end do
           end do
         end if
       end if
@@ -790,13 +818,17 @@ contains
       do jgreorder = 1,config%n_g_lw
         iband = config%i_band_from_reordered_g_lw(jgreorder)
         ig = config%i_g_from_reordered_g_lw(jgreorder)
-        planck_surf(jgreorder,:) = planck_store(:,iband) * PFRAC(:,ig)
+        do jcol = istartcol,iendcol
+          planck_surf(jgreorder,jcol) = planck_store(jcol,iband) * PFRAC(jcol,ig)
+        end do
       end do
     else
       ! G points have not been reordered 
       do jg = 1,config%n_g_lw
         iband = config%i_band_from_g_lw(jg)
-        planck_surf(jg,:) = planck_store(:,iband) * PFRAC(:,jg)
+        do jcol = istartcol,iendcol
+          planck_surf(jg,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg)
+        end do
       end do
     end if
 

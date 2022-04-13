@@ -232,7 +232,7 @@ contains
     integer :: nalbedoband
 
     ! Loop indices for ecRad bands and albedo bands
-    integer :: jband, jalbedoband
+    integer :: jband, jalbedoband, jg, jcol
 
     real(jprb) :: hook_handle
 
@@ -242,14 +242,27 @@ contains
     ! spectral intervals and with column as the first dimension
     if (config%use_canopy_full_spectrum_sw) then
       ! Albedos provided in each g point
-      sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol,:))
+      do jcol = istartcol,iendcol
+        do jg = 1,config%n_g_sw
+          sw_albedo_diffuse(jg,jcol) = this%sw_albedo(jcol,jg)
+        end do
+      end do
       if (allocated(this%sw_albedo_direct)) then
-        sw_albedo_direct = transpose(this%sw_albedo_direct(istartcol:iendcol,:))
+        do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_sw
+            sw_albedo_direct(jg,jcol) = this%sw_albedo_direct(jcol,jg)
+          end do
+        end do
       end if
     elseif (.not. config%do_nearest_spectral_sw_albedo) then
       ! Albedos averaged accurately to ecRad spectral bands
       nalbedoband = size(config%sw_albedo_weights,1)
-      sw_albedo_band = 0.0_jprb
+      do jband = 1,config%n_bands_sw
+        do jcol = istartcol,iendcol
+          sw_albedo_band(jcol,jband) = 0.0_jprb
+        end do
+      end do
+
       do jband = 1,config%n_bands_sw
         do jalbedoband = 1,nalbedoband
           if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
@@ -261,34 +274,69 @@ contains
         end do
       end do
 
-      sw_albedo_diffuse = transpose(sw_albedo_band(istartcol:iendcol, &
-           &                              config%i_band_from_reordered_g_sw))
+      do jcol = istartcol,iendcol
+        do jg = 1,config%n_g_sw
+          sw_albedo_diffuse(jg,jcol) = sw_albedo_band(jcol, &
+              &                             config%i_band_from_reordered_g_sw(jg))
+        end do
+      end do
       if (allocated(this%sw_albedo_direct)) then
-        sw_albedo_band = 0.0_jprb
+        do jband = 1,config%n_bands_sw
+          do jcol = istartcol,iendcol
+            sw_albedo_band(jcol,jband) = 0.0_jprb
+          end do
+        end do
+
         do jband = 1,config%n_bands_sw
           do jalbedoband = 1,nalbedoband
             if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
-              sw_albedo_band(istartcol:iendcol,jband) &
-                   &  = sw_albedo_band(istartcol:iendcol,jband) & 
-                   &  + config%sw_albedo_weights(jalbedoband,jband) &
-                   &    * this%sw_albedo_direct(istartcol:iendcol, jalbedoband)
+              do jcol = istartcol,iendcol
+                sw_albedo_band(jcol,jband) &
+                    &  = sw_albedo_band(jcol,jband) & 
+                    &  + config%sw_albedo_weights(jalbedoband,jband) &
+                    &    * this%sw_albedo_direct(jcol, jalbedoband)
+              end do
             end if
           end do
         end do
-        sw_albedo_direct = transpose(sw_albedo_band(istartcol:iendcol, &
-             &                             config%i_band_from_reordered_g_sw))
+
+        do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_sw 
+            sw_albedo_direct(jg,jcol) = sw_albedo_band(jcol, &
+                &                         config%i_band_from_reordered_g_sw(jg))
+          end do
+        end do
+
       else
-        sw_albedo_direct = sw_albedo_diffuse
+        do jcol = istartcol,iendcol
+          !$ACC LOOP SEQ
+          do jg = 1,config%n_g_sw
+            sw_albedo_direct(jg,jcol) = sw_albedo_diffuse(jg,jcol)
+          end do
+        end do
       end if
     else
       ! Albedos mapped less accurately to ecRad spectral bands
-      sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol, &
-           &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw)))
+      do jcol = istartcol,iendcol
+        do jg = 1,config%n_g_sw
+          sw_albedo_diffuse(jg,jcol) = this%sw_albedo(jcol, &
+              &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw(jg)))
+        end do
+      end do
+
       if (allocated(this%sw_albedo_direct)) then
-        sw_albedo_direct = transpose(this%sw_albedo_direct(istartcol:iendcol, &
-             &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw)))
+        do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_sw 
+            sw_albedo_direct(jg,jcol) = this%sw_albedo_direct(jcol, &
+                &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw(jg)))
+          end do
+        end do
       else
-        sw_albedo_direct = sw_albedo_diffuse
+        do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_sw
+            sw_albedo_direct(jg,jcol) = sw_albedo_diffuse(jg,jcol)
+          end do
+        end do
       end if
     end if
 
@@ -302,23 +350,38 @@ contains
       else if (.not. config%do_nearest_spectral_lw_emiss) then
         ! Albedos averaged accurately to ecRad spectral bands
         nalbedoband = size(config%lw_emiss_weights,1)
-        lw_albedo_band = 0.0_jprb
+        do jband = 1,config%n_bands_lw
+          do jcol = istartcol,iendcol
+            lw_albedo_band(jcol,jband) = 0.0_jprb
+          end do
+        end do
+
         do jband = 1,config%n_bands_lw
           do jalbedoband = 1,nalbedoband
             if (config%lw_emiss_weights(jalbedoband,jband) /= 0.0_jprb) then
-              lw_albedo_band(istartcol:iendcol,jband) &
-                   &  = lw_albedo_band(istartcol:iendcol,jband) & 
-                   &  + config%lw_emiss_weights(jalbedoband,jband) &
-                   &    * (1.0_jprb-this%lw_emissivity(istartcol:iendcol, jalbedoband))
+              do jcol = istartcol,iendcol
+                lw_albedo_band(jcol,jband) &
+                    &  = lw_albedo_band(jcol,jband) & 
+                    &  + config%lw_emiss_weights(jalbedoband,jband) &
+                    &    * (1.0_jprb-this%lw_emissivity(jcol, jalbedoband))
+              end do
             end if
           end do
         end do
 
-        lw_albedo = transpose(lw_albedo_band(istartcol:iendcol, &
-             &                config%i_band_from_reordered_g_lw))
+        do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_lw
+            lw_albedo(jg,jcol) = lw_albedo_band(jcol, &
+                &                config%i_band_from_reordered_g_lw(jg))
+          end do
+        end do
       else
-        lw_albedo = 1.0_jprb - transpose(this%lw_emissivity(istartcol:iendcol, &
-             &  config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw)))
+        do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_lw
+            lw_albedo(jg,jcol) = 1.0_jprb - this%lw_emissivity(jcol, &
+                &  config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw(jg)))
+          end do
+        end do
       end if
     end if
 
