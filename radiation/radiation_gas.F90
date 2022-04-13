@@ -127,6 +127,8 @@ contains
     class(gas_type), intent(inout) :: this
     integer,         intent(in)    :: ncol, nlev
 
+    integer             :: jcol, jlev, jgas
+
     real(jprb)          :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:allocate',0,hook_handle)
@@ -134,8 +136,13 @@ contains
     call this%deallocate()
 
     allocate(this%mixing_ratio(ncol, nlev, NMaxGases))
-    this%mixing_ratio = 0.0_jprb
-
+    do jgas = 1,NMaxGases
+      do jlev = 1, nlev
+        do jcol = 1,ncol
+          this%mixing_ratio(jcol,jlev,jgas) = 0.0_jprb
+        end do
+      end do
+    end do
     this%ncol = ncol
     this%nlev = nlev
 
@@ -190,7 +197,8 @@ contains
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
 
-    integer :: i1, i2
+    integer :: i1, i2, jc, jk
+
 
     real(jprb)                          :: hook_handle
 
@@ -244,8 +252,12 @@ contains
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
-    this%mixing_ratio(i1:i2,:,igas) = mixing_ratio
 
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+      end do
+    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -275,7 +287,7 @@ contains
 
     real(jprb)                          :: hook_handle
 
-    integer :: i1, i2
+    integer :: i1, i2, jc, jk
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
@@ -325,8 +337,12 @@ contains
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
-    this%mixing_ratio(i1:i2,:,igas)    = mixing_ratio
 
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio
+      end do
+    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -385,7 +401,7 @@ contains
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor    
 
-    integer :: ig
+    integer :: ig, jcol, jlev
 
     ! Scaling factor to convert from old to new
     real(jprb) :: sf
@@ -418,7 +434,11 @@ contains
         sf = sf * this%scale_factor(igas)
         
         if (sf /= 1.0_jprb) then
-          this%mixing_ratio(:,:,igas) = this%mixing_ratio(:,:,igas) * sf
+          do jlev = 1,this%nlev
+            do jcol = 1,this%ncol
+              this%mixing_ratio(jcol,jlev,igas) = this%mixing_ratio(jcol,jlev,igas) * sf
+            enddo
+          enddo
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
