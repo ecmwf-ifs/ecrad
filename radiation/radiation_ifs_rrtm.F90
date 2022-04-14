@@ -502,15 +502,13 @@ contains
     
     ! SRTM_GAS_OPTICAL_DEPTH will not initialize profiles when the sun
     ! is below the horizon, so we do it here
-      do jg = 1, JPGPT_SW
+    do jg = 1, JPGPT_SW
       do jlev = 1,nlev
         do jcol = istartcol,iendcol
           ZOD_SW(jcol,jlev,jg)  = 0.0_jprb
           ZSSA_SW(jcol,jlev,jg) = 0.0_jprb
         end do
       end do
-    end do
-    do jg = 1, JPGPT_SW
       do jcol = istartcol,iendcol
         ZINCSOL(jcol,jg)   = 0.0_jprb
       end do
