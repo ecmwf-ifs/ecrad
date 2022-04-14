@@ -293,12 +293,10 @@ contains
         do jb=1, config%n_bands_lw
           od_lw_cloud(jb,jlev,jcol) = 0.0_jprb
         end do
-        if (config%do_lw_cloud_scattering) then
-          do jb=1, config%n_bands_lw_if_scattering
-            ssa_lw_cloud(jb,jlev,jcol) = 0.0_jprb
-            g_lw_cloud(jb,jlev,jcol) = 0.0_jprb
-          end do
-        end if
+        do jb=1, config%n_bands_lw_if_scattering
+          ssa_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+          g_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+        end do
       end do
     end do
 
