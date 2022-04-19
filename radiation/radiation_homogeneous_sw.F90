@@ -107,8 +107,8 @@ contains
     real(jprb), dimension(config%n_g_sw) :: od_cloud_g
 
     ! Temporary working array
-    real(jprb), dimension(config%n_g_sw,nlev+1) :: tmp_work_ngnlevp1, tmp_work_ngnlevp2
-    real(jprb), dimension(config%n_g_sw,nlev) :: tmp_work_ngnlev
+    real(jprb), dimension(config%n_g_sw,nlev+1) :: tmp_work_albedo, tmp_work_source
+    real(jprb), dimension(config%n_g_sw,nlev) :: tmp_work_inv_denominator
 
     ! Is there any cloud in the profile?
     logical :: is_cloudy_profile
@@ -193,9 +193,9 @@ contains
                &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), &
                &  cos_sza, reflectance, transmittance, ref_dir, trans_dir_diff, &
                &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
-               &  albedo=tmp_work_ngnlevp1, &
-               &  source=tmp_work_ngnlevp2, &
-               &  inv_denominator=tmp_work_ngnlev)
+               &  albedo=tmp_work_albedo, &
+               &  source=tmp_work_source, &
+               &  inv_denominator=tmp_work_inv_denominator)
         
           ! Sum over g-points to compute and save clear-sky broadband
           ! fluxes
@@ -284,9 +284,9 @@ contains
                &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), &
                &  cos_sza, reflectance, transmittance, ref_dir, trans_dir_diff, &
                &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
-               &  albedo=tmp_work_ngnlevp1, &
-               &  source=tmp_work_ngnlevp2, &
-               &  inv_denominator=tmp_work_ngnlev)
+               &  albedo=tmp_work_albedo, &
+               &  source=tmp_work_source, &
+               &  inv_denominator=tmp_work_inv_denominator)
 
           ! Store overcast broadband fluxes
           flux%sw_up(jcol,:) = sum(flux_up,1)

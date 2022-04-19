@@ -129,9 +129,9 @@ contains
     logical :: is_clear_sky_layer(nlev)
 
     ! Temporary working array
-    real(jprb), dimension(config%n_g_lw,nlev+1) :: tmp_work_ngnlevp1, &
-      &                                            tmp_work_ngnlevp2
-    real(jprb), dimension(config%n_g_lw,nlev) :: tmp_work_ngnlev1
+    real(jprb), dimension(config%n_g_lw,nlev+1) :: tmp_work_albedo, &
+      &                                            tmp_work_source
+    real(jprb), dimension(config%n_g_lw,nlev) :: tmp_work_inv_denominator
 
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
@@ -321,9 +321,9 @@ contains
                &  emission(:,jcol), albedo(:,jcol), &
                &  is_clear_sky_layer, i_cloud_top, flux_dn_clear, &
                &  flux_up, flux_dn, &
-               &  albedo=tmp_work_ngnlevp1, &
-               &  source=tmp_work_ngnlevp2, &
-               &  inv_denominator=tmp_work_ngnlev1)
+               &  albedo=tmp_work_albedo, &
+               &  source=tmp_work_source, &
+               &  inv_denominator=tmp_work_inv_denominator)
         else
           ! Simpler down-then-up method to compute fluxes
           call calc_fluxes_no_scattering_lw(ng, nlev, &
