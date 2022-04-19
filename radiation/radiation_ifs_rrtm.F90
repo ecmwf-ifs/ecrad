@@ -358,6 +358,7 @@ contains
 !      allocate(YRDIMV)
 !      YRDIMV%NFLEVG = nlev
 !    end if
+
     do jlev=1,nlev
       do jcol= istartcol,iendcol
         pressure_fl(jcol,jlev) &
@@ -513,6 +514,7 @@ contains
         ZINCSOL(jcol,jg)   = 0.0_jprb
       end do
     end do
+
     CALL SRTM_GAS_OPTICAL_DEPTH &
          &( istartcol, iendcol , nlev  , ZONEMINUS_ARRAY,&
          & single_level%cos_sza(istartcol:iendcol), ILAYTROP,&

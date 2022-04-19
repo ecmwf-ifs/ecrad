@@ -117,7 +117,7 @@ contains
       ! If longwave scattering by aerosol is not to be represented,
       ! then the user may wish to just provide absorption optical deth
       ! in od_lw, in which case we must set the following two
-    ! variables to zero
+      ! variables to zero
       do jcol = 1,ncol
         do jlev = istartlev,iendlev
           do jband = 1,config%n_bands_lw

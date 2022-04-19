@@ -289,7 +289,6 @@ contains
         end do
         sw_albedo_direct = transpose(sw_albedo_band(istartcol:iendcol, &
              &                             config%i_band_from_reordered_g_sw))
-
       else
         do jcol = istartcol,iendcol
           !$ACC LOOP SEQ

@@ -282,7 +282,6 @@ contains
 
     ho => config%cloud_optics
 
-    ! Array-wise assignment
     do jcol=istartcol, iendcol
       do jlev=1, nlev
         do jb=1, config%n_bands_sw

@@ -424,6 +424,7 @@ contains
           end do
         end do
       end do
+
       ! Loop over position
       do jcol = istartcol,iendcol
 ! Added for DWD (2020)

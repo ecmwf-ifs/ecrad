@@ -143,6 +143,7 @@ contains
         end do
       end do
     end do
+
     this%ncol = ncol
     this%nlev = nlev
 
