@@ -174,7 +174,7 @@ contains
     
     use yomhook,              only : lhook, dr_hook
     use easy_netcdf,          only : netcdf_file
-    use radiation_io,         only : nulerr
+    use radiation_io,         only : nulout
 
     class(aerosol_optics_description_type), intent(in) :: this
     character(len=2), intent(in) :: code_str
@@ -211,15 +211,20 @@ contains
         if (to_string(this%code_philic(:,ja)) == code_str) then
           ! Aerosol code matches
           if (present(ibin) .and. this%bin_philic(ja) > 0) then
-            if (ibin > 0 .and. ibin == this%bin_philic(ja)) then
-              ! Requested bin number matches
-              current_score = 4
+            if (ibin > 0) then
+              if (ibin == this%bin_philic(ja)) then
+                ! Requested bin number matches
+                current_score = 4
+              else
+                ! Requested bin number does not match
+                current_score = -1
+              end if
             else
-              ! Requested bin number does not match
-              current_score = -1
+              ! Bin number is zero: no request
+              current_score = 2
             end if
           else
-            ! No bin number requested or present
+            ! No bin number present
             current_score = 2
           end if
           if (present(optical_model_str)) then
@@ -257,12 +262,17 @@ contains
         if (to_string(this%code_phobic(:,ja)) == code_str) then
           ! Aerosol code matches
           if (present(ibin) .and. this%bin_phobic(ja) > 0) then
-            if (ibin > 0 .and. ibin == this%bin_phobic(ja)) then
-              ! Requested bin number matches
-              current_score = 4
+            if (ibin > 0) then
+              if (ibin == this%bin_phobic(ja)) then
+                ! Requested bin number matches
+                current_score = 4
+              else
+                ! Requested bin number does not match
+                current_score = -1
+              end if
             else
-              ! Requested bin number does not match
-              current_score = -1
+              ! Bin number is zero: no request
+              current_score = 2
             end if
           else
             ! No bin number requested or present
@@ -299,7 +309,7 @@ contains
     end if
 
     if (is_ambiguous) then
-      write(nulerr,'(a,a,a,l,a)') 'Warning: get_index("', code_str, '",', lhydrophilic, &
+      write(nulout,'(a,a2,a,l,a)') 'Warning: get_index("', code_str, '",', lhydrophilic, &
            &  ',...) does not unambiguously identify an aerosol optical property index'
     end if
 

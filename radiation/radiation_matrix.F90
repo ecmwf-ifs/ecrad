@@ -549,8 +549,6 @@ contains
     real(jprb), dimension(iend) :: U22, U23, U33
     real(jprb), dimension(iend) :: y2, y3
 
-    integer :: j
-
     !    associate (U11 => A(:,1,1), U12 => A(:,1,2), U13 => A(1,3))
     ! LU decomposition of the *transpose* of A:
     !       ( 1        )   (U11 U12 U13)
