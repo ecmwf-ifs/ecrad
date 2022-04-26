@@ -31,6 +31,10 @@ version 1.5
 	  save aerosol optical properties in aerosol_optics.nc, and "make
 	  test_aerosol_averaging" in test/ifs to test the various
 	  combinations of gas optics scheme and aerosol optics file
+	- Added do_weighted_surface_mapping, which if false does not
+	  weight the surface albedo/emissivity by the solar/terrestrial
+	  reference Planck function, thereby reproducing ecRad-1.4.x
+	  behaviour
 
 version 1.4.2 (15 October 2021)
 	- radiation_config:do_write_double_precision writes fluxes as

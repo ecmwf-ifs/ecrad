@@ -470,10 +470,16 @@ module radiation_config
     ! PDF used by the McICA solver
     character(len=511) :: cloud_pdf_override_file_name = ''
 
-    ! Do we compute cloud and aerosol optical properties per g point?
-    ! Not available with RRTMG gas optics model
+    ! Do we compute cloud, aerosol and surface optical properties per
+    ! g point?  Not available with RRTMG gas optics model.
     logical :: do_cloud_aerosol_per_sw_g_point = .true.
     logical :: do_cloud_aerosol_per_lw_g_point = .true.
+
+    ! Do we weight the mapping from surface emissivity/albedo to
+    ! g-point/band weighting by a reference Planck function (more
+    ! accurate) or weighting each wavenumber equally (less accurate
+    ! but consistent with IFS Cycle 48r1 and earlier)?
+    logical :: do_weighted_surface_mapping = .true.
 
     ! COMPUTED PARAMETERS
 
@@ -650,8 +656,8 @@ contains
     logical :: do_canopy_fluxes_sw, do_canopy_fluxes_lw
     logical :: use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw
     logical :: do_canopy_gases_sw, do_canopy_gases_lw
-    logical :: do_cloud_aerosol_per_sw_g_point
-    logical :: do_cloud_aerosol_per_lw_g_point
+    logical :: do_cloud_aerosol_per_sw_g_point, do_cloud_aerosol_per_lw_g_point
+    logical :: do_weighted_surface_mapping    
     integer :: n_regions, iverbose, iverbosesetup, n_aerosol_types
     real(jprb):: mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od
     real(jprb):: mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo
@@ -715,7 +721,7 @@ contains
          &  sw_albedo_wavelength_bound, lw_emiss_wavelength_bound, &
          &  i_sw_albedo_index, i_lw_emiss_index, &
          &  do_cloud_aerosol_per_lw_g_point, &
-         &  do_cloud_aerosol_per_sw_g_point
+         &  do_cloud_aerosol_per_sw_g_point, do_weighted_surface_mapping
          
     real(jprb) :: hook_handle
 
@@ -800,6 +806,7 @@ contains
     i_lw_emiss_index              = this%i_lw_emiss_index
     do_cloud_aerosol_per_lw_g_point = this%do_cloud_aerosol_per_lw_g_point
     do_cloud_aerosol_per_sw_g_point = this%do_cloud_aerosol_per_sw_g_point
+    do_weighted_surface_mapping   = this%do_weighted_surface_mapping
 
     if (present(file_name) .and. present(unit)) then
       write(nulerr,'(a)') '*** Error: cannot specify both file_name and unit in call to config_type%read'
@@ -947,6 +954,7 @@ contains
     this%i_lw_emiss_index              = i_lw_emiss_index
     this%do_cloud_aerosol_per_lw_g_point = do_cloud_aerosol_per_lw_g_point
     this%do_cloud_aerosol_per_sw_g_point = do_cloud_aerosol_per_sw_g_point
+    this%do_weighted_surface_mapping   = do_weighted_surface_mapping
 
     if (do_save_gpoint_flux) then
       ! Saving the fluxes every g-point overrides saving as averaged
@@ -1009,11 +1017,11 @@ contains
          & .and. (this%use_general_cloud_optics &
          &        .or. this%use_general_aerosol_optics)) then
       if (this%do_sw .and. this%do_cloud_aerosol_per_sw_g_point) then
-        write(nulout,'(a)') 'Warning: RRTMG SW only supports cloud/aerosol optical properties per band, not per g-point'
+        write(nulout,'(a)') 'Warning: RRTMG SW only supports cloud/aerosol/surface optical properties per band, not per g-point'
         this%do_cloud_aerosol_per_sw_g_point = .false.
       end if
       if (this%do_lw .and. this%do_cloud_aerosol_per_lw_g_point) then
-        write(nulout,'(a)') 'Warning: RRTMG LW only supports cloud/aerosol optical properties per band, not per g-point'
+        write(nulout,'(a)') 'Warning: RRTMG LW only supports cloud/aerosol/surface optical properties per band, not per g-point'
         this%do_cloud_aerosol_per_lw_g_point = .false.
       end if
     end if
@@ -1362,6 +1370,9 @@ contains
         call print_logical('  Nearest-neighbour spectral emissivity mapping', &
              &   'do_nearest_spectral_lw_emiss', this%do_nearest_spectral_lw_emiss)
       end if
+      call print_logical('  Planck-weighted surface albedo/emiss mapping', &
+           &   'do_weighted_surface_mapping', this%do_weighted_surface_mapping)
+
       !---------------------------------------------------------------------
       if (this%do_clouds) then
         write(nulout, '(a)') 'Cloud settings:'
@@ -1732,10 +1743,17 @@ contains
         this%n_canopy_bands_sw = maxval(this%i_sw_albedo_index(1:ninterval))
       end if
     end if
-      
-    call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
-         &  this%sw_albedo_wavelength_bound(1:ninterval-1), this%i_sw_albedo_index(1:ninterval), &
-         &  this%sw_albedo_weights, use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point))
+    
+    if (this%do_weighted_surface_mapping) then
+      call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
+           &  this%sw_albedo_wavelength_bound(1:ninterval-1), this%i_sw_albedo_index(1:ninterval), &
+           &  this%sw_albedo_weights, use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point))
+    else
+      ! Weight each wavenumber equally as in IFS Cycles 48 and earlier
+      call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(-1.0_jprb, &
+           &  this%sw_albedo_wavelength_bound(1:ninterval-1), this%i_sw_albedo_index(1:ninterval), &
+           &  this%sw_albedo_weights, use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point))
+    end if
 
     ! Legacy method uses input band with largest weight
     if (this%do_nearest_spectral_sw_albedo) then
@@ -1804,9 +1822,16 @@ contains
       end if
     end if
 
-    call this%gas_optics_lw%spectral_def%calc_mapping_from_bands(TerrestrialReferenceTemperature, &
-         &  this%lw_emiss_wavelength_bound(1:ninterval-1), this%i_lw_emiss_index(1:ninterval), &
-         &  this%lw_emiss_weights, use_bands=(.not. this%do_cloud_aerosol_per_lw_g_point))
+    if (this%do_weighted_surface_mapping) then
+      call this%gas_optics_lw%spectral_def%calc_mapping_from_bands(TerrestrialReferenceTemperature, &
+           &  this%lw_emiss_wavelength_bound(1:ninterval-1), this%i_lw_emiss_index(1:ninterval), &
+           &  this%lw_emiss_weights, use_bands=(.not. this%do_cloud_aerosol_per_lw_g_point))
+    else
+      ! Weight each wavenumber equally as in IFS Cycles 48 and earlier
+      call this%gas_optics_lw%spectral_def%calc_mapping_from_bands(-1.0_jprb, &
+           &  this%lw_emiss_wavelength_bound(1:ninterval-1), this%i_lw_emiss_index(1:ninterval), &
+           &  this%lw_emiss_weights, use_bands=(.not. this%do_cloud_aerosol_per_lw_g_point))
+    end if
 
     ! Legacy method uses input band with largest weight
     if (this%do_nearest_spectral_lw_emiss) then

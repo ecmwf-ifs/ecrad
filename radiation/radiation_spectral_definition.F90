@@ -847,7 +847,10 @@ contains
   !---------------------------------------------------------------------
   ! Return the Planck function (in W m-2 (cm-1)-1) for a given
   ! wavenumber (cm-1) and temperature (K), ensuring double precision
-  ! for internal calculation
+  ! for internal calculation.  If temperature is 0 or less then unity
+  ! is returned; since this function is primarily used to weight an
+  ! integral by the Planck function, a temperature of 0 or less means
+  ! no weighting is to be applied.
   elemental function calc_planck_function_wavenumber(wavenumber, temperature)
 
     use parkind1,            only : jprb, jprd
@@ -860,11 +863,15 @@ contains
     real(jprd) :: freq ! Hz
     real(jprd) :: planck_fn_freq ! W m-2 Hz-1
 
-    freq = 100.0_jprd * real(SpeedOfLight,jprd) * real(wavenumber,jprd)
-    planck_fn_freq = 2.0_jprd * real(PlanckConstant,jprd) * freq**3 &
-         &  / (real(SpeedOfLight,jprd)**2 * (exp(real(PlanckConstant,jprd)*freq &
-         &     /(real(BoltzmannConstant,jprd)*real(temperature,jprd))) - 1.0_jprd))
-    calc_planck_function_wavenumber = real(planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd), jprb)
+    if (temperature > 0.0_jprd) then
+      freq = 100.0_jprd * real(SpeedOfLight,jprd) * real(wavenumber,jprd)
+      planck_fn_freq = 2.0_jprd * real(PlanckConstant,jprd) * freq**3 &
+           &  / (real(SpeedOfLight,jprd)**2 * (exp(real(PlanckConstant,jprd)*freq &
+           &     /(real(BoltzmannConstant,jprd)*real(temperature,jprd))) - 1.0_jprd))
+      calc_planck_function_wavenumber = real(planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd), jprb)
+    else
+      calc_planck_function_wavenumber = 1.0_jprb
+    end if
 
   end function calc_planck_function_wavenumber
 
