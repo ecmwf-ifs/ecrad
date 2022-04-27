@@ -232,7 +232,7 @@ contains
     integer :: nalbedoband
 
     ! Loop indices for ecRad bands and albedo bands
-    integer :: jband, jalbedoband, jg, jcol
+    integer :: jband, jalbedoband, jcol
 
     real(jprb) :: hook_handle
 
@@ -249,12 +249,7 @@ contains
     elseif (.not. config%do_nearest_spectral_sw_albedo) then
       ! Albedos averaged accurately to ecRad spectral bands
       nalbedoband = size(config%sw_albedo_weights,1)
-      do jband = 1,config%n_bands_sw
-        do jcol = istartcol,iendcol
-          sw_albedo_band(jcol,jband) = 0.0_jprb
-        end do
-      end do
-
+      sw_albedo_band = 0.0_jprb
       do jband = 1,config%n_bands_sw
         do jalbedoband = 1,nalbedoband
           if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
@@ -269,12 +264,7 @@ contains
       sw_albedo_diffuse = transpose(sw_albedo_band(istartcol:iendcol, &
            &                              config%i_band_from_reordered_g_sw))
       if (allocated(this%sw_albedo_direct)) then
-        do jband = 1,config%n_bands_sw
-          do jcol = istartcol,iendcol
-            sw_albedo_band(jcol,jband) = 0.0_jprb
-          end do
-        end do
-
+        sw_albedo_band = 0.0_jprb
         do jband = 1,config%n_bands_sw
           do jalbedoband = 1,nalbedoband
             if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
@@ -290,12 +280,7 @@ contains
         sw_albedo_direct = transpose(sw_albedo_band(istartcol:iendcol, &
              &                             config%i_band_from_reordered_g_sw))
       else
-        do jcol = istartcol,iendcol
-          !$ACC LOOP SEQ
-          do jg = 1,config%n_g_sw
-            sw_albedo_direct(jg,jcol) = sw_albedo_diffuse(jg,jcol)
-          end do
-        end do
+        sw_albedo_direct = sw_albedo_diffuse
       end if
     else
       ! Albedos mapped less accurately to ecRad spectral bands
@@ -323,11 +308,7 @@ contains
       else if (.not. config%do_nearest_spectral_lw_emiss) then
         ! Albedos averaged accurately to ecRad spectral bands
         nalbedoband = size(config%lw_emiss_weights,1)
-        do jband = 1,config%n_bands_lw
-          do jcol = istartcol,iendcol
-            lw_albedo_band(jcol,jband) = 0.0_jprb
-          end do
-        end do
+        lw_albedo_band = 0.0_jprb
 
         do jband = 1,config%n_bands_lw
           do jalbedoband = 1,nalbedoband

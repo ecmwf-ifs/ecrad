@@ -94,7 +94,6 @@ contains
     type(config_type),   intent(in)    :: config
     integer, intent(in)                :: ncol  ! Number of columns
     integer, intent(in)                :: istartlev, iendlev ! Level range
-    integer                            :: jband, jlev, jcol
 
     real(jprb)                         :: hook_handle
 
@@ -118,14 +117,8 @@ contains
       ! then the user may wish to just provide absorption optical deth
       ! in od_lw, in which case we must set the following two
       ! variables to zero
-      do jcol = 1,ncol
-        do jlev = istartlev,iendlev
-          do jband = 1,config%n_bands_lw
-            this%ssa_lw(jband,jlev,jcol) = 0.0_jprb
-            this%g_lw(jband,jlev,jcol) = 0.0_jprb
-          end do
-        end do
-      end do
+      this%ssa_lw = 0.0_jprb
+      this%g_lw = 0.0_jprb
     end if
 
     if (lhook) call dr_hook('radiation_aerosol:allocate_direct',1,hook_handle)

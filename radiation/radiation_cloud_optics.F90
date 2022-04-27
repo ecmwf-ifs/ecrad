@@ -282,22 +282,15 @@ contains
 
     ho => config%cloud_optics
 
-    do jcol=istartcol, iendcol
-      do jlev=1, nlev
-        do jb=1, config%n_bands_sw
-          od_sw_cloud(jb,jlev,jcol) = 0.0_jprb
-          ssa_sw_cloud(jb,jlev,jcol) = 0.0_jprb
-          g_sw_cloud(jb,jlev,jcol) = 0.0_jprb
-        end do
-        do jb=1, config%n_bands_lw
-          od_lw_cloud(jb,jlev,jcol) = 0.0_jprb
-        end do
-        do jb=1, config%n_bands_lw_if_scattering
-          ssa_lw_cloud(jb,jlev,jcol) = 0.0_jprb
-          g_lw_cloud(jb,jlev,jcol) = 0.0_jprb
-        end do
-      end do
-    end do
+    ! Array-wise assignment
+    od_lw_cloud  = 0.0_jprb
+    od_sw_cloud  = 0.0_jprb
+    ssa_sw_cloud = 0.0_jprb
+    g_sw_cloud   = 0.0_jprb
+    if (config%do_lw_cloud_scattering) then
+      ssa_lw_cloud = 0.0_jprb
+      g_lw_cloud   = 0.0_jprb
+    end if
 
     do jlev = 1,nlev
       do jcol = istartcol,iendcol

@@ -417,13 +417,7 @@ contains
       iendlev   = ubound(aerosol%od_sw,2)
 
       ! Set variables to zero that may not have been previously
-      do jcol = istartcol,iendcol
-        do jlev = istartlev,iendlev
-          do jg = 1,config%n_g_sw
-            g_sw(jg,jlev,jcol) = 0.0_jprb
-          end do
-        end do
-      end do
+      g_sw = 0.0_jprb
 
       ! Loop over position
       do jcol = istartcol,iendcol

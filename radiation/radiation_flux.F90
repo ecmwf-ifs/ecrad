@@ -122,8 +122,6 @@ contains
     class(flux_type), intent(inout) :: this
     type(config_type), intent(in)   :: config
 
-    integer                         :: jcol
-
     real(jprb)                      :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:allocate',0,hook_handle)
@@ -252,10 +250,8 @@ contains
 
     ! Some solvers may not write to cloud cover, so we initialize to
     ! an unphysical value
-    do jcol = istartcol,iendcol
-      this%cloud_cover_lw(jcol) = -1.0_jprb
-      this%cloud_cover_sw(jcol) = -1.0_jprb
-    end do
+    this%cloud_cover_lw = -1.0_jprb
+    this%cloud_cover_sw = -1.0_jprb
 
     if (lhook) call dr_hook('radiation_flux:allocate',1,hook_handle)
     

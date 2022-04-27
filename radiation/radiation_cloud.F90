@@ -356,8 +356,6 @@ contains
     integer,           intent(in)    :: ncol, nlev
     real(jprb),        intent(in)    :: frac_std
 
-    integer :: jcol, jlev
-
     real(jprb)             :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',0,hook_handle)
@@ -368,11 +366,7 @@ contains
     
     allocate(this%fractional_std(ncol, nlev))
 
-    do jlev = 1, nlev
-      do jcol = 1, ncol
-      this%fractional_std(jcol, jlev) = frac_std
-      end do
-    end do
+    this%fractional_std = frac_std
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',1,hook_handle)
 

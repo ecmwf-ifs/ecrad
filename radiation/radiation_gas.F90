@@ -127,8 +127,6 @@ contains
     class(gas_type), intent(inout) :: this
     integer,         intent(in)    :: ncol, nlev
 
-    integer             :: jcol, jlev, jgas
-
     real(jprb)          :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:allocate',0,hook_handle)
@@ -136,13 +134,7 @@ contains
     call this%deallocate()
 
     allocate(this%mixing_ratio(ncol, nlev, NMaxGases))
-    do jgas = 1,NMaxGases
-      do jlev = 1, nlev
-        do jcol = 1,ncol
-          this%mixing_ratio(jcol,jlev,jgas) = 0.0_jprb
-        end do
-      end do
-    end do
+    this%mixing_ratio = 0.0_jprb
 
     this%ncol = ncol
     this%nlev = nlev
@@ -402,7 +394,7 @@ contains
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor    
 
-    integer :: ig, jcol, jlev
+    integer :: ig
 
     ! Scaling factor to convert from old to new
     real(jprb) :: sf
@@ -435,11 +427,7 @@ contains
         sf = sf * this%scale_factor(igas)
         
         if (sf /= 1.0_jprb) then
-          do jlev = 1,this%nlev
-            do jcol = 1,this%ncol
-              this%mixing_ratio(jcol,jlev,igas) = this%mixing_ratio(jcol,jlev,igas) * sf
-            enddo
-          enddo
+          this%mixing_ratio(:,:,igas) = this%mixing_ratio(:,:,igas) * sf
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object

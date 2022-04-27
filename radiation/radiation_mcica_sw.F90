@@ -200,10 +200,8 @@ contains
                &  + sum(flux_dn_direct,1)
         end if
         ! Store spectral downwelling fluxes at surface
-        do jg = 1,ng
-          flux%sw_dn_diffuse_surf_clear_g(jg,jcol) = flux_dn_diffuse(jg,nlev+1)
-          flux%sw_dn_direct_surf_clear_g(jg,jcol)  = flux_dn_direct(jg,nlev+1)
-        end do
+        flux%sw_dn_diffuse_surf_clear_g(:,jcol) = flux_dn_diffuse(:,nlev+1)
+        flux%sw_dn_direct_surf_clear_g(:,jcol)  = flux_dn_direct(:,nlev+1)
 
         ! Do cloudy-sky calculation
         call cloud_generator(ng, nlev, config%i_overlap_scheme, &
@@ -269,13 +267,11 @@ contains
 
             else
               ! Clear-sky layer: copy over clear-sky values
-              do jg = 1,ng
-                reflectance(jg,jlev) = ref_clear(jg,jlev)
-                transmittance(jg,jlev) = trans_clear(jg,jlev)
-                ref_dir(jg,jlev) = ref_dir_clear(jg,jlev)
-                trans_dir_diff(jg,jlev) = trans_dir_diff_clear(jg,jlev)
-                trans_dir_dir(jg,jlev) = trans_dir_dir_clear(jg,jlev)
-              end do
+              reflectance(:,jlev) = ref_clear(:,jlev)
+              transmittance(:,jlev) = trans_clear(:,jlev)
+              ref_dir(:,jlev) = ref_dir_clear(:,jlev)
+              trans_dir_diff(:,jlev) = trans_dir_diff_clear(:,jlev)
+              trans_dir_dir(:,jlev) = trans_dir_dir_clear(:,jlev)
             end if
           end do
             

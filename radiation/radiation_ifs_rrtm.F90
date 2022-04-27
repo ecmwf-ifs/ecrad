@@ -435,11 +435,7 @@ contains
         
         ! lw_emission at this point is actually the planck function of
         ! the surface
-        do jcol = istartcol,iendcol
-          do jg= 1,config%n_g_lw
-            lw_emission(jg,jcol) = lw_emission(jg,jcol) * (1.0_jprb - lw_albedo(jg,jcol))
-          end do
-        end do
+        lw_emission = lw_emission * (1.0_jprb - lw_albedo)
       else
       ! Longwave emission has already been computed
         if (config%use_canopy_full_spectrum_lw) then
@@ -482,10 +478,8 @@ contains
       ! G points have not been reordered 
       do jcol = istartcol,iendcol
         do jlev = 1,nlev
-          do jg= 1,config%n_g_lw
-            ! Check for negative optical depth
-            od_lw(jg,jlev,jcol) = max(config%min_gas_od_lw, ZOD_LW(jg,nlev+1-jlev,jcol))
-          end do
+          ! Check for negative optical depth
+          od_lw(:,jlev,jcol) = max(config%min_gas_od_lw, ZOD_LW(:,nlev+1-jlev,jcol))
         end do
       end do
     end if
@@ -503,17 +497,9 @@ contains
     
     ! SRTM_GAS_OPTICAL_DEPTH will not initialize profiles when the sun
     ! is below the horizon, so we do it here
-    do jg = 1, JPGPT_SW
-      do jlev = 1,nlev
-        do jcol = istartcol,iendcol
-          ZOD_SW(jcol,jlev,jg)  = 0.0_jprb
-          ZSSA_SW(jcol,jlev,jg) = 0.0_jprb
-        end do
-      end do
-      do jcol = istartcol,iendcol
-        ZINCSOL(jcol,jg)   = 0.0_jprb
-      end do
-    end do
+    ZOD_SW(istartcol:iendcol,:,:)  = 0.0_jprb
+    ZSSA_SW(istartcol:iendcol,:,:) = 0.0_jprb
+    ZINCSOL(istartcol:iendcol,:,:) = 0.0_jprb
 
     CALL SRTM_GAS_OPTICAL_DEPTH &
          &( istartcol, iendcol , nlev  , ZONEMINUS_ARRAY,&
@@ -708,21 +694,15 @@ contains
           ! levels not half levels
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            do jcol = istartcol,iendcol
-              planck_hl(jg,1,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg,nlev)
-            end do
+            planck_hl(jg,1,:) = planck_store(:,iband) * PFRAC(:,jg,nlev)
           end do
         else
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            do jcol = istartcol,iendcol
-              planck_tmp(jcol,jg) = planck_store(jcol,iband) * PFRAC(jcol,jg,nlev+2-jlev)
-            end do
+            planck_tmp(:,jg) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
           end do
           do jcol = istartcol,iendcol
-            do jg = 1,config%n_g_lw
-              planck_hl(jg,jlev,jcol) = planck_tmp(jcol,jg)
-            end do
+            planck_hl(:,jlev,jcol) = planck_tmp(jcol,:)
           end do
         end if
       end if
@@ -818,17 +798,13 @@ contains
       do jgreorder = 1,config%n_g_lw
         iband = config%i_band_from_reordered_g_lw(jgreorder)
         ig = config%i_g_from_reordered_g_lw(jgreorder)
-        do jcol = istartcol,iendcol
-          planck_surf(jgreorder,jcol) = planck_store(jcol,iband) * PFRAC(jcol,ig)
-        end do
+        planck_surf(jgreorder,:) = planck_store(:,iband) * PFRAC(:,ig)
       end do
     else
       ! G points have not been reordered 
       do jg = 1,config%n_g_lw
         iband = config%i_band_from_g_lw(jg)
-        do jcol = istartcol,iendcol
-          planck_surf(jg,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg)
-        end do
+        planck_surf(jg,:) = planck_store(:,iband) * PFRAC(:,jg)
       end do
     end if
 
