@@ -123,13 +123,13 @@ program ecrad_ifs_driver
   integer :: ifldsin, ifldsout, ifldstot
 
   integer :: nproma
-  
+
   integer :: inext, iinbeg, iinend, ioutbeg, ioutend, igi, imu0, iamu0, iemiss, its, islm, iccnl,    &
-       &     ibas, itop, igelam, igemu, iclon, islon, iald, ialp, iti, ipr, iqs, iwv, iclc, ilwa,    & 
+       &     ibas, itop, igelam, igemu, iclon, islon, iald, ialp, iti, ipr, iqs, iwv, iclc, ilwa,    &
        &     iiwa, iswa, irwa, irra, idp, ioz, iecpo3, ihpr, iaprs, ihti, iaero, ifrsod, icdir,      &
        &     ifrted, ifrsodc, ifrtedc, iemit, isudu, iuvdf, iparf, iparcf, itincf, ifdir, ifdif,     &
        &     ilwderivative, iswdirectband, iswdiffuseband, ifrso, iswfc, ifrth, ilwfc, iaer,         &
-       &     iich4, iin2o, ino2, ic11, ic12, igix, iico2, iccno, ic22, icl4  
+       &     iich4, iin2o, ino2, ic11, ic12, igix, iico2, iccno, ic22, icl4
 
   integer :: ire_liq, ire_ice, ioverlap
   integer, allocatable :: iseed(:,:)
@@ -160,17 +160,17 @@ program ecrad_ifs_driver
   ! Read "radiation_driver" namelist into radiation driver config type
   call driver_config%read(nml_file_name)
 
-  if (driver_config%iverbose >= 2) then
-    write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
-    write(nulout,'(a)') 'Copyright (C) 2014- ECMWF'
-    write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
-#ifdef SINGLE_PRECISION
-    write(nulout,'(a)') 'Floating-point precision: single'
-#else
-    write(nulout,'(a)') 'Floating-point precision: double'
-#endif
-    call config%print(driver_config%iverbose)
-  end if
+!   if (driver_config%iverbose >= 2) then
+!     write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
+!     write(nulout,'(a)') 'Copyright (C) 2014- ECMWF'
+!     write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
+! #ifdef SINGLE_PRECISION
+!     write(nulout,'(a)') 'Floating-point precision: single'
+! #else
+!     write(nulout,'(a)') 'Floating-point precision: double'
+! #endif
+!     call config%print(driver_config%iverbose)
+!   end if
 
   ! --------------------------------------------------------
   ! Section 3: Read input data file
@@ -200,8 +200,7 @@ program ecrad_ifs_driver
   ! Read input variables from NetCDF file
   call read_input(file, config, driver_config, ncol, nlev, &
        &          single_level, thermodynamics, &
-       &          gas, cloud, aerosol, &
-       &          lat=lat, lon=lon)
+       &          gas, cloud, aerosol)
 
   ! Close input file
   call file%close()
@@ -234,9 +233,9 @@ program ecrad_ifs_driver
     !
     !  -------------------------------------------------------
 
-    lrayfm=.false.                     ! key for calling radiation scheme from MF 
+    lrayfm=.false.                     ! key for calling radiation scheme from MF
     zrii0=single_level%solar_irradiance
-    lldebug=(driver_config%iverbose>4)     ! debug 
+    lldebug=(driver_config%iverbose>4)     ! debug
     nproma=driver_config%nblocksize        ! nproma size
     ngpblks=(ncol-1)/nproma+1              ! number of column blocks
 
@@ -264,7 +263,7 @@ program ecrad_ifs_driver
     ! Reconstruct IFS configuration values from ecRad's config
     !
     yderad%lfu_lw_ice_optics_bug = config%do_fu_lw_ice_optics_bug
-    
+
     ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
     if(config%i_solver_lw == ISolverMcICA) then
       yderad%nlwsolver = 0
@@ -311,7 +310,7 @@ program ecrad_ifs_driver
 
     ! number of shortwave spectral intervals, = 6 in IFS
     if (config%use_canopy_full_spectrum_sw) then
-      yderad%nsw = config%n_g_sw  
+      yderad%nsw = config%n_g_sw
     else
       yderad%nsw = 6
     endif
@@ -370,11 +369,11 @@ program ecrad_ifs_driver
     !
     ! RADINTG
     !
-  
+
     !  INITIALISE INDICES FOR VARIABLE
 
     ! INDRAD is a CONTAIN'd function (at end of this routine)
-  
+
     inext  =1
     iinbeg =1                        ! start of input variables
     igi    =indrad(inext,1,lldebug)
@@ -509,9 +508,9 @@ program ecrad_ifs_driver
       write(nulout,'("iaprs  =",i0)')iaprs
       write(nulout,'("ihti   =",i0)')ihti
       write(nulout,'("ifrsod =",i0)')ifrsod
-      write(nulout,'("ifrted=",i0)')ifrted 
-      write(nulout,'("ifrsodc=",i0)')ifrsodc 
-      write(nulout,'("ifrtedc=",i0)')ifrtedc 
+      write(nulout,'("ifrted=",i0)')ifrted
+      write(nulout,'("ifrsodc=",i0)')ifrsodc
+      write(nulout,'("ifrtedc=",i0)')ifrtedc
       write(nulout,'("iemit  =",i0)')iemit
       write(nulout,'("isudu  =",i0)')isudu
       write(nulout,'("iuvdf  =",i0)')iuvdf
@@ -546,7 +545,7 @@ program ecrad_ifs_driver
       write(nulout,'("ifldsout=",i0)')ifldsout
       write(nulout,'("ifldstot=",i0)')ifldstot
     endif
-    
+
     ! Allocate blocked data structure
     allocate(zrgp(nproma,ifldstot,ngpblks))
     allocate(iseed(nproma,ngpblks))
@@ -604,8 +603,8 @@ program ecrad_ifs_driver
       zrgp(1:il,iccno,ib)    = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround! ! CCN over sea
       ! zrgp(1:il,ibas,ib)     = ???
       ! zrgp(1:il,itop,ib)     = ???
-      zrgp(1:il,igelam,ib)   = lon(ibeg:iend) ! longitude
-      zrgp(1:il,igemu,ib)    = sin(lat(ibeg:iend)) ! sine of latitude
+      zrgp(1:il,igelam,ib)   = 0.0_jprb ! lon(ibeg:iend) ! longitude
+      zrgp(1:il,igemu,ib)    = 0.0_jprb ! sin(lat(ibeg:iend)) ! sine of latitude
       ! zrgp(1:il,iclon,ib)    = ???
       ! zrgp(1:il,islon,ib)    = ???
 
@@ -613,7 +612,7 @@ program ecrad_ifs_driver
         zrgp(1:il,iald+jalb-1,ib)  =  single_level%sw_albedo(ibeg:iend,jalb)
         zrgp(1:il,ialp+jalb-1,ib)  =  single_level%sw_albedo_direct(ibeg:iend,jalb)
       enddo
-      
+
       do jlev=1,nlev
         zrgp(1:il,iti+jlev-1,ib)   = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround and disabled SATUR ! full level temperature
         zrgp(1:il,ipr+jlev-1,ib)   = 0.0_jprb ! Not in NetCDF inputs, see re_liq,re_ice workaround and disabled SATUR ! full level pressure
@@ -636,7 +635,7 @@ program ecrad_ifs_driver
 
       zrgp(1:il,iaer,ib)  =  0._jprb ! old aerosol, not used
       if (yderad%naermacc == 1) then
-        joff=iaero 
+        joff=iaero
         do jaer=1,rad_config%n_aerosol_types
           do jlev=1,nlev
             zrgp(1:il,joff,ib) = aerosol%mixing_ratio(ibeg:iend,jlev,jaer)
@@ -655,12 +654,12 @@ program ecrad_ifs_driver
       call gas%get(ICO2, IMassMixingRatio, zrgp(1:il,iico2:iico2+nlev-1,ib), istartcol=ibeg)
       call gas%get(ICH4, IMassMixingRatio, zrgp(1:il,iich4:iich4+nlev-1,ib), istartcol=ibeg)
       call gas%get(IN2O, IMassMixingRatio, zrgp(1:il,iin2o:iin2o+nlev-1,ib), istartcol=ibeg)
-      
+
       call gas%get(ICFC11, IMassMixingRatio, zrgp(1:il,ic11:ic11+nlev-1,ib), istartcol=ibeg)
       call gas%get(ICFC12, IMassMixingRatio, zrgp(1:il,ic12:ic12+nlev-1,ib), istartcol=ibeg)
       call gas%get(IHCFC22, IMassMixingRatio, zrgp(1:il,ic22:ic22+nlev-1,ib), istartcol=ibeg)
       call gas%get(ICCL4, IMassMixingRatio, zrgp(1:il,icl4:icl4+nlev-1,ib), istartcol=ibeg)
-      
+
       call gas%get(IO3, IMassMixingRatio, zrgp(1:il,ioz:ioz+nlev-1,ib), istartcol=ibeg)
       ! convert ozone kg/kg to Pa*kg/kg
       do jlev=1,nlev
@@ -701,8 +700,8 @@ program ecrad_ifs_driver
         & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
         &                                            driver_config%do_correct_unphysical_inputs) &
         & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-        &                                            driver_config%do_correct_unphysical_inputs) 
-  
+        &                                            driver_config%do_correct_unphysical_inputs)
+
     ! Deallocate input data structures
     call single_level%deallocate
     call thermodynamics%deallocate
@@ -713,12 +712,12 @@ program ecrad_ifs_driver
     if (driver_config%iverbose >= 2) then
       write(nulout,'(a)')  'Performing radiative transfer calculations'
     end if
-    
+
     ! Option of repeating calculation multiple time for more accurate
     ! profiling
     do jrepeat = 1,driver_config%nrepeat
-        
-      tstart = omp_get_wtime() 
+
+      tstart = omp_get_wtime()
 
       !$OMP PARALLEL DO SCHEDULE(RUNTIME)&
       !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
@@ -751,7 +750,7 @@ program ecrad_ifs_driver
         ! flux outputs
         &  zrgp(1,ifrso,ib), zrgp(1,ifrth,ib), zrgp(1,iswfc,ib),zrgp(1,ilwfc,ib),&
         &  zrgp(1,ifrsod,ib),zrgp(1,ifrted,ib), &
-        &  zrgp(1,ifrsodc,ib),zrgp(1,ifrtedc,ib),& 
+        &  zrgp(1,ifrsodc,ib),zrgp(1,ifrtedc,ib),&
         &  zrgp(1,ifdir,ib), zrgp(1,icdir,ib), zrgp(1,isudu,ib), &
         &  zrgp(1,iuvdf,ib), zrgp(1,iparf,ib), &
         &  zrgp(1,iparcf,ib),zrgp(1,itincf,ib), &
@@ -790,7 +789,7 @@ program ecrad_ifs_driver
       if (rad_config%do_lw) then
         flux%lw_up(ibeg:iend,:) = flux_out(ib)%lw_up(1:il,:)
         flux%lw_dn(ibeg:iend,:) = flux_out(ib)%lw_dn(1:il,:)
-      
+
         if (rad_config%do_clear) then
           flux%lw_up_clear(ibeg:iend,:) = flux_out(ib)%lw_up_clear(1:il,:)
           flux%lw_dn_clear(ibeg:iend,:) = flux_out(ib)%lw_dn_clear(1:il,:)
@@ -844,11 +843,11 @@ program ecrad_ifs_driver
               flux%sw_dn_direct_clear_band(:,ibeg:iend,:) = flux_out(ib)%sw_dn_direct_band(:,1:il,:)
             endif
           endif
-        
+
         else if (rad_config%do_surface_sw_spectral_flux) then
           flux%sw_dn_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_band(:,1:il)
           flux%sw_dn_direct_surf_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_band(:,1:il)
-            
+
           if (rad_config%do_clear) then
             flux%sw_dn_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_surf_clear_band(:,1:il)
             flux%sw_dn_direct_surf_clear_band(:,ibeg:iend) = flux_out(ib)%sw_dn_direct_surf_clear_band(:,1:il)
@@ -884,7 +883,7 @@ program ecrad_ifs_driver
     call save_fluxes(file_name, ydmodel%yrml_phy_rad%yradiation%rad_config, thermodynamics_out, flux, &
         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
         &   experiment_name=driver_config%experiment_name)
-      
+
     if (driver_config%iverbose >= 2) then
       write(nulout,'(a)') '------------------------------------------------------------------------------------'
     end if
