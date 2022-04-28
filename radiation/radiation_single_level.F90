@@ -290,11 +290,7 @@ contains
         sw_albedo_direct = transpose(this%sw_albedo_direct(istartcol:iendcol, &
              &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw)))
       else
-        do jcol = istartcol,iendcol
-          do jg = 1,config%n_g_sw
-            sw_albedo_direct(jg,jcol) = sw_albedo_diffuse(jg,jcol)
-          end do
-        end do
+        sw_albedo_direct = sw_albedo_diffuse
       end if
     end if
 
@@ -309,7 +305,6 @@ contains
         ! Albedos averaged accurately to ecRad spectral bands
         nalbedoband = size(config%lw_emiss_weights,1)
         lw_albedo_band = 0.0_jprb
-
         do jband = 1,config%n_bands_lw
           do jalbedoband = 1,nalbedoband
             if (config%lw_emiss_weights(jalbedoband,jband) /= 0.0_jprb) then
