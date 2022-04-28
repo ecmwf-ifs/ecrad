@@ -232,7 +232,7 @@ contains
     integer :: nalbedoband
 
     ! Loop indices for ecRad bands and albedo bands
-    integer :: jband, jalbedoband
+    integer :: jband, jalbedoband, jcol
 
     real(jprb) :: hook_handle
 
@@ -268,10 +268,12 @@ contains
         do jband = 1,config%n_bands_sw
           do jalbedoband = 1,nalbedoband
             if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
-              sw_albedo_band(istartcol:iendcol,jband) &
-                   &  = sw_albedo_band(istartcol:iendcol,jband) & 
-                   &  + config%sw_albedo_weights(jalbedoband,jband) &
-                   &    * this%sw_albedo_direct(istartcol:iendcol, jalbedoband)
+              do jcol = istartcol,iendcol
+                sw_albedo_band(jcol,jband) &
+                    &  = sw_albedo_band(jcol,jband) & 
+                    &  + config%sw_albedo_weights(jalbedoband,jband) &
+                    &    * this%sw_albedo_direct(jcol, jalbedoband)
+              end do
             end if
           end do
         end do
@@ -306,10 +308,12 @@ contains
         do jband = 1,config%n_bands_lw
           do jalbedoband = 1,nalbedoband
             if (config%lw_emiss_weights(jalbedoband,jband) /= 0.0_jprb) then
-              lw_albedo_band(istartcol:iendcol,jband) &
-                   &  = lw_albedo_band(istartcol:iendcol,jband) & 
-                   &  + config%lw_emiss_weights(jalbedoband,jband) &
-                   &    * (1.0_jprb-this%lw_emissivity(istartcol:iendcol, jalbedoband))
+              do jcol = istartcol,iendcol
+                lw_albedo_band(jcol,jband) &
+                    &  = lw_albedo_band(jcol,jband) & 
+                    &  + config%lw_emiss_weights(jalbedoband,jband) &
+                    &    * (1.0_jprb-this%lw_emissivity(jcol, jalbedoband))
+              end do
             end if
           end do
         end do
