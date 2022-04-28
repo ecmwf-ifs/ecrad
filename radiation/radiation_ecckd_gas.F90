@@ -17,7 +17,6 @@
 module radiation_ecckd_gas
 
   use parkind1, only : jprb
-  use easy_netcdf
   use radiation_gas_constants
 
   implicit none
@@ -81,6 +80,8 @@ contains
   ! Read information about the representation of a single gas from a
   ! NetCDF file, identifying it with code i_gas_code
   subroutine read_ckd_gas(this, file, gas_name, i_gas_code)
+
+    use easy_netcdf, only : netcdf_file
 
     class(ckd_gas_type), intent(inout) :: this
     type(netcdf_file),   intent(inout) :: file
