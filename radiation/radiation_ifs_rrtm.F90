@@ -499,7 +499,7 @@ contains
     ! is below the horizon, so we do it here
     ZOD_SW(istartcol:iendcol,:,:)  = 0.0_jprb
     ZSSA_SW(istartcol:iendcol,:,:) = 0.0_jprb
-    ZINCSOL(istartcol:iendcol,:,:) = 0.0_jprb
+    ZINCSOL(istartcol:iendcol,:) = 0.0_jprb
 
     CALL SRTM_GAS_OPTICAL_DEPTH &
          &( istartcol, iendcol , nlev  , ZONEMINUS_ARRAY,&
