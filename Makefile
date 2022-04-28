@@ -48,11 +48,11 @@ endif
 # then the SPARTACUS shortwave solver will write data to fort.101 and
 # fort.102
 ifdef PRINT_ENTRAPMENT_DATA
-CPPFLAGS += -DPRINT_ENTRAPMENT_DATA 
+CPPFLAGS += -DPRINT_ENTRAPMENT_DATA
 endif
 # For backwards compatibility we allow the following as well
 ifdef PRINT_ENCROACHMENT_DATA
-CPPFLAGS += -DPRINT_ENTRAPMENT_DATA 
+CPPFLAGS += -DPRINT_ENTRAPMENT_DATA
 endif
 # Allow the capability to write NetCDF4/HDF5 files, provided the code
 # is compiled against the NetCDF4 library
@@ -96,7 +96,7 @@ else
 build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation libifs driver symlinks
 endif
 
-# git cannot store empty directories so they may need to be created 
+# git cannot store empty directories so they may need to be created
 directories: mod lib
 mod:
 	mkdir -p mod
@@ -142,7 +142,7 @@ symlinks: clean-symlinks
 test: test_ifs test_i3rc
 
 test_ifs: driver
-	cd test/ifs && $(MAKE) test
+	cd test/ifs && $(MAKE) test test_ifsdriver
 
 test_i3rc: driver
 	cd test/i3rc && $(MAKE) test
