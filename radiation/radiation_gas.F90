@@ -199,7 +199,8 @@ contains
     ! synchronized interfaces with GPU-port
     logical,    optional, intent(in)    :: use_acc
 
-    integer :: i1, i2
+    integer :: i1, i2, jc, jk
+
 
     real(jprb)                          :: hook_handle
 
@@ -253,8 +254,12 @@ contains
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
-    this%mixing_ratio(i1:i2,:,igas) = mixing_ratio
 
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+      end do
+    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -287,7 +292,7 @@ contains
 
     real(jprb)                          :: hook_handle
 
-    integer :: i1, i2
+    integer :: i1, i2, jc, jk
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
@@ -337,8 +342,12 @@ contains
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
-    this%mixing_ratio(i1:i2,:,igas)    = mixing_ratio
 
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio
+      end do
+    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else

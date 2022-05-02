@@ -194,7 +194,7 @@ contains
 
     integer :: ncol, nlev
 
-    integer :: jlev
+    integer :: jcol, jlev
 
     real(jprb)        :: hook_handle
 
@@ -229,16 +229,20 @@ contains
       ! Pressure is increasing with index (order of layers is
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
       ! don't take the logarithm of the first pressure in each column.
-      this%overlap_param(i1:i2,1) = exp(-(R_over_g/decorrelation_length) &
-           &                            * thermodynamics%temperature_hl(i1:i2,2) &
-           &                            *log(thermodynamics%pressure_hl(i1:i2,3) &
-           &                                /thermodynamics%pressure_hl(i1:i2,2)))
+      do jcol = i1,i2
+        this%overlap_param(jcol,1) = exp(-(R_over_g/decorrelation_length) &
+             &                            * thermodynamics%temperature_hl(jcol,2) &
+             &                            *log(thermodynamics%pressure_hl(jcol,3) &
+             &                                /thermodynamics%pressure_hl(jcol,2)))
+      end do
 
       do jlev = 2,nlev-1
-        this%overlap_param(i1:i2,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length) &
-             &                            * thermodynamics%temperature_hl(i1:i2,jlev+1) &
-             &                            *log(thermodynamics%pressure_hl(i1:i2,jlev+2) &
-             &                                /thermodynamics%pressure_hl(i1:i2,jlev)))
+        do jcol = i1,i2
+          this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length) &
+              &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
+              &                            *log(thermodynamics%pressure_hl(jcol,jlev+2) &
+              &                                /thermodynamics%pressure_hl(jcol,jlev)))
+        end do
       end do
 
     else
@@ -246,16 +250,20 @@ contains
        ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
        ! don't take the logarithm of the last pressure in each column.
       do jlev = 1,nlev-2
-        this%overlap_param(i1:i2,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length) &
-             &                            * thermodynamics%temperature_hl(i1:i2,jlev+1) &
-             &                            *log(thermodynamics%pressure_hl(i1:i2,jlev) &
-             &                                /thermodynamics%pressure_hl(i1:i2,jlev+2)))
+        do jcol = i1,i2
+          this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length) &
+              &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
+              &                            *log(thermodynamics%pressure_hl(jcol,jlev) &
+              &                                /thermodynamics%pressure_hl(jcol,jlev+2)))
+        end do
       end do
-      this%overlap_param(i1:i2,nlev-1) = exp(-(R_over_g/decorrelation_length) &
-           &                            * thermodynamics%temperature_hl(i1:i2,nlev) &
-           &                            *log(thermodynamics%pressure_hl(i1:i2,nlev-1) &
-           &                                /thermodynamics%pressure_hl(i1:i2,nlev)))
 
+      do jcol = i1,i2
+        this%overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length) &
+            &                            * thermodynamics%temperature_hl(jcol,nlev) &
+            &                            *log(thermodynamics%pressure_hl(jcol,nlev-1) &
+            &                                /thermodynamics%pressure_hl(jcol,nlev)))
+      end do
     end if
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param',1,hook_handle)

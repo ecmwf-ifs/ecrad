@@ -477,8 +477,10 @@ contains
             ! to the absorption optical depth
 ! Added for DWD (2020)
 !NEC$ shortloop
-            od_lw_cloud(:,jlev,jcol) = od_lw_liq - scat_od_lw_liq &
-                 &                   + od_lw_ice - scat_od_lw_ice
+            do jb = 1, config%n_bands_lw
+              od_lw_cloud(jb,jlev,jcol) = od_lw_liq(jb) - scat_od_lw_liq(jb) &
+                    &                   + od_lw_ice(jb) - scat_od_lw_ice(jb)
+            end do
           end if
 ! Added for DWD (2020)
 !NEC$ shortloop
