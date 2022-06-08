@@ -1,3 +1,44 @@
+version 1.5.0 (22 May 2022)
+	- Added ecCKD gas optics scheme and generalized cloud description
+	- Optimized the LW Tripleclouds solver for cloud but not aerosol
+	  scattering
+	- Added general spectral description of aerosol, compatible with
+	  ecCKD gas optics model
+	- Added 50 CKDMIP test profiles in test/ckdmip directory
+	- General cloud and aerosol optics controlled with
+	  use_general_cloud_optics and use_general_aerosol_optics
+	- Added use_thick_cloud_spectral_averaging config vector
+	  corresponding to cloud_type_name
+	- Generalized clouds and aerosols can compute optical properties
+	  per g-point or band, controlled with
+	  do_cloud_aerosol_per_[lw|sw]_g_point
+	- Default is to average albedo/emissivity source data to ecRad
+	  bands/g-points, rather than just to find the nearest value
+	  (i.e. do_nearest_spectral_sw_albedo and
+	  do_nearest_spectral_lw_emiss are now false by default)
+	- Replaced dry_sw_aerosol_mass_extinction and
+	  aerosol_sw_extinction routines with dry_aerosol_mass_extinction
+	  and aerosol_extinction, which take wavelength rather than band
+	  number
+	- "make GPROF=1" compiles with -pg option for the GNU profiler
+	- For consistency with IFS, "PARKIND1_SINGLE" is now the
+	  preprocessor variable to detect single precision
+	- "make OMPFLAG=-DNO_OPENMP" compiles without OpenMP
+	- Generalized aerosol has ability to read old-style aerosol
+	  property files in predefined (e.g. RRTM) bands into the spectral
+	  intervals of the ecCKD gas optics scheme
+	- Added radiation_config:do_save_aerosol_optics namelist option to
+	  save aerosol optical properties in aerosol_optics.nc, and "make
+	  test_aerosol_averaging" in test/ifs to test the various
+	  combinations of gas optics scheme and aerosol optics file
+	- Added do_weighted_surface_mapping, which if false does not
+	  weight the surface albedo/emissivity by the solar/terrestrial
+	  reference Planck function, thereby reproducing ecRad-1.4.x
+	  behaviour
+	- Added Fu-Muskatel ice optics model, which can be used by the
+	  generalized cloud optics and extends the Fu model to larger
+	  effective radius
+
 version 1.4.2 (15 October 2021)
 	- radiation_config:do_write_double_precision writes fluxes as
 	  doubles in NetCDF file, which reduces noise in heating rate

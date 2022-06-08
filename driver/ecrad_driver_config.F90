@@ -75,6 +75,9 @@ module ecrad_driver_config
 
      ! Save inputs in "inputs.nc"
      logical :: do_save_inputs
+     
+     ! Save aerosol optical properties to "aerosol_optics.nc"
+     logical :: do_save_aerosol_optics
 
      ! Do we ignore the inv_inhom_effective_size variable and instead
      ! assume the scale of cloud inhomogeneities is the same as the
@@ -165,7 +168,8 @@ contains
     logical :: do_parallel
     integer :: nblocksize
 
-    logical :: do_save_inputs, do_ignore_inhom_effective_size, &
+    logical :: do_save_inputs, do_save_aerosol_optics, &
+         &  do_ignore_inhom_effective_size, &
          &  do_correct_unphysical_inputs, do_write_hdf5, &
          &  do_write_double_precision
     integer :: nrepeat
@@ -190,6 +194,7 @@ contains
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
+         &  do_save_aerosol_optics, &
          &  cloud_separation_scale_toa, cloud_separation_scale_surface, &
          &  cloud_separation_scale_power, do_correct_unphysical_inputs, &
          &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
@@ -204,6 +209,7 @@ contains
     ! Default values
     do_parallel = .true.
     do_save_inputs = .false.
+    do_save_aerosol_optics = .false.
     do_ignore_inhom_effective_size = .false.
     nblocksize = 8
 
@@ -274,6 +280,7 @@ contains
     ! Copy namelist data into configuration object
     this%do_parallel = do_parallel
     this%do_save_inputs = do_save_inputs
+    this%do_save_aerosol_optics = do_save_aerosol_optics
     this%do_ignore_inhom_effective_size = do_ignore_inhom_effective_size
     this%nblocksize = nblocksize
     this%iverbose = iverbose

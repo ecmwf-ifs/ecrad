@@ -156,9 +156,7 @@ contains
         ! Scattering case: first compute clear-sky reflectance,
         ! transmittance etc at each model level
         do jlev = 1,nlev
-          ssa_total = ssa(:,jlev,jcol)
-          g_total   = g(:,jlev,jcol)
-          call calc_two_stream_gammas_lw(ng, ssa_total, g_total, &
+          call calc_two_stream_gammas_lw(ng, ssa(:,jlev,jcol), g(:,jlev,jcol), &
                &  gamma1, gamma2)
           call calc_reflectance_transmittance_lw(ng, &
                &  od(:,jlev,jcol), gamma1, gamma2, &
@@ -309,9 +307,6 @@ contains
         else if (config%do_lw_cloud_scattering) then
           ! Use adding method to compute fluxes but optimize for the
           ! presence of clear-sky layers
-!          call adding_ica_lw(ng, nlev, reflectance, transmittance, source_up, source_dn, &
-!               &  emission(:,jcol), albedo(:,jcol), &
-!               &  flux_up, flux_dn)
           call fast_adding_ica_lw(ng, nlev, reflectance, transmittance, source_up, source_dn, &
                &  emission(:,jcol), albedo(:,jcol), &
                &  is_clear_sky_layer, i_cloud_top, flux_dn_clear, &

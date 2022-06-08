@@ -18,51 +18,10 @@
 module radiation_gas
 
   use parkind1, only : jprb
+  use radiation_gas_constants
 
   implicit none
   public
-
-  ! Gas codes; these indices match those of RRTM-LW up to 7
-  integer, parameter :: IGasNotPresent = 0
-  integer, parameter :: IH2O   = 1
-  integer, parameter :: ICO2   = 2
-  integer, parameter :: IO3    = 3
-  integer, parameter :: IN2O   = 4
-  integer, parameter :: ICO    = 5
-  integer, parameter :: ICH4   = 6
-  integer, parameter :: IO2    = 7
-  integer, parameter :: ICFC11 = 8
-  integer, parameter :: ICFC12 = 9
-  integer, parameter :: IHCFC22= 10
-  integer, parameter :: ICCl4  = 11 
-  integer, parameter :: INO2   = 12
-  integer, parameter :: NMaxGases = 12
-
-  ! Molar masses (g mol-1) of dry air and the various gases above
-  real(jprb), parameter :: IAirMolarMass = 28.970
-  real(jprb), parameter, dimension(0:NMaxGases) :: IGasMolarMass = (/ &
-       & 0.0_jprb,        & ! Gas not present
-       & 18.0152833_jprb, & ! H2O
-       & 44.011_jprb,     & ! CO2
-       & 47.9982_jprb,    & ! O3
-       & 44.013_jprb,     & ! N2O
-       & 28.0101_jprb,    & ! CO
-       & 16.043_jprb,     & ! CH4
-       & 31.9988_jprb,    & ! O2
-       & 137.3686_jprb,   & ! CFC11
-       & 120.914_jprb,    & ! CFC12
-       & 86.469_jprb,     & ! HCFC22
-       & 153.823_jprb,    & ! CCl4    
-       & 46.0055_jprb /)    ! NO2
-
-  ! The corresponding names of the gases in upper and lower case, used
-  ! for reading variables from the input file
-  character*6, dimension(NMaxGases), parameter :: GasName &
-       &  = (/'H2O   ','CO2   ','O3    ','N2O   ','CO    ','CH4   ', &
-       &      'O2    ','CFC11 ','CFC12 ','HCFC22','CCl4  ','NO2   '/)
-  character*6, dimension(NMaxGases), parameter :: GasLowerCaseName &
-       &  = (/'h2o   ','co2   ','o3    ','n2o   ','co    ','ch4   ', &
-       &      'o2    ','cfc11 ','cfc12 ','hcfc22','ccl4  ','no2   '/)
 
   ! Available units
   enum, bind(c)
@@ -120,6 +79,8 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Allocate a derived type for holding gas mixing ratios given the
+  ! number of columns and levels
   subroutine allocate_gas(this, ncol, nlev)
 
     use yomhook, only : lhook, dr_hook
@@ -352,7 +313,6 @@ contains
   ! double CO2.  Note that this does not perform the scaling
   ! immediately, but changes the scale factor for the specified gas,
   ! ready to be used in set_units_gas.
-
   subroutine scale_gas(this, igas, scale_factor, lverbose)
 
     use radiation_io, only : nulout
@@ -419,10 +379,10 @@ contains
       if (this%is_present(igas)) then
         if (iunits == IMassMixingRatio &
              &   .and. this%iunits(igas) == IVolumeMixingRatio) then
-          sf = sf * IGasMolarMass(igas) / IAirMolarMass
+          sf = sf * GasMolarMass(igas) / AirMolarMass
         else if (iunits == IVolumeMixingRatio &
              &   .and. this%iunits(igas) == IMassMixingRatio) then
-          sf = sf * IAirMolarMass / IGasMolarMass(igas)
+          sf = sf * AirMolarMass / GasMolarMass(igas)
         end if
         sf = sf * this%scale_factor(igas)
         
@@ -546,10 +506,10 @@ contains
     else 
       if (iunits == IMassMixingRatio &
            &   .and. this%iunits(igas) == IVolumeMixingRatio) then
-        sf = sf * IGasMolarMass(igas) / IAirMolarMass
+        sf = sf * GasMolarMass(igas) / AirMolarMass
       else if (iunits == IVolumeMixingRatio &
            &   .and. this%iunits(igas) == IMassMixingRatio) then
-        sf = sf * IAirMolarMass / IGasMolarMass(igas)
+        sf = sf * AirMolarMass / GasMolarMass(igas)
       end if
       sf = sf * this%scale_factor(igas)
         
@@ -599,7 +559,7 @@ contains
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : out_of_bounds_3d
+    use radiation_check,  only : out_of_bounds_3d
 
     class(gas_type),   intent(inout) :: this
     integer,  optional,intent(in) :: istartcol, iendcol

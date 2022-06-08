@@ -39,7 +39,9 @@ contains
     use parkind1,         only : jprb
     use yomhook,          only : lhook, dr_hook
     use radiation_config, only : config_type, ISolverMcICA, &
-         &   IGasModelMonochromatic, IGasModelIFSRRTMG
+         &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
+    use radiation_spectral_definition, only &
+         &  : SolarReferenceTemperature, TerrestrialReferenceTemperature
 
     ! Currently there are two gas absorption models: RRTMG (default)
     ! and monochromatic
@@ -47,8 +49,10 @@ contains
          &   setup_gas_optics_mono     => setup_gas_optics, &
          &   setup_cloud_optics_mono   => setup_cloud_optics, &
          &   setup_aerosol_optics_mono => setup_aerosol_optics
-    use radiation_ifs_rrtm,       only :  setup_gas_optics
+    use radiation_ifs_rrtm,       only :  setup_gas_optics_rrtmg => setup_gas_optics
+    use radiation_ecckd_interface,only :  setup_gas_optics_ecckd => setup_gas_optics
     use radiation_cloud_optics,   only :  setup_cloud_optics
+    use radiation_general_cloud_optics, only :  setup_general_cloud_optics
     use radiation_aerosol_optics, only :  setup_aerosol_optics
 
     type(config_type), intent(inout) :: config
@@ -65,7 +69,9 @@ contains
     if (config%i_gas_model == IGasModelMonochromatic) then
       call setup_gas_optics_mono(config, trim(config%directory_name))
     else if (config%i_gas_model == IGasModelIFSRRTMG) then
-      call setup_gas_optics(config, trim(config%directory_name))
+      call setup_gas_optics_rrtmg(config, trim(config%directory_name))
+    else if (config%i_gas_model == IGasModelECCKD) then
+      call setup_gas_optics_ecckd(config)
     end if
 
     ! Whether or not the "radiation" subroutine needs ssa_lw and g_lw
@@ -99,20 +105,18 @@ contains
 
     ! Consolidate the albedo/emissivity intervals with the shortwave
     ! and longwave spectral bands
-    call config%consolidate_intervals(.true., &
-           &  config%do_nearest_spectral_sw_albedo, &
-           &  config%sw_albedo_wavelength_bound, config%i_sw_albedo_index, &
-           &  config%wavenumber1_sw, config%wavenumber2_sw, &
-           &  config%i_albedo_from_band_sw, config%sw_albedo_weights)
-    call config%consolidate_intervals(.false., &
-           &  config%do_nearest_spectral_lw_emiss, &
-           &  config%lw_emiss_wavelength_bound, config%i_lw_emiss_index, &
-           &  config%wavenumber1_lw, config%wavenumber2_lw, &
-           &  config%i_emiss_from_band_lw, config%lw_emiss_weights)
+    if (config%do_sw) then
+      call config%consolidate_sw_albedo_intervals
+    end if
+    if (config%do_lw) then
+      call config%consolidate_lw_emiss_intervals
+    end if
 
     if (config%do_clouds) then
       if (config%i_gas_model == IGasModelMonochromatic) then
         !      call setup_cloud_optics_mono(config)
+      elseif (config%use_general_cloud_optics) then
+        call setup_general_cloud_optics(config)
       else
         call setup_cloud_optics(config)
       end if
@@ -146,15 +150,18 @@ contains
   subroutine set_gas_units(config, gas)
     
     use radiation_config
-    use radiation_gas,           only : gas_type
-    use radiation_monochromatic, only : set_gas_units_mono  => set_gas_units
-    use radiation_ifs_rrtm,      only : set_gas_units_ifs   => set_gas_units
+    use radiation_gas,             only : gas_type
+    use radiation_monochromatic,   only : set_gas_units_mono  => set_gas_units
+    use radiation_ifs_rrtm,        only : set_gas_units_ifs   => set_gas_units
+    use radiation_ecckd_interface, only : set_gas_units_ecckd => set_gas_units
 
     type(config_type), intent(in)    :: config
     type(gas_type),    intent(inout) :: gas
 
     if (config%i_gas_model == IGasModelMonochromatic) then
       call set_gas_units_mono(gas)
+    elseif (config%i_gas_model == IGasModelECCKD) then
+      call set_gas_units_ecckd(gas)
     else
       call set_gas_units_ifs(gas)
     end if
@@ -206,8 +213,10 @@ contains
          &   gas_optics_mono         => gas_optics, &
          &   cloud_optics_mono       => cloud_optics, &
          &   add_aerosol_optics_mono => add_aerosol_optics
-    use radiation_ifs_rrtm,       only : gas_optics
+    use radiation_ifs_rrtm,       only : gas_optics_rrtmg => gas_optics
+    use radiation_ecckd_interface,only : gas_optics_ecckd => gas_optics
     use radiation_cloud_optics,   only : cloud_optics
+    use radiation_general_cloud_optics, only : general_cloud_optics
     use radiation_aerosol_optics, only : add_aerosol_optics
 
     ! Inputs
@@ -308,8 +317,14 @@ contains
              &  single_level, thermodynamics, gas, lw_albedo, &
              &  od_lw, od_sw, ssa_sw, &
              &  planck_hl, lw_emission, incoming_sw)
+      else if (config%i_gas_model == IGasModelIFSRRTMG) then
+        call gas_optics_rrtmg(ncol,nlev,istartcol,iendcol, config, &
+             &  single_level, thermodynamics, gas, &
+             &  od_lw, od_sw, ssa_sw, lw_albedo=lw_albedo, &
+             &  planck_hl=planck_hl, lw_emission=lw_emission, &
+             &  incoming_sw=incoming_sw)
       else
-        call gas_optics(ncol,nlev,istartcol,iendcol, config, &
+        call gas_optics_ecckd(ncol,nlev,istartcol,iendcol, config, &
              &  single_level, thermodynamics, gas, &
              &  od_lw, od_sw, ssa_sw, lw_albedo=lw_albedo, &
              &  planck_hl=planck_hl, lw_emission=lw_emission, &
@@ -331,6 +346,11 @@ contains
                &  config, thermodynamics, cloud, &
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+        elseif (config%use_general_cloud_optics) then
+          call general_cloud_optics(nlev, istartcol, iendcol, &
+               &  config, thermodynamics, cloud, & 
+               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
         else
           call cloud_optics(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, & 
@@ -350,10 +370,10 @@ contains
                &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
         end if
       else
-        g_sw = 0.0_jprb
+        g_sw(:,:,istartcol:iendcol) = 0.0_jprb
         if (config%do_lw_aerosol_scattering) then
-          ssa_lw = 0.0_jprb
-          g_lw   = 0.0_jprb
+          ssa_lw(:,:,istartcol:iendcol) = 0.0_jprb
+          g_lw(:,:,istartcol:iendcol)   = 0.0_jprb
         end if
       end if
 

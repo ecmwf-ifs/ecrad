@@ -41,7 +41,7 @@ endif
 # Add single-precision flag if SINGLE_PRECISION=1 was given on the
 # "make" command line
 ifdef SINGLE_PRECISION
-CPPFLAGS += -DSINGLE_PRECISION
+CPPFLAGS += -DPARKIND1_SINGLE
 endif
 
 # If PRINT_ENTRAPMENT_DATA=1 was given on the "make" command line
@@ -135,7 +135,7 @@ symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
 	cd practical && ln -s ../data
 
-test: test_ifs test_i3rc
+test: test_ifs test_i3rc test_ckdmip
 
 test_ifs:
 	cd test/ifs && $(MAKE) test
@@ -143,11 +143,15 @@ test_ifs:
 test_i3rc:
 	cd test/i3rc && $(MAKE) test
 
+test_ckdmip:
+	cd test/ckdmip && $(MAKE) test
+
 clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks
 
 clean-tests:
 	cd test/ifs && $(MAKE) clean
 	cd test/i3rc && $(MAKE) clean
+	cd test/ckdmip && $(MAKE) clean
 
 clean-toplevel:
 	cd radiation && $(MAKE) clean

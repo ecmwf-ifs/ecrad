@@ -31,7 +31,8 @@ module radiation_two_stream
   ! transmission at all angles through the atmosphere.  Alternatively
   ! think of acos(1/lw_diffusivity) to be the effective zenith angle
   ! of longwave radiation.
-  real(jprd), parameter :: LwDiffusivity = 1.66_jprd
+  real(jprd), parameter :: LwDiffusivity   = 1.66_jprd
+  real(jprb), parameter :: LwDiffusivityWP = 1.66_jprb ! Working precision version
 
   ! Shortwave diffusivity factor assumes hemispheric isotropy, assumed
   ! by Zdunkowski's scheme and most others; note that for efficiency
@@ -487,7 +488,7 @@ contains
         ! precision and mu0_local is single precision, although work is needed
         ! to make this entire routine secure in single precision.
         mu0_local = mu0
-        if (abs(1.0_jprd - k_exponent*mu0) < 1000_jprd * epsilon(1.0_jprd)) then
+        if (abs(1.0_jprd - k_exponent*mu0) < 1000.0_jprd * epsilon(1.0_jprd)) then
           mu0_local = mu0 * (1.0_jprb - 10.0_jprb*epsilon(1.0_jprb))
         end if
 
