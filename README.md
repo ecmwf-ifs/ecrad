@@ -1,6 +1,6 @@
 # ECRAD - ECMWF atmospheric radiation scheme
 
-This document last updated 10 October 2020
+This document last updated 9 June 2022
 
 Robin Hogan <r.j.hogan@ecmwf.int>
 
@@ -51,10 +51,15 @@ Independent Column Approximation benchmarks.
 
 5. A "cloudless" solver if your focus is on clear skies.
 
-One gas optics model is provided: the Rapid Radiative Transfer Model
-for GCMs (RRTMG), the implementation being that from the ECMWF
-Integrated Forecasting System (IFS). The code is designed so that
-other gas optics models could be added in future.
+Two gas optics models are available:
+
+1. The Rapid Radiative Transfer Model for GCMs (RRTMG), the
+implementation being that from the ECMWF Integrated Forecasting System
+(IFS).
+
+2. The ECMWF Correlated k-Distribution (ecCKD) scheme (since ecRad
+1.5), which uses a flexible discretization of the spectrum that is
+read from a file at run-time.
 
 
 ## PACKAGE OVERVIEW
@@ -62,11 +67,6 @@ other gas optics models could be added in future.
 The subdirectories are as follows:
 
 - `radiation` - the ecRad souce code
-
-- `radsurf` - source code for radiative transfer in complex surfaces
-       such as vegetation and urban areas - this is UNDER DEVELOPMENT
-       and is likely to be removed as these features will be put in a
-       separate package
 
 - `ifsaux` - source code providing a (sometimes dummy) IFS environment
 
@@ -109,14 +109,14 @@ Fortran compiler.
 
        make PROFILE=<prof>
 
-   where `<prof>` is one of `gfortran` or `pgi`.  This will read the
-   system-specific configurations from the file `Makefile_include.<prof>`.
-   If you omit the `PROFILE=` option then `gfortran` will be assumed. If you
-   have a compiler other than gfortran or PGI Fortran then create such a
-   file for your compiler following the example in
+   where `<prof>` is one of `gfortran`, `pgi`, `cray` or `intel`.
+   This will read the system-specific configurations from the file
+   `Makefile_include.<prof>`.  If you omit the `PROFILE=` option then
+   `gfortran` will be assumed. If you have a compiler other than these
+   then create such a file for your compiler following the example in
    `Makefile_include.gfortran`. Two additional profiles are provided,
-   `ecmwf` which builds on the `gfortran` profile and `uor` (University of
-   Reading) which is built on the `pgi` profile.
+   `ecmwf` which builds on the `gfortran` profile and `uor`
+   (University of Reading) which is built on the `pgi` profile.
    
    If the compile is successful then static libraries should appear in
    the `lib` directory, and then the executable `bin/ecrad`.
@@ -153,14 +153,15 @@ by reading the instructions in `practical/ecrad_practical.pdf`.
 The `test/ifs` directory contains a pole-to-pole slice of
 low-resolution IFS model data in a form to use as input to the offline
 version of ecRad. It includes aerosols extracted from the CAMS
-climatology used operationally in IFS Cycle 43R3. Typing `make test`
-in this directory runs a number of configurations of ecRad described
-in the Makefile. The Matlab script `plot_ifs.m` can be used to visualize
-the results. The file `ecrad_meridian_default_out_REFERENCE.nc`
-contains a reference version of the output file
-`ecrad_meridian_default_out.nc` (case "a"), which you can compare to
-be sure your compilation is working as expected. This case has
-essentially be superceded by the slice in the `practical` directory.
+climatology used operationally since IFS Cycle 43R3. Typing `make
+test` in this directory runs a number of configurations of ecRad
+described in the Makefile. The Matlab script `plot_ifs.m` can be used
+to visualize the results. The file
+`ecrad_meridian_default_out_REFERENCE.nc` contains a reference version
+of the output file `ecrad_meridian_default_out.nc` (case "a"), which
+you can compare to be sure your compilation is working as
+expected. This case has essentially been superceded by the slice in the
+`practical` directory.
 
 The `test/i3rc` directory contains the 1D profile of the I3RC cumulus
 test case used by Hogan et al. (2016). Typing `make test` in this
@@ -238,6 +239,12 @@ since ecRad 1.1.10, are described here:
 S. A. K. Schäfer, 2019: Entrapment: An important mechanism to explain
 the shortwave 3D radiative effect of clouds. J. Atmos. Sci., 76,
 2123–2141.
+
+The ecCKD gas optics scheme is described here:
+
+ - Hogan, R. J., and M. Matricardi, 2022: a tool for generating fast
+k-distribution gas-optics models for weather and climate
+applications. J. Adv. Modeling Earth Sys., in review.
 
 
 ## CONTACT
