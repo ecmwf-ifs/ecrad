@@ -252,8 +252,8 @@ contains
           write(nulout, '(a,e14.6)') 'linear concentration dependence relative to a mole fraction of ', &
                &  this%single_gas(jgas)%reference_mole_frac
         case (IConcDependenceLUT)
-          write(nulout, '(a,i0,a,e14.6,a,e14.6)') 'look-up table with ', this%single_gas(jgas)%n_mole_frac, &
-               &  ' logarithmically-spaced mole fractions in the range ', exp(this%single_gas(jgas)%log_mole_frac1), &
+          write(nulout, '(a,i0,a,e14.6,a,e13.6)') 'look-up table with ', this%single_gas(jgas)%n_mole_frac, &
+               &  ' log-spaced mole fractions in range ', exp(this%single_gas(jgas)%log_mole_frac1), &
                &  ' to ', exp(this%single_gas(jgas)%log_mole_frac1 &
                &           + this%single_gas(jgas)%n_mole_frac*this%single_gas(jgas)%d_log_mole_frac)
       end select

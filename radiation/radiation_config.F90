@@ -1338,7 +1338,11 @@ contains
         call print_logical('  General aerosol optics', &
              &             'use_general_aerosol_optics', this%use_general_aerosol_optics)
       end if
-      call print_logical('  Clouds are', 'do_clouds', this%do_clouds)
+      if (this%do_clouds) then
+        write(nulout,'(a)') '  Clouds are ON'
+      else
+        write(nulout,'(a)') '  Clouds are OFF'
+      end if
       if (this%do_sw) then
         call print_logical('  Do cloud/aerosol/surface SW properties per g-point', &
              &  'do_cloud_aerosol_per_sw_g_point', this%do_cloud_aerosol_per_sw_g_point)
