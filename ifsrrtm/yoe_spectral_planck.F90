@@ -1,3 +1,12 @@
+! (C) Copyright 2019- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
 MODULE YOE_SPECTRAL_PLANCK
 
 ! YOE_SPECTRAL_PLANCK
@@ -16,7 +25,7 @@ MODULE YOE_SPECTRAL_PLANCK
 !   TSPECRALPLANCK type, followed by any number of CALC calls with the
 !   temperatures at which the Planck function is required. FREE then
 !   deallocates memory.
-! 
+!
 ! AUTHOR
 ! ------
 !   Robin Hogan, ECMWF
@@ -138,7 +147,7 @@ SUBROUTINE INIT(SELF, KINTERVALS, PWAVLEN_BOUND, KINTERVAL_MAP)
     SELF%TEMP1  = 150.0_JPRB
     SELF%DTEMP  = 1.0_JPRB
     SELF%NTEMPS = 1 + NINT((350.0_JPRB - SELF%TEMP1) / SELF%DTEMP)
-  
+
     ALLOCATE(SELF%PLANCK_LUT(SELF%NINTERVALS,SELF%NTEMPS))
     SELF%PLANCK_LUT(:,:) = 0.0_JPRB
 
@@ -169,7 +178,7 @@ SUBROUTINE INIT(SELF, KINTERVALS, PWAVLEN_BOUND, KINTERVAL_MAP)
 
     ! Create the look-up table
     DO JT = 1,SELF%NTEMPS
-    
+
       ZTEMP = SELF%TEMP1 + (JT-1) * SELF%DTEMP
 
       DO JI = 1,NRANGES
@@ -185,7 +194,7 @@ SUBROUTINE INIT(SELF, KINTERVALS, PWAVLEN_BOUND, KINTERVAL_MAP)
           ZWAVLEN1 = PWAVLEN_BOUND(JI-1)
           ZWAVLEN2 = PWAVLEN_BOUND(JI)
         ENDIF
-        
+
         NWAVLEN = 100
         DWAVLEN = (ZWAVLEN2 - ZWAVLEN1) / NWAVLEN
         ZSUM = 0.0_JPRB
@@ -217,16 +226,16 @@ SUBROUTINE INIT(SELF, KINTERVALS, PWAVLEN_BOUND, KINTERVAL_MAP)
         SELF%PLANCK_LUT(KINTERVAL_MAP(JI),JT) = SELF%PLANCK_LUT(KINTERVAL_MAP(JI),JT) &
              &  + ZCOEFF1 * ZSUM * DWAVLEN / 3.0_JPRB
       ENDDO
-      
+
     ENDDO
 
   ENDIF
-  
+
   IF (LHOOK) CALL DR_HOOK('YOE_SPECTRAL_PLANCK:INIT',1,ZHOOK_HANDLE)
-  
+
 END SUBROUTINE INIT
-  
-  
+
+
 !-----------------------------------------------------------------------
 ! Calculate Planck function in spectral intervals from temperature
 SUBROUTINE CALC(SELF, KIDIA, KFDIA, KLON, PTEMPERATURE, PPLANCK)
@@ -261,7 +270,7 @@ SUBROUTINE CALC(SELF, KIDIA, KFDIA, KLON, PTEMPERATURE, PPLANCK)
     ZTEMP2 = SELF%TEMP1 + SELF%DTEMP * (SELF%NTEMPS - 1)
 
     DO JL = KIDIA,KFDIA
-    
+
       IF (PTEMPERATURE(JL) <= SELF%TEMP1) THEN
         ! Cap the Planck function at the low end
         ITEMP   = 1
@@ -276,19 +285,19 @@ SUBROUTINE CALC(SELF, KIDIA, KFDIA, KLON, PTEMPERATURE, PPLANCK)
         ITEMP   = SELF%NTEMPS-1
         ZWEIGHT = 1.0_JPRB + (PTEMPERATURE(JL) - SELF%TEMP1) / SELF%DTEMP - ITEMP
       ENDIF
-      
+
       PPLANCK(JL,:) = SELF%PLANCK_LUT(:,ITEMP) &
            &  + ZWEIGHT * (SELF%PLANCK_LUT(:,ITEMP+1) - SELF%PLANCK_LUT(:,ITEMP))
-      
+
       ! Force sum to equal Stefan-Boltzmann law
       PPLANCK(JL,:) = PPLANCK(JL,:) * RSIGMA * PTEMPERATURE(JL)**4 / SUM(PPLANCK(JL,:),1)
-      
+
     ENDDO
-    
+
   ENDIF
 
   IF (LHOOK) CALL DR_HOOK('YOE_SPECTRAL_PLANCK:INIT',1,ZHOOK_HANDLE)
-    
+
 END SUBROUTINE CALC
 
 

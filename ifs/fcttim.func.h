@@ -1,3 +1,13 @@
+! (C) Copyright 1989- ECMWF.
+! (C) Copyright 1989- Meteo-France.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
 !     ------------------------------------------------------------------
 
 ! - Time functions
@@ -45,4 +55,3 @@ RJUDAT(KAAAA,KMM,KDD)=1720994.5_JPRD + REAL(&
 RTIME(KAAAA,KMM,KDD,KSS,RINCDAY)=(RJUDAT(KAAAA,KMM,KDD)-2451545._JPRD)&
     &*RINCDAY+REAL(KSS,JPRD)
 !    -------------------------------------------------------------
-

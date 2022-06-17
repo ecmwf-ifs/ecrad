@@ -1,3 +1,12 @@
+! (C) Copyright 2017- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
 MODULE MODEL_PHYSICS_ECMWF_MOD
   USE YOEPHY      , ONLY : TEPHY
   USE YOECLD      , ONLY : TECLD
@@ -11,7 +20,7 @@ MODULE MODEL_PHYSICS_ECMWF_MOD
 
   TYPE MODEL_PHYSICS_ECMWF_TYPE
 
-  TYPE(TEPHY)         :: YREPHY  
+  TYPE(TEPHY)         :: YREPHY
   ! cloudy stuff
   TYPE(TECLD)         :: YRECLD  !! explicit clouds (diagnostic)
   TYPE(TECLDP)        :: YRECLDP !! explicit clouds (prognostic)
@@ -25,13 +34,13 @@ MODULE MODEL_PHYSICS_ECMWF_MOD
 
   CONTAINS
 
-  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION 
- 
+  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION
+
 END TYPE MODEL_PHYSICS_ECMWF_TYPE
 
   !---------------------------------------------------------------------
 
-  CONTAINS 
+  CONTAINS
 
   SUBROUTINE PRINT_CONFIGURATION(SELF, KDEPTH, KOUTNO)
   IMPLICIT NONE

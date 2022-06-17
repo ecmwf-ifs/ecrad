@@ -1,5 +1,14 @@
+! (C) Copyright 1996- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
 SUBROUTINE SATUR ( KIDIA , KFDIA , KLON  , KTDIA , KLEV, LDPHYLIN, &
- & PAPRSF, PT    , PQSAT , KFLAG)  
+ & PAPRSF, PT    , PQSAT , KFLAG)
 
 !***
 
@@ -7,14 +16,14 @@ SUBROUTINE SATUR ( KIDIA , KFDIA , KLON  , KTDIA , KLEV, LDPHYLIN, &
 
 !       J.F. MAHFOUF       E.C.M.W.F.     15/05/96
 
-!       Modified J. HAGUE          13/01/03 MASS Vector Functions       
+!       Modified J. HAGUE          13/01/03 MASS Vector Functions
 
 !       PURPOSE.
 !       --------
 
 !       SPECIFIC HUMIDITY AT SATURATION IS USED BY THE
 !       DIAGNOSTIC CLOUD SCHEME TO COMPUTE RELATIVE HUMIDITY
-!       AND LIQUID WATER CONTENT  
+!       AND LIQUID WATER CONTENT
 
 !       INTERFACE
 !       ---------
@@ -56,20 +65,20 @@ USE YOMCST   , ONLY : RETV     ,RLVTT    ,RLSTT    ,RTT
 USE YOETHF   , ONLY : R2ES     ,R3LES    ,R3IES    ,R4LES    ,&
  &                    R4IES    ,R5LES    ,R5IES    ,R5ALVCP  ,R5ALSCP  ,&
  &                    RALVDCP  ,RALSDCP  ,RTWAT    ,RTICE    ,RTICECU  ,&
- &                    RTWAT_RTICE_R      ,RTWAT_RTICECU_R  
+ &                    RTWAT_RTICE_R      ,RTWAT_RTICECU_R
 
 IMPLICIT NONE
 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLON 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KTDIA 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLON
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
+INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
+INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
+INTEGER(KIND=JPIM),INTENT(IN)    :: KTDIA
 LOGICAL           ,INTENT(IN)    :: LDPHYLIN
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPRSF(KLON,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KLON,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PQSAT(KLON,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KFLAG 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPRSF(KLON,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PT(KLON,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PQSAT(KLON,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: KFLAG
 INTEGER(KIND=JPIM) :: JK, JL
 
 REAL(KIND=JPRB) :: ZCOR, ZEW, ZFOEEW, ZQMAX, ZQS, ZTARG

@@ -1,3 +1,13 @@
+! (C) Copyright 2017- ECMWF.
+! (C) Copyright 2017- Meteo-France.
+
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
 MODULE PAR_GFL
 
 USE PARKIND1 , ONLY : JPIM
@@ -49,7 +59,7 @@ INTEGER(KIND=JPIM), PARAMETER :: JPPHYS=9
 INTEGER(KIND=JPIM), PARAMETER :: JPPHYCTY=1
 INTEGER(KIND=JPIM), PARAMETER :: JPFSD=1
 INTEGER(KIND=JPIM), PARAMETER :: JPEDRP=2
-INTEGER(KIND=JPIM), PARAMETER :: JPLIMA=50   
+INTEGER(KIND=JPIM), PARAMETER :: JPLIMA=50
 INTEGER(KIND=JPIM), PARAMETER :: GRIB_CODE_GFL_PHYS=81  ! AJGDB hopefully harmless
 
 END MODULE PAR_GFL

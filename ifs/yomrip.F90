@@ -1,4 +1,14 @@
-MODULE YOMRIP 
+! (C) Copyright 1989- ECMWF.
+! (C) Copyright 1989- Meteo-France.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+MODULE YOMRIP
 
 USE PARKIND1 , ONLY : JPIM     ,JPRB
 !USE YOEOZOC  , ONLY : TEOZOC
@@ -25,7 +35,7 @@ TYPE :: TRIP
 !     NSTOP  : last timestep of model
 !     CSTOP  : character string defining stopping criteria for run
 
-!     NFOST  : NUMBER OF FIRST-ORDER TIME STEPS AT THE START OF THE RUN 
+!     NFOST  : NUMBER OF FIRST-ORDER TIME STEPS AT THE START OF THE RUN
 !              IN ORDER TO AVOID TRAJECTORIES GOING OUT OF THE ATMOSPHERE.
 
 !     ------------------------------------------------------------------
@@ -147,7 +157,7 @@ REAL(KIND=JPRB) :: TSTEP
 ! REAL(KIND=JPRB) :: RSIDECLU
 ! REAL(KIND=JPRB) :: RCOVSRLU
 ! REAL(KIND=JPRB) :: RSIVSRLU
-! 
+!
 ! !! things put here because their values are time-interpolated, i.e. non-constant
 ! ! defined in YOEOZOC
 ! TYPE(TEOZOC)    :: YREOZOC
@@ -161,14 +171,14 @@ REAL(KIND=JPRB) :: TSTEP
 ! TYPE(REGLATLON_FIELD) :: RAERSO4
 
 CONTAINS
-  
-  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION 
+
+  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION
 
 END TYPE TRIP
 
 !     --------------------------------------------------------------------------------
-CONTAINS 
-  
+CONTAINS
+
 SUBROUTINE PRINT_CONFIGURATION(SELF, KDEPTH, KOUTNO)
   IMPLICIT NONE
   CLASS(TRIP), INTENT(IN) :: SELF
@@ -178,7 +188,7 @@ SUBROUTINE PRINT_CONFIGURATION(SELF, KDEPTH, KOUTNO)
   INTEGER :: IDEPTHLOC
 
   IDEPTHLOC = KDEPTH+2
-  
+
   WRITE(KOUTNO,*) REPEAT(' ',KDEPTH   ) // 'model%yrml_gconf%yrrip : '
 !   WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NSTART = ', SELF%NSTART
 !   WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NSTOP = ', SELF%NSTOP

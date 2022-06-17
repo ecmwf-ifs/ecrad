@@ -1,3 +1,13 @@
+! (C) Copyright 1989- ECMWF.
+! (C) Copyright 1989- Meteo-France.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
 MODULE YOECLD
 
 USE PARKIND1  ,ONLY : JPRB
@@ -40,7 +50,7 @@ REAL(KIND=JPRB) :: RDECORR_CW
 ! LOGICAL :: LOMEGA
 !----------------------------------------------------------------------------
 CONTAINS
-  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION 
+  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION
 END TYPE TECLD
 !============================================================================
 
@@ -91,7 +101,7 @@ SUBROUTINE PRINT_CONFIGURATION(SELF, KDEPTH, KOUTNO)
   INTEGER :: IDEPTHLOC
 
   IDEPTHLOC = KDEPTH+2
-  
+
   WRITE(KOUTNO,*) REPEAT(' ',KDEPTH   ) // 'model%yrml_phy_ec%yrecld : '
   ! IF (ALLOCATED(SELF%CETA)) WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'CETA allocated of shape ', SHAPE(SELF%CETA),' sum ',SUM(SELF%CETA)
   ! WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'RANVA = ', SELF%RANVA
@@ -119,7 +129,7 @@ SUBROUTINE PRINT_CONFIGURATION(SELF, KDEPTH, KOUTNO)
   ! WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'REPSCR = ', SELF%REPSCR
   ! WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'REPSEC = ', SELF%REPSEC
   ! WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'LOMEGA = ', SELF%LOMEGA
- 
+
 END SUBROUTINE PRINT_CONFIGURATION
 
 END MODULE YOECLD

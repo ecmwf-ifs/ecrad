@@ -1,14 +1,12 @@
-! 
-! Copyright 2011 ECMWF
+! (C) Copyright 2011- ECMWF.
+! (C) Copyright 2011- Meteo-France.
 !
-! This software was developed at ECMWF for evaluation
-! and may be used for academic and research purposes only.
-! The software is provided as is without any warranty.
-! 
-! This software can be used, copied and modified but not
-! redistributed or sold. This notice must be reproduced
-! on each copy made.
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
 !
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
 
 !> Handle model configuration for the IFS model
 
@@ -36,9 +34,9 @@ IMPLICIT NONE
 TYPE, PUBLIC :: MODEL
 !!  PRIVATE
 !  LOGICAL                               :: LINEAR_MODEL=.FALSE. ! As seen by OOPS
- TYPE(MODEL_GENERAL_CONF_TYPE)         :: YRML_GCONF 
+ TYPE(MODEL_GENERAL_CONF_TYPE)         :: YRML_GCONF
 !  TYPE(MODEL_ATMOS_OCEAN_COUPLING_TYPE) :: YRML_AOC
-!!  TYPE(MODEL_LAM_COUPLING_TYPE)         :: YRML_LC   ! Removed 
+!!  TYPE(MODEL_LAM_COUPLING_TYPE)         :: YRML_LC   ! Removed
 !  TYPE(MODEL_DYNAMICS_TYPE)             :: YRML_DYN
 !  TYPE(MODEL_PHYSICS_GENERAL_TYPE)      :: YRML_PHY_G
  TYPE(MODEL_PHYSICS_ECMWF_TYPE)        :: YRML_PHY_EC
@@ -46,7 +44,7 @@ TYPE, PUBLIC :: MODEL
 !  TYPE(MODEL_PHYSICS_AEROSOL_TYPE)      :: YRML_PHY_AER
  TYPE(MODEL_PHYSICS_RADIATION_TYPE)    :: YRML_PHY_RAD
 !  TYPE(MODEL_PHYSICS_STOCHAST_TYPE)     :: YRML_PHY_STOCH
-!  TYPE(MODEL_PHYSICS_MF_TYPE)           :: YRML_PHY_MF 
+!  TYPE(MODEL_PHYSICS_MF_TYPE)           :: YRML_PHY_MF
 !  TYPE(MODEL_CHEM_TYPE)                 :: YRML_CHEM
 !  TYPE(MODEL_DIAGNOSTICS_TYPE)          :: YRML_DIAG
 !  TYPE(TEWCOU)                          :: YREWCOU
@@ -90,7 +88,7 @@ SUBROUTINE PRINT_MODEL_CONFIGURATION(SELF,CDSTRING,KOUTNO)
   WRITE(IOUTNO,*) '=============================================='
   WRITE(IOUTNO,*) 'MODEL Object print of internal state'
   WRITE(IOUTNO,*) ''
-  WRITE(IOUTNO,*) CDSTRING 
+  WRITE(IOUTNO,*) CDSTRING
 
 
   CALL SELF%YRML_GCONF%PRINT(ITOPDEPTH,IOUTNO)
@@ -101,7 +99,7 @@ SUBROUTINE PRINT_MODEL_CONFIGURATION(SELF,CDSTRING,KOUTNO)
   CALL SELF%YRML_PHY_EC%PRINT(ITOPDEPTH,IOUTNO)
 !   CALL SELF%YRML_PHY_SLIN%PRINT(ITOPDEPTH,IOUTNO)
 !   CALL SELF%YRML_PHY_AER%PRINT(ITOPDEPTH,IOUTNO)
-  CALL SELF%YRML_PHY_RAD%PRINT(ITOPDEPTH,IOUTNO) !! 
+  CALL SELF%YRML_PHY_RAD%PRINT(ITOPDEPTH,IOUTNO) !!
 !   CALL SELF%YRML_PHY_STOCH%PRINT(ITOPDEPTH,IOUTNO)
 !   CALL SELF%YRML_PHY_MF%PRINT(ITOPDEPTH,IOUTNO)
 !   CALL SELF%YRML_CHEM%PRINT(ITOPDEPTH,IOUTNO)
