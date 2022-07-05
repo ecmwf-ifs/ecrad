@@ -59,6 +59,8 @@ program ecrad_ifs_driver
 
   implicit none
 
+#include "radiation_scheme.intfb.h"
+
   ! The NetCDF file containing the input profiles
   type(netcdf_file)         :: file
 
