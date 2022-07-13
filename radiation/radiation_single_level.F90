@@ -245,6 +245,11 @@ contains
       ! spectral intervals and with column as the first dimension
       if (config%use_canopy_full_spectrum_sw) then
         ! Albedos provided in each g point
+        if (size(this%sw_albedo,2) /= config%n_g_sw) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%sw_albedo does not have the expected ', &
+               &  config%n_g_sw, ' spectral intervals'
+          call radiation_abort()
+        end if
         sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol,:))
         if (allocated(this%sw_albedo_direct)) then
           sw_albedo_direct = transpose(this%sw_albedo_direct(istartcol:iendcol,:))
@@ -252,6 +257,12 @@ contains
       else if (.not. config%do_nearest_spectral_sw_albedo) then
         ! Albedos averaged accurately to ecRad spectral bands
         nalbedoband = size(config%sw_albedo_weights,1)
+        if (size(this%sw_albedo,2) /= nalbedoband) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%sw_albedo does not have the expected ', &
+               &  nalbedoband, ' bands'
+          call radiation_abort()
+        end if
+
         sw_albedo_band = 0.0_jprb
         do jband = 1,config%n_bands_sw
           do jalbedoband = 1,nalbedoband
@@ -301,13 +312,19 @@ contains
     if (config%do_lw .and. present(lw_albedo)) then
       if (config%use_canopy_full_spectrum_lw) then
         if (config%n_g_lw /= size(this%lw_emissivity,2)) then
-          write(nulerr,'(a)') '*** Error: single_level%lw_emissivity has the wrong number of spectral intervals'
-          call radiation_abort()   
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%lw_emissivity does not have the expected ', &
+               &  config%n_g_lw, ' spectral intervals'
+          call radiation_abort()
         end if
         lw_albedo = 1.0_jprb - transpose(this%lw_emissivity(istartcol:iendcol,:))
       else if (.not. config%do_nearest_spectral_lw_emiss) then
         ! Albedos averaged accurately to ecRad spectral bands
         nalbedoband = size(config%lw_emiss_weights,1)
+        if (nalbedoband /= size(this%lw_emissivity,2)) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%lw_emissivity does not have the expected ', &
+               &  nalbedoband, ' bands'
+          call radiation_abort()
+        end if
         lw_albedo_band = 0.0_jprb
         do jband = 1,config%n_bands_lw
           do jalbedoband = 1,nalbedoband
