@@ -368,7 +368,7 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
         call calc_radiance_up(nspec, nlev, &
              &  weight, flux_up_base(:,:,nlev), &
              &  transmittance, source_up, u_overlap, flux_up)
-      else
+      else ! Standard 1D Tripleclouds
         call calc_radiance_trans_source(nspec, nlev, NREGION, &
              &  mu_list(jstream), region_fracs, od, &
              &  transmittance, &
@@ -516,6 +516,9 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
   ! angle distribution
   real(jprb), dimension(3) :: mu_list, weight_list
 
+  ! Actual weight used accounts for projection into horizontal area
+  real(jprb) ::  weight
+  
   ! Local versions of optional arguments
   integer(jpim) :: n_angles_per_hem_local
   logical :: do_3d_effects_local
@@ -527,9 +530,10 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
 
   if (lhook) call dr_hook('tcrad:calc_no_scattering_flux',0,hook_handle)
 
-  ! Store local values for optional variables
+  ! Store local values for optional variables, noting that the
+  ! behaviour is the same for n_angles_per_hem = 0 or 1
   if (present(n_angles_per_hem)) then
-    n_angles_per_hem_local = min(n_angles_per_hem, MAX_GAUSS_LEGENDRE_POINTS)
+    n_angles_per_hem_local = min(max(1,n_angles_per_hem), MAX_GAUSS_LEGENDRE_POINTS)
   else
     n_angles_per_hem_local = 1
   end if
@@ -580,8 +584,12 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
 
   flux_up = 0.0_jprb
   flux_dn = 0.0_jprb
+
+  ! Emission-only contribution in the first instance
   flux_up_surf = spread(surf_emission,2,NREGION)*spread(region_fracs(:,nlev),1,nspec)
-  do jstream = 1,n_angles_per_hem_local
+  
+  if (n_angles_per_hem_local <= 1) then
+    jstream = 1
     call calc_no_scattering_radiance_source(nspec, nlev, NREGION, &
          &  mu_list(jstream), &
          &  region_fracs, planck_hl, od,  &
@@ -591,10 +599,47 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
     call calc_radiance_dn(nspec, nlev, &
          &  weight_list(jstream), &
          &  transmittance, source_dn, v_overlap, flux_dn)
+    ! Add surface reflection to the upwelling flux assuming horizontal
+    ! homogenization if multiple regions present in lowest layer
+    flux_up_surf = flux_up_surf + spread(surf_albedo*flux_dn(:,nlev+1),2,NREGION) &
+         &                      * spread(region_fracs(:,nlev),1,nspec)
     call calc_radiance_up(nspec, nlev, &
          &  weight_list(jstream), flux_up_surf, &
          &  transmittance, source_up, u_overlap, flux_up)
-  end do
+  else
+    ! First estimate longwave downward flux at the surface from a
+    ! single downward beam
+    call calc_no_scattering_radiance_source(nspec, nlev, NREGION, &
+         &  1.0_jprb / LW_DIFFUSIVITY, &
+         &  region_fracs, planck_hl, od,  &
+         &  transmittance, source_dn=source_dn)
+    call calc_radiance_dn(nspec, nlev, &
+         &  1.0_jprb, &
+         &  transmittance, source_dn, v_overlap, flux_dn)
+    ! Add surface reflection to the upwelling flux assuming horizontal
+    ! homogenization if multiple regions present in lowest layer
+    flux_up_surf = flux_up_surf + spread(surf_albedo*flux_dn(:,nlev+1),2,NREGION) &
+         &                      * spread(region_fracs(:,nlev),1,nspec)
+    ! Re-zero the downward flux
+    flux_dn = 0.0_jprb
+    ! Main loop over angles, with radiances are computed in pairs: up
+    ! and down with same absolute zenith angle
+    do jstream = 1,n_angles_per_hem_local
+      weight = weight_list(jstream)*mu_list(jstream) &
+           &  / sum(weight_list(1:n_angles_per_hem_local) &
+           &          * mu_list(1:n_angles_per_hem_local))
+      call calc_no_scattering_radiance_source(nspec, nlev, NREGION, &
+           &  mu_list(jstream), &
+           &  region_fracs, planck_hl, od,  &
+           &  transmittance, source_up=source_up, source_dn=source_dn)
+      call calc_radiance_dn(nspec, nlev, &
+           &  weight, &
+           &  transmittance, source_dn, v_overlap, flux_dn)
+      call calc_radiance_up(nspec, nlev, &
+           &  weight, flux_up_surf, &
+           &  transmittance, source_up, u_overlap, flux_up)
+    end do
+  end if
 
   if (lhook) call dr_hook('tcrad:calc_no_scattering_flux',1,hook_handle)
 
