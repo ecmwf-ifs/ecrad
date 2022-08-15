@@ -8,7 +8,8 @@ CPPFLAGS = -cpp
 #  to read Fortran unformatted data files as big endian 
 BASICFLAGS = -J../mod -fconvert=big-endian -fno-range-check
 
-# OpenMP flag
+# OpenMP flag; type "make OMPFLAG=-DNO_OPENMP" to compile with OpenMP
+# disabled
 OMPFLAG = -fopenmp
 
 ifndef DEBUG
@@ -16,6 +17,7 @@ ifndef DEBUG
 
 # Optimization flags
 OPTFLAGS = -O3
+# -march=native
 
 # Warning flags: all except those that warn about unused stuff
 WARNFLAGS = -Wall -Wno-unused-label -Wno-unused-dummy-argument -Wno-unused-variable
@@ -30,4 +32,9 @@ OPTFLAGS = -O0
 WARNFLAGS = -Wall
 DEBUGFLAGS = -g -ffpe-trap=invalid,zero,overflow -fcheck=bounds -finit-real=snan -fbacktrace
 
+endif
+
+ifdef GPROF
+# Add gprof output
+DEBUGFLAGS += -pg
 endif

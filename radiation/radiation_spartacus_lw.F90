@@ -65,7 +65,7 @@ contains
     use radiation_flux,           only : flux_type, indexed_sum
     use radiation_matrix
     use radiation_two_stream,     only : calc_two_stream_gammas_lw, &
-         calc_reflectance_transmittance_lw, LwDiffusivity
+         calc_reflectance_transmittance_lw, LwDiffusivityWP
     use radiation_lw_derivatives, only : calc_lw_derivatives_matrix
     use radiation_constants,      only : Pi, GasConstantDryAir, &
          AccelDueToGravity
@@ -614,12 +614,12 @@ contains
             ! parts of the matrix ODE
             planck_top(1:ng3D,nreg+jreg) = od_region(1:ng3D,jreg) &
                  &  *(1.0_jprb-ssa_region(1:ng3D,jreg))*region_fracs(jreg,jlev,jcol) &
-                 &  *planck_hl(1:ng3D,jlev,jcol)*LwDiffusivity
+                 &  *planck_hl(1:ng3D,jlev,jcol)*LwDiffusivityWP
             planck_top(1:ng3D,jreg) = -planck_top(1:ng3D,nreg+jreg)
             planck_diff(1:ng3D,nreg+jreg) = od_region(1:ng3D,jreg) &
                  &  * (1.0_jprb-ssa_region(1:ng3D,jreg))*region_fracs(jreg,jlev,jcol) &
                  &  * (planck_hl(1:ng3D,jlev+1,jcol) &
-                 &  -planck_hl(1:ng3D,jlev,jcol))*LwDiffusivity
+                 &  -planck_hl(1:ng3D,jlev,jcol))*LwDiffusivityWP
             planck_diff(1:ng3D,jreg) = -planck_diff(1:ng3D,nreg+jreg)
           end do
 

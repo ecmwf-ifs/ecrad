@@ -1,3 +1,6 @@
+% Location of loadnc.m
+path(path, '../common')
+
 do_plot_sw_libradtran = 1;
 do_plot_sw_spartacus_extras = 0; % Need to have run "make i3rc_spartacus_extra"
 

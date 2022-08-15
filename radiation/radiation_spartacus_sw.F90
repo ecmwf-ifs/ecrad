@@ -1302,7 +1302,7 @@ end if
                 do jreg = 1,nreg
                   transfer_scaling = 1.0_jprb - (1.0_jprb - config%overhang_factor) & 
                        &  * cloud%overlap_param(jcol,jlev-1) &
-                       &  * min(region_fracs(jreg,jlev,jcol), region_fracs(jreg,jlev-1,jcol))
+                       &  * min(region_fracs(jreg,jlev,jcol), region_fracs(jreg,jlev-1,jcol)) &
                        &  / max(config%cloud_fraction_threshold, region_fracs(jreg,jlev,jcol))
                   do jreg4 = 1,nreg
                     if (.not. (jreg4 == jreg .and. jreg4 /= jreg2)) then

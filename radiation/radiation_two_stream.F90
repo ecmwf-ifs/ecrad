@@ -17,6 +17,7 @@
 !   2017-07-12  R Hogan  Optimized LW coeffs in low optical depth case
 !   2017-07-26  R Hogan  Added calc_frac_scattered_diffuse_sw routine
 !   2017-10-23  R Hogan  Renamed single-character variables
+!   2021-02-19  R Hogan  Security for shortwave singularity
 
 module radiation_two_stream
 
@@ -30,7 +31,8 @@ module radiation_two_stream
   ! transmission at all angles through the atmosphere.  Alternatively
   ! think of acos(1/lw_diffusivity) to be the effective zenith angle
   ! of longwave radiation.
-  real(jprd), parameter :: LwDiffusivity = 1.66_jprd
+  real(jprd), parameter :: LwDiffusivity   = 1.66_jprd
+  real(jprb), parameter :: LwDiffusivityWP = 1.66_jprb ! Working precision version
 
   ! Shortwave diffusivity factor assumes hemispheric isotropy, assumed
   ! by Zdunkowski's scheme and most others; note that for efficiency
@@ -86,7 +88,8 @@ contains
 
     if (lhook) call dr_hook('radiation_two_stream:calc_two_stream_gammas_lw',0,hook_handle)
 #endif
-
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       ! Fu et al. (1997), Eq 2.9 and 2.10:
       !      gamma1(jg) = LwDiffusivity * (1.0_jprb - 0.5_jprb*ssa(jg) &
@@ -135,6 +138,8 @@ contains
 
     ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
     ! Atmospheric Physics 53, 147-66)
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       !      gamma1(jg) = 2.0_jprb  - ssa(jg) * (1.25_jprb + 0.75_jprb*g(jg))
       !      gamma2(jg) = 0.75_jprb *(ssa(jg) * (1.0_jprb - g(jg)))
@@ -204,6 +209,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       if (od(jg) > 1.0e-3_jprd) then
         k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
@@ -292,6 +299,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_isothermal_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
            1.E-12_jprd)) ! Eq 18 of Meador & Weaver (1980)
@@ -358,6 +367,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       ! Compute upward and downward emission assuming the Planck
       ! function to vary linearly with optical depth within the layer
@@ -449,28 +460,44 @@ contains
     real(jprd) :: k_2_exponential, od_over_mu0
     integer    :: jg
 
+    ! Local value of cosine of solar zenith angle, in case it needs to be
+    ! tweaked to avoid near division by zero. This is intentionally in working
+    ! precision (jprb) rather than fixing at double precision (jprd).
+    real(jprb) :: mu0_local
+
 #ifdef DO_DR_HOOK_TWO_STREAM
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
-      od_over_mu0 = max(od(jg) / mu0, 0.0_jprd)
-      ! In the IFS this appears to be faster without testing the value
-      ! of od_over_mu0:
-      if (.true.) then
-!      if (od_over_mu0 > 1.0e-6_jprd) then
+
         gamma4 = 1.0_jprd - gamma3(jg)
         alpha1 = gamma1(jg)*gamma4     + gamma2(jg)*gamma3(jg) ! Eq. 16
         alpha2 = gamma1(jg)*gamma3(jg) + gamma2(jg)*gamma4    ! Eq. 17
-        
+
+        k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
+             &       1.0e-12_jprd)) ! Eq 18
+
+        ! We had a rare crash where k*mu0 was within around 1e-13 of 1,
+        ! leading to ref_dir and trans_dir_diff being well outside the range
+        ! 0-1. The following approach is appropriate when k_exponent is double
+        ! precision and mu0_local is single precision, although work is needed
+        ! to make this entire routine secure in single precision.
+        mu0_local = mu0
+        if (abs(1.0_jprd - k_exponent*mu0) < 1000.0_jprd * epsilon(1.0_jprd)) then
+          mu0_local = mu0 * (1.0_jprb - 10.0_jprb*epsilon(1.0_jprb))
+        end if
+
+        od_over_mu0 = max(od(jg) / mu0_local, 0.0_jprd)
+
         ! Note that if the minimum value is reduced (e.g. to 1.0e-24)
         ! then noise starts to appear as a function of solar zenith
         ! angle
-        k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
-             &       1.0e-12_jprd)) ! Eq 18
-        k_mu0 = k_exponent*mu0
+        k_mu0 = k_exponent*mu0_local
         k_gamma3 = k_exponent*gamma3(jg)
         k_gamma4 = k_exponent*gamma4
         ! Check for mu0 <= 0!
@@ -480,10 +507,6 @@ contains
         
         exponential2 = exponential*exponential
         k_2_exponential = 2.0_jprd * k_exponent * exponential
-        
-        if (k_mu0 == 1.0_jprd) then
-          k_mu0 = 1.0_jprd - 10.0_jprd*epsilon(1.0_jprd)
-        end if
         
         reftrans_factor = 1.0_jprd / (k_exponent + gamma1(jg) + (k_exponent - gamma1(jg))*exponential2)
         
@@ -497,32 +520,27 @@ contains
         ! because we are assuming the incoming direct flux is defined
         ! to be the flux into a plane perpendicular to the direction of
         ! the sun, not into a horizontal plane
-        reftrans_factor = mu0 * ssa(jg) * reftrans_factor / (1.0_jprd - k_mu0*k_mu0)
+        reftrans_factor = mu0_local * ssa(jg) * reftrans_factor / (1.0_jprd - k_mu0*k_mu0)
         
         ! Meador & Weaver (1980) Eq. 14, multiplying top & bottom by
         ! exp(-k_exponent*od) in case of very high optical depths
         ref_dir(jg) = reftrans_factor &
              &  * ( (1.0_jprd - k_mu0) * (alpha2 + k_gamma3) &
              &     -(1.0_jprd + k_mu0) * (alpha2 - k_gamma3)*exponential2 &
-             &     -k_2_exponential*(gamma3(jg) - alpha2*mu0)*exponential0)
+             &     -k_2_exponential*(gamma3(jg) - alpha2*mu0_local)*exponential0)
         
         ! Meador & Weaver (1980) Eq. 15, multiplying top & bottom by
         ! exp(-k_exponent*od), minus the 1*exp(-od/mu0) term representing direct
         ! unscattered transmittance.  
-        trans_dir_diff(jg) = reftrans_factor * ( k_2_exponential*(gamma4 + alpha1*mu0) &
+        trans_dir_diff(jg) = reftrans_factor * ( k_2_exponential*(gamma4 + alpha1*mu0_local) &
             & - exponential0 &
             & * ( (1.0_jprd + k_mu0) * (alpha1 + k_gamma4) &
             &    -(1.0_jprd - k_mu0) * (alpha1 - k_gamma4) * exponential2) )
 
-      else
-        ! Low optical-depth limit; see equations 19, 20 and 27 from
-        ! Meador & Weaver (1980)
-        trans_diff(jg)     = 1.0_jprb - gamma1(jg) * od(jg)
-        ref_diff(jg)       = gamma2(jg) * od(jg)
-        trans_dir_diff(jg) = (1.0_jprb - gamma3(jg)) * ssa(jg) * od(jg)
-        ref_dir(jg)        = gamma3(jg) * ssa(jg) * od(jg)
-        trans_dir_dir(jg)  = 1.0_jprd - od_over_mu0
-      end if
+        ! Final check that ref_dir + trans_dir_diff <= 1
+        ref_dir(jg) = max(0.0_jprb, min(ref_dir(jg), 1.0_jprb))
+        trans_dir_diff(jg) = max(0.0_jprb, min(trans_dir_diff(jg), 1.0_jprb-ref_dir(jg)))
+
     end do
     
 #ifdef DO_DR_HOOK_TWO_STREAM
@@ -586,6 +604,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_z_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       od_over_mu0 = max(gamma0(jg) * depth, 0.0_jprd)
       ! In the IFS this appears to be faster without testing the value
@@ -698,6 +718,8 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_frac_scattered_diffuse_sw',0,hook_handle)
 #endif
 
+! Added for DWD (2020)
+!NEC$ shortloop
     do jg = 1, ng
       ! Note that if the minimum value is reduced (e.g. to 1.0e-24)
       ! then noise starts to appear as a function of solar zenith

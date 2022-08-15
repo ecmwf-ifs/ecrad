@@ -32,7 +32,8 @@ contains
   ! Save fluxes in "flux" to NetCDF file_name, plus pressure from the
   ! thermodynamics object
   subroutine save_fluxes(file_name, config, thermodynamics, flux, &
-       &                 iverbose, is_hdf5_file, experiment_name)
+       &                 iverbose, is_hdf5_file, experiment_name, &
+       &                 is_double_precision)
 
     use yomhook,                  only : lhook, dr_hook
 
@@ -49,6 +50,7 @@ contains
     type(flux_type),            intent(in) :: flux
     integer,          optional, intent(in) :: iverbose
     logical,          optional, intent(in) :: is_hdf5_file
+    logical,          optional, intent(in) :: is_double_precision
     character(len=*), optional, intent(in) :: experiment_name
 
     type(netcdf_file)                      :: out_file
@@ -95,6 +97,11 @@ contains
     ! Variables stored internally with column varying fastest, but in
     ! output file column varies most slowly so need to transpose
     call out_file%transpose_matrices(.true.)
+
+    ! Set default precision for file, if specified
+    if (present(is_double_precision)) then
+      call out_file%double_precision(is_double_precision)
+    end if
 
     ! Spectral fluxes in memory are dimensioned (nband,ncol,nlev), but
     ! are reoriented in the output file to be (nband,nlev,ncol), where
@@ -480,14 +487,14 @@ contains
 
     if (config%do_lw) then
 
-      if (.not. config%do_save_spectral_flux) then
-        call out_file%define_variable("wavenumber1_lw", &
-             &  dim1_name="band_lw", units_str="cm-1", &
-             &  long_name="Lower wavenumber of longwave band")
-        call out_file%define_variable("wavenumber2_lw", &
-             &  dim1_name="band_lw", units_str="cm-1", &
-             &  long_name="Upper wavenumber of longwave band")
-      end if
+      ! if (.not. config%do_save_spectral_flux) then
+      !   call out_file%define_variable("wavenumber1_lw", &
+      !        &  dim1_name="band_lw", units_str="cm-1", &
+      !        &  long_name="Lower wavenumber of longwave band")
+      !   call out_file%define_variable("wavenumber2_lw", &
+      !        &  dim1_name="band_lw", units_str="cm-1", &
+      !        &  long_name="Upper wavenumber of longwave band")
+      ! end if
 
       call out_file%define_variable("radiance_lw_band", &
            &  dim2_name="column", dim1_name="band_lw", &
@@ -502,10 +509,10 @@ contains
     call out_file%put("cos_sensor_zenith_angle", single_level%cos_sensor_zenith_angle)
     
     if (config%do_lw) then
-      if (.not. config%do_save_spectral_flux) then
-        call out_file%put("wavenumber1_lw", config%wavenumber1_lw)
-        call out_file%put("wavenumber2_lw", config%wavenumber2_lw)
-      end if
+    !   if (.not. config%do_save_spectral_flux) then
+    !     call out_file%put("wavenumber1_lw", config%wavenumber1_lw)
+    !     call out_file%put("wavenumber2_lw", config%wavenumber2_lw)
+    !   end if
 
       call out_file%put("radiance_lw_band", flux%lw_radiance_band)
       call out_file%put("cloud_cover_lw",   flux%cloud_cover_lw)
@@ -998,7 +1005,7 @@ contains
       call out_file%define_variable("re_liquid", &
            &   dim2_name="column", dim1_name="level", &
            &   units_str="m", long_name="Ice effective radius")
-      if (allocated(cloud%re_ice)) then
+      if (associated(cloud%re_ice)) then
         call out_file%define_variable("re_ice", &
              &   dim2_name="column", dim1_name="level", &
              &   units_str="m", long_name="Ice effective radius")
@@ -1079,7 +1086,7 @@ contains
       call out_file%put("q_liquid", cloud%q_liq)
       call out_file%put("q_ice", cloud%q_ice)
       call out_file%put("re_liquid", cloud%re_liq)
-      if (allocated(cloud%re_ice)) then
+      if (associated(cloud%re_ice)) then
         call out_file%put("re_ice", cloud%re_ice)
       end if
       if (allocated(cloud%overlap_param)) then

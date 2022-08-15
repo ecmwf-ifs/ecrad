@@ -23,7 +23,7 @@ rm -f config_*.nam
 
 # Remove ecRad output netCDF files, i.e. all netCDF files except for
 # era5slice.nc
-rm -f $(ls -1 *.nc | egrep -v era5slice.nc)
+rm -f $(ls -1 *.nc | egrep -v "era5slice.nc|era5slice_hydromet.nc")
 
 # Remove Python cached files
 rm -rf ecradplot/__pycache__
