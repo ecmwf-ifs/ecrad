@@ -26,6 +26,10 @@ module tcrad_layer_solutions
   ! of longwave radiation.
   real(jprb), parameter :: LW_DIFFUSIVITY = 1.66_jprb
 
+  ! To avoid division by near-zero values use simpler formulae in the
+  ! low optical depth regime
+  real(jprb), parameter :: OD_THRESH = 1.0e-3_jprb
+  
   integer(jpim), parameter :: MAX_GAUSS_LEGENDRE_POINTS = 4
 
 contains
@@ -463,10 +467,15 @@ contains
           do jspec = 1,nspec
             source_top  = planck_hl(jspec,jlev)   * region_fracs(jreg,jlev)
             source_base = planck_hl(jspec,jlev+1) * region_fracs(jreg,jlev)
-            coeff = (source_base - source_top) &
-                 &   * mu / od(jspec,jreg,jlev)
-            source_up(jspec,jreg,jlev) = coeff + source_top &
-                 - transmittance(jspec,jreg,jlev) * (coeff + source_base)
+            if (od(jspec,jreg,jlev) > OD_THRESH) then
+              coeff = (source_base - source_top) &
+                   &   * mu / od(jspec,jreg,jlev)
+              source_up(jspec,jreg,jlev) = coeff + source_top &
+                   - transmittance(jspec,jreg,jlev) * (coeff + source_base)
+            else
+              source_up(jspec,jreg,jlev) = od(jspec,jreg,jlev) &
+                   &  * 0.5_jprb * (source_top+source_base) / mu
+            end if
           end do
         end do
         if (max_reg == 1) then
@@ -482,10 +491,15 @@ contains
           do jspec = 1,nspec
             source_top  = planck_hl(jspec,jlev)   * region_fracs(jreg,jlev)
             source_base = planck_hl(jspec,jlev+1) * region_fracs(jreg,jlev)
-            coeff = (source_top - source_base) &
-                 &   * mu / od(jspec,jreg,jlev)
-            source_dn(jspec,jreg,jlev) = coeff + source_base &
-                 - transmittance(jspec,jreg,jlev) * (coeff + source_top)
+            if (od(jspec,jreg,jlev) > OD_THRESH) then
+              coeff = (source_top - source_base) &
+                   &   * mu / od(jspec,jreg,jlev)
+              source_dn(jspec,jreg,jlev) = coeff + source_base &
+                   - transmittance(jspec,jreg,jlev) * (coeff + source_top)
+            else
+              source_dn(jspec,jreg,jlev) = od(jspec,jreg,jlev) &
+                   &  * 0.5_jprb * (source_top+source_base) / mu
+            end if
           end do
         end do
         if (max_reg == 1) then
@@ -562,10 +576,15 @@ contains
         ! Compute upward source from layer top due to Planck emission
         ! within the layer
         do jspec = 1,nspec
-          coeff = (planck_hl(jspec,jlev+1) - planck_hl(jspec,jlev)) &
-               &   * mu / od(jspec,jlev)
-          source_up(jspec,jlev) = coeff + planck_hl(jspec,jlev) &
-               - transmittance(jspec,jlev) * (coeff + planck_hl(jspec,jlev+1))
+          if (od(jspec,jlev) > OD_THRESH) then
+            coeff = (planck_hl(jspec,jlev+1) - planck_hl(jspec,jlev)) &
+                 &   * mu / od(jspec,jlev)
+            source_up(jspec,jlev) = coeff + planck_hl(jspec,jlev) &
+                 - transmittance(jspec,jlev) * (coeff + planck_hl(jspec,jlev+1))
+          else
+            source_up(jspec,jlev) = od(jspec,jlev) &
+                 &  * 0.5_jprb * (planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1)) / mu
+          end if
         end do
       end if
 
@@ -573,10 +592,15 @@ contains
         ! Compute downward source from layer base due to Planck emission
         ! within the layer
         do jspec = 1,nspec
-          coeff = (planck_hl(jspec,jlev) - planck_hl(jspec,jlev+1)) &
-               &   * mu / od(jspec,jlev)
-          source_dn(jspec,jlev) = coeff + planck_hl(jspec,jlev+1) &
-               - transmittance(jspec,jlev) * (coeff + planck_hl(jspec,jlev))
+          if (od(jspec,jlev) > OD_THRESH) then
+            coeff = (planck_hl(jspec,jlev) - planck_hl(jspec,jlev+1)) &
+                 &   * mu / od(jspec,jlev)
+            source_dn(jspec,jlev) = coeff + planck_hl(jspec,jlev+1) &
+                 - transmittance(jspec,jlev) * (coeff + planck_hl(jspec,jlev))
+          else
+            source_dn(jspec,jlev) = od(jspec,jlev) &
+                 &  * 0.5_jprb * (planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1)) / mu
+          end if
         end do
       end if
 
@@ -672,18 +696,28 @@ contains
 
         if (present(source_dn)) then
           do jspec = 1,nspec
-            coeff = (rate_dn_top(jspec,jreg,jlev) - rate_dn_base(jspec,jreg,jlev)) &
-                 &   * mu / od(jspec,jreg,jlev)
-            source_dn(jspec,jreg,jlev) = coeff + rate_dn_base(jspec,jreg,jlev) &
-                 - transmittance(jspec,jreg,jlev) * (coeff + rate_dn_top(jspec,jreg,jlev))
+            if (od(jspec,jreg,jlev) > OD_THRESH) then
+              coeff = (rate_dn_top(jspec,jreg,jlev) - rate_dn_base(jspec,jreg,jlev)) &
+                   &   * mu / od(jspec,jreg,jlev)
+              source_dn(jspec,jreg,jlev) = coeff + rate_dn_base(jspec,jreg,jlev) &
+                   - transmittance(jspec,jreg,jlev) * (coeff + rate_dn_top(jspec,jreg,jlev))
+            else
+              source_dn(jspec,jreg,jlev) = od(jspec,jreg,jlev) * 0.5_jprb &
+                   &  * (rate_dn_top(jspec,jreg,jlev) + rate_dn_base(jspec,jreg,jlev)) / mu
+            end if
           end do
         end if
         if (present(source_up)) then
           do jspec = 1,nspec
-            coeff = (rate_up_base(jspec,jreg,jlev) - rate_up_top(jspec,jreg,jlev)) &
-                 &   * mu / od(jspec,jreg,jlev)
-            source_up(jspec,jreg,jlev) = coeff + rate_up_top(jspec,jreg,jlev) &
-                 - transmittance(jspec,jreg,jlev) * (coeff + rate_up_base(jspec,jreg,jlev))
+            if (od(jspec,jreg,jlev) > OD_THRESH) then
+              coeff = (rate_up_base(jspec,jreg,jlev) - rate_up_top(jspec,jreg,jlev)) &
+                   &   * mu / od(jspec,jreg,jlev)
+              source_up(jspec,jreg,jlev) = coeff + rate_up_top(jspec,jreg,jlev) &
+                   - transmittance(jspec,jreg,jlev) * (coeff + rate_up_base(jspec,jreg,jlev))
+            else
+              source_dn(jspec,jreg,jlev) = od(jspec,jreg,jlev) * 0.5_jprb &
+                   &  * (rate_up_top(jspec,jreg,jlev) + rate_up_base(jspec,jreg,jlev)) / mu
+            end if
           end do
         end if
       end do
@@ -842,10 +876,15 @@ contains
         ! accounting for attenuation within it
         do jreg = 1,max_reg
           do jspec = 1,nspec
-            coeff = (source_base(jspec,jreg)-source_top(jspec,jreg)) &
-                 &   * mu / od(jspec,jreg,jlev)
-            source_up(jspec,jreg,jlev) = coeff + source_top(jspec,jreg) &
-                 - transmittance(jspec,jreg,jlev) * (coeff + source_base(jspec,jreg))
+            if (od(jspec,jreg,jlev) > OD_THRESH) then
+              coeff = (source_base(jspec,jreg)-source_top(jspec,jreg)) &
+                   &   * mu / od(jspec,jreg,jlev)
+              source_up(jspec,jreg,jlev) = coeff + source_top(jspec,jreg) &
+                   - transmittance(jspec,jreg,jlev) * (coeff + source_base(jspec,jreg))
+            else
+              source_up(jspec,jreg,jlev) = od(jspec,jreg,jlev) * 0.5_jprb &
+                   &  * (source_base(jspec,jreg)+source_top(jspec,jreg)) / mu
+            end if
           end do
         end do
       end if
@@ -878,10 +917,15 @@ contains
         ! accounting for attenuation within it
         do jreg = 1,max_reg
           do jspec = 1,nspec
-            coeff = (source_top(jspec,jreg)-source_base(jspec,jreg)) &
-                 &   * mu / od(jspec,jreg,jlev)
-            source_dn(jspec,jreg,jlev) = coeff + source_base(jspec,jreg) &
-                 - transmittance(jspec,jreg,jlev) * (coeff + source_top(jspec,jreg))
+            if (od(jspec,jreg,jlev) > OD_THRESH) then
+              coeff = (source_top(jspec,jreg)-source_base(jspec,jreg)) &
+                   &   * mu / od(jspec,jreg,jlev)
+              source_dn(jspec,jreg,jlev) = coeff + source_base(jspec,jreg) &
+                   - transmittance(jspec,jreg,jlev) * (coeff + source_top(jspec,jreg))
+            else
+              source_dn(jspec,jreg,jlev) = od(jspec,jreg,jlev) * 0.5_jprb &
+                   &  * (source_base(jspec,jreg)+source_top(jspec,jreg)) / mu
+            end if
           end do
         end do
       end if
@@ -891,7 +935,6 @@ contains
     if (lhook) call dr_hook('tcrad:calc_radiance_source',1,hook_handle)
 
   end subroutine calc_radiance_source
-
 
 
 end module tcrad_layer_solutions
