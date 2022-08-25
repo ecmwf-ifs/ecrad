@@ -44,7 +44,7 @@ contains
     type(single_level_type),   intent(inout) :: single_level
     type(thermodynamics_type), intent(inout) :: thermodynamics
     type(gas_type),            intent(inout) :: gas
-    type(cloud_type),          intent(inout) :: cloud
+    type(cloud_type),  target, intent(inout) :: cloud
     type(aerosol_type),        intent(inout) :: aerosol
 
     ! Number of columns and levels of input data
@@ -136,18 +136,41 @@ contains
       ! Read cloud properties needed by most solvers
       ! --------------------------------------------------------
 
-      ! Read cloud descriptors, all with dimensions (ncol, nlev)
-      call file%get('q_liquid',      cloud%q_liq)   ! kg/kg
-      call file%get('q_ice',         cloud%q_ice)   ! kg/kg
+      ! Read cloud descriptors with dimensions (ncol, nlev)
       call file%get('cloud_fraction',cloud%fraction)
-      call file%get('re_liquid',     cloud%re_liq)  ! m
-      call file%get('re_ice',        cloud%re_ice)  ! m
 
       ! Fractional standard deviation of in-cloud water content
       if (file%exists('fractional_std')) then
         call file%get('fractional_std', cloud%fractional_std)
       end if
       
+      ! Cloud water content and effective radius may be provided
+      ! generically, in which case they have dimensions (ncol, nlev,
+      ! ntype)
+      if (file%exists('q_hydrometeor')) then
+        call file%get('q_hydrometeor',  cloud%mixing_ratio, ipermute=[2,1,3])     ! kg/kg
+        call file%get('re_hydrometeor', cloud%effective_radius, ipermute=[2,1,3]) ! m
+      else
+        ! Ice and liquid properties provided in separate arrays
+        allocate(cloud%mixing_ratio(ncol,nlev,2))
+        allocate(cloud%effective_radius(ncol,nlev,2))
+        call file%get('q_liquid', prop_2d)   ! kg/kg
+        cloud%mixing_ratio(:,:,1) = prop_2d
+        call file%get('q_ice', prop_2d)   ! kg/kg
+        cloud%mixing_ratio(:,:,2) = prop_2d
+        call file%get('re_liquid', prop_2d)   ! m
+        cloud%effective_radius(:,:,1) = prop_2d
+        call file%get('re_ice', prop_2d)   ! m
+        cloud%effective_radius(:,:,2) = prop_2d
+      end if
+      ! For backwards compatibility, associate pointers for liquid and
+      ! ice to the first and second slices of cloud%mixing_ratio and
+      ! cloud%effective_radius
+      cloud%q_liq  => cloud%mixing_ratio(:,:,1)
+      cloud%q_ice  => cloud%mixing_ratio(:,:,2)
+      cloud%re_liq => cloud%effective_radius(:,:,1)
+      cloud%re_ice => cloud%effective_radius(:,:,2)
+
       ! Simple initialization of the seeds for the Monte Carlo scheme
       call single_level%init_seed_simple(1,ncol)
       ! Overwrite with user-specified values if available
@@ -502,7 +525,7 @@ contains
 
     if (config%use_aerosols) then
       ! Load aerosol data
-      call file%get('aerosol_mmr', aerosol%mixing_ratio, ipermute=(/2,3,1/));
+      call file%get('aerosol_mmr', aerosol%mixing_ratio, ipermute=[2,3,1]);
       ! Store aerosol level bounds
       aerosol%istartlev = lbound(aerosol%mixing_ratio, 2)
       aerosol%iendlev   = ubound(aerosol%mixing_ratio, 2)

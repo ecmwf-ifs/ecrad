@@ -10,8 +10,8 @@
 !
 &radiation_driver
 do_parallel              = true,   ! Use OpenMP parallelization?
-nblocksize               = 8,      ! Number of columns to process per thread
-do_save_inputs           = true,   ! Save inputs in "inputs.nc"?
+nblocksize               = 80,      ! Number of columns to process per thread
+do_save_inputs           = false,   ! Save inputs in "inputs.nc"?
 ! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
 iverbose    	   	= 2,
 istartcol               = 0,      ! Use full range of columns by default
@@ -21,6 +21,7 @@ cloud_separation_scale_toa = 14000.0,
 cloud_separation_scale_surface = 2500.0,
 cloud_separation_scale_power = 3.5,
 cloud_inhom_separation_factor = 0.75,
+!do_save_aerosol_optics = false,
 /
 !
 ! The following namelist controls the behaviour of the SPARTACUS
@@ -32,6 +33,8 @@ do_lw			= true,           ! Compute longwave fluxes?
 do_sw_direct 		= true,           ! Compute direct downward shortwave fluxes?
 do_clear		= true,           ! Compute clear-sky fluxes?
 directory_name		= "../../data",      ! Location of configuration files
+use_general_cloud_optics = false,
+use_general_aerosol_optics = false,
 liquid_model_name       = "SOCRATES",     ! Liquid droplet scattering model
 ice_model_name		= "Fu-IFS",       ! Ice particle scattering model
 sw_solver_name          = "McICA",
@@ -49,7 +52,7 @@ sw_entrapment_name      = "Explicit",     ! Zero, Edge-only, Explicit, Non-fract
 ! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
 ! Separate verbosity specified for setup and ordinary execution
 iverbose    	   	= 1, 
-iverbosesetup  	   	= 3, 
+iverbosesetup  	   	= 2, 
 use_aerosols		= true,           ! Include aerosols in radiation calculations?
 do_save_spectral_flux   = true,           ! Save spectral fluxes in output file?
 do_save_gpoint_flux     = false,           ! Save fluxes per g-point in output file?
@@ -60,6 +63,7 @@ do_fu_lw_ice_optics_bug = false,
 do_sw_delta_scaling_with_gases = false,
 do_canopy_fluxes_lw     = true,
 do_canopy_fluxes_sw     = true,
+!do_cloud_aerosol_per_sw_g_point=false 
 !
 ! SURFACE ALBEDO AND EMISSIVITY
 do_nearest_spectral_sw_albedo = false,
@@ -68,9 +72,10 @@ i_sw_albedo_index(1:6) = 1,2,3,4,5,6,
 do_nearest_spectral_lw_emiss = true,
 lw_emiss_wavelength_bound(1:2) = 8.0e-6, 13.0e-6,
 i_lw_emiss_index(1:3) = 1,2,1,
+do_weighted_surface_mapping = false, ! false=less accurate, but consistent with cycle 47r1
 !
 ! AEROSOL PROPERTIES
-aerosol_optics_override_file_name = 'aerosol_ifs_rrtm_46R1_with_NI_AM.nc'
+!aerosol_optics_override_file_name = 'aerosol_ifs_rrtm_46R1_with_NI_AM.nc'
 ! 12 IFS aerosol classes stored in aerosol_ifs_rrtm.nc: 1-3 Sea salt,
 ! 4-6 Boucher desert dust, 7 hydrophilic organics, 8 hydrophobic
 ! organics, 9&10 hydrophobic black carbon, 11 ammonium sulphate, 12

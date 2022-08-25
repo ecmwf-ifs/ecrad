@@ -891,7 +891,7 @@ contains
       call out_file%define_variable("re_liquid", &
            &   dim2_name="column", dim1_name="level", &
            &   units_str="m", long_name="Ice effective radius")
-      if (allocated(cloud%re_ice)) then
+      if (associated(cloud%re_ice)) then
         call out_file%define_variable("re_ice", &
              &   dim2_name="column", dim1_name="level", &
              &   units_str="m", long_name="Ice effective radius")
@@ -972,7 +972,7 @@ contains
       call out_file%put("q_liquid", cloud%q_liq)
       call out_file%put("q_ice", cloud%q_ice)
       call out_file%put("re_liquid", cloud%re_liq)
-      if (allocated(cloud%re_ice)) then
+      if (associated(cloud%re_ice)) then
         call out_file%put("re_ice", cloud%re_ice)
       end if
       if (allocated(cloud%overlap_param)) then

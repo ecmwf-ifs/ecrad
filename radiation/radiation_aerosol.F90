@@ -118,8 +118,8 @@ contains
       allocate(this%ssa_lw(config%n_bands_lw,istartlev:iendlev,ncol))
       allocate(this%g_lw  (config%n_bands_lw,istartlev:iendlev,ncol))
       ! If longwave scattering by aerosol is not to be represented,
-      ! then the user may wish to just provide absorption optical deth
-      ! in od_lw, in which case we must set the following two
+      ! then the user may wish to just provide absorption optical
+      ! depth in od_lw, in which case we must set the following two
       ! variables to zero
       this%ssa_lw = 0.0_jprb
       this%g_lw = 0.0_jprb
@@ -164,7 +164,7 @@ contains
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : out_of_bounds_3d
+    use radiation_check,  only : out_of_bounds_3d
 
     class(aerosol_type),   intent(inout) :: this
     integer,      optional,intent(in) :: istartcol, iendcol

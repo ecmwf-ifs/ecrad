@@ -1,21 +1,21 @@
 FEATURES
- - Ensure inv_inhom_effective_size used for fractal entrapment
  - Option to have more McICA columns to reduce noise
- - Incorporate UV processor
+ - Compute UV index when sufficient UV bands
 
 LONGER TERM FEATURES
  - Option to provide date, time, longitude and latitude from which the
    IFS values will be calculated of: solar zenith angle, trace gas and
    aerosol mixing ratio, and cloud effective ratio
- - Complete surface radiative transfer component including vegetation
-   and urban surfaces (?)
- - Incorporate RRTMGP and FSCK
+ - Incorporate RRTMGP
+ - Solar cycle in spectral irradiance
 
 INTERFACE
  - Rename "do_3d" as it is misleading
  - Add deallocate method for config type
  - Column is last array argument for all input and output arrays?
  - Why are the flux%*_band variables dimensioned (g,col,lev) not (g,lev,col)?
+
+ECCKD AND GENERALIZED CLOUD/AEROSOL
 
 DOCUMENTATION
  - Add chapters on API, internal structure and underpinning science
@@ -32,6 +32,5 @@ DIFFERENCES IN IFS VERSION OF ECRAD
  - radiation_interface.F90 and radiation_ifs_rrtm.F90 take YDERAD
    arguments, the latter has other differences
  - radiation_constants should use IFS values?
- - remove radiation_dummy from IFS when PSRAD removed
 
 KNOWN BUGS

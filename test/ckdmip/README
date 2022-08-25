@@ -1,0 +1,17 @@
+This file contains
+"ckdmip_evaluation1_concentrations_present_reduced.nc", the 50
+clear-sky atmospheric profiles of the CKDMIP "Evaluation-1" dataset
+described by Hogan and Matricard (GMDD 2020), and the corresponding
+line-by-line fluxes in
+"ckdmip_evaluation1_lw_fluxes_present_reduced.nc" and
+"ckdmip_evaluation1_sw_fluxes_present_reduced.nc".
+
+Type "make" in this directory to run ecRad on these profiles.  You
+will need the nco tools.
+
+Then run the Matlab script "do_evaluate_ecrad.m" to evaluate the ecRad
+calculations against line-by-line, producing plots in the same style
+as Figs. 5 and 7 of Hogan and Matricardi (2020).
+
+Edit the gas_model_name in the config.nam file to change the gas
+optics model used by ecRad.

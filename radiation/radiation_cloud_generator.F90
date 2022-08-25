@@ -634,16 +634,8 @@ contains
     ! Optical depth scaling to output
     real(jprb), intent(inout), dimension(ng,nlev) :: od_scaling
 
-    ! Uniform deviates between 0 and 1
-    real(jprb) :: rand_top(ng)
-
     ! Loop indices
-    integer :: jlev, jcloud, jg
-
-    integer :: iy
-
-    ! Is it time to fill the od_scaling variable?
-    logical :: do_fill_od_scaling
+    integer :: jlev, jg
 
     real(jprb) :: rand_cloud(ng,ibegin:iend)
     real(jprb) :: rand_inhom(ng,ibegin-1:iend), rand_inhom2(ng,ibegin:iend)
