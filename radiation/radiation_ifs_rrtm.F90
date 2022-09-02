@@ -67,7 +67,7 @@ contains
     
     real(jprb) :: hook_handle
 
-#include "surdi.intfb.h"
+!#include "surdi.intfb.h"
 #include "surrtab.intfb.h"
 #include "surrtpk.intfb.h"
 #include "surrtrf.intfb.h"
@@ -80,7 +80,7 @@ contains
     ! the IFS these will have been set up already; otherwise set them
     ! up now.
     if (config%do_setup_ifsrrtm) then
-      call SURDI
+      !call SURDI
       call SURRTAB
       call SURRTPK
       call SURRTRF
