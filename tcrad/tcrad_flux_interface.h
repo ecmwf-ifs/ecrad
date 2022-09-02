@@ -514,7 +514,7 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
 
   ! Gauss-Legendre points and weights for sampling cosine of zenith
   ! angle distribution
-  real(jprb), dimension(3) :: mu_list, weight_list
+  real(jprb), dimension(MAX_GAUSS_LEGENDRE_POINTS) :: mu_list, weight_list
 
   ! Actual weight used accounts for projection into horizontal area
   real(jprb) ::  weight
@@ -533,7 +533,7 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
   ! Store local values for optional variables, noting that the
   ! behaviour is the same for n_angles_per_hem = 0 or 1
   if (present(n_angles_per_hem)) then
-    n_angles_per_hem_local = min(max(1,n_angles_per_hem), MAX_GAUSS_LEGENDRE_POINTS)
+    n_angles_per_hem_local = min(max(1,abs(n_angles_per_hem)), MAX_GAUSS_LEGENDRE_POINTS)
   else
     n_angles_per_hem_local = 1
   end if
@@ -578,6 +578,11 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
     ! Two-stream special case
     weight_list(1) = 1;
     mu_list = 1.0_jprb / LW_DIFFUSIVITY
+  else if (present(n_angles_per_hem)) then
+    ! Negative input values for n_angles_per_hem lead to alternative
+    ! quadrature, but n_angles_per_hem_local has been forced to be
+    ! positive
+    call gauss_legendre(n_angles_per_hem, mu_list, weight_list)
   else
     call gauss_legendre(n_angles_per_hem_local, mu_list, weight_list)
   end if

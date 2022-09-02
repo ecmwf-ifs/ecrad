@@ -101,7 +101,7 @@ contains
     ! Store local value for number of angles per hemisphere. Note that
     ! values of 0 and 1 have the same effect.
     if (present(n_angles_per_hem)) then
-      n_angles_per_hem_local = min(n_angles_per_hem, MAX_GAUSS_LEGENDRE_POINTS)
+      n_angles_per_hem_local = min(abs(n_angles_per_hem), MAX_GAUSS_LEGENDRE_POINTS)
     else
       n_angles_per_hem_local = 0
     end if
@@ -130,7 +130,14 @@ contains
       ! Fu et al. (1997) method: pass N beams through the
       ! atmosphere using the two-stream solution as the scattering
       ! source function
-      call gauss_legendre(n_angles_per_hem_local, mu_list, weight_list)
+      if (present(n_angles_per_hem)) then
+        ! Negative input values for n_angles_per_hem lead to
+        ! alternative quadrature, but n_angles_per_hem_local has been
+        ! forced to be positive
+        call gauss_legendre(n_angles_per_hem, mu_list, weight_list)
+      else
+        call gauss_legendre(n_angles_per_hem_local, mu_list, weight_list)
+      end if
 
       flux_dn = 0.0_jprb
 

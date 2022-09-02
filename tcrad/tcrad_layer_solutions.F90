@@ -30,12 +30,13 @@ module tcrad_layer_solutions
   ! low optical depth regime
   real(jprb), parameter :: OD_THRESH = 1.0e-3_jprb
   
-  integer(jpim), parameter :: MAX_GAUSS_LEGENDRE_POINTS = 4
+  integer(jpim), parameter :: MAX_GAUSS_LEGENDRE_POINTS = 8
 
 contains
 
   !---------------------------------------------------------------------
-  ! Return Gauss-Legendre quadrature points
+  ! Return Gauss-Legendre quadrature points, or optimized values for
+  ! radiation if npoint == -1 or -2
   subroutine gauss_legendre(npoint, xpoint, weight)
 
     integer(jpim), intent(in)  :: npoint
@@ -45,22 +46,58 @@ contains
     xpoint = 0.5_jprb
     weight = 0.0_jprb
 
-    if (npoint <= 1) then
+    if (npoint == 1 .or. npoint == 0) then
       xpoint(1) = 0.5_jprb
       weight(1) = 1.0_jprb
+    else if (npoint == -1) then
+      ! Optimized values minimizing error in transmission over the
+      ! full range of optical depths
+      xpoint(1) = 0.6158_jprb;
+      weight(1) = 0.5_jprb / xpoint(1)
     else if (npoint == 2) then
       xpoint(1:2) = [0.211324865405187_jprb, 0.788675134594813_jprb]
       weight(1:2) = [0.5_jprb, 0.5_jprb]
+    else if (npoint == -2) then
+      ! Optimized values minimizing error in transmission over the
+      ! full range of optical depths
+      !xpoint(1:2) = [0.24287187078898_jprb, 0.79712812921102_jprb];
+      xpoint(1:2) = [0.2704_jprb, 0.8018_jprb];
+      weight(1:2) = 1.0_jprb / sum(xpoint(1:2))
     else if (npoint == 3) then
       xpoint(1:3) = [0.112701665379258_jprb, 0.5_jprb, &
            &         0.887298334620742_jprb]
       weight(1:3) = [0.277777777777777_jprb, 0.444444444444444_jprb, &
            &         0.277777777777777_jprb]
-    else
+    else if (npoint == 4) then
       xpoint(1:4) = [0.0694318442029737_jprb, 0.330009478207572_jprb, &
            &         0.669990521792428_jprb,  0.930568155797026_jprb]
       weight(1:4) = [0.173927422568727_jprb, 0.326072577431273_jprb, &
            &         0.326072577431273_jprb, 0.173927422568727_jprb]
+    else if (npoint == 5) then
+      xpoint(1:5) = [0.9530899230_jprb, 0.7692346551_jprb, &
+           &  0.5000000000_jprb, 0.2307653449_jprb, 0.0469100770_jprb]
+      weight(1:5) = [0.1184634425_jprb, 0.2393143352_jprb, &
+           &  0.2844444444_jprb, 0.2393143352_jprb, 0.1184634425_jprb]
+    else if (npoint == 6) then
+      xpoint(1:6) = [0.9662347571_jprb, 0.8306046932_jprb, 0.6193095930_jprb, &
+           &         0.3806904070_jprb, 0.1693953068_jprb, 0.0337652429_jprb]
+      weight(1:6) = [0.0856622462_jprb, 0.1803807865_jprb, 0.2339569673_jprb, &
+           &         0.2339569673_jprb, 0.1803807865_jprb, 0.0856622462_jprb]
+      
+    else if (npoint == 7) then
+      xpoint(1:7) = [0.9745539562_jprb, 0.8707655928_jprb, 0.7029225757_jprb, &
+           &         0.5000000000_jprb, 0.2970774243_jprb, 0.1292344072_jprb, &
+           &         0.0254460438_jprb]
+      weight(1:7) = [0.0647424831_jprb, 0.1398526957_jprb, 0.1909150253_jprb, &
+           &         0.2089795918_jprb, 0.1909150253_jprb, 0.1398526957_jprb, &
+           &         0.0647424831_jprb]
+    else
+      xpoint(1:8) = [0.9801449282_jprb, 0.8983332387_jprb, 0.7627662050_jprb, &
+           &         0.5917173212_jprb, 0.4082826788_jprb, 0.2372337950_jprb, &
+           &         0.1016667613_jprb, 0.0198550718_jprb]
+      weight(1:8) = [0.0506142681_jprb, 0.1111905172_jprb, 0.1568533229_jprb, &
+           &         0.1813418917_jprb, 0.1813418917_jprb, 0.1568533229_jprb,&
+           &         0.1111905172_jprb, 0.0506142681_jprb]
     end if
 
   end subroutine gauss_legendre
