@@ -28,8 +28,9 @@ module tcrad_layer_solutions
 
   ! To avoid division by near-zero values use simpler formulae in the
   ! low optical depth regime
+  real(jprb), parameter :: OD_THRESH_2STREAM = 1.0e-3_jprb
   real(jprb), parameter :: OD_THRESH = 1.0e-3_jprb
-  
+
   integer(jpim), parameter :: MAX_GAUSS_LEGENDRE_POINTS = 8
 
 contains
@@ -176,7 +177,7 @@ contains
       ! JQSRT 1976).
       do jspec = 1,nspec
         reflectance(jspec,1,jlev) = 0.0_jprb
-        if (od(jspec,1,jlev) > 1.0e-3_jprb) then
+        if (od(jspec,1,jlev) > OD_THRESH_2STREAM) then
           coeff = LW_DIFFUSIVITY*od(jspec,1,jlev)
           transmittance(jspec,1,jlev) = exp(-coeff)
           coeff = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) / coeff
@@ -212,7 +213,7 @@ contains
 
             k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
                  1.E-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
-            if (od(jspec,jreg,jlev) > 1.0e-3_jprb) then
+            if (od(jspec,jreg,jlev) > OD_THRESH_2STREAM) then
               exponential = exp(-k_exponent*od(jspec,jreg,jlev))
               exponential2 = exponential*exponential
               reftrans_factor = 1.0 / (k_exponent + gamma1&
