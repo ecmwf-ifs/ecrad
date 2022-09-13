@@ -25,7 +25,7 @@
 ! 2) Name of a NetCDF file containing one or more atmospheric profiles
 ! 3) Name of output NetCDF file
 
-program ecrad_driver
+subroutine run_ecrad (nml_file_name, input_file_name, output_file_name)
 
   ! --------------------------------------------------------
   ! Section 1: Declarations
@@ -52,6 +52,9 @@ program ecrad_driver
 
   implicit none
 
+  ! Name of file names specified on command line
+  character(len=512), intent(in) :: nml_file_name, input_file_name, output_file_name
+
   ! The NetCDF file containing the input profiles
   type(netcdf_file)         :: file
 
@@ -74,10 +77,6 @@ program ecrad_driver
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: istartcol, iendcol ! Range of columns to process
 
-  ! Name of file names specified on command line
-  character(len=512) :: file_name
-  integer            :: istatus ! Result of command_argument_count
-
   ! For parallel processing of multiple blocks
   integer :: jblock, nblock ! Block loop index and number
   integer, external :: omp_get_thread_num
@@ -94,28 +93,17 @@ program ecrad_driver
 
   ! Start/stop time in seconds
   real(kind=jprd) :: tstart, tstop
- 
+
 
   ! --------------------------------------------------------
   ! Section 2: Configure
   ! --------------------------------------------------------
 
-  ! Check program called with correct number of arguments
-  if (command_argument_count() < 3) then
-    stop 'Usage: ecrad config.nam input_file.nc output_file.nc'
-  end if
-
-  ! Use namelist to configure the radiation calculation
-  call get_command_argument(1, file_name, status=istatus)
-  if (istatus /= 0) then
-    stop 'Failed to read name of namelist file as string of length < 512'
-  end if
-
   ! Read "radiation" namelist into radiation configuration type
-  call config%read(file_name=file_name)
+  call config%read(file_name=nml_file_name)
 
   ! Read "radiation_driver" namelist into radiation driver config type
-  call driver_config%read(file_name)
+  call driver_config%read(nml_file_name)
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
@@ -146,20 +134,8 @@ program ecrad_driver
   ! Section 3: Read input data file
   ! --------------------------------------------------------
 
-  ! Get NetCDF input file name
-  call get_command_argument(2, file_name, status=istatus)
-  if (istatus /= 0) then
-    stop 'Failed to read name of input NetCDF file as string of length < 512'
-  end if
-
   ! Open the file and configure the way it is read
-  call file%open(trim(file_name), iverbose=driver_config%iverbose)
-
-  ! Get NetCDF output file name
-  call get_command_argument(3, file_name, status=istatus)
-  if (istatus /= 0) then
-    stop 'Failed to read name of output NetCDF file as string of length < 512'
-  end if
+  call file%open(trim(input_file_name), iverbose=driver_config%iverbose)
 
   ! 2D arrays are assumed to be stored in the file with height varying
   ! more rapidly than column index. Specifying "true" here transposes
@@ -191,7 +167,7 @@ program ecrad_driver
          &  ncol, ')'
     stop 1
   end if
-  
+
   ! Store inputs
   if (driver_config%do_save_inputs) then
     call save_inputs('inputs.nc', config, single_level, thermodynamics, &
@@ -223,29 +199,29 @@ program ecrad_driver
        & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
        &                                            driver_config%do_correct_unphysical_inputs) &
        & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) 
-  
+       &                                            driver_config%do_correct_unphysical_inputs)
+
   ! Allocate memory for the flux profiles, which may include arrays
   ! of dimension n_bands_sw/n_bands_lw, so must be called after
   ! setup_radiation
   call flux%allocate(config, 1, ncol, nlev)
-  
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
-  
+
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
   do jrepeat = 1,driver_config%nrepeat
-    
+
     if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
-      
+
       ! Compute number of blocks to process
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
-     
-      tstart = omp_get_wtime() 
+
+      tstart = omp_get_wtime()
       !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
       do jblock = 1, nblock
         ! Specify the range of columns to process.
@@ -253,33 +229,33 @@ program ecrad_driver
              &    + driver_config%istartcol
         iendcol = min(istartcol + driver_config%nblocksize - 1, &
              &        driver_config%iendcol)
-          
+
         if (driver_config%iverbose >= 3) then
           write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
                &  ' processing columns ', istartcol, '-', iendcol
         end if
-        
+
         ! Call the ECRAD radiation scheme
         call radiation(ncol, nlev, istartcol, iendcol, config, &
              &  single_level, thermodynamics, gas, cloud, aerosol, flux)
-        
+
       end do
       !$OMP END PARALLEL DO
       tstop = omp_get_wtime()
       write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
-      
+
     else
       ! Run radiation scheme serially
       if (driver_config%iverbose >= 3) then
         write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
       end if
-      
+
       ! Call the ECRAD radiation scheme
       call radiation(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
            &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
-      
+
     end if
-    
+
   end do
 
   ! --------------------------------------------------------
@@ -289,13 +265,47 @@ program ecrad_driver
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   ! Store the fluxes in the output file
-  call save_fluxes(file_name, config, thermodynamics, flux, &
+  call save_fluxes(output_file_name, config, thermodynamics, flux, &
        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
        &   experiment_name=driver_config%experiment_name, &
        &   is_double_precision=driver_config%do_write_double_precision)
-    
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
+
+end subroutine run_ecrad
+
+program ecrad_driver
+  implicit none
+
+  ! Name of file names specified on command line
+  character(len=512) :: nml_file_name, input_file_name, output_file_name
+  integer            :: istatus ! Result of get_command_argument
+
+  ! Check program called with correct number of arguments
+  if (command_argument_count() < 3) then
+    stop 'Usage: ecrad config.nam input_file.nc output_file.nc'
+  end if
+
+  ! Use namelist to configure the radiation calculation
+  call get_command_argument(1, nml_file_name, status=istatus)
+  if (istatus /= 0) then
+    stop 'Failed to read name of namelist file as string of length < 512'
+  end if
+
+  ! Get NetCDF input file name
+  call get_command_argument(2, input_file_name, status=istatus)
+  if (istatus /= 0) then
+    stop 'Failed to read name of input NetCDF file as string of length < 512'
+  end if
+
+  ! Get NetCDF output file name
+  call get_command_argument(3, output_file_name, status=istatus)
+  if (istatus /= 0) then
+    stop 'Failed to read name of output NetCDF file as string of length < 512'
+  end if
+
+  call run_ecrad(nml_file_name, input_file_name, output_file_name)
 
 end program ecrad_driver
