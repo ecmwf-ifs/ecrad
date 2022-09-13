@@ -4,7 +4,8 @@ TEST = test_spartacus_math
 
 # In dependency order:
 SOURCES = ecrad_driver_read_input.F90 \
-	ecrad_driver_config.F90
+	ecrad_driver_config.F90 \
+	ecrad_standalone.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 EXECUTABLE = ../bin/ecrad
@@ -30,6 +31,7 @@ $(IFSEXE): ecrad_ifs_driver.o $(OBJECTS) ../lib/*.a
 clean:
 	rm -f *.o ecrad_driver.o ecrad_ifs_driver.o $(OBJECTS) $(EXECUTABLE) $(TEST) $(IFSEXE)
 
-ecrad_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
+ecrad_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o ecrad_standalone.o
 ecrad_ifs_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_driver_read_input.o: ecrad_driver_config.o
+ecrad_standalone.o: ecrad_driver_config.o ecrad_driver_read_input.o

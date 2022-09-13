@@ -1,0 +1,338 @@
+! ecrad_standalone.F90 - Configure driver for offline ecRad radiation scheme
+!
+! (C) Copyright 2015- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+! Author:  Robin Hogan
+! Email:   r.j.hogan@ecmwf.int
+
+module ecrad_standalone
+
+  public
+
+contains
+
+subroutine ecrad_standalone_setup ( &
+  & nml_file_name, input_file_name, driver_config, config, &
+  & single_level, thermodynamics, gas, cloud, aerosol, &
+  & ncol, nlev )
+
+  ! --------------------------------------------------------
+  ! Section 1: Declarations
+  ! --------------------------------------------------------
+
+  use parkind1,                 only : jprb ! Working precision
+
+  use radiation_io,             only : nulout
+  use radiation_interface,      only : setup_radiation
+  use radiation_config,         only : config_type
+  use radiation_single_level,   only : single_level_type
+  use radiation_thermodynamics, only : thermodynamics_type
+  use radiation_gas,            only : gas_type
+  use radiation_cloud,          only : cloud_type
+  use radiation_aerosol,        only : aerosol_type
+  use radiation_save,           only : save_inputs
+  use ecrad_driver_config,      only : driver_config_type
+  use ecrad_driver_read_input,  only : read_input
+  use easy_netcdf,              only : netcdf_file
+  use yoerdi,                   only : terdi
+
+  implicit none
+
+  ! Name of file names specified on command line
+  character(len=512), intent(in) :: nml_file_name, input_file_name
+
+  ! Configuration specific to this driver
+  type(driver_config_type), intent(inout)  :: driver_config
+
+  ! Derived types for the inputs to the radiation scheme
+  type(config_type), intent(inout)         :: config
+  type(single_level_type), intent(inout)   :: single_level
+  type(thermodynamics_type), intent(inout) :: thermodynamics
+  type(gas_type), intent(inout)            :: gas
+  type(cloud_type), intent(inout)          :: cloud
+  type(aerosol_type), intent(inout)        :: aerosol
+
+  integer, intent(out) :: ncol, nlev         ! Number of columns and levels
+
+  ! The NetCDF file containing the input profiles
+  type(netcdf_file)         :: file
+
+  type(terdi)               :: yderdi
+
+!  integer    :: iband(20), nweights
+!  real(jprb) :: weight(20)
+
+
+  ! --------------------------------------------------------
+  ! Section 2: Configure
+  ! --------------------------------------------------------
+
+  ! Read "radiation" namelist into radiation configuration type
+  call config%read(file_name=nml_file_name)
+
+  ! Read "radiation_driver" namelist into radiation driver config type
+  call driver_config%read(nml_file_name)
+
+  if (driver_config%iverbose >= 2) then
+    write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
+    write(nulout,'(a)') 'Copyright (C) 2014- ECMWF'
+    write(nulout,'(a)') 'Contact: Robin Hogan (r.j.hogan@ecmwf.int)'
+#ifdef SINGLE_PRECISION
+    write(nulout,'(a)') 'Floating-point precision: single'
+#else
+    write(nulout,'(a)') 'Floating-point precision: double'
+#endif
+    call config%print(driver_config%iverbose)
+  end if
+
+  ! Albedo/emissivity intervals may be specified like this
+  !call config%define_sw_albedo_intervals(6, &
+  !     &  [0.25e-6_jprb, 0.44e-6_jprb, 0.69e-6_jprb, &
+  !     &     1.19_jprb, 2.38e-6_jprb], [1,2,3,4,5,6], &
+  !     &   do_nearest=.false.)
+  !call config%define_lw_emiss_intervals(3, &
+  !     &  [8.0e-6_jprb, 13.0e-6_jprb], [1,2,1], &
+  !     &   do_nearest=.false.)
+
+  ! Setup the radiation scheme: load the coefficients for gas and
+  ! cloud optics, currently from RRTMG
+  call setup_radiation(yderdi, config)
+
+  ! --------------------------------------------------------
+  ! Section 3: Read input data file
+  ! --------------------------------------------------------
+
+  ! Open the file and configure the way it is read
+  call file%open(trim(input_file_name), iverbose=driver_config%iverbose)
+
+  ! 2D arrays are assumed to be stored in the file with height varying
+  ! more rapidly than column index. Specifying "true" here transposes
+  ! all 2D arrays so that the column index varies fastest within the
+  ! program.
+  call file%transpose_matrices(.true.)
+
+  ! Read input variables from NetCDF file
+  call read_input(file, config, driver_config, ncol, nlev, &
+       &          single_level, thermodynamics, &
+       &          gas, cloud, aerosol)
+
+  ! Close input file
+  call file%close()
+
+  ! Compute seed from skin temperature residual
+  !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
+  !       &                            -int(single_level%skin_temperature)))
+
+  ! Set first and last columns to process
+  if (driver_config%iendcol < 1 .or. driver_config%iendcol > ncol) then
+    driver_config%iendcol = ncol
+  end if
+
+  if (driver_config%istartcol > driver_config%iendcol) then
+    write(nulout,'(a,i0,a,i0,a,i0,a)') '*** Error: requested column range (', &
+         &  driver_config%istartcol, &
+         &  ' to ', driver_config%iendcol, ') is out of the range in the data (1 to ', &
+         &  ncol, ')'
+    stop 1
+  end if
+
+  ! Store inputs
+  if (driver_config%do_save_inputs) then
+    call save_inputs('inputs.nc', config, single_level, thermodynamics, &
+         &                gas, cloud, aerosol, &
+         &                lat=spread(0.0_jprb,1,ncol), &
+         &                lon=spread(0.0_jprb,1,ncol), &
+         &                iverbose=driver_config%iverbose)
+  end if
+
+end subroutine ecrad_standalone_setup
+
+subroutine ecrad_standalone_run ( &
+  & ncol, nlev, driver_config, config, &
+  & single_level, thermodynamics, gas, cloud, aerosol, &
+  & flux )
+
+  use parkind1,                 only : jprd ! double precision
+
+  use radiation_io,             only : nulout
+  use radiation_interface,      only : radiation, set_gas_units
+  use ecrad_driver_config,      only : driver_config_type
+  use radiation_config,         only : config_type
+  use radiation_single_level,   only : single_level_type
+  use radiation_thermodynamics, only : thermodynamics_type
+  use radiation_gas,            only : gas_type
+  use radiation_cloud,          only : cloud_type
+  use radiation_aerosol,        only : aerosol_type
+  use radiation_flux,           only : flux_type
+
+  implicit none
+
+  integer, intent(in) :: ncol, nlev         ! Number of columns and levels
+
+  ! Configuration specific to this driver
+  type(driver_config_type), intent(in)  :: driver_config
+
+  ! Derived types for the inputs to the radiation scheme
+  type(config_type), intent(in)         :: config
+  type(single_level_type), intent(inout)   :: single_level
+  type(thermodynamics_type), intent(inout) :: thermodynamics
+  type(gas_type), intent(inout)            :: gas
+  type(cloud_type), intent(inout)          :: cloud
+  type(aerosol_type), intent(inout)        :: aerosol
+
+  ! Derived type containing outputs from the radiation scheme
+  type(flux_type), intent(inout)           :: flux
+
+  ! Are any variables out of bounds?
+  logical :: is_out_of_bounds
+
+  ! Loop index for repeats (for benchmarking)
+  integer :: jrepeat
+
+  ! For parallel processing of multiple blocks
+  integer :: jblock, nblock ! Block loop index and number
+  integer, external :: omp_get_thread_num
+  double precision, external :: omp_get_wtime
+  integer :: istartcol, iendcol ! Range of columns to process
+
+  ! Start/stop time in seconds
+  real(kind=jprd) :: tstart, tstop
+
+
+  ! --------------------------------------------------------
+  ! Section 4: Call radiation scheme
+  ! --------------------------------------------------------
+
+  ! Ensure the units of the gas mixing ratios are what is required
+  ! by the gas absorption model
+  call set_gas_units(config, gas)
+
+  ! Compute saturation with respect to liquid (needed for aerosol
+  ! hydration) call
+  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
+
+  ! Check inputs are within physical bounds, printing message if not
+  is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) &
+       & .or.   single_level%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) &
+       & .or. thermodynamics%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) &
+       & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs) &
+       & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
+       &                                            driver_config%do_correct_unphysical_inputs)
+
+  ! Allocate memory for the flux profiles, which may include arrays
+  ! of dimension n_bands_sw/n_bands_lw, so must be called after
+  ! setup_radiation
+  call flux%allocate(config, 1, ncol, nlev)
+
+  if (driver_config%iverbose >= 2) then
+    write(nulout,'(a)')  'Performing radiative transfer calculations'
+  end if
+
+  ! Option of repeating calculation multiple time for more accurate
+  ! profiling
+  do jrepeat = 1,driver_config%nrepeat
+
+    if (driver_config%do_parallel) then
+      ! Run radiation scheme over blocks of columns in parallel
+
+      ! Compute number of blocks to process
+      nblock = (driver_config%iendcol - driver_config%istartcol &
+           &  + driver_config%nblocksize) / driver_config%nblocksize
+
+      tstart = omp_get_wtime()
+      !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
+      do jblock = 1, nblock
+        ! Specify the range of columns to process.
+        istartcol = (jblock-1) * driver_config%nblocksize &
+             &    + driver_config%istartcol
+        iendcol = min(istartcol + driver_config%nblocksize - 1, &
+             &        driver_config%iendcol)
+
+        if (driver_config%iverbose >= 3) then
+          write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
+               &  ' processing columns ', istartcol, '-', iendcol
+        end if
+
+        ! Call the ECRAD radiation scheme
+        call radiation(ncol, nlev, istartcol, iendcol, config, &
+             &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+
+      end do
+      !$OMP END PARALLEL DO
+      tstop = omp_get_wtime()
+      write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+
+    else
+      ! Run radiation scheme serially
+      if (driver_config%iverbose >= 3) then
+        write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
+      end if
+
+      ! Call the ECRAD radiation scheme
+      call radiation(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
+           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
+
+    end if
+
+  end do
+
+end subroutine ecrad_standalone_run
+
+subroutine ecrad_standalone_save_output (file_name, driver_config, config, thermodynamics, flux)
+
+  use radiation_io,             only : nulout
+  use radiation_config,         only : config_type
+  use radiation_thermodynamics, only : thermodynamics_type
+  use radiation_flux,           only : flux_type
+  use ecrad_driver_config,      only : driver_config_type
+  use radiation_save,           only : save_fluxes
+  use ecrad_driver_config,      only : driver_config_type
+
+  implicit none
+
+  ! File name of output netcdf file
+  character(len=512), intent(in) :: file_name
+
+  ! Configuration specific to this driver
+  type(driver_config_type), intent(in) :: driver_config
+
+  ! Inputs to the radiation scheme
+  type(config_type), intent(in)         :: config
+  type(thermodynamics_type), intent(in) :: thermodynamics
+
+  ! Derived type containing outputs from the radiation scheme
+  type(flux_type), intent(inout) :: flux
+
+  ! Are any variables out of bounds?
+  logical :: is_out_of_bounds
+
+  ! --------------------------------------------------------
+  ! Section 5: Check and save output
+  ! --------------------------------------------------------
+
+  is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
+
+  ! Store the fluxes in the output file
+  call save_fluxes(file_name, config, thermodynamics, flux, &
+       &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+       &   experiment_name=driver_config%experiment_name, &
+       &   is_double_precision=driver_config%do_write_double_precision)
+
+  if (driver_config%iverbose >= 2) then
+    write(nulout,'(a)') '------------------------------------------------------------------------------------'
+  end if
+
+end subroutine ecrad_standalone_save_output
+
+end module ecrad_standalone
