@@ -25,74 +25,62 @@
 ! 2) Name of a NetCDF file containing one or more atmospheric profiles
 ! 3) Name of output NetCDF file
 
-subroutine run_ecrad (nml_file_name, input_file_name, output_file_name)
+module ecrad_standalone
+
+  public
+
+contains
+
+subroutine ecrad_standalone_setup ( &
+  & nml_file_name, input_file_name, driver_config, config, &
+  & single_level, thermodynamics, gas, cloud, aerosol, &
+  & ncol, nlev )
 
   ! --------------------------------------------------------
   ! Section 1: Declarations
   ! --------------------------------------------------------
-  use parkind1,                 only : jprb, jprd ! Working/double precision
+
+  use parkind1,                 only : jprb ! Working precision
 
   use radiation_io,             only : nulout
-  use radiation_interface,      only : setup_radiation, radiation, set_gas_units
+  use radiation_interface,      only : setup_radiation
   use radiation_config,         only : config_type
   use radiation_single_level,   only : single_level_type
   use radiation_thermodynamics, only : thermodynamics_type
-  use radiation_gas,            only : gas_type, &
-       &   IVolumeMixingRatio, IMassMixingRatio, &
-       &   IH2O, ICO2, IO3, IN2O, ICO, ICH4, IO2, ICFC11, ICFC12, &
-       &   IHCFC22, ICCl4, GasName, GasLowerCaseName, NMaxGases
+  use radiation_gas,            only : gas_type
   use radiation_cloud,          only : cloud_type
   use radiation_aerosol,        only : aerosol_type
-  use radiation_flux,           only : flux_type
-  use radiation_save,           only : save_fluxes, save_inputs
+  use radiation_save,           only : save_inputs
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
-  use easy_netcdf
+  use easy_netcdf,              only : netcdf_file
   use yoerdi,                   only : terdi
 
   implicit none
 
   ! Name of file names specified on command line
-  character(len=512), intent(in) :: nml_file_name, input_file_name, output_file_name
+  character(len=512), intent(in) :: nml_file_name, input_file_name
+
+  ! Configuration specific to this driver
+  type(driver_config_type), intent(inout)  :: driver_config
+
+  ! Derived types for the inputs to the radiation scheme
+  type(config_type), intent(inout)         :: config
+  type(single_level_type), intent(inout)   :: single_level
+  type(thermodynamics_type), intent(inout) :: thermodynamics
+  type(gas_type), intent(inout)            :: gas
+  type(cloud_type), intent(inout)          :: cloud
+  type(aerosol_type), intent(inout)        :: aerosol
+
+  integer, intent(out) :: ncol, nlev         ! Number of columns and levels
 
   ! The NetCDF file containing the input profiles
   type(netcdf_file)         :: file
 
-  ! Derived types for the inputs to the radiation scheme
-  type(config_type)         :: config
-  type(single_level_type)   :: single_level
-  type(thermodynamics_type) :: thermodynamics
-  type(gas_type)            :: gas
-  type(cloud_type)          :: cloud
-  type(aerosol_type)        :: aerosol
-
-  ! Configuration specific to this driver
-  type(driver_config_type)  :: driver_config
-
-  ! Derived type containing outputs from the radiation scheme
-  type(flux_type)           :: flux
-
   type(terdi)               :: yderdi
-
-  integer :: ncol, nlev         ! Number of columns and levels
-  integer :: istartcol, iendcol ! Range of columns to process
-
-  ! For parallel processing of multiple blocks
-  integer :: jblock, nblock ! Block loop index and number
-  integer, external :: omp_get_thread_num
-  double precision, external :: omp_get_wtime
-
-  ! Loop index for repeats (for benchmarking)
-  integer :: jrepeat
-
-  ! Are any variables out of bounds?
-  logical :: is_out_of_bounds
 
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
-
-  ! Start/stop time in seconds
-  real(kind=jprd) :: tstart, tstop
 
 
   ! --------------------------------------------------------
@@ -177,6 +165,60 @@ subroutine run_ecrad (nml_file_name, input_file_name, output_file_name)
          &                iverbose=driver_config%iverbose)
   end if
 
+end subroutine ecrad_standalone_setup
+
+subroutine ecrad_standalone_run ( &
+  & ncol, nlev, driver_config, config, &
+  & single_level, thermodynamics, gas, cloud, aerosol, &
+  & flux )
+
+  use parkind1,                 only : jprd ! double precision
+
+  use radiation_io,             only : nulout
+  use radiation_interface,      only : radiation, set_gas_units
+  use ecrad_driver_config,      only : driver_config_type
+  use radiation_config,         only : config_type
+  use radiation_single_level,   only : single_level_type
+  use radiation_thermodynamics, only : thermodynamics_type
+  use radiation_gas,            only : gas_type
+  use radiation_cloud,          only : cloud_type
+  use radiation_aerosol,        only : aerosol_type
+  use radiation_flux,           only : flux_type
+
+  implicit none
+
+  integer, intent(in) :: ncol, nlev         ! Number of columns and levels
+
+  ! Configuration specific to this driver
+  type(driver_config_type), intent(in)  :: driver_config
+
+  ! Derived types for the inputs to the radiation scheme
+  type(config_type), intent(in)         :: config
+  type(single_level_type), intent(inout)   :: single_level
+  type(thermodynamics_type), intent(inout) :: thermodynamics
+  type(gas_type), intent(inout)            :: gas
+  type(cloud_type), intent(inout)          :: cloud
+  type(aerosol_type), intent(inout)        :: aerosol
+
+  ! Derived type containing outputs from the radiation scheme
+  type(flux_type), intent(inout)           :: flux
+
+  ! Are any variables out of bounds?
+  logical :: is_out_of_bounds
+
+  ! Loop index for repeats (for benchmarking)
+  integer :: jrepeat
+
+  ! For parallel processing of multiple blocks
+  integer :: jblock, nblock ! Block loop index and number
+  integer, external :: omp_get_thread_num
+  double precision, external :: omp_get_wtime
+  integer :: istartcol, iendcol ! Range of columns to process
+
+  ! Start/stop time in seconds
+  real(kind=jprd) :: tstart, tstop
+
+
   ! --------------------------------------------------------
   ! Section 4: Call radiation scheme
   ! --------------------------------------------------------
@@ -258,6 +300,36 @@ subroutine run_ecrad (nml_file_name, input_file_name, output_file_name)
 
   end do
 
+end subroutine ecrad_standalone_run
+
+subroutine ecrad_standalone_save_output (file_name, driver_config, config, thermodynamics, flux)
+
+  use radiation_io,             only : nulout
+  use radiation_config,         only : config_type
+  use radiation_thermodynamics, only : thermodynamics_type
+  use radiation_flux,           only : flux_type
+  use ecrad_driver_config,      only : driver_config_type
+  use radiation_save,           only : save_fluxes
+  use ecrad_driver_config,      only : driver_config_type
+
+  implicit none
+
+  ! File name of output netcdf file
+  character(len=512), intent(in) :: file_name
+
+  ! Configuration specific to this driver
+  type(driver_config_type), intent(in) :: driver_config
+
+  ! Inputs to the radiation scheme
+  type(config_type), intent(in)         :: config
+  type(thermodynamics_type), intent(in) :: thermodynamics
+
+  ! Derived type containing outputs from the radiation scheme
+  type(flux_type), intent(inout) :: flux
+
+  ! Are any variables out of bounds?
+  logical :: is_out_of_bounds
+
   ! --------------------------------------------------------
   ! Section 5: Check and save output
   ! --------------------------------------------------------
@@ -265,7 +337,7 @@ subroutine run_ecrad (nml_file_name, input_file_name, output_file_name)
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   ! Store the fluxes in the output file
-  call save_fluxes(output_file_name, config, thermodynamics, flux, &
+  call save_fluxes(file_name, config, thermodynamics, flux, &
        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
        &   experiment_name=driver_config%experiment_name, &
        &   is_double_precision=driver_config%do_write_double_precision)
@@ -274,10 +346,41 @@ subroutine run_ecrad (nml_file_name, input_file_name, output_file_name)
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
 
-end subroutine run_ecrad
+end subroutine ecrad_standalone_save_output
+
+end module ecrad_standalone
 
 program ecrad_driver
+
+  use radiation_config,         only : config_type
+  use radiation_single_level,   only : single_level_type
+  use radiation_thermodynamics, only : thermodynamics_type
+  use radiation_gas,            only : gas_type
+  use radiation_cloud,          only : cloud_type
+  use radiation_aerosol,        only : aerosol_type
+  use ecrad_driver_config,      only : driver_config_type
+  use radiation_flux,           only : flux_type
+
+  use ecrad_standalone, only: ecrad_standalone_setup, ecrad_standalone_run, &
+                            & ecrad_standalone_save_output
+
   implicit none
+
+  ! Derived types for the inputs to the radiation scheme
+  type(config_type)         :: config
+  type(single_level_type)   :: single_level
+  type(thermodynamics_type) :: thermodynamics
+  type(gas_type)            :: gas
+  type(cloud_type)          :: cloud
+  type(aerosol_type)        :: aerosol
+
+  ! Configuration specific to this driver
+  type(driver_config_type)  :: driver_config
+
+  ! Derived type containing outputs from the radiation scheme
+  type(flux_type)           :: flux
+
+  integer :: ncol, nlev         ! Number of columns and levels
 
   ! Name of file names specified on command line
   character(len=512) :: nml_file_name, input_file_name, output_file_name
@@ -306,6 +409,19 @@ program ecrad_driver
     stop 'Failed to read name of output NetCDF file as string of length < 512'
   end if
 
-  call run_ecrad(nml_file_name, input_file_name, output_file_name)
+  ! Run the standalone radiation scheme
+  call ecrad_standalone_setup( &
+    & nml_file_name, input_file_name, driver_config, config, &
+    & single_level, thermodynamics, gas, cloud, aerosol, &
+    & ncol, nlev )
+
+  call ecrad_standalone_run( &
+    & ncol, nlev, driver_config, config, &
+    & single_level, thermodynamics, gas, cloud, aerosol, &
+    & flux )
+
+  call ecrad_standalone_save_output( &
+    & output_file_name, driver_config, config, &
+    & thermodynamics, flux )
 
 end program ecrad_driver
