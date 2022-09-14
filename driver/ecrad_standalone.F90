@@ -1,4 +1,4 @@
-! ecrad_standalone.F90 - Configure driver for offline ecRad radiation scheme
+! ecrad_standalone.F90 - Configure and run the offline ecRad radiation scheme
 !
 ! (C) Copyright 2015- ECMWF.
 !
