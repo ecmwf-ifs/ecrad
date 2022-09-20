@@ -42,9 +42,11 @@ program ecrad_ifs_driver
   use ecrad_driver_config,      only : driver_config_type
   use type_model,               only : model
 
-  use ecrad_standalone,         only : ecrad_standalone_setup, ecrad_standalone_save_output
+  use ecrad_standalone,         only : ecrad_standalone_setup, &
+       &   ecrad_standalone_save_output, ecrad_standalone_run
   use ecrad_ifs,                only : ifs_config_type, ecrad_ifs_setup, &
-       &   ecrad_ifs_interpolate_in, ecrad_ifs_run, ecrad_ifs_interpolate_out
+       &   ecrad_ifs_interpolate_in, ecrad_ifs_run, ecrad_ifs_interpolate_out, &
+       &   ecrad_ifs_validate
 
   implicit none
 
@@ -61,6 +63,7 @@ program ecrad_ifs_driver
 
   ! Derived type containing outputs from the radiation scheme
   type(flux_type)           :: flux_out
+  type(flux_type)           :: flux_ref
 
   ! Model type and IFS config values
   type(model)               :: ydmodel
@@ -84,6 +87,8 @@ program ecrad_ifs_driver
 
   ! Per-block flux data structure to validate outputs
   type(flux_type), allocatable :: flux_blocks(:)
+
+  logical :: is_validating
 
 
   ! --------------------------------------------------------
@@ -133,6 +138,11 @@ program ecrad_ifs_driver
   ! Section 4: Call radiation scheme
   ! --------------------------------------------------------
 
+  ! Call standalone scheme to generate reference results
+  call ecrad_standalone_run( &
+   & ncol, nlev, driver_config, config, &
+   & single_level, thermodynamics, gas, cloud, aerosol, flux_ref )
+
   ! Deallocate input data structures
   call single_level%deallocate
   call thermodynamics%deallocate
@@ -151,7 +161,13 @@ program ecrad_ifs_driver
     & output_file_name, driver_config, ydmodel%yrml_phy_rad%yradiation%rad_config, &
     & thermodynamics_out, flux_out )
 
+  is_validating = ecrad_ifs_validate(config, flux_ref, flux_out, ncol, nlev)
+
   call flux_out%deallocate
   deallocate(thermodynamics_out%pressure_hl)
+
+  if (.not. is_validating) then
+    error stop
+  endif
 
 end program ecrad_ifs_driver

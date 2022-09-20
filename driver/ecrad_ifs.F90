@@ -795,10 +795,6 @@ subroutine ecrad_ifs_interpolate_out (driver_config, ncol, nlev, ydmodel, flux_b
           flux_out%lw_dn_clear(ibeg:iend,:) = flux_blocks(ib)%lw_dn_clear(1:il,:)
         endif
 
-        if (rad_config%do_lw_derivatives) then
-          flux_out%lw_derivatives(ibeg:iend,:) = flux_blocks(ib)%lw_derivatives(1:il,:)
-        endif
-
         if (rad_config%do_save_spectral_flux) then
           flux_out%lw_up_band(:,ibeg:iend,:) = flux_blocks(ib)%lw_up_band(:,1:il,:)
           flux_out%lw_dn_band(:,ibeg:iend,:) = flux_blocks(ib)%lw_dn_band(:,1:il,:)
@@ -806,6 +802,15 @@ subroutine ecrad_ifs_interpolate_out (driver_config, ncol, nlev, ydmodel, flux_b
             flux_out%lw_up_clear_band(:,ibeg:iend,:) = flux_blocks(ib)%lw_up_clear_band(:,1:il,:)
             flux_out%lw_dn_clear_band(:,ibeg:iend,:) = flux_blocks(ib)%lw_dn_clear_band(:,1:il,:)
           endif
+        endif
+
+        if (rad_config%do_lw_derivatives) then
+          flux_out%lw_derivatives(ibeg:iend,:) = flux_blocks(ib)%lw_derivatives(1:il,:)
+        endif
+
+        flux_out%lw_dn_surf_g(:,ibeg:iend) = flux_blocks(ib)%lw_dn_surf_g(:,1:il)
+        if (rad_config%do_clear) then
+          flux_out%lw_dn_surf_clear_g(:,ibeg:iend) = flux_blocks(ib)%lw_dn_surf_clear_g(:,1:il)
         endif
 
         if (rad_config%do_canopy_fluxes_lw) then
@@ -840,11 +845,12 @@ subroutine ecrad_ifs_interpolate_out (driver_config, ncol, nlev, ydmodel, flux_b
             flux_out%sw_up_clear_band(:,ibeg:iend,:) = flux_blocks(ib)%sw_up_clear_band(:,1:il,:)
             flux_out%sw_dn_clear_band(:,ibeg:iend,:) = flux_blocks(ib)%sw_dn_clear_band(:,1:il,:)
             if (rad_config%do_sw_direct) then
-              flux_out%sw_dn_direct_clear_band(:,ibeg:iend,:) = flux_blocks(ib)%sw_dn_direct_band(:,1:il,:)
+              flux_out%sw_dn_direct_clear_band(:,ibeg:iend,:) = flux_blocks(ib)%sw_dn_direct_clear_band(:,1:il,:)
             endif
           endif
+        endif
 
-        else if (rad_config%do_surface_sw_spectral_flux) then
+        if (rad_config%do_surface_sw_spectral_flux) then
           flux_out%sw_dn_surf_band(:,ibeg:iend) = flux_blocks(ib)%sw_dn_surf_band(:,1:il)
           flux_out%sw_dn_direct_surf_band(:,ibeg:iend) = flux_blocks(ib)%sw_dn_direct_surf_band(:,1:il)
 
@@ -852,6 +858,13 @@ subroutine ecrad_ifs_interpolate_out (driver_config, ncol, nlev, ydmodel, flux_b
             flux_out%sw_dn_surf_clear_band(:,ibeg:iend) = flux_blocks(ib)%sw_dn_surf_clear_band(:,1:il)
             flux_out%sw_dn_direct_surf_clear_band(:,ibeg:iend) = flux_blocks(ib)%sw_dn_direct_surf_clear_band(:,1:il)
           endif
+        endif
+
+        flux_out%sw_dn_direct_surf_g(:,ibeg:iend) = flux_blocks(ib)%sw_dn_direct_surf_g(:,1:il)
+        flux_out%sw_dn_diffuse_surf_g(:,ibeg:iend) = flux_blocks(ib)%sw_dn_diffuse_surf_g(:,1:il)
+        if (rad_config%do_clear) then
+          flux_out%sw_dn_direct_surf_clear_g(:,ibeg:iend) = flux_blocks(ib)%sw_dn_direct_surf_clear_g(:,1:il)
+          flux_out%sw_dn_diffuse_surf_clear_g(:,ibeg:iend) = flux_blocks(ib)%sw_dn_diffuse_surf_clear_g(:,1:il)
         endif
 
         if (rad_config%do_canopy_fluxes_sw) then
@@ -874,5 +887,179 @@ subroutine ecrad_ifs_interpolate_out (driver_config, ncol, nlev, ydmodel, flux_b
 
   deallocate(flux_blocks)
 end subroutine ecrad_ifs_interpolate_out
+
+  logical function ecrad_ifs_validate (config, flux_ref, flux, ncol, nlev)
+
+    use radiation_config, only : config_type
+    use radiation_flux,   only : flux_type
+    use validation,       only : error_type
+    implicit none
+
+    type(config_type), intent(in)   :: config
+    type(flux_type), intent(in) :: flux, flux_ref
+    integer, intent(in)         :: ncol, nlev
+
+    type(error_type) :: err
+
+    ecrad_ifs_validate = .true.
+    call err%print_header()
+
+    if (config%do_lw) then
+      call err%validate("lw_up", flux_ref%lw_up, flux%lw_up, &
+                      & ncol, nlev+1, ncol, is_print=.true.)
+      ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      call err%validate("lw_dn", flux_ref%lw_dn, flux%lw_dn, &
+                      & ncol, nlev+1, ncol, is_print=.true.)
+      ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      if (config%do_clear) then
+        call err%validate("lw_up_clear", flux_ref%lw_up_clear, flux%lw_up_clear, &
+                        & ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        call err%validate("lw_dn_clear", flux_ref%lw_dn_clear, flux%lw_dn_clear, &
+                        & ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      end if
+
+      if (config%do_save_spectral_flux) then
+        call err%validate("lw_up_band", flux_ref%lw_up_band, flux%lw_up_band, &
+                        & config%n_spec_lw, ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        call err%validate("lw_dn_band", flux_ref%lw_dn_band, flux%lw_dn_band, &
+                        & config%n_spec_lw, ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        if (config%do_clear) then
+          call err%validate("lw_up_clear_band", flux_ref%lw_up_clear_band, flux%lw_up_clear_band, &
+                          & config%n_spec_lw, ncol, nlev+1, ncol, is_print=.true.)
+          ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+          call err%validate("lw_dn_clear_band", flux_ref%lw_dn_clear_band, flux%lw_dn_clear_band, &
+                          & config%n_spec_lw, ncol, nlev+1, ncol, is_print=.true.)
+          ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        end if
+      end if
+
+      if (config%do_lw_derivatives) then
+        call err%validate("lw_derivatives", flux_ref%lw_derivatives, flux%lw_derivatives, &
+                        & ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      end if
+
+      call err%validate("lw_dn_surf_g", flux_ref%lw_dn_surf_g, flux%lw_dn_surf_g, &
+                      & config%n_g_lw, ncol, ncol, is_print=.true.)
+      ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      if (config%do_clear) then
+        call err%validate("lw_dn_surf_clear_g", flux_ref%lw_dn_surf_clear_g, flux%lw_dn_surf_clear_g, &
+                        & config%n_g_lw, ncol, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      end if
+
+      if (config%do_canopy_fluxes_lw) then
+        call err%validate("lw_dn_surf_canopy", flux_ref%lw_dn_surf_canopy, flux%lw_dn_surf_canopy, &
+                        & config%n_canopy_bands_lw, ncol, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      end if
+    end if
+
+    if (config%do_sw) then
+      call err%validate("sw_up", flux_ref%sw_up, flux%sw_up, &
+                      & ncol, nlev+1, ncol, is_print=.true.)
+      ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      call err%validate("sw_dn", flux_ref%sw_dn, flux%sw_dn, &
+                      & ncol, nlev+1, ncol, is_print=.true.)
+      ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      if (config%do_sw_direct) then
+        call err%validate("sw_dn_direct", flux_ref%sw_dn_direct, flux%sw_dn_direct, &
+                        & ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      endif
+      if (config%do_clear) then
+        call err%validate("sw_up_clear", flux_ref%sw_up_clear, flux%sw_up_clear, &
+                        & ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        call err%validate("sw_dn_clear", flux_ref%sw_dn_clear, flux%sw_dn_clear, &
+                        & ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        if (config%do_sw_direct) then
+          call err%validate("sw_dn_direct_clear", flux_ref%sw_dn_direct_clear, flux%sw_dn_direct_clear, &
+                          & ncol, nlev+1, ncol, is_print=.true.)
+          ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        endif
+      end if
+
+      if (config%do_save_spectral_flux) then
+        call err%validate("sw_up_band", flux_ref%sw_up_band, flux%sw_up_band, &
+                        & config%n_spec_sw, ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        call err%validate("sw_dn_band", flux_ref%sw_dn_band, flux%sw_dn_band, &
+                        & config%n_spec_sw, ncol, nlev+1, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        if (config%do_sw_direct) then
+          call err%validate("sw_dn_direct_band", flux_ref%sw_dn_direct_band, flux%sw_dn_direct_band, &
+                          & config%n_spec_sw, ncol, nlev+1, ncol, is_print=.true.)
+          ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        end if
+        if (config%do_clear) then
+          call err%validate("sw_up_clear_band", flux_ref%sw_up_clear_band, flux%sw_up_clear_band, &
+                          & config%n_spec_sw, ncol, nlev+1, ncol, is_print=.true.)
+          ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+          call err%validate("sw_dn_clear_band", flux_ref%sw_dn_clear_band, flux%sw_dn_clear_band, &
+                          & config%n_spec_sw, ncol, nlev+1, ncol, is_print=.true.)
+          ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+          if (config%do_sw_direct) then
+            call err%validate("sw_dn_direct_clear_band", flux_ref%sw_dn_direct_clear_band, flux%sw_dn_direct_clear_band, &
+                            & config%n_spec_sw, ncol, nlev+1, ncol, is_print=.true.)
+            ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+          end if
+        end if
+      end if
+
+      if (config%do_surface_sw_spectral_flux) then
+        call err%validate("sw_dn_surf_band", flux_ref%sw_dn_surf_band, flux%sw_dn_surf_band, &
+                        & config%n_bands_sw, ncol, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        call err%validate("sw_dn_direct_surf_band", flux_ref%sw_dn_direct_surf_band, flux%sw_dn_direct_surf_band, &
+                        & config%n_bands_sw, ncol, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        if (config%do_clear) then
+          call err%validate("sw_dn_surf_clear_band", flux_ref%sw_dn_surf_clear_band, flux%sw_dn_surf_clear_band, &
+                          & config%n_bands_sw, ncol, ncol, is_print=.true.)
+          ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+          call err%validate("sw_dn_direct_surf_clear_band", &
+                          & flux_ref%sw_dn_direct_surf_clear_band, flux%sw_dn_direct_surf_clear_band, &
+                          & config%n_bands_sw, ncol, ncol, is_print=.true.)
+          ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        end if
+      end if
+
+      call err%validate("sw_dn_diffuse_surf_g", flux_ref%sw_dn_diffuse_surf_g, flux%sw_dn_diffuse_surf_g, &
+                      & config%n_g_sw, ncol, ncol, is_print=.true.)
+      ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      call err%validate("sw_dn_direct_surf_g", flux_ref%sw_dn_direct_surf_g, flux%sw_dn_direct_surf_g, &
+                      & config%n_g_sw, ncol, ncol, is_print=.true.)
+      ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      if (config%do_clear) then
+        call err%validate("sw_dn_diffuse_surf_clear_g", flux_ref%sw_dn_diffuse_surf_clear_g, flux%sw_dn_diffuse_surf_clear_g, &
+                        & config%n_g_sw, ncol, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        call err%validate("sw_dn_direct_surf_clear_g", flux_ref%sw_dn_direct_surf_clear_g, flux%sw_dn_direct_surf_clear_g, &
+                        & config%n_g_sw, ncol, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      end if
+
+      if (config%do_canopy_fluxes_sw) then
+        call err%validate("sw_dn_diffuse_surf_canopy", flux_ref%sw_dn_diffuse_surf_canopy, flux%sw_dn_diffuse_surf_canopy, &
+                        & config%n_canopy_bands_sw, ncol, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+        call err%validate("sw_dn_direct_surf_canopy", flux_ref%sw_dn_direct_surf_canopy, flux%sw_dn_direct_surf_canopy, &
+                        & config%n_canopy_bands_sw, ncol, ncol, is_print=.true.)
+        ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+      end if
+    end if
+
+    call err%validate("cloud_cover_lw", flux_ref%cloud_cover_lw, flux%cloud_cover_lw, ncol, is_print=.true.)
+    ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+    call err%validate("cloud_cover_sw", flux_ref%cloud_cover_sw, flux%cloud_cover_sw, ncol, is_print=.true.)
+    ecrad_ifs_validate = ecrad_ifs_validate .and. err%pass
+
+  end function ecrad_ifs_validate
 
 end module ecrad_ifs
