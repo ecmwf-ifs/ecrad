@@ -115,7 +115,7 @@ REAL(KIND=JPRB),   INTENT(IN) :: PSPECTRALEMISS(KLON,YDMODEL%YRML_PHY_RAD%YRERAD
 REAL(KIND=JPRB),   INTENT(IN) :: PGELAM(KLON)
 REAL(KIND=JPRB),   INTENT(IN) :: PGEMU(KLON)
 ! Land-sea mask
-REAL(KIND=JPRB),   INTENT(IN) :: PLAND_SEA_MASK(KLON) 
+REAL(KIND=JPRB),   INTENT(IN) :: PLAND_SEA_MASK(KLON)
 
 ! *** Variables on full levels
 REAL(KIND=JPRB),   INTENT(IN) :: PPRESSURE(KLON,KLEV)    ! (Pa)
@@ -125,15 +125,15 @@ REAL(KIND=JPRB),   INTENT(IN) :: PPRESSURE_H(KLON,KLEV+1)    ! (Pa)
 REAL(KIND=JPRB),   INTENT(IN) :: PTEMPERATURE_H(KLON,KLEV+1) ! (K)
 
 ! *** Gas mass mixing ratios on full levels
-REAL(KIND=JPRB),   INTENT(IN) :: PQ(KLON,KLEV) 
-REAL(KIND=JPRB),   INTENT(IN) :: PCO2(KLON,KLEV) 
-REAL(KIND=JPRB),   INTENT(IN) :: PCH4(KLON,KLEV) 
-REAL(KIND=JPRB),   INTENT(IN) :: PN2O(KLON,KLEV) 
-REAL(KIND=JPRB),   INTENT(IN) :: PNO2(KLON,KLEV) 
-REAL(KIND=JPRB),   INTENT(IN) :: PCFC11(KLON,KLEV) 
-REAL(KIND=JPRB),   INTENT(IN) :: PCFC12(KLON,KLEV) 
-REAL(KIND=JPRB),   INTENT(IN) :: PHCFC22(KLON,KLEV) 
-REAL(KIND=JPRB),   INTENT(IN) :: PCCL4(KLON,KLEV) 
+REAL(KIND=JPRB),   INTENT(IN) :: PQ(KLON,KLEV)
+REAL(KIND=JPRB),   INTENT(IN) :: PCO2(KLON,KLEV)
+REAL(KIND=JPRB),   INTENT(IN) :: PCH4(KLON,KLEV)
+REAL(KIND=JPRB),   INTENT(IN) :: PN2O(KLON,KLEV)
+REAL(KIND=JPRB),   INTENT(IN) :: PNO2(KLON,KLEV)
+REAL(KIND=JPRB),   INTENT(IN) :: PCFC11(KLON,KLEV)
+REAL(KIND=JPRB),   INTENT(IN) :: PCFC12(KLON,KLEV)
+REAL(KIND=JPRB),   INTENT(IN) :: PHCFC22(KLON,KLEV)
+REAL(KIND=JPRB),   INTENT(IN) :: PCCL4(KLON,KLEV)
 REAL(KIND=JPRB),   INTENT(IN) :: PO3_DP(KLON,KLEV) ! (Pa*kg/kg) !
 
 ! *** Cloud fraction and hydrometeor mass mixing ratios
@@ -147,20 +147,20 @@ REAL(KIND=JPRB),   INTENT(IN) :: PQ_SNOW(KLON,KLEV)
 REAL(KIND=JPRB),   INTENT(IN) :: PAEROSOL_OLD(KLON,6,KLEV)
 REAL(KIND=JPRB),   INTENT(IN) :: PAEROSOL(KLON,KLEV,KAEROSOL)
 
-REAL(KIND=JPRB),   INTENT(IN) :: PCCN_LAND(KLON) 
-REAL(KIND=JPRB),   INTENT(IN) :: PCCN_SEA(KLON) 
+REAL(KIND=JPRB),   INTENT(IN) :: PCCN_LAND(KLON)
+REAL(KIND=JPRB),   INTENT(IN) :: PCCN_SEA(KLON)
 
 ! OUTPUT ARGUMENTS
 
 ! *** Net fluxes on half-levels (W m-2)
-REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_SW(KLON,KLEV+1) 
-REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_LW(KLON,KLEV+1) 
-REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_SW_CLEAR(KLON,KLEV+1) 
-REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_LW_CLEAR(KLON,KLEV+1) 
+REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_SW(KLON,KLEV+1)
+REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_LW(KLON,KLEV+1)
+REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_SW_CLEAR(KLON,KLEV+1)
+REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_LW_CLEAR(KLON,KLEV+1)
 
 ! *** Surface flux components (W m-2)
-REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_SW_DN(KLON) 
-REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_LW_DN(KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NLWOUT) 
+REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_SW_DN(KLON)
+REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_LW_DN(KLON,YDMODEL%YRML_PHY_RAD%YRERAD%NLWOUT)
 REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_SW_DN_CLEAR(KLON)
 REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_LW_DN_CLEAR(KLON)
 ! Direct component of surface flux into horizontal plane
@@ -178,7 +178,7 @@ REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_PAR_CLEAR(KLON)
 ! Top-of-atmosphere incident solar flux (W m-2)
 REAL(KIND=JPRB),  INTENT(OUT) :: PFLUX_SW_DN_TOA(KLON)
 ! Diagnosed longwave surface emissivity across the whole spectrum
-REAL(KIND=JPRB),  INTENT(OUT) :: PEMIS_OUT(KLON)   
+REAL(KIND=JPRB),  INTENT(OUT) :: PEMIS_OUT(KLON)
 
 ! Partial derivative of total-sky longwave upward flux at each level
 ! with respect to upward flux at surface, used to correct heating
@@ -345,7 +345,7 @@ THERMODYNAMICS%TEMPERATURE_HL(KIDIA:KFDIA,:) = PTEMPERATURE_H(KIDIA:KFDIA,:)
 ! called from within the convection scheme.
 ! CALL SATUR(KIDIA, KFDIA, KLON, 1, KLEV, YDMODEL%YRML_PHY_SLIN%YREPHLI%LPHYLIN, &
 !!!ifsdriver!!! CALL SATUR(KIDIA, KFDIA, KLON, 1, KLEV, .false., &
-!!!ifsdriver!!!      &  PPRESSURE, PTEMPERATURE, THERMODYNAMICS%H2O_SAT_LIQ, 2)  
+!!!ifsdriver!!!      &  PPRESSURE, PTEMPERATURE, THERMODYNAMICS%H2O_SAT_LIQ, 2)
 ! Alternative approximate version using temperature and pressure from
 ! the thermodynamics structure
 CALL thermodynamics%calc_saturation_wrt_liquid(KIDIA, KFDIA)
@@ -373,7 +373,7 @@ SINGLE_LEVEL%LW_EMISSIVITY(KIDIA:KFDIA,:)  = PSPECTRALEMISS(KIDIA:KFDIA,:)
 !   ! values.  The result can be contained in a 32-byte integer (but
 !   ! since random numbers are generated with the help of integer
 !   ! overflow, it should not matter if the number did overflow).
-!   SINGLE_LEVEL%ISEED(JLON) = ITIM + IDAY & 
+!   SINGLE_LEVEL%ISEED(JLON) = ITIM + IDAY &
 !        &  +  NINT(PGELAM(JLON)*108000000.0_JPRD &
 !        &          + ASIN(PGEMU(JLON))*6000.0_JPRD)
 ! ENDDO
@@ -434,7 +434,7 @@ CALL CLOUD_OVERLAP_DECORR_LEN(YDMODEL%YRML_PHY_EC%YRECLD,KIDIA,KFDIA,KLON, &
 ! Apply SPP perturbations
 ! IF (YSPP_CONFIG%LSPP .AND. YSPP_CONFIG%LPERT_ZDECORR) THEN
   ! IF (YSPP_CONFIG%LLNN_MEAN1.OR.YSPP_CONFIG%LLNN_MEAN1_ZDECORR) THEN
-    ! ZMU_ZDECORR = -0.5_JPRB * (YSPP_CONFIG%CMPERT_ZDECORR * YSPP_CONFIG%SDEV)**2  
+    ! ZMU_ZDECORR = -0.5_JPRB * (YSPP_CONFIG%CMPERT_ZDECORR * YSPP_CONFIG%SDEV)**2
   ! ELSE
     ! ZMU_ZDECORR = 0.0_JPRB
   ! ENDIF
@@ -462,9 +462,9 @@ endif
 ! hard coded at 1.0.
 CALL YLCLOUD%CREATE_FRACTIONAL_STD(KLON, KLEV, YRERAD%RCLOUD_FRAC_STD)
 
-! if using regionally varying FSD, overwrite constant value with 
+! if using regionally varying FSD, overwrite constant value with
 ! varying value
-! IF (YDMODEL%YRML_PHY_EC%YREPHY%LRAD_CLOUD_INHOMOG) THEN 
+! IF (YDMODEL%YRML_PHY_EC%YREPHY%LRAD_CLOUD_INHOMOG) THEN
 !    DO JLEV = 1,KLEV
 !       DO JLON = KIDIA,KFDIA
 !        YLCLOUD%FRACTIONAL_STD(JLON, JLEV)=PFSD(JLON,JLEV)
@@ -476,7 +476,7 @@ CALL YLCLOUD%CREATE_FRACTIONAL_STD(KLON, KLEV, YRERAD%RCLOUD_FRAC_STD)
 ! Apply SPP perturbations
 ! IF (YSPP_CONFIG%LSPP.AND.YSPP_CONFIG%LPERT_ZSIGQCW) THEN
 !   IF (YSPP_CONFIG%LLNN_MEAN1.OR.YSPP_CONFIG%LLNN_MEAN1_ZSIGQCW) THEN
-!     ZMU_ZSIGQCW = -0.5_JPRB * (YSPP_CONFIG%CMPERT_ZSIGQCW * YSPP_CONFIG%SDEV)**2  
+!     ZMU_ZSIGQCW = -0.5_JPRB * (YSPP_CONFIG%CMPERT_ZSIGQCW * YSPP_CONFIG%SDEV)**2
 !   ELSE
 !     ZMU_ZSIGQCW = 0.0_JPRB
 !   ENDIF
@@ -511,10 +511,10 @@ IF (YDMODEL%YRML_PHY_RAD%YREAERATM%LAERCCN &
   ! MACC aerosol from climatology or prognostic aerosol variables -
   ! this is already in mass mixing ratio units with the required array
   ! orientation so we can copy it over directly
-  ! AB need to cap the minimum mass mixing ratio/AOD to avoid instability 
+  ! AB need to cap the minimum mass mixing ratio/AOD to avoid instability
   ! in case of negative values in input
-  DO JAER = 1,KAEROSOL  
-    DO JLEV = 1,KLEV    
+  DO JAER = 1,KAEROSOL
+    DO JLEV = 1,KLEV
       DO JLON = KIDIA,KFDIA
         AEROSOL%MIXING_RATIO(JLON,JLEV,JAER) = MAX(PAEROSOL(JLON,JLEV,JAER),0.0_JPRB)
       ENDDO
@@ -600,14 +600,10 @@ IF(PRESENT(FLUX_OUT)) THEN
   if (rad_config%do_lw) then
     flux_out%lw_up(kidia:kfdia,:) = flux%lw_up(kidia:kfdia,:)
     flux_out%lw_dn(kidia:kfdia,:) = flux%lw_dn(kidia:kfdia,:)
-  
+
     if (rad_config%do_clear) then
       flux_out%lw_up_clear(kidia:kfdia,:) = flux%lw_up_clear(kidia:kfdia,:)
       flux_out%lw_dn_clear(kidia:kfdia,:) = flux%lw_dn_clear(kidia:kfdia,:)
-    endif
-
-    if (rad_config%do_lw_derivatives) then
-      flux_out%lw_derivatives(kidia:kfdia,:) = flux%lw_derivatives(kidia:kfdia,:)
     endif
 
     if (rad_config%do_save_spectral_flux) then
@@ -617,6 +613,15 @@ IF(PRESENT(FLUX_OUT)) THEN
         flux_out%lw_up_clear_band(:,kidia:kfdia,:) = flux%lw_up_clear_band(:,kidia:kfdia,:)
         flux_out%lw_dn_clear_band(:,kidia:kfdia,:) = flux%lw_dn_clear_band(:,kidia:kfdia,:)
       endif
+    endif
+
+    if (rad_config%do_lw_derivatives) then
+      flux_out%lw_derivatives(kidia:kfdia,:) = flux%lw_derivatives(kidia:kfdia,:)
+    endif
+
+    flux_out%lw_dn_surf_g(:,kidia:kfdia) = flux%lw_dn_surf_g(:,kidia:kfdia)
+    if (rad_config%do_clear) then
+      flux_out%lw_dn_surf_clear_g(:,kidia:kfdia) = flux%lw_dn_surf_clear_g(:,kidia:kfdia)
     endif
 
     if (rad_config%do_canopy_fluxes_lw) then
@@ -651,18 +656,26 @@ IF(PRESENT(FLUX_OUT)) THEN
         flux_out%sw_up_clear_band(:,kidia:kfdia,:) = flux%sw_up_clear_band(:,kidia:kfdia,:)
         flux_out%sw_dn_clear_band(:,kidia:kfdia,:) = flux%sw_dn_clear_band(:,kidia:kfdia,:)
         if (rad_config%do_sw_direct) then
-          flux_out%sw_dn_direct_clear_band(:,kidia:kfdia,:) = flux%sw_dn_direct_band(:,kidia:kfdia,:)
+          flux_out%sw_dn_direct_clear_band(:,kidia:kfdia,:) = flux%sw_dn_direct_clear_band(:,kidia:kfdia,:)
         endif
       endif
-    
-    else if (rad_config%do_surface_sw_spectral_flux) then
+    endif
+
+    if (rad_config%do_surface_sw_spectral_flux) then
       flux_out%sw_dn_surf_band(:,kidia:kfdia) = flux%sw_dn_surf_band(:,kidia:kfdia)
       flux_out%sw_dn_direct_surf_band(:,kidia:kfdia) = flux%sw_dn_direct_surf_band(:,kidia:kfdia)
-        
+
       if (rad_config%do_clear) then
         flux_out%sw_dn_surf_clear_band(:,kidia:kfdia) = flux%sw_dn_surf_clear_band(:,kidia:kfdia)
         flux_out%sw_dn_direct_surf_clear_band(:,kidia:kfdia) = flux%sw_dn_direct_surf_clear_band(:,kidia:kfdia)
       endif
+    endif
+
+    flux_out%sw_dn_direct_surf_g(:,kidia:kfdia) = flux%sw_dn_direct_surf_g(:,kidia:kfdia)
+    flux_out%sw_dn_diffuse_surf_g(:,kidia:kfdia) = flux%sw_dn_diffuse_surf_g(:,kidia:kfdia)
+    if (rad_config%do_clear) then
+      flux_out%sw_dn_direct_surf_clear_g(:,kidia:kfdia) = flux%sw_dn_direct_surf_clear_g(:,kidia:kfdia)
+      flux_out%sw_dn_diffuse_surf_clear_g(:,kidia:kfdia) = flux%sw_dn_diffuse_surf_clear_g(:,kidia:kfdia)
     endif
 
     if (rad_config%do_canopy_fluxes_sw) then
@@ -781,7 +794,7 @@ IF (YRERAD%NLWOUT == 1) THEN
   ZBLACK_BODY_NET_LW = PFLUX_LW_DN(KIDIA:KFDIA,1) &
        &  - RSIGMA*PTEMPERATURE_SKIN(KIDIA:KFDIA)**4
   PEMIS_OUT(KIDIA:KFDIA) = PSPECTRALEMISS(KIDIA:KFDIA,1) ! Default value
-  WHERE (ABS(ZBLACK_BODY_NET_LW) > 1.0E-5) 
+  WHERE (ABS(ZBLACK_BODY_NET_LW) > 1.0E-5)
     ! This calculation can go outside the range of any individual
     ! spectral emissivity value, so needs to be capped
     PEMIS_OUT(KIDIA:KFDIA) = MAX(0.8_JPRB, MIN(0.99_JPRB, PFLUX_LW(KIDIA:KFDIA,KLEV+1) / ZBLACK_BODY_NET_LW))
