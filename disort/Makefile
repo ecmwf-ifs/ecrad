@@ -1,0 +1,24 @@
+SOURCES = BDREF.f DISOBRDF.f DISORT.f DISOTESTAUX.f ERRPACK.f LAPACK.f LINPAK.f RDI1MACH.f
+
+OBJECTS := $(SOURCES:.f=.o)
+LIBDISORT = ../lib/libdisort.a
+
+ifdef SINGLE_PRECISION
+  # DISORT takes single-precision arguments by default	
+  LOCALFLAGS = 
+else
+  # gfortran-specific flags to use double precision
+  LOCALFLAGS = -fdefault-real-8 -fdefault-double-8
+endif
+
+all: $(LIBDISORT)
+
+$(LIBDISORT): $(OBJECTS)
+	ar r $(LIBDISORT) $(OBJECTS)
+
+%.o: %.f
+	$(FC) $(FCFLAGS) $(LOCALFLAGS) -c $<
+
+clean:
+	rm -f *.o $(LIBDISORT)
+

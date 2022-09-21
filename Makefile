@@ -66,7 +66,7 @@ export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
-	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+	-lifsrrtm -ldisort -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
 ifdef DR_HOOK
 LIBS += -ldl -lrt
 export CFLAGS = -g -O2
@@ -91,9 +91,9 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifdef DR_HOOK
-build: directories libifsaux libdrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifsaux libdrhook libdisort libutilities libifsrrtm libradiation driver symlinks
 else
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifsaux libdummydrhook libdisort libutilities libifsrrtm libradiation driver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -118,6 +118,9 @@ libdrhook:
 
 libdummydrhook:
 	cd drhook && $(MAKE) dummy
+
+libdisort:
+	cd disort && $(MAKE)
 
 libutilities:
 	cd utilities && $(MAKE)
@@ -162,6 +165,7 @@ clean-utilities:
 	cd utilities && $(MAKE) clean
 	cd ifsrrtm && $(MAKE) clean
 	cd drhook && $(MAKE) clean
+	cd disort && $(MAKE) clean
 
 clean-mods:
 	rm -f mod/*.mod
@@ -172,6 +176,7 @@ clean-symlinks:
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
-.PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
+.PHONY: all build help deps clean-deps libifsaux libdrhook libutilities \
+	libifsrrtm libdisort \
 	libradiation driver symlinks clean clean-toplevel test test_ifs \
 	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
