@@ -23,10 +23,6 @@ subroutine ecrad_standalone_setup ( &
   & single_level, thermodynamics, gas, cloud, aerosol, &
   & ncol, nlev )
 
-  ! --------------------------------------------------------
-  ! Section 1: Declarations
-  ! --------------------------------------------------------
-
   use parkind1,                 only : jprb ! Working precision
 
   use radiation_io,             only : nulout
@@ -69,11 +65,6 @@ subroutine ecrad_standalone_setup ( &
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
-
-  ! --------------------------------------------------------
-  ! Section 2: Configure
-  ! --------------------------------------------------------
-
   ! Read "radiation" namelist into radiation configuration type
   call config%read(file_name=nml_file_name)
 
@@ -104,10 +95,6 @@ subroutine ecrad_standalone_setup ( &
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
   call setup_radiation(yderdi, config)
-
-  ! --------------------------------------------------------
-  ! Section 3: Read input data file
-  ! --------------------------------------------------------
 
   ! Open the file and configure the way it is read
   call file%open(trim(input_file_name), iverbose=driver_config%iverbose)
@@ -204,11 +191,6 @@ subroutine ecrad_standalone_run ( &
 
   ! Start/stop time in seconds
   real(kind=jprd) :: tstart, tstop
-
-
-  ! --------------------------------------------------------
-  ! Section 4: Call radiation scheme
-  ! --------------------------------------------------------
 
   ! Ensure the units of the gas mixing ratios are what is required
   ! by the gas absorption model
@@ -316,10 +298,6 @@ subroutine ecrad_standalone_save_output (file_name, driver_config, config, therm
 
   ! Are any variables out of bounds?
   logical :: is_out_of_bounds
-
-  ! --------------------------------------------------------
-  ! Section 5: Check and save output
-  ! --------------------------------------------------------
 
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 

@@ -27,6 +27,10 @@
 
 program ecrad_driver
 
+  ! --------------------------------------------------------
+  ! Section 1: Declarations
+  ! --------------------------------------------------------
+
   use radiation_config,         only : config_type
   use radiation_single_level,   only : single_level_type
   use radiation_thermodynamics, only : thermodynamics_type
@@ -61,6 +65,11 @@ program ecrad_driver
   character(len=512) :: nml_file_name, input_file_name, output_file_name
   integer            :: istatus ! Result of get_command_argument
 
+
+  ! --------------------------------------------------------
+  ! Section 2: Configure
+  ! --------------------------------------------------------
+
   ! Check program called with correct number of arguments
   if (command_argument_count() < 3) then
     stop 'Usage: ecrad config.nam input_file.nc output_file.nc'
@@ -84,16 +93,28 @@ program ecrad_driver
     stop 'Failed to read name of output NetCDF file as string of length < 512'
   end if
 
+  ! --------------------------------------------------------
+  ! Section 3: Read input data file
+  ! --------------------------------------------------------
+
   ! Run the standalone radiation scheme
   call ecrad_standalone_setup( &
     & nml_file_name, input_file_name, driver_config, config, &
     & single_level, thermodynamics, gas, cloud, aerosol, &
     & ncol, nlev )
 
+  ! --------------------------------------------------------
+  ! Section 4: Call radiation scheme
+  ! --------------------------------------------------------
+
   call ecrad_standalone_run( &
     & ncol, nlev, driver_config, config, &
     & single_level, thermodynamics, gas, cloud, aerosol, &
     & flux )
+
+  ! --------------------------------------------------------
+  ! Section 5: Check and save output
+  ! --------------------------------------------------------
 
   call ecrad_standalone_save_output( &
     & output_file_name, driver_config, config, &
