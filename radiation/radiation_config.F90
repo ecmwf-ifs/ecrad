@@ -56,13 +56,14 @@ module radiation_config
   ! for both
   enum, bind(c) 
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
-          &     ISolverSpartacus, ISolverTripleclouds 
+          &     ISolverSpartacus, ISolverTripleclouds, ISolverDISORT
   end enum
-  character(len=*), parameter :: SolverName(0:4) = (/ 'Cloudless   ', &
+  character(len=*), parameter :: SolverName(0:5) = (/ 'Cloudless   ', &
        &                                              'Homogeneous ', &
        &                                              'McICA       ', &
        &                                              'SPARTACUS   ', &
-       &                                              'Tripleclouds' /)
+       &                                              'Tripleclouds', &
+       &                                              'DISORT      ' /)
 
   ! SPARTACUS shortwave solver can treat the reflection of radiation
   ! back up into different regions in various ways

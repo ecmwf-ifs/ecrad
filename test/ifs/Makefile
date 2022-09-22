@@ -46,6 +46,12 @@ test_tripleclouds:
 		overlap_scheme_name='"Exp-Ran"'
 	$(DRIVER) config_tc.nam $(INPUT).nc $(INPUT)_tc_out.nc
 
+# DISORT solver with cloud filling the gridbox homogeneously
+test_disort:
+	$(CHANGENAM) $(CONFIG) config_disort.nam \
+		lw_solver_name='"DISORT"'
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort_out.nc
+
 # Longwave scattering; since 46R1 this is the default
 test_lwscat:
 	$(CHANGENAM) $(CONFIG) config_lwscat.nam \

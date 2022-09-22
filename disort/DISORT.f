@@ -535,13 +535,13 @@ c       ** Set input values for self-test
 c       ** Ensure that SLFTST sets all print flags off
         COMPAR = .FALSE.
 
-        CALL SLFTST( CORINT, ACCUR, ALBEDO, BTEMP, DELTAM, DTAUC( 1 ),
-     &               FBEAM, FISOT, IBCND, LAMBER, NLYR, PLANK, NPHI,
-     &               NUMU, NSTR, NTAU, ONLYFL, PHI( 1 ), PHI0, NMOM,
-     &               PMOM( 0,1 ), PRNT, PRNTU0, SSALB( 1 ), TEMIS,
-     &               TEMPER( 0 ), TTEMP, UMU( 1 ), USRANG, USRTAU,
-     &               UTAU( 1 ), UMU0, WVNMHI, WVNMLO, COMPAR, DUM,
-     &               DUM, DUM, DUM, DO_PSEUDO_SPHERE, DELTAMPLUS )
+c$$$        CALL SLFTST( CORINT, ACCUR, ALBEDO, BTEMP, DELTAM, DTAUC( 1 ),
+c$$$     &               FBEAM, FISOT, IBCND, LAMBER, NLYR, PLANK, NPHI,
+c$$$     &               NUMU, NSTR, NTAU, ONLYFL, PHI( 1 ), PHI0, NMOM,
+c$$$     &               PMOM( 0,1 ), PRNT, PRNTU0, SSALB( 1 ), TEMIS,
+c$$$     &               TEMPER( 0 ), TTEMP, UMU( 1 ), USRANG, USRTAU,
+c$$$     &               UTAU( 1 ), UMU0, WVNMHI, WVNMLO, COMPAR, DUM,
+c$$$     &               DUM, DUM, DUM, DO_PSEUDO_SPHERE, DELTAMPLUS )
 
       ENDIF
 
@@ -633,11 +633,20 @@ c     ** Calculate Planck functions
         TPLANK = 0.0
         CALL ZEROIT( PKAG,  MAXCLY + 1 )
       ELSE
-        TPLANK = TEMIS*PLKAVG( WVNMLO, WVNMHI, TTEMP )
-        BPLANK =       PLKAVG( WVNMLO, WVNMHI, BTEMP )
-        DO 40 LEV = 0, NLYR
-          PKAG( LEV ) = PLKAVG( WVNMLO, WVNMHI, TEMPER( LEV ) )
-   40   CONTINUE
+        IF (WVNMLO .LT. 0.0 .AND. WVNMHI .LE. 0.0) THEN
+!     Treat temperatures as integrated Planck functions
+          TPLANK = TEMIS * TTEMP
+          BPLANK = BTEMP
+          DO 41 LEV = 0, NLYR
+            PKAG( LEV ) = TEMPER( LEV )
+ 41       CONTINUE
+        ELSE
+          TPLANK = TEMIS*PLKAVG( WVNMLO, WVNMHI, TTEMP )
+          BPLANK =       PLKAVG( WVNMLO, WVNMHI, BTEMP )
+          DO 40 LEV = 0, NLYR
+            PKAG( LEV ) = PLKAVG( WVNMLO, WVNMHI, TEMPER( LEV ) )
+ 40       CONTINUE
+        ENDIF
       ENDIF
 
 c ========  BEGIN LOOP TO SUM AZIMUTHAL COMPONENTS OF INTENSITY  =======
@@ -923,21 +932,21 @@ c     ** Print intensities
      &               MAXUMU )
       ENDIF
 
-      IF( PASS1 ) THEN
-c       ** Compare test case results with correct answers and abort if bad
-         COMPAR = .TRUE.
-         CALL SLFTST( CORINT, ACCUR, ALBEDO, BTEMP, DELTAM, DTAUC( 1 ),
-     &                FBEAM, FISOT, IBCND, LAMBER, NLYR, PLANK, NPHI,
-     &                NUMU, NSTR, NTAU, ONLYFL, PHI( 1 ), PHI0, NMOM,
-     &                PMOM( 0,1 ), PRNT, PRNTU0, SSALB( 1 ), TEMIS,
-     &                TEMPER( 0 ), TTEMP, UMU( 1 ), USRANG, USRTAU,
-     &                UTAU( 1 ), UMU0, WVNMHI, WVNMLO, COMPAR,
-     &                FLUP( 1 ), RFLDIR( 1 ), RFLDN( 1 ), UU( 1,1,1 ),
-     &                DO_PSEUDO_SPHERE, DELTAMPLUS )
-
-         PASS1 = .FALSE.
-         GOTO 20
-      ENDIF
+c$$$      IF( PASS1 ) THEN
+c$$$c       ** Compare test case results with correct answers and abort if bad
+c$$$         COMPAR = .TRUE.
+c$$$         CALL SLFTST( CORINT, ACCUR, ALBEDO, BTEMP, DELTAM, DTAUC( 1 ),
+c$$$     &                FBEAM, FISOT, IBCND, LAMBER, NLYR, PLANK, NPHI,
+c$$$     &                NUMU, NSTR, NTAU, ONLYFL, PHI( 1 ), PHI0, NMOM,
+c$$$     &                PMOM( 0,1 ), PRNT, PRNTU0, SSALB( 1 ), TEMIS,
+c$$$     &                TEMPER( 0 ), TTEMP, UMU( 1 ), USRANG, USRTAU,
+c$$$     &                UTAU( 1 ), UMU0, WVNMHI, WVNMLO, COMPAR,
+c$$$     &                FLUP( 1 ), RFLDIR( 1 ), RFLDN( 1 ), UU( 1,1,1 ),
+c$$$     &                DO_PSEUDO_SPHERE, DELTAMPLUS )
+c$$$
+c$$$         PASS1 = .FALSE.
+c$$$         GOTO 20
+c$$$      ENDIF
 
       RETURN
       END
@@ -5560,8 +5569,8 @@ c               FLXALB = DREF( WVNMLO, WVNMHI, RMU )
 
       IF( PLANK .AND. IBCND.NE.1 ) THEN
 
-         IF( WVNMLO.LT.0.0 .OR. WVNMHI.LE.WVNMLO )
-     &       INPERR = WRTBAD( 'WVNMLO,HI' )
+!         IF( WVNMLO.LT.0.0 .OR. WVNMHI.LE.WVNMLO )
+!     &       INPERR = WRTBAD( 'WVNMLO,HI' )
 
          IF( TEMIS.LT.0.0 .OR. TEMIS.GT.1.0 ) INPERR = WRTBAD( 'TEMIS' )
 
