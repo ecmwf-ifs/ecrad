@@ -1,4 +1,9 @@
-version 1.5
+version 1.5.1
+	- Added Makefile_include.intel_atos to match compiler options on
+	  ECMWF supercomputer, plus "-heap-arrays" which is necessary for
+	  the Intel compiler
+
+version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description
 	- Optimized the LW Tripleclouds solver for cloud but not aerosol
 	  scattering
@@ -24,8 +29,22 @@ version 1.5
 	- For consistency with IFS, "PARKIND1_SINGLE" is now the
 	  preprocessor variable to detect single precision
 	- "make OMPFLAG=-DNO_OPENMP" compiles without OpenMP
+	- Generalized aerosol has ability to read old-style aerosol
+	  property files in predefined (e.g. RRTM) bands into the spectral
+	  intervals of the ecCKD gas optics scheme
+	- Added radiation_config:do_save_aerosol_optics namelist option to
+	  save aerosol optical properties in aerosol_optics.nc, and "make
+	  test_aerosol_averaging" in test/ifs to test the various
+	  combinations of gas optics scheme and aerosol optics file
+	- Added do_weighted_surface_mapping, which if false does not
+	  weight the surface albedo/emissivity by the solar/terrestrial
+	  reference Planck function, thereby reproducing ecRad-1.4.x
+	  behaviour
+	- Added Fu-Muskatel ice optics model, which can be used by the
+	  generalized cloud optics and extends the Fu model to larger
+	  effective radius
 
-version 1.4.2 (21 June 2021)
+version 1.4.2 (15 October 2021)
 	- radiation_config:do_write_double_precision writes fluxes as
 	  doubles in NetCDF file, which reduces noise in heating rate
 	  differences between two experiments

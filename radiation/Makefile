@@ -26,7 +26,8 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_general_cloud_optics_data.F90 radiation_random_numbers.F90 \
 	radiation_tcrad_lw.F90 radiation_gen_gauss_laguerre.F90 \
 	radiation_optimal_columns.F90 radiation_gauss_lognormal.F90 \
-	radiation_gauss_gamma.F90 radiation_gauss_logbeta.F90
+	radiation_gauss_gamma.F90 radiation_gauss_logbeta.F90 \
+	radiation_aerosol_optics_description.F90
 
 ifdef FLOTSAM_DIR
 SOURCES += radiation_flotsam_sw.F90 

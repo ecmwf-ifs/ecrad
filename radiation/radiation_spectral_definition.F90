@@ -63,6 +63,7 @@ module radiation_spectral_definition
     procedure :: find => find_wavenumber
     procedure :: calc_mapping
     procedure :: calc_mapping_from_bands
+    procedure :: calc_mapping_from_wavenumber_bands
     procedure :: print_mapping_from_bands
     procedure :: min_wavenumber, max_wavenumber
 
@@ -206,6 +207,9 @@ contains
     ! Indices to wavenumber intervals in spectral definition structure
     integer    :: isd, isd0, isd1, isd2, iwav
 
+    ! Wavenumber index
+    integer    :: iwav
+    
     ! Loop indices
     integer    :: jg, jwav, jband
 
@@ -264,16 +268,28 @@ contains
             weight(jwav) = (wavenum2-wavenum1) * planck_weight(jwav)
           end if
         end do
-        if (any(weight > 0.0_jprb)) then
-          mapping(jband,:) = weight / sum(weight)
-        else
-          iwav = minloc(abs(wavenumber - 0.5_jprb &
-               &  * (this%wavenumber1_band(jband)+this%wavenumber2_band(jband))),1)
-          write(nulout,'(a,i0,a,i0)') 'Warning: no cloud properties in band ', jband, &
-               &  ', using closest in wavenumber space: element ', iwav
-          mapping(jband,:)    = 0.0_jprb
-          mapping(jband,iwav) = 1.0_jprb
+        if (sum(weight) <= 0.0_jprb) then
+          ! No cloud wavenumbers lie in the band; interpolate to
+          ! central wavenumber of band instead
+          if (wavenumber(1) >= this%wavenumber2_band(jband)) then
+            ! Band is entirely below first cloudy wavenumber
+            weight(1) = 1.0_jprb
+          else if (wavenumber(nwav) <= this%wavenumber1_band(jband)) then
+            ! Band is entirely above last cloudy wavenumber
+            weight(nwav) = 1.0_jprb
+          else
+            ! Find interpolating points
+            iwav = 2
+            do while (wavenumber(iwav) < this%wavenumber2_band(jband))
+              iwav = iwav+1
+            end do
+            weight(iwav-1) = planck_weight(iwav-1) * (wavenumber(iwav) &
+                 &  - 0.5_jprb*(this%wavenumber2_band(jband)+this%wavenumber1_band(jband)))
+            weight(iwav) = planck_weight(iwav) * (-wavenumber(iwav-1) &
+                 &  + 0.5_jprb*(this%wavenumber2_band(jband)+this%wavenumber1_band(jband)))
+          end if
         end if
+        mapping(jband,:) = weight / sum(weight)
       end do
 
       deallocate(weight)
@@ -441,7 +457,14 @@ contains
   ! operation (if use_fluxes is present and .true.), the mapping works
   ! in the reverse sense: if y contains fluxes in each ecRad band or
   ! g-point, then x=matmul(mapping,y) would return fluxes in x
-  ! averaged to user-supplied "input" bands.
+  ! averaged to user-supplied "input" bands. In this version, the
+  ! bands are described by their wavelength bounds (wavelength_bound,
+  ! which must be increasing and exclude the end points) and the index
+  ! of the mapping matrix that each band corresponds to (i_intervals,
+  ! which has one more element than wavelength_bound and can have
+  ! duplicated values if an albedo/emissivity value is to be
+  ! associated with more than one discontinuous ranges of the
+  ! spectrum).
   subroutine calc_mapping_from_bands(this, temperature, &
        &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
 
@@ -662,6 +685,74 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! As calc_mapping_from_bands but in terms of wavenumber bounds from
+  ! wavenumber1 to wavenumber2
+  subroutine calc_mapping_from_wavenumber_bands(this, temperature, &
+       &  wavenumber1, wavenumber2, mapping, use_bands, use_fluxes)
+
+    use yomhook,      only : lhook, dr_hook
+    use radiation_io, only : nulerr, radiation_abort
+
+    class(spectral_definition_type), intent(in)    :: this
+    real(jprb),                      intent(in)    :: temperature   ! K
+    real(jprb), intent(in)    :: wavenumber1(:), wavenumber2(:)
+    real(jprb), allocatable,         intent(inout) :: mapping(:,:)
+    logical,    optional,            intent(in)    :: use_bands
+    logical,    optional,            intent(in)    :: use_fluxes
+
+    ! Monotonically increasing wavelength bounds (m) between
+    ! intervals, not including the outer bounds (which are assumed to
+    ! be zero and infinity)
+    real(jprb) :: wavelength_bound(size(wavenumber1)-1)
+    ! The albedo band indices corresponding to each interval
+    integer    :: i_intervals(size(wavenumber1))
+
+    ! Lower wavelength bound (m) of each band
+    real(jprb) :: wavelength1(size(wavenumber1))
+
+    logical    :: is_band_unassigned(size(wavenumber1))
+
+    ! Number of albedo/emissivity intervals represented, where some
+    ! may be grouped to have the same value of albedo/emissivity (an
+    ! example is in the thermal infrared where classically the IFS has
+    ! ninput=2 and ninterval=3, since only two emissivities are
+    ! provided representing (1) the infrared window, and (2) the
+    ! intervals to each side of the infrared window.
+    integer :: ninterval
+
+    ! Index to next band in order of increasing wavelength
+    integer :: inext
+
+    ! Loop indices
+    integer :: jint
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_wavenumber_bands',0,hook_handle)
+
+    wavelength1 = 0.01_jprb / wavenumber2
+    ninterval = size(wavelength1)
+    
+    is_band_unassigned = .true.
+
+    do jint = 1,ninterval
+      inext = minloc(wavelength1, dim=1, mask=is_band_unassigned)
+      if (jint > 1) then
+        wavelength_bound(jint-1) = wavelength1(inext)
+      end if
+      is_band_unassigned(inext) = .false.
+      i_intervals(jint) = inext
+    end do
+
+    call calc_mapping_from_bands(this, temperature, &
+         &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
+
+    if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_wavenumber_bands',1,hook_handle)
+
+  end subroutine calc_mapping_from_wavenumber_bands
+
+
+  !---------------------------------------------------------------------
   ! Print out the mapping computed by calc_mapping_from_bands
   subroutine print_mapping_from_bands(this, mapping, use_bands)
 
@@ -780,7 +871,10 @@ contains
   !---------------------------------------------------------------------
   ! Return the Planck function (in W m-2 (cm-1)-1) for a given
   ! wavenumber (cm-1) and temperature (K), ensuring double precision
-  ! for internal calculation
+  ! for internal calculation.  If temperature is 0 or less then unity
+  ! is returned; since this function is primarily used to weight an
+  ! integral by the Planck function, a temperature of 0 or less means
+  ! no weighting is to be applied.
   elemental function calc_planck_function_wavenumber(wavenumber, temperature)
 
     use parkind1,            only : jprb, jprd
@@ -793,11 +887,15 @@ contains
     real(jprd) :: freq ! Hz
     real(jprd) :: planck_fn_freq ! W m-2 Hz-1
 
-    freq = 100.0_jprd * real(SpeedOfLight,jprd) * real(wavenumber,jprd)
-    planck_fn_freq = 2.0_jprd * real(PlanckConstant,jprd) * freq**3 &
-         &  / (real(SpeedOfLight,jprd)**2 * (exp(real(PlanckConstant,jprd)*freq &
-         &     /(real(BoltzmannConstant,jprd)*real(temperature,jprd))) - 1.0_jprd))
-    calc_planck_function_wavenumber = real(planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd), jprb)
+    if (temperature > 0.0_jprd) then
+      freq = 100.0_jprd * real(SpeedOfLight,jprd) * real(wavenumber,jprd)
+      planck_fn_freq = 2.0_jprd * real(PlanckConstant,jprd) * freq**3 &
+           &  / (real(SpeedOfLight,jprd)**2 * (exp(real(PlanckConstant,jprd)*freq &
+           &     /(real(BoltzmannConstant,jprd)*real(temperature,jprd))) - 1.0_jprd))
+      calc_planck_function_wavenumber = real(planck_fn_freq * 100.0_jprd * real(SpeedOfLight,jprd), jprb)
+    else
+      calc_planck_function_wavenumber = 1.0_jprb
+    end if
 
   end function calc_planck_function_wavenumber
 

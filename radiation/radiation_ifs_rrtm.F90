@@ -67,7 +67,7 @@ contains
     
     real(jprb) :: hook_handle
 
-#include "surdi.intfb.h"
+!#include "surdi.intfb.h"
 #include "surrtab.intfb.h"
 #include "surrtpk.intfb.h"
 #include "surrtrf.intfb.h"
@@ -80,7 +80,7 @@ contains
     ! the IFS these will have been set up already; otherwise set them
     ! up now.
     if (config%do_setup_ifsrrtm) then
-      call SURDI
+      !call SURDI
       call SURRTAB
       call SURRTPK
       call SURRTRF
@@ -361,12 +361,16 @@ contains
 !      YRDIMV%NFLEVG = nlev
 !    end if
 
-    pressure_fl(istartcol:iendcol,:) &
-         &  = 0.5_jprb * (thermodynamics%pressure_hl(istartcol:iendcol,istartlev:iendlev) &
-         &               +thermodynamics%pressure_hl(istartcol:iendcol,istartlev+1:iendlev+1))
-    temperature_fl(istartcol:iendcol,:) &
-         &  = 0.5_jprb * (thermodynamics%temperature_hl(istartcol:iendcol,istartlev:iendlev) &
-         &               +thermodynamics%temperature_hl(istartcol:iendcol,istartlev+1:iendlev+1))
+    do jlev=1,nlev
+      do jcol= istartcol,iendcol
+        pressure_fl(jcol,jlev) &
+            &  = 0.5_jprb * (thermodynamics%pressure_hl(jcol,jlev+istartlev-1) &
+            &               +thermodynamics%pressure_hl(jcol,jlev+istartlev))
+        temperature_fl(jcol,jlev) &
+            &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev+istartlev-1) &
+            &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
+      end do
+    end do
     
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
@@ -510,21 +514,25 @@ contains
     
     ! Scale the incoming solar per band, if requested
     if (config%use_spectral_solar_scaling) then
-      ZINCSOL(istartcol:iendcol,:) = ZINCSOL(istartcol:iendcol,:) &
-         & * spread(single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw), &
-         &                                              1,iendcol-istartcol+1)
+      do jg = 1,JPGPT_SW
+        do jcol = istartcol,iendcol 
+          ZINCSOL(jcol,jg) = ZINCSOL(jcol,jg) * &
+            &   single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw(jg))
+        end do
+      end do
     end if
 
     ! Scaling factor to ensure that the total solar irradiance is as
     ! requested.  Note that if the sun is below the horizon then
     ! ZINCSOL will be zero.
     if (present(incoming_sw)) then
-      incoming_sw_scale = 1.0_jprb
       do jcol = istartcol,iendcol
         if (single_level%cos_sza(jcol) > 0.0_jprb) then
 ! Added for DWD (2020)
 !NEC$ nounroll
           incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(jcol,:))
+        else
+          incoming_sw_scale(jcol) = 1.0_jprb
         end if
       end do
     end if

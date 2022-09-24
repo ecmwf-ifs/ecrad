@@ -114,8 +114,8 @@ contains
       allocate(this%ssa_lw(config%n_bands_lw,istartlev:iendlev,ncol))
       allocate(this%g_lw  (config%n_bands_lw,istartlev:iendlev,ncol))
       ! If longwave scattering by aerosol is not to be represented,
-      ! then the user may wish to just provide absorption optical deth
-      ! in od_lw, in which case we must set the following two
+      ! then the user may wish to just provide absorption optical
+      ! depth in od_lw, in which case we must set the following two
       ! variables to zero
       this%ssa_lw = 0.0_jprb
       this%g_lw = 0.0_jprb

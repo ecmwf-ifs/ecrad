@@ -15,6 +15,7 @@
 ! Modifications
 !   2018-04-15  R. Hogan  Add "direct" option
 !   2020-11-14  R. Hogan  Add setup_general_aerosol_optics for ecCKD compatibility
+!   2022-03-27  R. Hogan  Add setup_general_aerosol_optics_legacy to use RRTM aerosol files with ecCKD
 
 module radiation_aerosol_optics
 
@@ -84,6 +85,7 @@ contains
 
   end subroutine setup_aerosol_optics
 
+
   !---------------------------------------------------------------------
   ! Read file containing high spectral resolution optical properties
   ! and average to the spectral intervals of the current gas-optics
@@ -97,6 +99,7 @@ contains
     use radiation_aerosol_optics_data, only : aerosol_optics_type
     use radiation_spectral_definition, only : SolarReferenceTemperature, &
          &                                    TerrestrialReferenceTemperature
+    use radiation_io,                  only : nulout
 
     type(config_type), intent(inout), target :: config
 
@@ -148,6 +151,17 @@ contains
     ao => config%aerosol_optics
 
     call file%open(trim(config%aerosol_optics_file_name), iverbose=config%iverbosesetup)
+
+    if (.not. file%exists('wavenumber')) then
+      ! Assume we have an old-style aerosol optics file with optical
+      ! properties provided per pre-defined band
+      call file%close()
+      if (config%iverbosesetup >= 2) then
+        write(nulout,'(a)') 'Legacy aerosol optics file: mapping between bands'
+      end if
+      call setup_general_aerosol_optics_legacy(config, trim(config%aerosol_optics_file_name))
+      return
+    end if
 
     if (file%exists('mass_ext_hydrophilic')) then
       ao%use_hydrophilic = .true.
@@ -315,6 +329,143 @@ contains
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_general_aerosol_optics',1,hook_handle)
 
   end subroutine setup_general_aerosol_optics
+
+
+  !---------------------------------------------------------------------
+  ! Read file containing legacy-style band-wise aerosol optical
+  ! properties and average to the spectral intervals of the current
+  ! gas-optics scheme
+  subroutine setup_general_aerosol_optics_legacy(config, file_name)
+
+    use parkind1,                      only : jprb
+    use yomhook,                       only : lhook, dr_hook
+    use easy_netcdf,                   only : netcdf_file
+    use radiation_config,              only : config_type
+    use radiation_aerosol_optics_data, only : aerosol_optics_type
+    use radiation_spectral_definition, only : SolarReferenceTemperature, &
+         &                                    TerrestrialReferenceTemperature
+
+    type(config_type), intent(inout), target :: config
+
+    ! The NetCDF file containing the aerosol optics data
+    character(len=*), intent(in) :: file_name
+
+    ! Mapping matrix between optical properties at the wavenumbers in
+    ! the file, and spectral intervals used by the gas-optics scheme
+    real(jprb), allocatable :: mapping(:,:), mapping_transp(:,:)
+
+    ! Pointer to the aerosol optics coefficients for brevity of access
+    type(aerosol_optics_type), pointer :: ao
+
+    ! Local copy of aerosol optical properties in the spectral
+    ! intervals of the file, which is deallocated when it goes out of
+    ! scope
+    type(aerosol_optics_type) :: ao_legacy
+
+    integer :: jtype
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_aerosol_optics:setup_general_aerosol_optics_legacy',0,hook_handle)
+    ao => config%aerosol_optics
+
+    ! Load file into a local structure
+    call ao_legacy%setup(file_name, iverbose=config%iverbosesetup)
+
+    ! Copy over scalars and coordinate variables
+    call ao%allocate(ao_legacy%n_type_phobic, ao_legacy%n_type_philic, ao_legacy%nrh, &
+         &           config%n_bands_lw, config%n_bands_sw, ao_legacy%n_mono_wl)
+    ao%description_phobic_str = ao_legacy%description_phobic_str
+    ao%description_philic_str = ao_legacy%description_philic_str
+    ao%rh_lower = ao_legacy%rh_lower
+
+    ! use_hydrophilic = ao_legacy%use_hydrophilic
+    ! ao%iclass = ao_legacy%iclass
+    ! ao%itype = ao_legacy%itype
+    ! ao%ntype = ao_legacy%ntype
+    ! ao%n_type_phobic = ao_legacy%n_type_phobic
+    ! ao%n_type_philic = ao_legacy%n_type_philic
+    ! ao%n_mono_wl = ao_legacy%n_mono_wl
+    ! ao%use_monochromatic = ao_legacy%use_monochromatic
+
+    if (config%do_sw) then
+      call config%gas_optics_sw%spectral_def%calc_mapping_from_wavenumber_bands(SolarReferenceTemperature, &
+           &  ao_legacy%wavenumber1_sw, ao_legacy%wavenumber2_sw, mapping_transp, &
+           &  use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point))
+      if (allocated(mapping)) then
+        deallocate(mapping)
+      end if
+      allocate(mapping(config%n_bands_sw,ao_legacy%n_bands_sw))
+      mapping = transpose(mapping_transp)
+      ao%mass_ext_sw_phobic = matmul(mapping, ao_legacy%mass_ext_sw_phobic)
+      ao%ssa_sw_phobic = matmul(mapping, ao_legacy%mass_ext_sw_phobic*ao_legacy%ssa_sw_phobic) &
+           &           / ao%mass_ext_sw_phobic
+      ao%g_sw_phobic = matmul(mapping, ao_legacy%mass_ext_sw_phobic*ao_legacy%ssa_sw_phobic &
+           &                           *ao_legacy%g_sw_phobic) &
+           &         / (ao%mass_ext_sw_phobic*ao%ssa_sw_phobic)
+
+      if (ao%use_hydrophilic) then
+        do jtype = 1,ao%n_type_philic
+          ao%mass_ext_sw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_sw_philic(:,:,jtype))
+          ao%ssa_sw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_sw_philic(:,:,jtype) &
+               &                                        *ao_legacy%ssa_sw_philic(:,:,jtype)) &
+               &           / ao%mass_ext_sw_philic(:,:,jtype)
+          ao%g_sw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_sw_philic(:,:,jtype) &
+               &               *ao_legacy%ssa_sw_philic(:,:,jtype)*ao_legacy%g_sw_philic(:,:,jtype)) &
+               &         / (ao%mass_ext_sw_philic(:,:,jtype)*ao%ssa_sw_philic(:,:,jtype))
+        end do
+      end if
+    end if
+
+    if (config%do_lw) then
+      if (allocated(mapping_transp)) then
+        deallocate(mapping_transp)
+      end if
+      call config%gas_optics_lw%spectral_def%calc_mapping_from_wavenumber_bands(TerrestrialReferenceTemperature, &
+           &  ao_legacy%wavenumber1_lw, ao_legacy%wavenumber2_lw, mapping_transp, &
+           &  use_bands=(.not. config%do_cloud_aerosol_per_lw_g_point))
+      if (allocated(mapping)) then
+        deallocate(mapping)
+      end if
+      allocate(mapping(config%n_bands_lw,ao_legacy%n_bands_lw))
+      mapping = transpose(mapping_transp)
+      ao%mass_ext_lw_phobic = matmul(mapping, ao_legacy%mass_ext_lw_phobic)
+      ao%ssa_lw_phobic = matmul(mapping, ao_legacy%mass_ext_lw_phobic*ao_legacy%ssa_lw_phobic) &
+           &           / ao%mass_ext_lw_phobic
+      ao%g_lw_phobic = matmul(mapping, ao_legacy%mass_ext_lw_phobic*ao_legacy%ssa_lw_phobic &
+           &                           *ao_legacy%g_lw_phobic) &
+           &         / (ao%mass_ext_lw_phobic*ao%ssa_lw_phobic)
+
+      if (ao%use_hydrophilic) then
+        do jtype = 1,ao%n_type_philic
+          ao%mass_ext_lw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_lw_philic(:,:,jtype))
+          ao%ssa_lw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_lw_philic(:,:,jtype) &
+               &                                        *ao_legacy%ssa_lw_philic(:,:,jtype)) &
+               &           / ao%mass_ext_lw_philic(:,:,jtype)
+          ao%g_lw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_lw_philic(:,:,jtype) &
+               &               *ao_legacy%ssa_lw_philic(:,:,jtype)*ao_legacy%g_lw_philic(:,:,jtype)) &
+               &         / (ao%mass_ext_lw_philic(:,:,jtype)*ao%ssa_lw_philic(:,:,jtype))
+        end do
+      end if
+    end if
+
+    if (allocated(ao_legacy%wavelength_mono)) then
+      ao%wavelength_mono = ao_legacy%wavelength_mono
+      ao%mass_ext_mono_phobic = ao_legacy%mass_ext_mono_phobic
+      ao%ssa_mono_phobic = ao_legacy%ssa_mono_phobic
+      ao%g_mono_phobic = ao_legacy%g_mono_phobic
+      ao%lidar_ratio_mono_phobic = ao_legacy%lidar_ratio_mono_phobic
+      if (ao%use_hydrophilic) then
+        ao%mass_ext_mono_philic = ao_legacy%mass_ext_mono_philic
+        ao%ssa_mono_philic = ao_legacy%ssa_mono_philic
+        ao%g_mono_philic = ao_legacy%g_mono_philic
+        ao%lidar_ratio_mono_philic = ao_legacy%lidar_ratio_mono_philic
+      end if
+    end if
+
+    if (lhook) call dr_hook('radiation_aerosol_optics:setup_general_aerosol_optics_legacy',1,hook_handle)
+
+  end subroutine setup_general_aerosol_optics_legacy
 
 
   !---------------------------------------------------------------------
