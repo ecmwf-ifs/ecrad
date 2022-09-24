@@ -5388,7 +5388,7 @@ c     ..
       IF( NSTR.EQ.2 )
      &    CALL ERRMSG( 'CHEKIN--2 streams not recommended; '//
      &                 'use specialized 2-stream code TWOSTR instead',
-     &                 .True.)
+     &                 .False.)
 
       IF( NLYR.LT.1 ) INPERR = WRTBAD( 'NLYR' )
 
