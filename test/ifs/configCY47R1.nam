@@ -63,6 +63,7 @@ do_fu_lw_ice_optics_bug = false,
 do_sw_delta_scaling_with_gases = false,
 do_canopy_fluxes_lw     = true,
 do_canopy_fluxes_sw     = true,
+n_angles_per_hemisphere_lw = 1,
 !do_cloud_aerosol_per_sw_g_point=false 
 !
 ! SURFACE ALBEDO AND EMISSIVITY

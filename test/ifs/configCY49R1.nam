@@ -65,6 +65,7 @@ do_canopy_fluxes_lw     = true,
 do_canopy_fluxes_sw     = true,
 do_cloud_aerosol_per_sw_g_point=true,
 do_cloud_aerosol_per_lw_g_point=true, 
+n_angles_per_hemisphere_lw = 1,
 !
 ! SURFACE ALBEDO AND EMISSIVITY
 do_nearest_spectral_sw_albedo = false,

@@ -49,7 +49,7 @@ test_tripleclouds:
 # DISORT solver with cloud filling the gridbox homogeneously
 test_disort:
 	$(CHANGENAM) $(CONFIG) config_disort.nam \
-		lw_solver_name='"DISORT"'
+		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=2
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort_out.nc
 
 # Longwave scattering; since 46R1 this is the default

@@ -360,6 +360,10 @@ module radiation_config
     ! clouds?
     logical :: do_lw_side_emissivity = .true.
 
+    ! Number of angles per hemisphere in longwave discrete-ordinate
+    ! solvers; double to get the number of streams
+    integer :: n_angles_per_hemisphere_lw = 2
+
     ! The 3D transfer rate "X" is such that if transport out of a
     ! region was the only process occurring then by the base of a
     ! layer only exp(-X) of the original flux would remain in that
@@ -648,6 +652,7 @@ contains
     logical :: do_3d_effects, use_expm_everywhere, use_aerosols
     logical :: use_general_cloud_optics, use_general_aerosol_optics
     logical :: do_lw_side_emissivity
+    integer :: n_angles_per_hemisphere_lw
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
     logical :: do_save_radiative_properties, do_save_spectral_flux
@@ -692,6 +697,7 @@ contains
 
     namelist /radiation/ do_sw, do_lw, do_sw_direct, &
          &  do_3d_effects, do_lw_side_emissivity, do_clear, &
+         &  n_angles_per_hemisphere_lw, &
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
@@ -735,6 +741,7 @@ contains
     do_3d_effects = this%do_3d_effects
     do_3d_lw_multilayer_effects = this%do_3d_lw_multilayer_effects
     do_lw_side_emissivity = this%do_lw_side_emissivity
+    n_angles_per_hemisphere_lw = this%n_angles_per_hemisphere_lw
     do_clear = this%do_clear
     do_lw_aerosol_scattering = this%do_lw_aerosol_scattering
     do_lw_cloud_scattering = this%do_lw_cloud_scattering
@@ -891,6 +898,7 @@ contains
     this%do_3d_effects = do_3d_effects
     this%do_3d_lw_multilayer_effects = do_3d_lw_multilayer_effects
     this%do_lw_side_emissivity = do_lw_side_emissivity
+    this%n_angles_per_hemisphere_lw = n_angles_per_hemisphere_lw
     this%use_expm_everywhere = use_expm_everywhere
     this%use_aerosols = use_aerosols
     this%do_lw_cloud_scattering = do_lw_cloud_scattering
@@ -1239,18 +1247,21 @@ contains
 
     if ((this%do_lw .and. this%do_sw) .and. &
          & (     (      this%i_solver_sw == ISolverHomogeneous  &
-         &        .and. this%i_solver_lw /= ISolverHomogeneous) &
+         &        .and. .not. (this%i_solver_lw == ISolverHomogeneous &
+         &                     .or. this%i_solver_lw == ISolverDISORT)) &
          &  .or. (      this%i_solver_sw /= ISolverHomogeneous  &
-         &        .and. this%i_solver_lw == ISolverHomogeneous) &
-         & ) ) then
-      write(nulerr,'(a)') '*** Error: if one solver is "Homogeneous" then the other must be'
+         &        .and. (this%i_solver_lw == ISolverHomogeneous &
+         &               .or. this%i_solver_lw == ISolverDISORT)) &
+         & )) then
+      write(nulerr,'(a)') '*** Error: if one solver is "Homogeneous" or "DISORT" then the other must be'
       call radiation_abort('Radiation configuration error')
     end if
 
     ! Set is_homogeneous if the active solvers are homogeneous, since
     ! this affects how "in-cloud" water contents are computed
     if (        (this%do_sw .and. this%i_solver_sw == ISolverHomogeneous) &
-         & .or. (this%do_lw .and. this%i_solver_lw == ISolverHomogeneous)) then
+         & .or. (this%do_lw .and. (this%i_solver_lw == ISolverHomogeneous &
+         &                         .or. this%i_solver_lw == ISolverDISORT))) then
       this%is_homogeneous = .true.
     end if
 
@@ -1490,6 +1501,10 @@ contains
                &   'overhang_factor', this%overhang_factor)
         end if
 
+      else if (this%i_solver_lw == ISolverDISORT) then
+        write(nulout, '(a)') '  DISORT option:'
+        call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &
+             &  this%n_angles_per_hemisphere_lw)
       else if (this%i_solver_sw == ISolverMcICA &
            &  .or. this%i_solver_lw == ISolverMcICA) then
         call print_logical('  Use vectorizable McICA cloud generator', &

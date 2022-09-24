@@ -40,10 +40,8 @@ contains
 
     implicit none
 
-    integer, parameter :: nstream = 4
     ! Number of angles for radiance calculation (not needed, so set to
     ! 1)
-    integer, parameter :: nmu = nstream
     integer, parameter :: nphi = 1
     
     ! Inputs
@@ -84,18 +82,25 @@ contains
     real(jprb), dimension(nlev) :: od_in, ssa_in
 
     ! Coefficients of a Legendre decompositon of the phase function
-    real(jprb), dimension(0:nstream,nlev) :: pf_mom
+    real(jprb), dimension(0:config%n_angles_per_hemisphere_lw*2,nlev) :: pf_mom
 
     ! Dummy arguments to DISORT
-    !real(jprb) :: dummy(nlev), dummy2(1,1), dummy3(1,1,1)
-    real(jprb) :: phi(nphi), mu(nmu)
+    real(jprb) :: phi(nphi), mu(config%n_angles_per_hemisphere_lw*2)
     real(jprb) :: h_layer(0:nlev)
-    real(jprb) :: rhoq(nstream/2, 0:nstream/2, 0:(nstream-1))
-    real(jprb) :: rhou(nmu, 0:nstream/2, 0:(nstream-1))
-    real(jprb) :: rho_accurate(nmu,nphi)
-    real(jprb) :: bemst(nstream/2), emust(nmu)
-    real(jprb) :: dfdt(nlev+1), uavg(nlev+1), uu(nmu,nlev+1,nphi)
-    real(jprb) :: albmed(nmu), trnmed(nmu), flux_dn_dir(nlev+1), od_out(nlev+1)
+    real(jprb) :: rhoq(config%n_angles_per_hemisphere_lw, &
+         &             0:config%n_angles_per_hemisphere_lw, &
+         &             0:(config%n_angles_per_hemisphere_lw*2-1))
+    real(jprb) :: rhou(config%n_angles_per_hemisphere_lw*2, &
+         &             0:config%n_angles_per_hemisphere_lw, &
+         &             0:(config%n_angles_per_hemisphere_lw*2-1))
+    real(jprb) :: rho_accurate(config%n_angles_per_hemisphere_lw*2,nphi)
+    real(jprb) :: bemst(config%n_angles_per_hemisphere_lw)
+    real(jprb) :: emust(config%n_angles_per_hemisphere_lw*2)
+    real(jprb) :: dfdt(nlev+1), uavg(nlev+1)
+    real(jprb) :: uu(config%n_angles_per_hemisphere_lw*2,nlev+1,nphi)
+    real(jprb) :: albmed(config%n_angles_per_hemisphere_lw*2)
+    real(jprb) :: trnmed(config%n_angles_per_hemisphere_lw*2)
+    real(jprb) :: flux_dn_dir(nlev+1), od_out(nlev+1)
 
     ! Planck functions per sterad (black-body flux divided by pi)
     real(jprb) :: planck_hl_per_sr(nlev+1), planck_surf_per_sr
@@ -154,7 +159,9 @@ contains
         planck_hl_per_sr = planck_hl(jg,:,jcol) / Pi
         planck_surf_per_sr = emission(jg,jcol)/(Pi*(1.0_jprb-albedo(jg,jcol)))
         
-        call disort(nlev, nstream, nstream, nmu, nphi, nlev+1, &
+        call disort(nlev, config%n_angles_per_hemisphere_lw*2, &
+             &  config%n_angles_per_hemisphere_lw*2, &
+             &  config%n_angles_per_hemisphere_lw*2, nphi, nlev+1, &
              &  .false., .false., 0, .true., spread(.false.,1,5), &
              &  .true., .true., .false., .false., od_in, &
              &  ssa_in, pf_mom, planck_hl_per_sr, -1.0_jprb, -1.0_jprb, &
@@ -181,6 +188,20 @@ contains
              &                   flux%lw_dn_clear_band(:,jcol,:))
       end if
 
+      flux%lw_up(jcol,:) = flux%lw_up_clear(jcol,:)
+      flux%lw_dn(jcol,:) = flux%lw_dn_clear(jcol,:)
+      flux%lw_dn_surf_g(:,jcol) = flux_dn(:,nlev+1)
+      
+      ! Save the spectral fluxes if required
+      if (config%do_save_spectral_flux) then
+        flux%lw_up_band(:,jcol,:) = flux%lw_up_clear_band(:,jcol,:)
+        flux%lw_dn_band(:,jcol,:) = flux%lw_dn_clear_band(:,jcol,:)
+      end if
+
+      if (config%do_lw_derivatives) then
+        flux%lw_derivatives(jcol,:) = 1.0_jprb
+      end if
+      
     end do
 
     if (lhook) call dr_hook('radiation_disort_lw:solver_disort_lw',1,hook_handle)
