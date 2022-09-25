@@ -210,7 +210,8 @@ contains
     use radiation_config, only : config_type, IIceModelFu, IIceModelBaran, &
          &                       IIceModelBaran2016, IIceModelBaran2017, &
          &                       IIceModelYi, &
-         &                       ILiquidModelSOCRATES, ILiquidModelSlingo
+         &                       ILiquidModelSOCRATES, ILiquidModelSlingo, &
+         &                       ICloudScalingOne, ICloudScalingFraction
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type
     use radiation_constants, only         : AccelDueToGravity
@@ -300,16 +301,20 @@ contains
         if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
 
           ! Compute in-cloud liquid and ice water path
-          if (config%is_homogeneous) then
+          if (config%cloud_scaling_mode == ICloudScalingOne) then
             ! Homogeneous solvers assume cloud fills the box
             ! horizontally, so we don't divide by cloud fraction
             factor = ( thermodynamics%pressure_hl(jcol,jlev+1)    &
                  &  -thermodynamics%pressure_hl(jcol,jlev  )  ) &
                  &  / AccelDueToGravity
-          else
+          else if (config%cloud_scaling_mode == ICloudScalingFraction) then
             factor = ( thermodynamics%pressure_hl(jcol,jlev+1)    &
                  &  -thermodynamics%pressure_hl(jcol,jlev  )  ) &
                  &  / (AccelDueToGravity * cloud%fraction(jcol,jlev))
+          else
+            write(nulerr,*) '*** Error: Unable to compute in-cloud water content for scaling mode ', &
+                 &          config%cloud_scaling_mode
+            call radiation_abort()
           end if
           lwp_in_cloud = factor * cloud%q_liq(jcol,jlev)
           iwp_in_cloud = factor * cloud%q_ice(jcol,jlev)

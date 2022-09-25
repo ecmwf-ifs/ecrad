@@ -85,7 +85,7 @@ contains
     end if
 
     ! Whether or not the "radiation" subroutine needs ssa_lw_cloud and
-    ! g_lw_cloud arrays depends on whether longwave scattering by
+    ! pf_lw_cloud arrays depends on whether longwave scattering by
     ! hydrometeors is to be included.  If not, one of the array
     ! dimensions will be set to zero.
     if (config%do_lw_cloud_scattering) then
@@ -245,22 +245,29 @@ contains
          &  ssa_lw, g_lw
 
     ! Layer in-cloud optical depth, single scattering albedo and
-    ! asymmetry factor of hydrometeors in each longwave band, where
-    ! the latter two variables are only defined if hydrometeor
-    ! longwave scattering is enabled (otherwise both are treated as
-    ! zero).
+    ! asymmetry factor (or phase function components) of hydrometeors
+    ! in each longwave band, where the latter two variables are only
+    ! defined if hydrometeor longwave scattering is enabled (otherwise
+    ! both are treated as zero).
     real(jprb), dimension(config%n_bands_lw,nlev,istartcol:iendcol) :: od_lw_cloud
     real(jprb), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol) :: &
-         &  ssa_lw_cloud, g_lw_cloud
+         &  ssa_lw_cloud
+    real(jprb), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol,config%n_pf_lw) &
+         &  :: pf_lw_cloud
 
     ! Layer optical depth, single scattering albedo and asymmetry factor of
     ! gases and aerosols at each shortwave g-point
     real(jprb), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: od_sw, ssa_sw, g_sw
 
-    ! Layer in-cloud optical depth, single scattering albedo and
-    ! asymmetry factor of hydrometeors in each shortwave band
+    ! Layer in-cloud optical depth and single scattering albedo of
+    ! hydrometeors in each shortwave band
     real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol)   :: &
-         &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud
+         &  od_sw_cloud, ssa_sw_cloud
+
+    ! Variables describing the shortwave phase function; can be just
+    ! asymmetry factor or extra variables if DISORT is being used
+    real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol,config%n_pf_sw) &
+         &  :: pf_sw_cloud
 
     ! The Planck function (emitted flux from a black body) at half
     ! levels
@@ -345,18 +352,18 @@ contains
         if (config%i_gas_model == IGasModelMonochromatic) then
           call cloud_optics_mono(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, &
-               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+               &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
         elseif (config%use_general_cloud_optics) then
           call general_cloud_optics(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, & 
-               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+               &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
         else
           call cloud_optics(nlev, istartcol, iendcol, &
                &  config, thermodynamics, cloud, & 
-               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-               &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+               &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
         end if
       end if ! do_clouds
 
@@ -393,8 +400,8 @@ contains
              &  planck_hl, lw_emission, lw_albedo, &
              &  sw_albedo_direct, sw_albedo_diffuse, incoming_sw, &
              &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw, &
-             &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-             &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+             &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
+             &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
       end if
 
       if (config%do_lw) then
@@ -407,31 +414,31 @@ contains
           call solver_mcica_lw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
-               &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
+               &  pf_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
         else if (config%i_solver_lw == ISolverSPARTACUS) then
           ! Compute fluxes using the SPARTACUS longwave solver
           call solver_spartacus_lw(nlev,istartcol,iendcol, &
                &  config, thermodynamics, cloud, & 
-               &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+               &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
                &  planck_hl, lw_emission, lw_albedo, flux)
         else if (config%i_solver_lw == ISolverTripleclouds) then
           ! Compute fluxes using the Tripleclouds longwave solver
           call solver_tripleclouds_lw(nlev,istartcol,iendcol, &
                &  config, cloud, & 
-               &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+               &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
                &  planck_hl, lw_emission, lw_albedo, flux)
         elseif (config%i_solver_lw == ISolverHomogeneous) then
           ! Compute fluxes using the homogeneous solver
           call solver_homogeneous_lw(nlev,istartcol,iendcol, &
                &  config, cloud, & 
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
-               &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
+               &  pf_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
         elseif (config%i_solver_lw == ISolverDISORT) then
           ! Compute fluxes using the DISORT solver
           call solver_disort_lw(nlev,istartcol,iendcol, &
                &  config, cloud, & 
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
-               &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
+               &  pf_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
         else
           ! Compute fluxes using the cloudless solver
           call solver_cloudless_lw(nlev,istartcol,iendcol, &
@@ -450,28 +457,28 @@ contains
           call solver_mcica_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
-               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         else if (config%i_solver_sw == ISolverSPARTACUS) then
           ! Compute fluxes using the SPARTACUS shortwave solver
           call solver_spartacus_sw(nlev,istartcol,iendcol, &
                &  config, single_level, thermodynamics, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
-               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         else if (config%i_solver_sw == ISolverTripleclouds) then
           ! Compute fluxes using the Tripleclouds shortwave solver
           call solver_tripleclouds_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
-               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         elseif (config%i_solver_sw == ISolverHomogeneous) then
           ! Compute fluxes using the homogeneous solver
           call solver_homogeneous_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
-               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         else
           ! Compute fluxes using the cloudless solver

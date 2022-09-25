@@ -22,6 +22,13 @@ module radiation_general_cloud_optics_data
 
   public
 
+  ! Enumerators for defining how the phase function shape is to be
+  ! characterized: phase function only, Legendre polynomials or
+  ! FLOTSAM decomposition
+  enum, bind(c) 
+     enumerator IPhaseFuncAsymmetry, IPhaseFuncLegendre, IPhaseFuncFLOTSAM
+  end enum
+
   !---------------------------------------------------------------------
   ! This type holds the configuration information to compute optical
   ! properties for a particular type of cloud or hydrometeor in one of
@@ -31,12 +38,13 @@ module radiation_general_cloud_optics_data
     ! versus effective radius dimensioned (nband,n_effective_radius)
     
     ! Extinction coefficient per unit mass (m2 kg-1)
-    real(jprb), allocatable, dimension(:,:) :: &
-         &  mass_ext
+    real(jprb), allocatable, dimension(:,:) :: mass_ext
     
-    ! Single-scattering albedo and asymmetry factor (dimensionless)
-    real(jprb), allocatable, dimension(:,:) :: &
-         &  ssa, asymmetry
+    ! Single-scattering albedo (dimensionless)
+    real(jprb), allocatable, dimension(:,:) :: ssa
+
+    ! Phase function description, dimensioned (nband,n_effective_radius,ncomponent)
+    real(jprb), allocatable, dimension(:,:,:) :: pf
 
     ! Number of effective radius coefficients, start value and
     ! interval in look-up table
@@ -48,6 +56,12 @@ module radiation_general_cloud_optics_data
     ! generate the name of the data file from which the coefficients
     ! are read.
     character(len=511) :: type_name, scheme_name
+
+    ! Phase function mode (asymmetry factor, Legendre or FLOTSAM)
+    integer :: pf_mode = IPhaseFuncAsymmetry
+    
+    ! Number of phase-function components
+    integer :: n_pf_components = 1
     
     ! Do we use bands or g-points?
     logical :: use_bands = .false.
@@ -68,25 +82,32 @@ contains
   subroutine setup_general_cloud_optics(this, file_name, specdef, &
        &                                use_bands, use_thick_averaging, &
        &                                weighting_temperature, &
-       &                                iverbose)
+       &                                iverbose, pf_mode, n_pf_components)
 
     use yomhook,                       only : lhook, dr_hook
     use easy_netcdf,                   only : netcdf_file
-    use radiation_spectral_definition, only : spectral_definition_type
+    use radiation_constants,           only : Pi
     use radiation_io,                  only : nulout, nulerr, radiation_abort
+    use radiation_spectral_definition, only : spectral_definition_type
 
-    class(general_cloud_optics_type), intent(inout)    :: this
+    class(general_cloud_optics_type), intent(inout), target :: this
     character(len=*), intent(in)               :: file_name
     type(spectral_definition_type), intent(in) :: specdef
     logical, intent(in), optional              :: use_bands, use_thick_averaging
     real(jprb), intent(in), optional           :: weighting_temperature ! K
     integer, intent(in), optional              :: iverbose
+    integer, intent(in), optional              :: pf_mode
+    integer, intent(in), optional              :: n_pf_components
     
     ! Spectral properties read from file, dimensioned (wavenumber,
     ! n_effective_radius)
     real(jprb), dimension(:,:), allocatable :: mass_ext, & ! m2 kg-1
          &                                     ssa, asymmetry
 
+    ! Asymmetry factor after averaging, dimensioned (band,
+    ! n_effective_radius)
+    real(jprb), dimension(:,:), allocatable :: asymmetry_band
+    
     ! Reflectance of an infinitely thick cloud, needed for thick
     ! averaging
     real(jprb), dimension(:,:), allocatable :: ref_inf
@@ -101,6 +122,10 @@ contains
     ! dimensioned (ngpoint,nwav)
     real(jprb), dimension(:,:), allocatable :: mapping
 
+    ! Scattering phase function and scattering angles
+    real(jprb), dimension(:,:,:), allocatable :: phase_function, phase_function_band
+    real(jprb), dimension(:), allocatable :: scattering_angle
+    
     ! The NetCDF file containing the coefficients
     type(netcdf_file)  :: file
 
@@ -108,7 +133,10 @@ contains
     integer    :: iverb
     integer    :: nre  ! Number of effective radii
     integer    :: nwav ! Number of wavenumbers describing cloud
-
+    integer    :: nang ! Number of angles describing phase function
+    integer    :: nband! Number of bands (or g points)
+    integer    :: jband, jwav, jang, jre ! Loop indices
+    
     logical    :: use_bands_local, use_thick_averaging_local
 
     real(jprb) :: hook_handle
@@ -145,6 +173,24 @@ contains
     ! Read the band-specific coefficients
     call file%get('mass_extinction_coefficient', mass_ext)
     call file%get('single_scattering_albedo', ssa)
+
+    if (present(pf_mode)) then
+      this%pf_mode = pf_mode
+      this%n_pf_components = n_pf_components
+      if (pf_mode /= IPhaseFuncAsymmetry) then
+        if (file%exists('phase_function')) then
+          call file%get('scattering_angle', scattering_angle)
+          scattering_angle = scattering_angle * (Pi/180.0_jprb)
+          nang  = size(scattering_angle)
+          call file%get('phase_function',   phase_function)
+        else
+          write(nulerr, '(a,a)') '*** Error: phase_function not present in ', &
+               &  trim(file_name)
+          call radiation_abort('Radiation configuration error')
+        end if
+      end if
+    end if
+
     call file%get('asymmetry_factor', asymmetry)
 
     ! Close scattering file
@@ -187,9 +233,36 @@ contains
     ! Thin averaging
     this%mass_ext  = matmul(mapping, mass_ext)
     this%ssa       = matmul(mapping, mass_ext*ssa) / this%mass_ext
-    this%asymmetry = matmul(mapping, mass_ext*ssa*asymmetry) / (this%mass_ext*this%ssa)
+    nband = size(this%mass_ext,1)
+    allocate(this%pf(nband,nre,this%n_pf_components))
     
-    if (use_thick_averaging_local) then
+    asymmetry_band = matmul(mapping, mass_ext*ssa*asymmetry) / (this%mass_ext*this%ssa)
+    
+    if (this%pf_mode /= IPhaseFuncAsymmetry) then
+      ! Spectral averaging of phase function, weighted by scattering
+      ! coefficient
+      allocate(phase_function_band(nang,nband,this%n_effective_radius))
+      phase_function_band = 0.0_jprb
+      do jre = 1,nre
+        do jwav = 1,nwav
+          do jband = 1,nband
+            phase_function_band(:,jband,jre) = phase_function_band(:,jband,jre) &
+                 &  + mapping(jband,jwav) * mass_ext(jwav,jre) * ssa(jwav,jre) &
+                 &    * phase_function(:,jwav,jre)
+          end do
+        end do
+      end do
+      do jang = 1,nang
+        phase_function_band(jang,:,:) = phase_function_band(jang,:,:) / (this%mass_ext*this%ssa)
+      end do
+      
+      call legendre_decomposition(nang, scattering_angle, phase_function_band, &
+           &                      n_pf_components, this%pf)
+      !print *, 'Asymmetry factor from Legendre: ', this%pf(:,nre,1)/3.0_jprb
+      if (use_thick_averaging_local) then
+        write(nulout,'(a)') 'Warning: thick averaging not performed when using Legendre decomposition' 
+      end if
+    else if (use_thick_averaging_local) then
       ! Thick averaging as described by Edwards and Slingo (1996),
       ! modifying only the single-scattering albedo
       allocate(ref_inf(nwav, nre))
@@ -201,16 +274,23 @@ contains
       this%ssa = matmul(mapping, ref_inf)
       ! Eq. 19 of Edwards and Slingo (1996)
       this%ssa = 4.0_jprb * this%ssa / ((1.0_jprb + this%ssa)**2 &
-           &  - this%asymmetry * (1.0_jprb - this%ssa)**2)
+           &  - asymmetry_band * (1.0_jprb - this%ssa)**2)
 
       deallocate(ref_inf)
     end if
 
-    deallocate(mapping)
-
     ! Revert back to unscaled quantities
-    call revert_delta_eddington(this%mass_ext, this%ssa, this%asymmetry)
+    call revert_delta_eddington(this%mass_ext, this%ssa, asymmetry_band)
 
+    if (this%pf_mode == IPhaseFuncAsymmetry) then
+      this%pf(:,:,1) = asymmetry_band
+    !else
+    !  print *, 'Asymmetry factor:              ', asymmetry_band(:,nre)
+    end if
+    
+    deallocate(asymmetry_band)  
+    deallocate(mapping)
+    
     if (iverb >= 2) then
       write(nulout,'(a,a)') '  File: ', trim(file_name)
       write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', weighting_temperature, ' K'
@@ -228,6 +308,11 @@ contains
            &  effective_radius(1)*1.0e6_jprb, '-', effective_radius(nre)*1.0e6_jprb, ' um'
       write(nulout,'(a,i0,a,i0,a)') '  Wavenumber range: ', int(specdef%min_wavenumber()), '-', &
            &  int(specdef%max_wavenumber()), ' cm-1'
+      if (this%pf_mode == IPhaseFuncAsymmetry) then
+        write(nulout,'(a)') '  Phase function represented by asymmetry factor'
+      else if (this%pf_mode == IPhaseFuncLegendre) then
+        write(nulout,'(a,i0,a)') '  Phase function represented by ', this%n_pf_components, ' Legendre terms'
+      end if
     end if
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup',1,hook_handle)
@@ -241,7 +326,7 @@ contains
   subroutine add_optical_properties(this, ng, nlev, ncol, &
        &                            cloud_fraction, &
        &                            water_path, effective_radius, &
-       &                            od, scat_od, scat_asymmetry)
+       &                            od, scat_od, scat_pf)
 
     use yomhook, only : lhook, dr_hook
 
@@ -260,15 +345,16 @@ contains
     real(jprb), intent(inout), dimension(ng,nlev,ncol) &
          &  :: od             ! Optical depth of layer
     real(jprb), intent(inout), dimension(ng,nlev,ncol), optional &
-         &  :: scat_od, &     ! Scattering optical depth of layer
-         &     scat_asymmetry ! Scattering optical depth x asymmetry factor
+         &  :: scat_od        ! Scattering optical depth of layer
+    real(jprb), intent(inout), dimension(ng,nlev,ncol,this%n_pf_components), optional &
+         &  :: scat_pf        ! Scattering optical depth x phase function component
 
     real(jprb) :: od_local(ng)
 
     real(jprb) :: re_index, weight1, weight2
     integer :: ire
 
-    integer :: jcol, jlev
+    integer :: jcol, jlev, jcomp
 
     real(jprb) :: hook_handle
 
@@ -289,9 +375,13 @@ contains
             od_local = od_local * (weight1*this%ssa(:,ire) &
                  &                +weight2*this%ssa(:,ire+1))
             scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
-            scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
-                 & + od_local * (weight1*this%asymmetry(:,ire) &
-                 &              +weight2*this%asymmetry(:,ire+1))
+            ! Loop over components describing the phase function
+            ! (might be just asymmetry factor)
+            do jcomp = 1,this%n_pf_components
+              scat_pf(:,jlev,jcol,jcomp) = scat_pf(:,jlev,jcol,jcomp) &
+                   & + od_local * (weight1*this%pf(:,ire,jcomp) &
+                   &              +weight2*this%pf(:,ire+1,jcomp))
+            end do
           end if
         end do
       end do
@@ -343,4 +433,46 @@ contains
 
   end function calc_planck_function_wavenumber
 
+  
+  !---------------------------------------------------------------------
+  ! Perform a Legendre decomposition of the scattering phase function
+  subroutine legendre_decomposition(nang, scattering_angle, pf_in, n_pf_components, pf)
+    integer,    intent(in)  :: nang
+    real(jprb), intent(in)  :: scattering_angle(:) ! radians
+    real(jprb), intent(in)  :: pf_in(:,:,:)
+    integer,    intent(in)  :: n_pf_components
+    real(jprb), intent(out) :: pf(:,:,:)
+
+    real(jprb) :: cos_ang(nang)
+    real(jprb) :: weight(nang-1)
+    real(jprb) :: p0_legendre(nang)
+    real(jprb) :: p1_legendre(nang)
+    real(jprb) :: p_legendre(nang)
+
+    integer :: jc, ja
+
+    cos_ang = cos(scattering_angle)
+    weight  = cos_ang(1:nang-1)-cos_ang(2:nang)
+    
+    p0_legendre = 1.0_jprb
+    p1_legendre = cos_ang;
+
+    pf = 0.0_jprb
+    
+    do jc = 1,n_pf_components
+      if (jc == 1) then
+        p_legendre = cos_ang
+      else
+        p_legendre = ((2.0_jprb*jc + 1.0_jprb)*p1_legendre - jc*p0_legendre) / (jc+1.0_jprb)
+        p0_legendre = p1_legendre
+        p1_legendre = p_legendre
+      end if
+      do ja = 1,nang-1
+        pf(:,:,jc) = pf(:,:,jc) + weight(ja)*(0.5_jprb*jc+0.25_jprb) &
+             &  * (p_legendre(ja)*pf_in(ja,:,:) + p_legendre(ja+1)*pf_in(ja+1,:,:))
+      end do
+    end do
+    
+  end subroutine legendre_decomposition
+  
 end module radiation_general_cloud_optics_data

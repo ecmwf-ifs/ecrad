@@ -38,11 +38,12 @@ module radiation_config
   use parkind1,                      only : jprb
 
   use radiation_cloud_optics_data,   only : cloud_optics_type
-  use radiation_general_cloud_optics_data,   only : general_cloud_optics_type
+  use radiation_general_cloud_optics_data,   only : general_cloud_optics_type, &
+       &  IPhaseFuncAsymmetry, IPhaseFuncLegendre
   use radiation_aerosol_optics_data, only : aerosol_optics_type
   use radiation_pdf_sampler,         only : pdf_sampler_type
   use radiation_cloud_cover,         only : OverlapName, &
-       & IOverlapMaximumRandom, IOverlapExponentialRandom, IOverlapExponential
+       &  IOverlapMaximumRandom, IOverlapExponentialRandom, IOverlapExponential
   use radiation_ecckd,               only : ckd_model_type
 
   implicit none
@@ -58,13 +59,32 @@ module radiation_config
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
           &     ISolverSpartacus, ISolverTripleclouds, ISolverDISORT
   end enum
-  character(len=*), parameter :: SolverName(0:5) = (/ 'Cloudless   ', &
+  ! How is the gridbox-mean cloud water adjusted to obtain the
+  ! in-cloud value? Dependent on the solver, this may be Zero (ignore
+  ! cloud), One (cloud fills the gridbox), Fraction (use cloud
+  ! fraction profile) or Cover (assume cloud at each height has a
+  ! cloud fraction equal to the cloud cover)
+  enum, bind(C)
+    enumerator ICloudScalingZero, ICloudScalingOne, &
+         ICloudScalingFraction, ICloudScalingCover
+  end enum
+
+  character(len=*), parameter :: SolverName(0:5) =  [ 'Cloudless   ', &
        &                                              'Homogeneous ', &
        &                                              'McICA       ', &
        &                                              'SPARTACUS   ', &
        &                                              'Tripleclouds', &
-       &                                              'DISORT      ' /)
+       &                                              'DISORT      ' ]
+  ! Array specifying cloud scaling assumption associated with each
+  ! solver
+  integer, parameter :: SolverCloudScaling(0:5) &
+       &  = [ ICloudScalingZero, ICloudScalingOne, ICloudScalingFraction, &
+       &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingOne ]
 
+  integer, parameter :: SolverPhaseFuncMode(0:5) &
+       &  = [ IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, &
+       &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncLegendre ]
+  
   ! SPARTACUS shortwave solver can treat the reflection of radiation
   ! back up into different regions in various ways
   enum, bind(c) 
@@ -78,7 +98,7 @@ module radiation_config
   
   ! Names available in the radiation namelist for variable
   ! sw_entrapment_name
-  character(len=*), parameter :: EntrapmentName(0:4)   = [ 'Zero       ', &
+  character(len=*), parameter :: EntrapmentName(0:4)  =  [ 'Zero       ', &
        &                                                   'Edge-only  ', &
        &                                                   'Explicit   ', &
        &                                                   'Non-fractal', &
@@ -86,11 +106,11 @@ module radiation_config
   ! For backwards compatibility, the radiation namelist also supports
   ! the equivalent variable sw_encroachment_name with the following
   ! names
-  character(len=*), parameter :: EncroachmentName(0:4) = [ 'Zero    ', &
-       &                                                   'Minimum ', &
-       &                                                   'Fractal ', &
-       &                                                   'Computed', &
-       &                                                   'Maximum ' ]
+  character(len=*), parameter :: EncroachmentName(0:4) =  [ 'Zero    ', &
+       &                                                    'Minimum ', &
+       &                                                    'Fractal ', &
+       &                                                    'Computed', &
+       &                                                    'Maximum ' ]
 
   ! Two-stream models
   ! This is not configurable at run-time
@@ -99,37 +119,37 @@ module radiation_config
   enum, bind(c) 
      enumerator IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
   end enum
-  character(len=*), parameter :: GasModelName(0:2) = (/ 'Monochromatic', &
+  character(len=*), parameter :: GasModelName(0:2) =  [ 'Monochromatic', &
        &                                                'RRTMG-IFS    ', &
-       &                                                'ECCKD        '/)
+       &                                                'ECCKD        ']
 
   ! Hydrometeor scattering models
   enum, bind(c) 
      enumerator ILiquidModelMonochromatic, &
           &     ILiquidModelSOCRATES, ILiquidModelSlingo
   end enum
-  character(len=*), parameter :: LiquidModelName(0:2) = (/ 'Monochromatic', &
+  character(len=*), parameter :: LiquidModelName(0:2) =  [ 'Monochromatic', &
        &                                                   'SOCRATES     ', &
-       &                                                   'Slingo       ' /)
+       &                                                   'Slingo       ' ]
 
   enum, bind(c) 
      enumerator IIceModelMonochromatic, IIceModelFu, &
           &  IIceModelBaran, IIceModelBaran2016, IIceModelBaran2017,   &
           &  IIceModelYi
   end enum
-  character(len=*), parameter :: IceModelName(0:5) = (/ 'Monochromatic', &
+  character(len=*), parameter :: IceModelName(0:5) =  [ 'Monochromatic', &
        &                                                'Fu-IFS       ', &
        &                                                'Baran        ', &
        &                                                'Baran2016    ', &
        &                                                'Baran2017    ', &
-       &                                                'Yi           ' /)
+       &                                                'Yi           ' ]
 
   ! Cloud PDF distribution shapes
   enum, bind(c)
     enumerator IPdfShapeLognormal, IPdfShapeGamma
   end enum
-  character(len=*), parameter :: PdfShapeName(0:1) = (/ 'Lognormal', &
-       &                                                'Gamma    ' /)
+  character(len=*), parameter :: PdfShapeName(0:1) =  [ 'Lognormal', &
+       &                                                'Gamma    ' ]
 
   ! Maximum number of different aerosol types that can be provided
   integer, parameter :: NMaxAerosolTypes = 256
@@ -360,8 +380,9 @@ module radiation_config
     ! clouds?
     logical :: do_lw_side_emissivity = .true.
 
-    ! Number of angles per hemisphere in longwave discrete-ordinate
+    ! Number of angles per hemisphere in discrete-ordinate
     ! solvers; double to get the number of streams
+    integer :: n_angles_per_hemisphere_sw = 2
     integer :: n_angles_per_hemisphere_lw = 2
 
     ! The 3D transfer rate "X" is such that if transport out of a
@@ -486,6 +507,7 @@ module radiation_config
     ! but consistent with IFS Cycle 48r1 and earlier)?
     logical :: do_weighted_surface_mapping = .true.
 
+    !---------------------------------------------------------------------
     ! COMPUTED PARAMETERS
 
     ! Users of this library should not edit these parameters directly;
@@ -546,6 +568,12 @@ module radiation_config
     integer :: n_canopy_bands_sw = 1
     integer :: n_canopy_bands_lw = 1
 
+    ! Number of elements describing the longwave and shortwave phase
+    ! functions. Usually this is one, corresponding to the asymmetry
+    ! factor, but for DISORT and FLOTSAM it is larger
+    integer :: n_pf_sw = 1
+    integer :: n_pf_lw = 1
+
     ! Data structures containing gas optics description in the case of
     ! ecCKD
     type(ckd_model_type)         :: gas_optics_sw, gas_optics_lw
@@ -598,8 +626,8 @@ module radiation_config
     ! and zero otherwise.
     integer :: n_g_lw_if_scattering = 0, n_bands_lw_if_scattering = 0
 
-    ! Treat clouds as horizontally homogeneous within the gribox
-    logical :: is_homogeneous = .false.
+    ! How is water content scaled to get in-cloud mean values?
+    integer :: cloud_scaling_mode = ICloudScalingFraction
 
     ! If the solvers are both "Cloudless" then we don't need to do any
     ! cloud processing
@@ -652,7 +680,7 @@ contains
     logical :: do_3d_effects, use_expm_everywhere, use_aerosols
     logical :: use_general_cloud_optics, use_general_aerosol_optics
     logical :: do_lw_side_emissivity
-    integer :: n_angles_per_hemisphere_lw
+    integer :: n_angles_per_hemisphere_sw, n_angles_per_hemisphere_lw
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
     logical :: do_save_radiative_properties, do_save_spectral_flux
@@ -697,7 +725,7 @@ contains
 
     namelist /radiation/ do_sw, do_lw, do_sw_direct, &
          &  do_3d_effects, do_lw_side_emissivity, do_clear, &
-         &  n_angles_per_hemisphere_lw, &
+         &  n_angles_per_hemisphere_sw, n_angles_per_hemisphere_lw, &
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
@@ -741,6 +769,7 @@ contains
     do_3d_effects = this%do_3d_effects
     do_3d_lw_multilayer_effects = this%do_3d_lw_multilayer_effects
     do_lw_side_emissivity = this%do_lw_side_emissivity
+    n_angles_per_hemisphere_sw = this%n_angles_per_hemisphere_sw
     n_angles_per_hemisphere_lw = this%n_angles_per_hemisphere_lw
     do_clear = this%do_clear
     do_lw_aerosol_scattering = this%do_lw_aerosol_scattering
@@ -898,6 +927,7 @@ contains
     this%do_3d_effects = do_3d_effects
     this%do_3d_lw_multilayer_effects = do_3d_lw_multilayer_effects
     this%do_lw_side_emissivity = do_lw_side_emissivity
+    this%n_angles_per_hemisphere_sw = n_angles_per_hemisphere_sw
     this%n_angles_per_hemisphere_lw = n_angles_per_hemisphere_lw
     this%use_expm_everywhere = use_expm_everywhere
     this%use_aerosols = use_aerosols
@@ -1058,6 +1088,8 @@ contains
 
     class(config_type), intent(inout)         :: this
 
+    integer :: cloud_scaling_mode_lw, cloud_scaling_mode_sw
+    
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_config:consolidate',0,hook_handle)
@@ -1245,26 +1277,32 @@ contains
       call radiation_abort('Radiation configuration error')
     end if
 
-    if ((this%do_lw .and. this%do_sw) .and. &
-         & (     (      this%i_solver_sw == ISolverHomogeneous  &
-         &        .and. .not. (this%i_solver_lw == ISolverHomogeneous &
-         &                     .or. this%i_solver_lw == ISolverDISORT)) &
-         &  .or. (      this%i_solver_sw /= ISolverHomogeneous  &
-         &        .and. (this%i_solver_lw == ISolverHomogeneous &
-         &               .or. this%i_solver_lw == ISolverDISORT)) &
-         & )) then
-      write(nulerr,'(a)') '*** Error: if one solver is "Homogeneous" or "DISORT" then the other must be'
-      call radiation_abort('Radiation configuration error')
+    ! Check cloud scaling modes are compatible  
+    if (this%do_lw .and. this%do_sw) then
+      if (SolverCloudScaling(this%i_solver_lw) /= SolverCloudScaling(this%i_solver_sw)) then
+        write(nulerr,'(a)') '*** Error: cloud scaling mode is not consistent between LW and SW solvers'
+        call radiation_abort('Radiation configuration error')
+      else
+        this%cloud_scaling_mode = SolverCloudScaling(this%i_solver_lw)
+      end if
+    else if (this%do_lw) then
+      this%cloud_scaling_mode = SolverCloudScaling(this%i_solver_lw)
+    else
+      this%cloud_scaling_mode = SolverCloudScaling(this%i_solver_sw)
     end if
 
-    ! Set is_homogeneous if the active solvers are homogeneous, since
-    ! this affects how "in-cloud" water contents are computed
-    if (        (this%do_sw .and. this%i_solver_sw == ISolverHomogeneous) &
-         & .or. (this%do_lw .and. (this%i_solver_lw == ISolverHomogeneous &
-         &                         .or. this%i_solver_lw == ISolverDISORT))) then
-      this%is_homogeneous = .true.
+    ! Set number of dimensions to store phase function information
+    if (this%i_solver_sw == ISolverDISORT) then
+      this%n_pf_sw = this%n_angles_per_hemisphere_sw*2
+    else
+      this%n_pf_sw = 1
     end if
-
+    if (this%i_solver_lw == ISolverDISORT) then
+      this%n_pf_lw = this%n_angles_per_hemisphere_lw*2
+    else
+      this%n_pf_lw = 1
+    end if
+    
     this%is_consolidated = .true.
 
     if (lhook) call dr_hook('radiation_config:consolidate',1,hook_handle)
@@ -1502,8 +1540,10 @@ contains
         end if
 
       else if (this%i_solver_lw == ISolverDISORT) then
-        write(nulout, '(a)') '  DISORT option:'
-        call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &
+        write(nulout, '(a)') '  DISORT options:'
+        call print_integer('    Number of SW angles per hemisphere', 'n_angles_per_hemisphere_sw', &
+             &  this%n_angles_per_hemisphere_sw)
+        call print_integer('    Number of LW angles per hemisphere', 'n_angles_per_hemisphere_lw', &
              &  this%n_angles_per_hemisphere_lw)
       else if (this%i_solver_sw == ISolverMcICA &
            &  .or. this%i_solver_lw == ISolverMcICA) then

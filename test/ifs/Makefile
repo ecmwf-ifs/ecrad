@@ -8,6 +8,7 @@ CHANGENAM = ../common/change_namelist.sh
 #CONFIG = configCY46R1.nam
 CONFIG = configCY47R1.nam
 CONFIG_ECCKD = configCY49R1.nam
+CONFIG_DISORT = configDISORT.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
@@ -48,35 +49,35 @@ test_tripleclouds:
 
 # DISORT solver with cloud filling the gridbox homogeneously
 test_disort:
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
-		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=2
-	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=6
+	  $(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort_out.nc
 test_disort_n:
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=1
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort1ang_out.nc
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=2
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort2ang_out.nc
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=3
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort3ang_out.nc
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=4
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort4ang_out.nc
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=5
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort5ang_out.nc
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=6
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort6ang_out.nc
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=7
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort7ang_out.nc
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=8
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort8ang_out.nc
-	$(CHANGENAM) $(CONFIG) config_disort.nam \
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=16
 	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort16ang_out.nc
 
