@@ -25,7 +25,7 @@ contains
   ! the gridbox horizontally
   subroutine solver_disort_lw(nlev,istartcol,iendcol, &
        &  config, cloud, & 
-       &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, planck_hl, &
+       &  od, ssa, g, od_cloud, ssa_cloud, pf_cloud, planck_hl, &
        &  emission, albedo, &
        &  flux)
 
@@ -62,7 +62,9 @@ contains
     real(jprb), intent(in), dimension(config%n_bands_lw,nlev,istartcol:iendcol)   :: &
          &  od_cloud
     real(jprb), intent(in), dimension(config%n_bands_lw_if_scattering, &
-         &  nlev,istartcol:iendcol) :: ssa_cloud, g_cloud
+         &  nlev,istartcol:iendcol) :: ssa_cloud
+    real(jprb), intent(in), dimension(config%n_bands_lw_if_scattering, &
+         &  nlev,istartcol:iendcol,config%n_pf_lw) :: pf_cloud
 
     ! Planck function at each half-level and the surface
     real(jprb), intent(in), dimension(config%n_g_lw,nlev+1,istartcol:iendcol) :: &
@@ -107,9 +109,13 @@ contains
     
     character*127 :: header
     
-    ! Fluxes per g point
+    ! Fluxes per g point, clear- and total-sky
+    real(jprb), dimension(config%n_g_lw, nlev+1) :: flux_up_clear, flux_dn_clear
     real(jprb), dimension(config%n_g_lw, nlev+1) :: flux_up, flux_dn
 
+    ! Temporary scattering optical depth
+    real(jprb) :: scat_od_new(nlev)
+    
     ! Is there any cloud in the profile?
     logical :: is_cloudy_profile
 
@@ -117,7 +123,7 @@ contains
     integer :: ng
 
     ! Loop indices for level and column
-    integer :: jlev, jcol, jg
+    integer :: jlev, jcol, jg, jcomp
 
     real(jprb) :: hook_handle
 
@@ -151,7 +157,14 @@ contains
         pf_mom(0,:) = 1.0_jprb
         if (config%do_lw_aerosol_scattering) then
           ssa_in = ssa(jg,:,jcol)
-          pf_mom(1,:) = g(jg,:,jcol)*3.0_jprb;
+          ! Assume aerosols have a Henyey-Greenstein phase function
+          ! expressed here in terms of Legendre polynomials
+          do jcomp = 1,config%n_pf_lw
+            ! Unnormalized coefficients
+            !pf_mom(jcomp,:) = g(jg,:,jcol)**jcomp * (2.0_jprb*jcomp + 1.0_jprb)
+            ! DISORT normalization
+            pf_mom(jcomp,:) = g(jg,:,jcol)**jcomp
+          end do
         else
           ssa_in = 0.0_jprb
         end if
@@ -169,35 +182,98 @@ contains
              &  0.0_jprb, albedo(jg,jcol), planck_surf_per_sr, &
              &  0.0_jprb, 1.0_jprb, 6371.0_jprb, h_layer, &
              &  rhoq, rhou, rho_accurate, bemst, emust, &
-             &  0.0_jprb, header, flux_dn_dir, flux_dn(jg,:), flux_up(jg,:), &
+             &  0.0_jprb, header, flux_dn_dir, flux_dn_clear(jg,:), flux_up_clear(jg,:), &
              &  dfdt, uavg, uu, albmed, trnmed)
-      
+
+        if (is_cloudy_profile) then
+          ! Add cloud properties to existing profile
+          if (config%do_lw_cloud_scattering) then
+            scat_od_new = od_in*ssa_in &
+                 &  + od_cloud(config%i_band_from_reordered_g_lw(jg),:,jcol) &
+                 &  * ssa_cloud(config%i_band_from_reordered_g_lw(jg),:,jcol)
+
+            if (config%do_lw_aerosol_scattering) then
+              ! Aerosol scattering properties are already present -
+              ! need to add cloud properties with a weighted average
+              ! by scattering coefficient
+              do jlev = 1,nlev
+                pf_mom(1:,jlev) = (od_in(jlev)*ssa_in(jlev)*pf_mom(1:,jlev) &
+                     &  + od_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
+                     &  * ssa_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
+                     &  * pf_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol,:)) &
+                     &  / max(scat_od_new(jlev), 1.0e-24_jprb)
+              end do
+            else
+              ! Aerosol scattering properties are not present but
+              ! cloud scattering properties are: copy over cloud
+              ! properties
+              pf_mom(1:,:) = transpose(pf_cloud(config%i_band_from_reordered_g_lw(jg),:,jcol,:))
+            end if
+                
+            od_in = od_in + od_cloud(config%i_band_from_reordered_g_lw(jg),:,jcol)
+            ssa_in = scat_od_new / max(od_in, 1.0e-24_jprb)
+          else
+            ! No cloud or aerosol scattering: simply add the cloud
+            ! optical depth
+            od_in = od_in + od_cloud(config%i_band_from_reordered_g_lw(jg),:,jcol)
+          end if
+
+          call disort(nlev, config%n_angles_per_hemisphere_lw*2, &
+               &  config%n_angles_per_hemisphere_lw*2, &
+               &  config%n_angles_per_hemisphere_lw*2, nphi, nlev+1, &
+               &  .false., .false., 0, .true., spread(.false.,1,5), &
+               &  .true., .true., .false., .false., od_in, &
+               &  ssa_in, pf_mom, planck_hl_per_sr, -1.0_jprb, -1.0_jprb, &
+               &  od_out, 1.0_jprb, 0.0_jprb, mu, phi, 0.0_jprb, &
+               &  0.0_jprb, albedo(jg,jcol), planck_surf_per_sr, &
+               &  0.0_jprb, 1.0_jprb, 6371.0_jprb, h_layer, &
+               &  rhoq, rhou, rho_accurate, bemst, emust, &
+               &  0.0_jprb, header, flux_dn_dir, flux_dn(jg,:), flux_up(jg,:), &
+               &  dfdt, uavg, uu, albmed, trnmed)
+        end if
+        
       end do
 
       ! Sum over g-points to compute broadband fluxes
-      flux%lw_up_clear(jcol,:) = sum(flux_up,1)
-      flux%lw_dn_clear(jcol,:) = sum(flux_dn,1)
+      flux%lw_up_clear(jcol,:) = sum(flux_up_clear,1)
+      flux%lw_dn_clear(jcol,:) = sum(flux_dn_clear,1)
       ! Store surface spectral downwelling fluxes
-      flux%lw_dn_surf_clear_g(:,jcol) = flux_dn(:,nlev+1)
+      flux%lw_dn_surf_clear_g(:,jcol) = flux_dn_clear(:,nlev+1)
       
       ! Save the spectral fluxes if required
       if (config%do_save_spectral_flux) then
-        call indexed_sum_profile(flux_up, config%i_spec_from_reordered_g_lw, &
+        call indexed_sum_profile(flux_up_clear, config%i_spec_from_reordered_g_lw, &
              &                   flux%lw_up_clear_band(:,jcol,:))
-        call indexed_sum_profile(flux_dn, config%i_spec_from_reordered_g_lw, &
+        call indexed_sum_profile(flux_dn_clear, config%i_spec_from_reordered_g_lw, &
              &                   flux%lw_dn_clear_band(:,jcol,:))
       end if
 
-      flux%lw_up(jcol,:) = flux%lw_up_clear(jcol,:)
-      flux%lw_dn(jcol,:) = flux%lw_dn_clear(jcol,:)
-      flux%lw_dn_surf_g(:,jcol) = flux_dn(:,nlev+1)
-      
-      ! Save the spectral fluxes if required
-      if (config%do_save_spectral_flux) then
-        flux%lw_up_band(:,jcol,:) = flux%lw_up_clear_band(:,jcol,:)
-        flux%lw_dn_band(:,jcol,:) = flux%lw_dn_clear_band(:,jcol,:)
+      if (is_cloudy_profile) then
+        ! Sum over g-points to compute broadband fluxes
+        flux%lw_up(jcol,:) = sum(flux_up,1)
+        flux%lw_dn(jcol,:) = sum(flux_dn,1)
+        ! Store surface spectral downwelling fluxes
+        flux%lw_dn_surf_g(:,jcol) = flux_dn(:,nlev+1)
+        
+        ! Save the spectral fluxes if required
+        if (config%do_save_spectral_flux) then
+          call indexed_sum_profile(flux_up, config%i_spec_from_reordered_g_lw, &
+               &                   flux%lw_up_band(:,jcol,:))
+          call indexed_sum_profile(flux_dn, config%i_spec_from_reordered_g_lw, &
+               &                   flux%lw_dn_band(:,jcol,:))
+        end if
+                
+      else
+        ! Clear-sky profile: copy over clear-sky fluxes
+        flux%lw_up(jcol,:) = flux%lw_up_clear(jcol,:)
+        flux%lw_dn(jcol,:) = flux%lw_dn_clear(jcol,:)
+        flux%lw_dn_surf_g(:,jcol) = flux_dn(:,nlev+1)
+        if (config%do_save_spectral_flux) then
+          flux%lw_up_band(:,jcol,:) = flux%lw_up_clear_band(:,jcol,:)
+          flux%lw_dn_band(:,jcol,:) = flux%lw_dn_clear_band(:,jcol,:)
+        end if
       end if
-
+      
       if (config%do_lw_derivatives) then
         flux%lw_derivatives(jcol,:) = 1.0_jprb
       end if

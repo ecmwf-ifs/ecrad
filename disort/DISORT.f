@@ -5422,16 +5422,17 @@ c     ..
       IF( MAXMOM.LT.NMOM ) INPERR = WRTBAD( 'MAXMOM' )
 
 
-      DO 30 LC = 1, NLYR
-
-         DO 20 K = 0, NMOM
-
-            IF( PMOM( K,LC ).LT.-1.0 .OR. PMOM( K,LC ).GT.1.0 )
-     &          INPERR = WRTBAD( 'PMOM' )
-
-   20    CONTINUE
-
-   30 CONTINUE
+      ! RJH 2022-09-26
+c$$$      DO 30 LC = 1, NLYR
+c$$$
+c$$$         DO 20 K = 0, NMOM
+c$$$
+c$$$            IF( PMOM( K,LC ).LT.-1.0 .OR. PMOM( K,LC ).GT.1.0 )
+c$$$     &          INPERR = WRTBAD( 'PMOM' )
+c$$$
+c$$$   20    CONTINUE
+c$$$
+c$$$   30 CONTINUE
 
       IF( IBCND.EQ.1 ) THEN
 

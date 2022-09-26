@@ -448,9 +448,21 @@ contains
     real(jprb) :: p0_legendre(nang)
     real(jprb) :: p1_legendre(nang)
     real(jprb) :: p_legendre(nang)
-
+    real(jprb) :: normalization_factor
+    
     integer :: jc, ja
 
+    ! There are two ways of expressing a phase function with Legendre
+    ! polynomials Pn(mu): the unnormalized way:
+    !   p(mu) = Sum[ c_n*Pn(mu) ]
+    ! or the DISORT way:
+    !   p(mu) = Sum[ g_n*(2*n+1)*Pn(mu) ]
+    ! In the DISORT way the weights g_n lie between -1 and 1, and g_1
+    ! is equal to the asymmetry factor. In the unnormalized way the
+    ! decomposition is a little simpler but coefficient c_1 is three
+    ! times the asymmety factor.
+    logical, parameter :: use_disort_normalization = .true.
+    
     cos_ang = cos(scattering_angle)
     weight  = cos_ang(1:nang-1)-cos_ang(2:nang)
     
@@ -463,12 +475,21 @@ contains
       if (jc == 1) then
         p_legendre = cos_ang
       else
-        p_legendre = ((2.0_jprb*jc + 1.0_jprb)*p1_legendre - jc*p0_legendre) / (jc+1.0_jprb)
+        p_legendre = ((2.0_jprb*jc + 1.0_jprb)*cos_ang*p1_legendre - jc*p0_legendre) / (jc+1.0_jprb)
         p0_legendre = p1_legendre
         p1_legendre = p_legendre
       end if
+      if (use_disort_normalization) then
+        normalization_factor = 1.0_jprb
+      else
+        normalization_factor = 2.0_jprb*jc + 1.0_jprb
+      end if
       do ja = 1,nang-1
-        pf(:,:,jc) = pf(:,:,jc) + weight(ja)*(0.5_jprb*jc+0.25_jprb) &
+        ! Note that the factor of 0.25 here is because we are
+        ! averaging over two points (a factor of a half) and we are
+        ! integrating over mu in the range -1 to 1 (another factor of
+        ! a half required)
+        pf(:,:,jc) = pf(:,:,jc) + weight(ja)*normalization_factor*0.25_jprb &
              &  * (p_legendre(ja)*pf_in(ja,:,:) + p_legendre(ja+1)*pf_in(ja+1,:,:))
       end do
     end do
