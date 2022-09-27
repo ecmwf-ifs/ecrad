@@ -47,7 +47,7 @@ MODULE RADIATION_SETUP
 USE PARKIND1,         ONLY :   JPRB,JPIM
 USE radiation_config, ONLY :   config_type, &
        &                       ISolverMcICA, ISolverSpartacus, &
-       &                       ISolverTripleclouds, &
+       &                       ISolverTripleclouds, ISolverCloudless, &
        &                       ILiquidModelSlingo, ILiquidModelSOCRATES, &
        &                       IIceModelFu, IIceModelBaran, &
        &                       IOverlapExponential, IOverlapMaximumRandom, &
@@ -92,7 +92,7 @@ TYPE :: TRADIATION
   REAL(KIND=JPRB)    :: STRAT_BG_AER_MASS_EXT
 !----------------------------------------------------------------------------
 CONTAINS
-  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION 
+  PROCEDURE, PASS :: PRINT => PRINT_CONFIGURATION
 END TYPE TRADIATION
 
 ! Dummy type
@@ -231,7 +231,7 @@ CONTAINS
     ELSE
       WRITE(NULERR,'(a,i0)') '*** Error: Unavailable liquid optics model in modular radiation scheme: NLIQOPT=', &
            &  YDERAD%NLIQOPT
-      CALL ABOR1('RADIATION_SETUP: error interpreting NLIQOPT')   
+      CALL ABOR1('RADIATION_SETUP: error interpreting NLIQOPT')
     ENDIF
 
     ! Setup ice optics
@@ -370,6 +370,8 @@ CONTAINS
       RAD_CONFIG%DO_3D_EFFECTS = .TRUE.
     CASE(3)
       RAD_CONFIG%I_SOLVER_LW = ISOLVERTRIPLECLOUDS
+    CASE(4)
+      RAD_CONFIG%I_SOLVER_LW = ISOLVERCLOUDLESS
     CASE DEFAULT
       WRITE(NULERR,'(a,i0)') '*** Error: Unknown value for NLWSOLVER: ', YDERAD%NLWSOLVER
       CALL ABOR1('RADIATION_SETUP: error interpreting NLWSOLVER')
@@ -393,6 +395,8 @@ CONTAINS
       ENDIF
     CASE(3)
       RAD_CONFIG%I_SOLVER_SW = ISOLVERTRIPLECLOUDS
+    CASE(4)
+      RAD_CONFIG%I_SOLVER_SW = ISOLVERCLOUDLESS
     CASE DEFAULT
       WRITE(NULERR,'(a,i0)') '*** Error: Unknown value for NSWSOLVER: ', YDERAD%NSWSOLVER
       CALL ABOR1('RADIATION_SETUP: error interpreting NSWSOLVER')
@@ -463,7 +467,7 @@ CONTAINS
     ENDIF
 
     ! Populate the mapping between the 14 RRTM shortwave bands and the
-    ! 6 albedo inputs. 
+    ! 6 albedo inputs.
     ZWAVBOUND(1:5) = [ 0.25e-6_jprb, 0.44e-6_jprb, 0.69e-6_jprb, &
          &             1.19e-6_jprb, 2.38e-6_jprb ]
     IBAND(1:6)  = [ 1,2,3,4,5,6 ]
@@ -549,7 +553,7 @@ CONTAINS
            &                                   ITYPE_TROP_BG_AER, 10)
       PRADIATION%STRAT_BG_AER_MASS_EXT = DRY_AEROSOL_SW_MASS_EXTINCTION(RAD_CONFIG,&
            &                                   ITYPE_STRAT_BG_AER, 10)
-      
+
       WRITE(NULOUT,'(a,i0)') 'Tropospheric background uses aerosol type ',&
            &                 ITYPE_TROP_BG_AER
       WRITE(NULOUT,'(a,i0)') 'Stratospheric background uses aerosol type ',&
@@ -562,7 +566,7 @@ CONTAINS
     IF(YDEAERATM%LAERRAD) THEN
        CALL SETUP_MONO_AER_OPTICS(PRADIATION)
     ENDIF
-      
+
     IF (IVERBOSESETUP > 1) THEN
       WRITE(NULOUT,'(a)') '-------------------------------------------------------------------------------'
     ENDIF
@@ -576,8 +580,8 @@ CONTAINS
 
   SUBROUTINE SETUP_MONO_AER_OPTICS(PRADIATION)
 
-    !subroutine to pass the monochromatic aerosol optical properties 
-    !to the variables needed by CAMS for aerosol diagnostics and 
+    !subroutine to pass the monochromatic aerosol optical properties
+    !to the variables needed by CAMS for aerosol diagnostics and
     !data assimilation (sobstitutes the old SU_AEROP)
 
     ! Note that ALF_* are NOT in SI base units [m2 kg-1] as the NetCDF files
@@ -630,7 +634,7 @@ CONTAINS
     OMG_BC(:) = AO%SSA_MONO_PHOBIC(:,11)
     ASY_BC(:) = AO%G_MONO_PHOBIC(:,11)
     RALI_BC(:) = AO%LIDAR_RATIO_MONO_PHOBIC(:,11)
-    
+
     DO IRH=1,12
 !-- ORGANIC MATTER
        ALF_OM(IRH,:) = AO%MASS_EXT_MONO_PHILIC(:,IRH,4) * 1.e-3_JPRB
@@ -694,7 +698,7 @@ CONTAINS
     ENDDO
 
     IF (LHOOK) CALL DR_HOOK('RADIATION_SETUP:SETUP_MONO_AER_OPTICS',1,ZHOOK_HANDLE)
-    
+
   END SUBROUTINE SETUP_MONO_AER_OPTICS
 
 
@@ -703,11 +707,11 @@ CONTAINS
     CLASS(TRADIATION),  INTENT(IN) :: SELF
     INTEGER(KIND=JPIM), INTENT(IN) :: KDEPTH
     INTEGER(KIND=JPIM), INTENT(IN) :: KOUTNO
-    
+
     INTEGER(KIND=JPIM) :: IDEPTHLOC
 
     IDEPTHLOC = KDEPTH+2
-    
+
     WRITE(KOUTNO,*) REPEAT(' ',KDEPTH   ) // 'model%yrml_phy_rad%yradiation : '
     WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // '** we should print content of rad_config, not done yet**'
     WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'NWEIGHT_UV = ', SELF%NWEIGHT_UV
@@ -718,7 +722,7 @@ CONTAINS
     WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'WEIGHT_PAR SUM = ', SUM(SELF%WEIGHT_PAR)
     WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'TROP_BG_AER_MASS_EXT = ', SELF%TROP_BG_AER_MASS_EXT
     WRITE(KOUTNO,*) REPEAT(' ',IDEPTHLOC) // 'STRAT_BG_AER_MASS_EXT = ', SELF%STRAT_BG_AER_MASS_EXT
-    
+
   END SUBROUTINE PRINT_CONFIGURATION
 
 END MODULE RADIATION_SETUP

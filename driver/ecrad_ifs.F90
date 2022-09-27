@@ -41,7 +41,7 @@ subroutine ecrad_ifs_setup(nml_file_name, driver_config, config, ydmodel, ncol)
   use radiation_io,             only : nulout
   use radiation_config,         only : config_type, &
        &                       ISolverMcICA, ISolverSpartacus, &
-       &                       ISolverTripleclouds, &
+       &                       ISolverTripleclouds, ISolverCloudless, &
        &                       IOverlapExponential, IOverlapMaximumRandom, &
        &                       IOverlapExponentialRandom
   use radiation_setup,          only : tcompo, setup_radiation_scheme
@@ -113,10 +113,14 @@ subroutine ecrad_ifs_setup(nml_file_name, driver_config, config, ydmodel, ncol)
     ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
     if(config%i_solver_lw == ISolverMcICA) then
       yderad%nlwsolver = 0
+    elseif(config%i_solver_lw == ISolverSpartacus .and. config%do_3d_effects) then
+      yderad%nlwsolver = 2
     elseif(config%i_solver_lw == ISolverSpartacus) then
       yderad%nlwsolver = 1
     elseif(config%i_solver_lw == ISolverTripleclouds) then
       yderad%nlwsolver = 3
+    elseif(config%i_solver_lw == ISolverCloudless) then
+      yderad%nlwsolver = 4
     else
       call abor1('Unknown longwave solver type')
     endif
@@ -124,10 +128,14 @@ subroutine ecrad_ifs_setup(nml_file_name, driver_config, config, ydmodel, ncol)
     ! 0 - McICA, 1 - SPARTACUS, 2 - SPARTACUS 3D, 3 - Tripleclouds
     if(config%i_solver_sw == ISolverMcICA) then
       yderad%nswsolver = 0
+    elseif(config%i_solver_sw == ISolverSpartacus .and. config%do_3d_effects) then
+      yderad%nswsolver = 2
     elseif(config%i_solver_sw == ISolverSpartacus) then
       yderad%nswsolver = 1
     elseif(config%i_solver_sw == ISolverTripleclouds) then
       yderad%nswsolver = 3
+    elseif(config%i_solver_sw == ISolverCloudless) then
+      yderad%nswsolver = 4
     else
       call abor1('Unknown shortwave solver type')
     endif
@@ -548,9 +556,15 @@ subroutine ecrad_ifs_interpolate_in ( &
 
       do jlev=1,nlev
         zrgp(1:il,ifs_config%iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O) ! this is already in MassMixingRatio units
-        zrgp(1:il,ifs_config%iclc+jlev-1,ib)  = cloud%fraction(ibeg:iend,jlev)
-        zrgp(1:il,ifs_config%ilwa+jlev-1,ib)  = cloud%q_liq(ibeg:iend,jlev)
-        zrgp(1:il,ifs_config%iiwa+jlev-1,ib)  = cloud%q_ice(ibeg:iend,jlev)
+        if (rad_config%do_clouds) then
+          zrgp(1:il,ifs_config%iclc+jlev-1,ib)  = cloud%fraction(ibeg:iend,jlev)
+          zrgp(1:il,ifs_config%ilwa+jlev-1,ib)  = cloud%q_liq(ibeg:iend,jlev)
+          zrgp(1:il,ifs_config%iiwa+jlev-1,ib)  = cloud%q_ice(ibeg:iend,jlev)
+        else
+          zrgp(1:il,ifs_config%iclc+jlev-1,ib)  = 0._jprb
+          zrgp(1:il,ifs_config%ilwa+jlev-1,ib)  = 0._jprb
+          zrgp(1:il,ifs_config%iiwa+jlev-1,ib)  = 0._jprb
+        endif
         zrgp(1:il,ifs_config%iswa+jlev-1,ib)  = 0._jprb  ! snow
         zrgp(1:il,ifs_config%irwa+jlev-1,ib)  = 0._jprb  ! rain
 
@@ -596,17 +610,29 @@ subroutine ecrad_ifs_interpolate_in ( &
       enddo
 
       ! local workaround variables for standalone input files
-      do jlev=1,nlev
-        ! missing full-level temperature and pressure as well as land-sea-mask
-        zrgp(1:il,ifs_config%ire_liq+jlev-1,ib) = cloud%re_liq(ibeg:iend,jlev)
-        zrgp(1:il,ifs_config%ire_ice+jlev-1,ib) = cloud%re_ice(ibeg:iend,jlev)
-      enddo
-      do jlev=1,nlev-1
-        ! for the love of it, I can't figure this one out. Probably to do with
-        ! my crude approach of setting PGEMU?
-        zrgp(1:il,ifs_config%ioverlap+jlev-1,ib) = cloud%overlap_param(ibeg:iend,jlev)
-      enddo
-      iseed(1:il,ib) = single_level%iseed(ibeg:iend)
+      if (rad_config%do_clouds) then
+        do jlev=1,nlev
+          ! missing full-level temperature and pressure as well as land-sea-mask
+          zrgp(1:il,ifs_config%ire_liq+jlev-1,ib) = cloud%re_liq(ibeg:iend,jlev)
+          zrgp(1:il,ifs_config%ire_ice+jlev-1,ib) = cloud%re_ice(ibeg:iend,jlev)
+        enddo
+        do jlev=1,nlev-1
+          ! for the love of it, I can't figure this one out. Probably to do with
+          ! my crude approach of setting PGEMU?
+          zrgp(1:il,ifs_config%ioverlap+jlev-1,ib) = cloud%overlap_param(ibeg:iend,jlev)
+        enddo
+        iseed(1:il,ib) = single_level%iseed(ibeg:iend)
+      else
+        do jlev=1,nlev
+          ! missing full-level temperature and pressure as well as land-sea-mask
+          zrgp(1:il,ifs_config%ire_liq+jlev-1,ib) = 0._jprb
+          zrgp(1:il,ifs_config%ire_ice+jlev-1,ib) = 0._jprb
+        enddo
+        do jlev=1,nlev-1
+          zrgp(1:il,ifs_config%ioverlap+jlev-1,ib) = 0._jprb
+        enddo
+        iseed(1:il,ib) = 0
+      endif ! do_clouds
     enddo
     !$OMP END PARALLEL DO
 
