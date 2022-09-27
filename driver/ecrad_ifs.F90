@@ -163,8 +163,10 @@ subroutine ecrad_ifs_setup(nml_file_name, driver_config, config, ydmodel, ncol)
 
     if (config%use_aerosols) then
       yderad%naermacc = 1  ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
+      ydmodel%yrml_phy_rad%yreaeratm%laerrad = .true.
     else
       yderad%naermacc = 0
+      ydmodel%yrml_phy_rad%yreaeratm%laerrad = .false.
     endif
 
     !
@@ -268,6 +270,8 @@ subroutine ecrad_ifs_interpolate_in ( &
   integer :: ifldsin, ifldsout, ifldstot, inext, iinbeg, iinend, ioutbeg, ioutend
   integer :: jrl, ibeg, iend, il, ib, ifld, jemiss, jalb, jlev, joff, jaer
 
+  logical :: llactaero
+
   logical :: lldebug
 
 
@@ -284,6 +288,12 @@ subroutine ecrad_ifs_interpolate_in ( &
      !
     ! RADINTG
     !
+
+    llactaero = .false.
+    if(rad_config%n_aerosol_types > 0 .and. rad_config%n_aerosol_types <= 21 .and. yderad%naermacc == 0) then
+      llactaero = .true.
+    endif
+
 
     !  INITIALISE INDICES FOR VARIABLE
 
@@ -323,7 +333,8 @@ subroutine ecrad_ifs_interpolate_in ( &
     ifs_config%ihpr   =indrad(inext,nlev+1,.true.) ! not used in ecrad
     ifs_config%iaprs  =indrad(inext,nlev+1,.true.)
     ifs_config%ihti   =indrad(inext,nlev+1,.true.)
-    ifs_config%iaero  =indrad(inext,rad_config%n_aerosol_types*nlev,.false.)
+    ifs_config%iaero  =indrad(inext,rad_config%n_aerosol_types*nlev,&
+                            & .not.ifs_config%lrayfm .and. llactaero .and. yderad%naermacc==0)
 
     iinend =inext-1                  ! end of input variables
 
@@ -365,7 +376,9 @@ subroutine ecrad_ifs_interpolate_in ( &
 
                                   ! start of local variables
     if(.not.yderad%ldiagforcing) then
-      if (yderad%naermacc == 1)  ifs_config%iaero = indrad(inext,rad_config%n_aerosol_types*nlev,.true.)
+      if (rad_config%n_aerosol_types == 0 .or. yderad%naermacc == 1) then
+        ifs_config%iaero = indrad(inext,rad_config%n_aerosol_types*nlev,.true.)
+      endif
       ifs_config%iaer   =indrad(inext,nlev*6,.true.)
       ifs_config%ioz    =indrad(inext,nlev,.not.ifs_config%lrayfm)
       ifs_config%iico2  =indrad(inext,nlev,.true.)
