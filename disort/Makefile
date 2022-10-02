@@ -1,6 +1,7 @@
 SOURCES = BDREF.f DISOBRDF.f DISORT.f DISOTESTAUX.f ERRPACK.f LAPACK.f LINPAK.f RDI1MACH.f
 
 OBJECTS := $(SOURCES:.f=.o)
+OBJECTS += cgqf.o
 LIBDISORT = ../lib/libdisort.a
 
 ifdef SINGLE_PRECISION
@@ -17,6 +18,9 @@ $(LIBDISORT): $(OBJECTS)
 	ar r $(LIBDISORT) $(OBJECTS)
 
 %.o: %.f
+	$(FC) $(FCFLAGS) $(LOCALFLAGS) -c $<
+
+cgqf.o: cgqf.F90
 	$(FC) $(FCFLAGS) $(LOCALFLAGS) -c $<
 
 clean:

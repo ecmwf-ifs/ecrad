@@ -13,7 +13,7 @@ c ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
      &                   RHOQ, RHOU, RHO_ACCURATE, BEMST, EMUST,
      &                   ACCUR,  HEADER,
      &                   RFLDIR, RFLDN, FLUP, DFDT, UAVG, UU,
-     &                   ALBMED, TRNMED )    
+     &                   ALBMED, TRNMED, CMU, CWT )    
 
 c *******************************************************************
 c       Plane-parallel discrete ordinates radiative transfer program
@@ -2999,12 +2999,13 @@ c                      ** and associated quadrature weights for Gaussian
 c                      ** quadrature on the interval (0,1) (upward)
       NN   = NSTR / 2
 
-      CALL QGAUSN( NN, CMU, CWT )
+! RJH: User now provides angles up and down
+!      CALL QGAUSN( NN, CMU, CWT )
 c                                  ** Downward (neg) angles and weights
-      DO 80 IQ = 1, NN
-         CMU( IQ + NN ) = -CMU( IQ )
-         CWT( IQ + NN ) = CWT( IQ )
-   80 CONTINUE
+!      DO 80 IQ = 1, NN
+!         CMU( IQ + NN ) = -CMU( IQ )
+!         CWT( IQ + NN ) = CWT( IQ )
+!   80 CONTINUE
 
 
       IF( FBEAM.GT.0.0 ) THEN
@@ -3612,7 +3613,7 @@ c     ..
 c     .. Local Scalars ..
 
       INTEGER   IER, IQ, JQ, KQ, L
-      REAL      ALPHA, BETA, GPMIGM, GPPLGM, SUM
+      REAL      ALPHA, BETA, GPMIGM, GPPLGM, SUMM
 
 c      .. Local Array ..
       REAL      TMP(NN, NN)
@@ -3633,12 +3634,12 @@ c                             ** STWL(8b,15,23f)
 
          DO 20 JQ = 1, NSTR
 
-            SUM  = 0.0
+            SUMM  = 0.0
             DO 10 L = MAZIM, NSTR - 1
-               SUM  = SUM + GL( L )*YLMC( L, IQ )*YLMC( L, JQ )
+               SUMM  = SUMM + GL( L )*YLMC( L, IQ )*YLMC( L, JQ )
    10       CONTINUE
 
-            CC( IQ, JQ ) = 0.5*SUM*CWT( JQ )
+            CC( IQ, JQ ) = 0.5*SUMM*CWT( JQ )
 
    20    CONTINUE
 
@@ -3650,6 +3651,14 @@ c                             ** and        C(-mui,-muj) = C(mui,muj)
             CC( IQ + NN, JQ ) = CC( IQ, JQ + NN )
             CC( IQ + NN, JQ + NN ) = CC( IQ, JQ )
 
+
+ 30       CONTINUE
+!     RJH: Normalize CC to conserve energy in case of different quadratures
+          IF (GL(0) > 0.0) THEN
+            CC(IQ,:) = CC(IQ,:)*(GL(0)/SUM(CC(IQ,:)))
+            CC(IQ+NN,:) = CC(IQ+NN,:)*(GL(0)/SUM(CC(IQ+NN,:)))
+          ENDIF
+          DO 31 JQ = 1, NN
 c                                       ** Get factors of coeff. matrix
 c                                       ** of reduced eigenvalue problem
 
@@ -3658,7 +3667,7 @@ c                                       ** of reduced eigenvalue problem
             AMB( IQ, JQ ) = ALPHA - BETA
             APB( IQ, JQ ) = ALPHA + BETA
 
-   30    CONTINUE
+ 31       CONTINUE
 
          AMB( IQ, IQ ) = AMB( IQ, IQ ) - 1.0 / CMU( IQ )
          APB( IQ, IQ ) = APB( IQ, IQ ) - 1.0 / CMU( IQ )
@@ -3672,19 +3681,18 @@ c                      ** STWL(23f)
 
          DO 60 JQ = 1, NN
 
-            SUM  = 0.
+            SUMM  = 0.
             DO 50 KQ = 1, NN
-               SUM  = SUM + APB( IQ, KQ )*AMB( KQ, JQ )
+               SUMM  = SUMM + APB( IQ, KQ )*AMB( KQ, JQ )
    50       CONTINUE
 
-            ARRAY( IQ, JQ ) = SUM
+            ARRAY( IQ, JQ ) = SUMM
 
    60    CONTINUE
 
 
    70 CONTINUE
 c                      ** Find (real) eigenvalues and eigenvectors
-
       CALL ASYMTX( ARRAY, EVECC, EVAL, NN, NN, NSTR, IER, WKD, AAD,
      &             EVECCD, EVALD )
 
@@ -3711,12 +3719,12 @@ c                          ** and store temporarily in array
 
          DO 100 IQ = 1, NN
 
-            SUM  = 0.
+            SUMM  = 0.
             DO 90 KQ = 1, NN
-               SUM  = SUM + AMB( IQ, KQ )*EVECC( KQ, JQ )
+               SUMM  = SUMM + AMB( IQ, KQ )*EVECC( KQ, JQ )
    90       CONTINUE
 
-            TMP( IQ, JQ ) = SUM / EVAL( JQ )
+            TMP( IQ, JQ ) = SUMM / EVAL( JQ )
 
   100    CONTINUE
 
@@ -4345,7 +4353,7 @@ c     ..
 c     .. Local Scalars ..
 
       INTEGER   IQ, IU, JQ, L
-      REAL      SUM
+      REAL      SUMM
 c     ..
 
 
@@ -4354,25 +4362,25 @@ c     ..
          DO 20 L = MAZIM, NSTR - 1
 c                                   ** Inner sum in SD(8) times all
 c                                   ** factors in outer sum but PLM(mu)
-            SUM  = 0.0
+            SUMM  = 0.0
             DO 10 JQ = 1, NSTR
-               SUM  = SUM + CWT( JQ )*YLMC( L, JQ )*EVECC( JQ, IQ )
+              SUMM  = SUMM + CWT( JQ )*YLMC( L, JQ )*EVECC( JQ, IQ )
    10       CONTINUE
 
-            WK( L + 1 ) = 0.5*GL( L )*SUM
+            WK( L + 1 ) = 0.5*GL( L )*SUMM
 
    20    CONTINUE
 c                                    ** Finish outer sum in SD(8)
 c                                    ** and store eigenvectors
          DO 40 IU = 1, NUMU
 
-            SUM  = 0.
+            SUMM  = 0.
             DO 30 L = MAZIM, NSTR - 1
-               SUM  = SUM + WK( L + 1 )*YLMU( L, IU )
+               SUMM  = SUMM + WK( L + 1 )*YLMU( L, IU )
    30       CONTINUE
 
-            IF( IQ.LE.NN ) GU( IU, IQ + NN )       = SUM
-            IF( IQ.GT.NN ) GU( IU, NSTR + 1 - IQ ) = SUM
+            IF( IQ.LE.NN ) GU( IU, IQ + NN )       = SUMM
+            IF( IQ.GT.NN ) GU( IU, NSTR + 1 - IQ ) = SUMM
 
    40    CONTINUE
 
@@ -4459,7 +4467,7 @@ c     ..
 c     .. Local Scalars ..
 
       INTEGER   IQ, IU, JQ
-      REAL      FACT, PSUM, PSUM0, PSUM1, SUM, SUM0, SUM1
+      REAL      FACT, PSUM, PSUM0, PSUM1, SUMM, SUM0, SUM1
 c     ..
 
 
@@ -4470,7 +4478,7 @@ c                                  ** Beam source terms; Eq. SD(9)
 
             PSUM   = 0.
             DO 10 JQ = 1, NSTR
-               PSUM  = PSUM + CWT( JQ )*YLMC( IQ, JQ )*ZJ( JQ )
+              PSUM  = PSUM + CWT( JQ )*YLMC( IQ, JQ )*ZJ( JQ )
    10       CONTINUE
 
             PSI0( IQ + 1 ) = 0.5*GL( IQ )*PSUM
@@ -4481,13 +4489,13 @@ c                                  ** Beam source terms; Eq. SD(9)
 
          DO 40 IU = 1, NUMU
 
-            SUM    = 0.
+            SUMM    = 0.
             DO 30 IQ = MAZIM, NSTR - 1
-               SUM  = SUM + YLMU( IQ, IU )*
+               SUMM  = SUMM + YLMU( IQ, IU )*
      &                    ( PSI0( IQ+1 ) + FACT*GL( IQ )*YLM0(IQ,1) )
    30       CONTINUE
 
-            ZBEAM( IU ) = SUM
+            ZBEAM( IU ) = SUMM
 
    40    CONTINUE
 
@@ -4503,8 +4511,8 @@ c
             PSUM0  = 0.0
             PSUM1  = 0.0
             DO 50 JQ = 1, NSTR
-               PSUM0  = PSUM0 + CWT( JQ )*YLMC( IQ, JQ )*Z0( JQ )
-               PSUM1  = PSUM1 + CWT( JQ )*YLMC( IQ, JQ )*Z1( JQ )
+              PSUM0  = PSUM0 + CWT( JQ )*YLMC( IQ, JQ )*Z0( JQ )
+              PSUM1  = PSUM1 + CWT( JQ )*YLMC( IQ, JQ )*Z1( JQ )
    50       CONTINUE
 
             PSI0( IQ + 1 ) = 0.5*GL( IQ ) * PSUM0
@@ -7182,8 +7190,8 @@ c     ..
    10 CONTINUE
 
       DO 20 N = 1, ND2
-         CMU( N )  = 0.0
-         CWT( N )  = 0.0
+        !CMU( N )  = 0.0
+        !CWT( N )  = 0.0
          PSI0( N ) = 0.0
          PSI1( N ) = 0.0
          WK( N )   = 0.0

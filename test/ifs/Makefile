@@ -50,8 +50,8 @@ test_tripleclouds:
 # DISORT solver with cloud filling the gridbox homogeneously
 test_disort:
 	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
-		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=2
-	 $(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort_out.nc
+		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=1
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort_out.nc
 test_disort_n:
 	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
 		lw_solver_name='"DISORT"' sw_solver_name='"Homogeneous"' n_angles_per_hemisphere_lw=1

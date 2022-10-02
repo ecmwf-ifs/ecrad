@@ -255,9 +255,33 @@ contains
       do jang = 1,nang
         phase_function_band(jang,:,:) = phase_function_band(jang,:,:) / (this%mass_ext*this%ssa)
       end do
-      
+
+!#define OVERRIDE_PHASE_FUNCTION 1
+#ifndef OVERRIDE_PHASE_FUNCTION
       call legendre_decomposition(nang, scattering_angle, phase_function_band, &
            &                      n_pf_components, this%pf)
+#else
+      ! Provide instead a simple delta-Eddington two-stream phase
+      ! function
+      !this%pf = 0.0_jprb
+      !this%pf(:,:,1) = asymmetry_band ! Already delta-Eddington'ed
+
+      ! Remove Delta-Eddington, then fix the subsequent terms to be
+      ! equal to g^2 so that all numbers of streams result in
+      ! delta-Eddington
+      !this%pf(:,:,1) = asymmetry_band/(1.0_jprb-asymmetry_band)
+      !this%pf(:,:,2) = this%pf(:,:,1)*this%pf(:,:,1)
+      !do jang = 2,n_pf_components
+      !   this%pf(:,:,jang) = this%pf(:,:,2)
+      !end do
+
+      ! Remove Delta-Eddington
+      this%pf(:,:,1) = asymmetry_band/(1.0_jprb-asymmetry_band)
+      do jang = 2,n_pf_components
+        ! Henyey-Greenstein
+        this%pf(:,:,jang) = this%pf(:,:,jang-1)*this%pf(:,:,1)
+      end do
+#endif
       !print *, 'Asymmetry factor from Legendre: ', this%pf(:,nre,1)/3.0_jprb
       if (use_thick_averaging_local) then
         write(nulout,'(a)') 'Warning: thick averaging not performed when using Legendre decomposition' 

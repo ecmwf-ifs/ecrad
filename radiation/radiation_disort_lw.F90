@@ -37,7 +37,10 @@ contains
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type, indexed_sum_profile
     !use radiation_lw_derivatives, only : calc_lw_derivatives_ica
-
+    use radiation_gaussian_quadrature, only : gaussian_quadrature, self_test, &
+         &  IQuadratureLaguerre, IQuadratureLegendre, IQuadratureJacobi, &
+         &  IQuadratureChandrasekhar
+    
     implicit none
 
     ! Number of angles for radiance calculation (not needed, so set to
@@ -84,8 +87,12 @@ contains
     real(jprb), dimension(nlev) :: od_in, ssa_in
 
     ! Coefficients of a Legendre decompositon of the phase function
-    real(jprb), dimension(0:config%n_angles_per_hemisphere_lw*2,nlev) :: pf_mom
+    real(jprb), dimension(0:config%n_pf_lw,nlev) :: pf_mom
 
+    ! Quadrature points for angular integration
+    real(jprb) :: mu_quad(config%n_angles_per_hemisphere_lw*2)
+    real(jprb) :: weight_quad(config%n_angles_per_hemisphere_lw*2)
+    
     ! Dummy arguments to DISORT
     real(jprb) :: phi(nphi), mu(config%n_angles_per_hemisphere_lw*2)
     real(jprb) :: h_layer(0:nlev)
@@ -129,6 +136,17 @@ contains
 
     if (lhook) call dr_hook('radiation_disort_lw:solver_disort_lw',0,hook_handle)
 
+    call self_test(3)
+!    call gaussian_quadrature(IQuadratureLegendre, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad)
+!    call gaussian_quadrature(IQuadratureLaguerre, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad)
+    call gaussian_quadrature(IQuadratureJacobi, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad, 1)
+!    call gaussian_quadrature(IQuadratureChandrasekhar, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad)
+    ! Duplicate for opposite hemisphere
+    do jcomp = 1,config%n_angles_per_hemisphere_lw
+      mu_quad    (jcomp + config%n_angles_per_hemisphere_lw) = -mu_quad    (jcomp)
+      weight_quad(jcomp + config%n_angles_per_hemisphere_lw) =  weight_quad(jcomp)
+    end do
+    
     ng = config%n_g_lw
 
     header = 'ecRad profile'
@@ -172,7 +190,7 @@ contains
         planck_hl_per_sr = planck_hl(jg,:,jcol) / Pi
         planck_surf_per_sr = emission(jg,jcol)/(Pi*(1.0_jprb-albedo(jg,jcol)))
         
-        call disort(nlev, config%n_angles_per_hemisphere_lw*2, &
+        call disort(nlev, config%n_pf_lw, &
              &  config%n_angles_per_hemisphere_lw*2, &
              &  config%n_angles_per_hemisphere_lw*2, nphi, nlev+1, &
              &  .false., .false., 0, .true., spread(.false.,1,5), &
@@ -183,7 +201,7 @@ contains
              &  0.0_jprb, 1.0_jprb, 6371.0_jprb, h_layer, &
              &  rhoq, rhou, rho_accurate, bemst, emust, &
              &  0.0_jprb, header, flux_dn_dir, flux_dn_clear(jg,:), flux_up_clear(jg,:), &
-             &  dfdt, uavg, uu, albmed, trnmed)
+             &  dfdt, uavg, uu, albmed, trnmed, mu_quad, weight_quad)
 
         if (is_cloudy_profile) then
           ! Add cloud properties to existing profile
@@ -218,7 +236,7 @@ contains
             od_in = od_in + od_cloud(config%i_band_from_reordered_g_lw(jg),:,jcol)
           end if
 
-          call disort(nlev, config%n_angles_per_hemisphere_lw*2, &
+          call disort(nlev, config%n_pf_lw, &
                &  config%n_angles_per_hemisphere_lw*2, &
                &  config%n_angles_per_hemisphere_lw*2, nphi, nlev+1, &
                &  .false., .false., 0, .true., spread(.false.,1,5), &
@@ -229,7 +247,7 @@ contains
                &  0.0_jprb, 1.0_jprb, 6371.0_jprb, h_layer, &
                &  rhoq, rhou, rho_accurate, bemst, emust, &
                &  0.0_jprb, header, flux_dn_dir, flux_dn(jg,:), flux_up(jg,:), &
-               &  dfdt, uavg, uu, albmed, trnmed)
+               &  dfdt, uavg, uu, albmed, trnmed, mu_quad, weight_quad)
         end if
         
       end do
