@@ -206,6 +206,7 @@ contains
     use radiation_cloudless_lw,   only : solver_cloudless_lw
     use radiation_homogeneous_sw, only : solver_homogeneous_sw
     use radiation_homogeneous_lw, only : solver_homogeneous_lw
+    use radiation_disort_sw,      only : solver_disort_sw
     use radiation_disort_lw,      only : solver_disort_lw
     use radiation_save,           only : save_radiative_properties
 
@@ -473,13 +474,20 @@ contains
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
-        elseif (config%i_solver_sw == ISolverHomogeneous) then
+        else if (config%i_solver_sw == ISolverHomogeneous) then
           ! Compute fluxes using the homogeneous solver
           call solver_homogeneous_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
+        else if (config%i_solver_sw == ISolverDISORT) then
+          ! Compute fluxes using the DISORT solver
+          call solver_disort_sw(nlev,istartcol,iendcol, &
+               &  config, single_level, cloud, & 
+               &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
+               &  pf_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  incoming_sw, flux)          
         else
           ! Compute fluxes using the cloudless solver
           call solver_cloudless_sw(nlev,istartcol,iendcol, &

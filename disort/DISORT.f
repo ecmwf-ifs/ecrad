@@ -4616,6 +4616,7 @@ c     .. Local Scalars ..
 
       REAL*8    LEFT_MAT(NN,NN),  ZZP(NN), ZZM(NN) 
       REAL*8    SUM, SUM1, SUM2, ZJM(NN), ZJP(NN), FACTOR
+!      REAL*8    SSUM1, SSUM2
       INTEGER   INFO
 
 c     ..
@@ -4628,7 +4629,8 @@ c     ** Pass argument, avoid contamination to array
 
 c      LEFT_MAT = ARRAY*UMU0**2
       LEFT_MAT = REAL(ARRAY,8)
-
+!      SSUM1 = 0d0
+!      SSUM2 = 0d0
       DO 50 IQ = 1, NN
 
 c     .. Left Matrix
@@ -4647,14 +4649,21 @@ c     .. Right Vector
      &        REAL(GL(K),8)*REAL(YLMC(K,IQ+NN),8)*REAL(YLM0(K,1),8)
    60    CONTINUE
 
+|         SSUM1 = SSUM1 + SUM1
+!         SSUM2 = SSUM2 + SUM2
+         
          FACTOR = ( 2d0-REAL(DELM0,8) )*REAL(FBEAM,8)/( 4d0*REAL(PI,8) )
 
          ZJP(IQ) = FACTOR*(SUM1+SUM2)/REAL(CMU(IQ),8)
          ZJM(IQ) = FACTOR*(SUM1-SUM2)/REAL(CMU(IQ),8)
 
    50 CONTINUE
-         
 
+!     RJH: Normalize to conserve energy in case of different quadratures      
+      !print *, 'XXX ',GL(0),SSUM1/GL(0),SSUM2/GL(0),(SSUM1+SSUM2)/GL(0)
+!      ZJP = ZJP * (4.0D0 * GL(0) / (SSUM1+SSUM2))
+!      ZJM = ZJM * (4.0D0 * GL(0) / (SSUM1+SSUM2))
+      
       DO 70 IQ = 1, NN
          SUM = 0d0
          DO 80 KQ = 1, NN

@@ -25,7 +25,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_spectral_definition.F90 radiation_general_cloud_optics.F90 \
 	radiation_general_cloud_optics_data.F90 radiation_random_numbers.F90 \
 	radiation_aerosol_optics_description.F90 radiation_disort_lw.F90 \
-	radiation_gaussian_quadrature.F90
+	radiation_gaussian_quadrature.F90 radiation_disort_sw.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBRAD = ../lib/libradiation.a
@@ -53,8 +53,8 @@ radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_cloudless_lw.o radiation_cloudless_sw.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o \
 	radiation_ecckd_interface.o radiation_general_cloud_optics.o \
-	radiation_disort_lw.o
-radiation_disort_lw.o: radiation_gaussian_quadrature.o
+	radiation_disort_lw.o radiation_disort_sw.o
+radiation_disort_lw.o radiation_disort_sw.o: radiation_gaussian_quadrature.o
 radiation_ifs_rrtm.o radiation_monochromatic.o: radiation_config.o \
 	radiation_thermodynamics.o radiation_gas.o
 radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_mcica_sw.o \

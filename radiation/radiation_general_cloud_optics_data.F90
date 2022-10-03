@@ -269,18 +269,18 @@ contains
       ! Remove Delta-Eddington, then fix the subsequent terms to be
       ! equal to g^2 so that all numbers of streams result in
       ! delta-Eddington
-      !this%pf(:,:,1) = asymmetry_band/(1.0_jprb-asymmetry_band)
-      !this%pf(:,:,2) = this%pf(:,:,1)*this%pf(:,:,1)
-      !do jang = 2,n_pf_components
-      !   this%pf(:,:,jang) = this%pf(:,:,2)
-      !end do
+      this%pf(:,:,1) = asymmetry_band/(1.0_jprb-asymmetry_band)
+      this%pf(:,:,2) = this%pf(:,:,1)*this%pf(:,:,1)
+      do jang = 2,n_pf_components
+         this%pf(:,:,jang) = this%pf(:,:,2)
+      end do
 
       ! Remove Delta-Eddington
-      this%pf(:,:,1) = asymmetry_band/(1.0_jprb-asymmetry_band)
-      do jang = 2,n_pf_components
+      !this%pf(:,:,1) = asymmetry_band/(1.0_jprb-asymmetry_band)
+      !do jang = 2,n_pf_components
         ! Henyey-Greenstein
-        this%pf(:,:,jang) = this%pf(:,:,jang-1)*this%pf(:,:,1)
-      end do
+      !  this%pf(:,:,jang) = this%pf(:,:,jang-1)*this%pf(:,:,1)
+      !end do
 #endif
       !print *, 'Asymmetry factor from Legendre: ', this%pf(:,nre,1)/3.0_jprb
       if (use_thick_averaging_local) then

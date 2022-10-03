@@ -136,8 +136,8 @@ contains
 
     if (lhook) call dr_hook('radiation_disort_lw:solver_disort_lw',0,hook_handle)
 
-    call self_test(3)
-!    call gaussian_quadrature(IQuadratureLegendre, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad)
+!    call self_test(3)
+    ! call gaussian_quadrature(IQuadratureLegendre, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad)
 !    call gaussian_quadrature(IQuadratureLaguerre, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad)
     call gaussian_quadrature(IQuadratureJacobi, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad, 1)
 !    call gaussian_quadrature(IQuadratureChandrasekhar, config%n_angles_per_hemisphere_lw, mu_quad, weight_quad)
