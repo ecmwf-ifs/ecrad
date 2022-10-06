@@ -205,7 +205,7 @@ contains
     integer    :: nwav ! Number of wavenumbers describing cloud
 
     ! Indices to wavenumber intervals in spectral definition structure
-    integer    :: isd, isd0, isd1, isd2, iwav
+    integer    :: isd, isd0, isd1, isd2
 
     ! Wavenumber index
     integer    :: iwav
