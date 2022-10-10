@@ -60,6 +60,16 @@ module radiation_single_level
     ! normalized fluxes out, simply set this to 1.0.
     real(jprb) :: solar_irradiance = 1366.0_jprb ! W m-2
 
+    ! In addition to the effect of the solar cycle on total solar
+    ! irradiance (which the user is expected to input via
+    ! solar_irradiance), it can change the balance between different
+    ! parts of the solar spectrum, e.g. more UV at solar maximum. This
+    ! variable provides the scaling to be applied to the spectral
+    ! amplitude of the solar cycle (assuming it has been provided),
+    ! e.g. 1.0 for solar maximum, -1.0 for solar maximum and 0.0 for
+    ! a mean solar spectrum.
+    real(jprb) :: spectral_solar_cycle_multiplier = 0.0_jprb
+    
     ! If config%use_spectral_solar_irradiance==true then this will be
     ! scaled by spectral_solar_scaling
     real(jprb), allocatable, dimension(:) :: &

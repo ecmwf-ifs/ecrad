@@ -2,6 +2,13 @@ version 1.5.1
 	- Added Makefile_include.intel_atos to match compiler options on
 	  ECMWF supercomputer, plus "-heap-arrays" which is necessary for
 	  the Intel compiler
+	- Added capability for ecCKD to represent the solar cycle in solar
+	  spectral irradiance, via "radiation" namelist parameter
+	  use_spectral_solar_cycle and new file ssi_nrl2.nc (which can be
+	  overridden with ssi_override_file_name). Caller provides
+	  single_level%spectral_solar_cycle_multiplier from -1 (solar
+	  minimum) to +1 (solar maximum), or "radiation_config" namelist
+	  parameter solar_cycle_multiplier_override
 
 version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description

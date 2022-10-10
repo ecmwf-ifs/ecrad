@@ -154,9 +154,16 @@ module radiation_config
   type config_type
     ! USER-CONFIGURABLE PARAMETERS
 
-    ! Override default solar spectrum
+    ! Scale the solar spectrum per band (or g-point if
+    ! do_cloud_aerosol_per_sw_g_point=true) via vector
+    ! single_level%spectral_solar_scaling
     logical :: use_spectral_solar_scaling = .false.
 
+    ! Modify the solar spectrum per g-point to account for the current
+    ! phase of the solar cycle, via scalar
+    ! single_level%spectral_solar_cycle_multiplier
+    logical :: use_spectral_solar_cycle = .false.
+    
     ! Directory in which gas, cloud and aerosol data files are to be
     ! found
     character(len=511) :: directory_name = '.'
@@ -466,6 +473,10 @@ module radiation_config
     character(len=511) :: gas_optics_sw_override_file_name  = ''
     character(len=511) :: gas_optics_lw_override_file_name  = ''
 
+    ! Optionally override the default file describing variations in
+    ! the spectral solar irradiance associated with the solar cycle
+    character(len=511) :: ssi_override_file_name = ''
+    
     ! Optionally override the look-up table file for the cloud-water
     ! PDF used by the McICA solver
     character(len=511) :: cloud_pdf_override_file_name = ''
@@ -568,6 +579,9 @@ module radiation_config
          &                aerosol_optics_file_name, &
          &                gas_optics_sw_file_name, &
          &                gas_optics_lw_file_name
+
+    ! Solar spectral irradiance file name
+    character(len=511) :: ssi_file_name
     
     ! McICA PDF look-up table file name
     character(len=511) :: cloud_pdf_file_name
@@ -657,7 +671,8 @@ contains
     logical :: use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw
     logical :: do_canopy_gases_sw, do_canopy_gases_lw
     logical :: do_cloud_aerosol_per_sw_g_point, do_cloud_aerosol_per_lw_g_point
-    logical :: do_weighted_surface_mapping    
+    logical :: do_weighted_surface_mapping
+    logical :: use_spectral_solar_scaling, use_spectral_solar_cycle
     integer :: n_regions, iverbose, iverbosesetup, n_aerosol_types
     real(jprb):: mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od
     real(jprb):: mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo
@@ -671,6 +686,7 @@ contains
     character(511) :: liq_optics_override_file_name, ice_optics_override_file_name
     character(511) :: cloud_pdf_override_file_name
     character(511) :: gas_optics_sw_override_file_name, gas_optics_lw_override_file_name
+    character(511) :: ssi_override_file_name
     character(63)  :: liquid_model_name, ice_model_name, gas_model_name
     character(63)  :: sw_solver_name, lw_solver_name, overlap_scheme_name
     character(63)  :: sw_entrapment_name, sw_encroachment_name, cloud_pdf_shape_name
@@ -700,6 +716,7 @@ contains
          &  ice_optics_override_file_name, liq_optics_override_file_name, &
          &  aerosol_optics_override_file_name, cloud_pdf_override_file_name, &
          &  gas_optics_sw_override_file_name, gas_optics_lw_override_file_name, &
+         &  ssi_override_file_name, &
          &  liquid_model_name, ice_model_name, max_3d_transfer_rate, &
          &  min_cloud_effective_size, overhang_factor, encroachment_scaling, &
          &  use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw, &
@@ -721,7 +738,8 @@ contains
          &  sw_albedo_wavelength_bound, lw_emiss_wavelength_bound, &
          &  i_sw_albedo_index, i_lw_emiss_index, &
          &  do_cloud_aerosol_per_lw_g_point, &
-         &  do_cloud_aerosol_per_sw_g_point, do_weighted_surface_mapping
+         &  do_cloud_aerosol_per_sw_g_point, do_weighted_surface_mapping, &
+         &  use_spectral_solar_scaling, use_spectral_solar_cycle
          
     real(jprb) :: hook_handle
 
@@ -753,6 +771,7 @@ contains
     aerosol_optics_override_file_name = this%aerosol_optics_override_file_name
     gas_optics_sw_override_file_name = this%gas_optics_sw_override_file_name
     gas_optics_lw_override_file_name = this%gas_optics_lw_override_file_name
+    ssi_override_file_name = this%ssi_override_file_name
     use_expm_everywhere = this%use_expm_everywhere
     use_aerosols = this%use_aerosols
     do_save_radiative_properties = this%do_save_radiative_properties
@@ -807,6 +826,8 @@ contains
     do_cloud_aerosol_per_lw_g_point = this%do_cloud_aerosol_per_lw_g_point
     do_cloud_aerosol_per_sw_g_point = this%do_cloud_aerosol_per_sw_g_point
     do_weighted_surface_mapping   = this%do_weighted_surface_mapping
+    use_spectral_solar_scaling    = this%use_spectral_solar_scaling
+    use_spectral_solar_cycle      = this%use_spectral_solar_cycle
 
     if (present(file_name) .and. present(unit)) then
       write(nulerr,'(a)') '*** Error: cannot specify both file_name and unit in call to config_type%read'
@@ -937,6 +958,7 @@ contains
     this%aerosol_optics_override_file_name = aerosol_optics_override_file_name
     this%gas_optics_sw_override_file_name = gas_optics_sw_override_file_name
     this%gas_optics_lw_override_file_name = gas_optics_lw_override_file_name
+    this%ssi_override_file_name = ssi_override_file_name
     this%use_general_cloud_optics      = use_general_cloud_optics
     this%use_general_aerosol_optics    = use_general_aerosol_optics
     this%cloud_fraction_threshold = cloud_fraction_threshold
@@ -955,6 +977,8 @@ contains
     this%do_cloud_aerosol_per_lw_g_point = do_cloud_aerosol_per_lw_g_point
     this%do_cloud_aerosol_per_sw_g_point = do_cloud_aerosol_per_sw_g_point
     this%do_weighted_surface_mapping   = do_weighted_surface_mapping
+    this%use_spectral_solar_scaling    = use_spectral_solar_scaling
+    this%use_spectral_solar_cycle      = use_spectral_solar_cycle
 
     if (do_save_gpoint_flux) then
       ! Saving the fluxes every g-point overrides saving as averaged
@@ -1129,6 +1153,26 @@ contains
 
     end if
 
+    if (this%use_spectral_solar_cycle) then
+      if (this%i_gas_model /= IGasModelECCKD) then
+        write(nulerr,'(a)') '*** Error: solar cycle only available with ecCKD gas optics model'
+        call radiation_abort('Radiation configuration error')
+      else
+        ! Add directory name to solar spectral irradiance file, if
+        ! provided and does not start with '/'
+        if (len_trim(this%ssi_override_file_name) > 0) then
+          if (this%ssi_override_file_name(1:1) /= '/') then
+            this%ssi_file_name = trim(this%directory_name) &
+                 &  // '/' // trim(this%ssi_override_file_name)
+          else
+            this%ssi_file_name = trim(this%ssi_override_file_name)
+          end if
+        else
+          this%ssi_file_name = 'ssi_mrl2.nc'
+        end if
+      end if
+    end if
+    
     ! Set aerosol optics file name
     if (len_trim(this%aerosol_optics_override_file_name) > 0) then
       if (this%aerosol_optics_override_file_name(1:1) == '/') then
@@ -1351,7 +1395,13 @@ contains
         call print_logical('  Do cloud/aerosol/surface LW properties per g-point', &
              &  'do_cloud_aerosol_per_lw_g_point', this%do_cloud_aerosol_per_lw_g_point)
       end if
-
+      if (this%do_sw) then
+        call print_logical('  Represent solar cycle in spectral irradiance', &
+             &  'use_spectral_solar_cycle', this%use_spectral_solar_cycle)
+        call print_logical('  Scale spectral solar irradiance', &
+             &  'use_spectral_solar_scaling', this%use_spectral_solar_scaling)
+      end if
+      
       !---------------------------------------------------------------------
       write(nulout, '(a)') 'Surface settings:'
       if (this%do_sw) then

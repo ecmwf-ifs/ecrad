@@ -45,6 +45,7 @@ module ecrad_driver_config
      real(jprb) :: overlap_decorr_length_scaling
      real(jprb) :: skin_temperature_override ! K
      real(jprb) :: solar_irradiance_override ! W m-2
+     real(jprb) :: solar_cycle_multiplier_override
      real(jprb) :: cos_sza_override
      real(jprb) :: cloud_inhom_separation_factor  = 1.0_jprb
      real(jprb) :: cloud_separation_scale_surface = -1.0_jprb
@@ -145,6 +146,7 @@ contains
     real(jprb) :: skin_temperature
     real(jprb) :: cos_solar_zenith_angle
     real(jprb) :: solar_irradiance_override
+    real(jprb) :: solar_cycle_multiplier_override
     real(jprb) :: cloud_inhom_separation_factor
     real(jprb) :: cloud_separation_scale_surface
     real(jprb) :: cloud_separation_scale_toa
@@ -191,6 +193,7 @@ contains
          &  effective_size_scaling, cos_solar_zenith_angle, &
          &  lw_emissivity, q_liquid_scaling, q_ice_scaling, &
          &  istartcol, iendcol, solar_irradiance_override, &
+         &  solar_cycle_multiplier_override, &
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
@@ -230,6 +233,7 @@ contains
     skin_temperature = -1.0_jprb
     cos_solar_zenith_angle = -1.0_jprb
     solar_irradiance_override = -1.0_jprb
+    solar_cycle_multiplier_override = -2.0e6_jprb
     cloud_inhom_separation_factor = 1.0_jprb
     cloud_separation_scale_toa = -1.0_jprb
     cloud_separation_scale_surface = -1.0_jprb
@@ -337,6 +341,7 @@ contains
     this%skin_temperature_override = skin_temperature
     this%cos_sza_override = cos_solar_zenith_angle
     this%solar_irradiance_override = solar_irradiance_override
+    this%solar_cycle_multiplier_override = solar_cycle_multiplier_override
     this%cloud_inhom_separation_factor = cloud_inhom_separation_factor
     this%cloud_separation_scale_toa = cloud_separation_scale_toa
     this%cloud_separation_scale_surface = cloud_separation_scale_surface
