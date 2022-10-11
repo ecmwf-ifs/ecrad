@@ -349,8 +349,16 @@ contains
                &  driver_config%cloud_separation_scale_power, &
                &  driver_config%cloud_inhom_separation_factor)
           
+        else if (file%exists('inv_cloud_effective_size_up_lw') &
+             &  .and. file%exists('inv_cloud_effective_size_dn_lw')) then
+          ! (3a) NetCDF file contains cloud effective size
+          ! In TCRAD we have the possibility of separate upward and
+          ! downward effective sizes
+          call file%get('inv_cloud_effective_size_up_lw', cloud%inv_cloud_effective_size_up_lw)
+          call file%get('inv_cloud_effective_size_dn_lw', cloud%inv_cloud_effective_size_dn_lw)
+
         else if (file%exists('inv_cloud_effective_size')) then
-          ! (3) NetCDF file contains cloud effective size
+          ! (3b) NetCDF file contains cloud effective size
 
           is_cloud_size_scalable = .true.
 
@@ -372,13 +380,6 @@ contains
               write(nulout,'(a)') 'Warning: ...this is unlikely to be accurate for cloud fraction near one'
             end if
           end if
-
-        else if (file%exists('inv_cloud_effective_size_up_lw') &
-             &  .and. file%exists('inv_cloud_effective_size_dn_lw')) then
-          ! In TCRAD we have the possibility of separate upward and
-          ! downward effective sizes
-          call file%get('inv_cloud_effective_size_up_lw', cloud%inv_cloud_effective_size_up_lw)
-          call file%get('inv_cloud_effective_size_dn_lw', cloud%inv_cloud_effective_size_dn_lw)
 
         else if (file%exists('inv_cloud_effective_separation')) then
           ! (4) Alternative way to specify cloud scale
