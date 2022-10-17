@@ -90,7 +90,7 @@ contains
         call radiation_abort()
       end if
       nodes(1) = 1.0_jprb / 1.66_jprb
-      weights(1) = 1.0_jprb
+      weights(1) = 0.5_jprb / nodes(1)
       
     else if (quadrature_type == IQuadratureJacobi) then
       ! Change of variables to s=mu^(2/(jacobi_power+1)), results in

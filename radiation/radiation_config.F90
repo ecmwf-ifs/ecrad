@@ -45,6 +45,9 @@ module radiation_config
   use radiation_cloud_cover,         only : OverlapName, &
        &  IOverlapMaximumRandom, IOverlapExponentialRandom, IOverlapExponential
   use radiation_ecckd,               only : ckd_model_type
+  use radiation_gaussian_quadrature, only : QuadratureName, &
+       &  IQuadratureLaguerre, IQuadratureLegendre, IQuadratureJacobi, &
+       &  IQuadratureChandrasekhar
 
   implicit none
   public
@@ -57,7 +60,8 @@ module radiation_config
   ! for both
   enum, bind(c) 
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
-          &     ISolverSpartacus, ISolverTripleclouds, ISolverDISORT
+          &     ISolverSpartacus, ISolverTripleclouds, ISolverDISORT, &
+          &     ISolverHomogeneousDISORT, ISolverCloudlessDISORT
   end enum
   ! How is the gridbox-mean cloud water adjusted to obtain the
   ! in-cloud value? Dependent on the solver, this may be Zero (ignore
@@ -69,21 +73,25 @@ module radiation_config
          ICloudScalingFraction, ICloudScalingCover
   end enum
 
-  character(len=*), parameter :: SolverName(0:5) =  [ 'Cloudless   ', &
-       &                                              'Homogeneous ', &
-       &                                              'McICA       ', &
-       &                                              'SPARTACUS   ', &
-       &                                              'Tripleclouds', &
-       &                                              'DISORT      ' ]
+  character(len=*), parameter :: SolverName(0:7) =  [ 'Cloudless        ', &
+       &                                              'Homogeneous      ', &
+       &                                              'McICA            ', &
+       &                                              'SPARTACUS        ', &
+       &                                              'Tripleclouds     ', &
+       &                                              'DISORT           ', &
+       &                                              'HomogeneousDISORT', &
+       &                                              'CloudlessDISORT  ']
   ! Array specifying cloud scaling assumption associated with each
   ! solver
-  integer, parameter :: SolverCloudScaling(0:5) &
+  integer, parameter :: SolverCloudScaling(0:7) &
        &  = [ ICloudScalingZero, ICloudScalingOne, ICloudScalingFraction, &
-       &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingOne ]
+       &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingOne, &
+       &      ICloudScalingOne, ICloudScalingZero ]
 
-  integer, parameter :: SolverPhaseFuncMode(0:5) &
+  integer, parameter :: SolverPhaseFuncMode(0:7) &
        &  = [ IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, &
-       &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncLegendre ]
+       &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncLegendre, &
+       &      IPhaseFuncLegendre, IPhaseFuncLegendre ]
   
   ! SPARTACUS shortwave solver can treat the reflection of radiation
   ! back up into different regions in various ways
@@ -385,6 +393,17 @@ module radiation_config
     integer :: n_angles_per_hemisphere_sw = 2
     integer :: n_angles_per_hemisphere_lw = 2
 
+    ! Angular quadrature schemes for DISORT solver
+    integer :: i_quadrature_sw = IQuadratureLegendre
+    integer :: i_quadrature_lw = IQuadratureJacobi
+
+    ! Gauss-Jacobi quadrature involves a change of variables such that
+    ! the quadrature is optimized to integrate functions as a function
+    ! of "s" between 0 and 1 weighted by s to the power specified by
+    ! this variable. This variable has no effect on other quadratures.
+    integer :: i_quadrature_power_sw = 5
+    integer :: i_quadrature_power_lw = 5
+    
     ! The 3D transfer rate "X" is such that if transport out of a
     ! region was the only process occurring then by the base of a
     ! layer only exp(-X) of the original flux would remain in that
@@ -693,6 +712,7 @@ contains
     logical :: do_cloud_aerosol_per_sw_g_point, do_cloud_aerosol_per_lw_g_point
     logical :: do_weighted_surface_mapping    
     integer :: n_regions, iverbose, iverbosesetup, n_aerosol_types
+    integer :: i_quadrature_power_lw, i_quadrature_power_sw
     real(jprb):: mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od
     real(jprb):: mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo
     real(jprb):: mono_lw_asymmetry_factor, mono_sw_asymmetry_factor
@@ -707,6 +727,7 @@ contains
     character(511) :: gas_optics_sw_override_file_name, gas_optics_lw_override_file_name
     character(63)  :: liquid_model_name, ice_model_name, gas_model_name
     character(63)  :: sw_solver_name, lw_solver_name, overlap_scheme_name
+    character(64)  :: sw_quadrature_name, lw_quadrature_name
     character(63)  :: sw_entrapment_name, sw_encroachment_name, cloud_pdf_shape_name
     character(len=511) :: cloud_type_name(NMaxCloudTypes) = ["","","","","","","","","","","",""]
     logical :: use_thick_cloud_spectral_averaging(NMaxCloudTypes) &
@@ -726,6 +747,7 @@ contains
     namelist /radiation/ do_sw, do_lw, do_sw_direct, &
          &  do_3d_effects, do_lw_side_emissivity, do_clear, &
          &  n_angles_per_hemisphere_sw, n_angles_per_hemisphere_lw, &
+         &  i_quadrature_power_sw, i_quadrature_power_lw, &
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
@@ -743,6 +765,7 @@ contains
          &  use_general_cloud_optics, use_general_aerosol_optics, &
          &  do_sw_delta_scaling_with_gases, overlap_scheme_name, &
          &  sw_solver_name, lw_solver_name, use_beta_overlap, use_vectorizable_generator, &
+         &  sw_quadrature_name, lw_quadrature_name, &
          &  use_expm_everywhere, iverbose, iverbosesetup, &
          &  cloud_inhom_decorr_scaling, cloud_fraction_threshold, &
          &  clear_to_thick_fraction, max_gas_od_3d, max_cloud_od, &
@@ -771,6 +794,8 @@ contains
     do_lw_side_emissivity = this%do_lw_side_emissivity
     n_angles_per_hemisphere_sw = this%n_angles_per_hemisphere_sw
     n_angles_per_hemisphere_lw = this%n_angles_per_hemisphere_lw
+    i_quadrature_power_sw = this%i_quadrature_power_sw
+    i_quadrature_power_lw = this%i_quadrature_power_lw
     do_clear = this%do_clear
     do_lw_aerosol_scattering = this%do_lw_aerosol_scattering
     do_lw_cloud_scattering = this%do_lw_cloud_scattering
@@ -822,6 +847,8 @@ contains
     ice_model_name = '' !DefaultIceModelName
     sw_solver_name = '' !DefaultSwSolverName
     lw_solver_name = '' !DefaultLwSolverName
+    sw_quadrature_name = ''
+    lw_quadrature_name = ''
     sw_entrapment_name = ''
     sw_encroachment_name = ''
     overlap_scheme_name = ''
@@ -878,11 +905,11 @@ contains
 
       ! This version exits correctly, but provides less information
       ! about how the namelist was incorrect
-      read(unit=iunit, iostat=iosread, nml=radiation)
+      !read(unit=iunit, iostat=iosread, nml=radiation)
 
       ! Depending on compiler this version provides more information
       ! about the error in the namelist
-      !read(unit=iunit, nml=radiation)
+      read(unit=iunit, nml=radiation)
 
       if (iosread /= 0) then
         ! An error occurred reading the file
@@ -929,6 +956,8 @@ contains
     this%do_lw_side_emissivity = do_lw_side_emissivity
     this%n_angles_per_hemisphere_sw = n_angles_per_hemisphere_sw
     this%n_angles_per_hemisphere_lw = n_angles_per_hemisphere_lw
+    this%i_quadrature_power_sw = i_quadrature_power_sw
+    this%i_quadrature_power_lw = i_quadrature_power_lw    
     this%use_expm_everywhere = use_expm_everywhere
     this%use_aerosols = use_aerosols
     this%do_lw_cloud_scattering = do_lw_cloud_scattering
@@ -1021,6 +1050,12 @@ contains
     call get_enum_code(lw_solver_name, SolverName, &
          &            'lw_solver_name', this%i_solver_lw)
 
+    ! Determine quadrature schemes (for DISORT solver)
+    call get_enum_code(sw_quadrature_name, QuadratureName, &
+         &            'sw_quadrature_name', this%i_quadrature_sw)
+    call get_enum_code(lw_quadrature_name, QuadratureName, &
+         &            'lw_quadrature_name', this%i_quadrature_lw)
+    
     if (len_trim(sw_encroachment_name) > 1) then
       call get_enum_code(sw_encroachment_name, EncroachmentName, &
            &             'sw_encroachment_name', this%i_3d_sw_entrapment)
@@ -1045,8 +1080,10 @@ contains
     end if
 
     ! Will clouds be used at all?
-    if ((this%do_sw .and. this%i_solver_sw /= ISolverCloudless) &
-         &  .or. (this%do_lw .and. this%i_solver_lw /= ISolverCloudless)) then
+    if ((this%do_sw .and. (this%i_solver_sw /= ISolverCloudless &
+         &                 .and. this%i_solver_sw /= ISolverCloudlessDISORT)) &
+         &  .or. (this%do_lw .and. (this%i_solver_lw /= ISolverCloudless &
+         &                 .and. this%i_solver_lw /= ISolverCloudlessDISORT))) then
       this%do_clouds = .true.
     else
       this%do_clouds = .false.
@@ -1103,8 +1140,10 @@ contains
     end if
 
     ! Will clouds be used at all?
-    if ((this%do_sw .and. this%i_solver_sw /= ISolverCloudless) &
-         &  .or. (this%do_lw .and. this%i_solver_lw /= ISolverCloudless)) then
+    if ((this%do_sw .and. (this%i_solver_sw /= ISolverCloudless &
+         &                 .and. this%i_solver_sw /= ISolverCloudlessDISORT)) &
+         &  .or. (this%do_lw .and. (this%i_solver_lw /= ISolverCloudless &
+         &                 .and. this%i_solver_lw /= ISolverCloudlessDISORT))) then
       this%do_clouds = .true.
     else
       this%do_clouds = .false.
@@ -1292,12 +1331,16 @@ contains
     end if
 
     ! Set number of dimensions to store phase function information
-    if (this%i_solver_sw == ISolverDISORT) then
+    if (this%i_solver_sw == ISolverDISORT &
+         &  .or. this%i_solver_sw == ISolverCloudlessDISORT &
+         &  .or. this%i_solver_sw == ISolverHomogeneousDISORT) then
       this%n_pf_sw = this%n_angles_per_hemisphere_sw*2
     else
       this%n_pf_sw = 1
     end if
-    if (this%i_solver_lw == ISolverDISORT) then
+    if (this%i_solver_lw == ISolverDISORT &
+         &  .or. this%i_solver_lw == ISolverCloudlessDISORT &
+         &  .or. this%i_solver_lw == ISolverHomogeneousDISORT) then
       this%n_pf_lw = this%n_angles_per_hemisphere_lw*2
     else
       this%n_pf_lw = 1
@@ -1538,19 +1581,40 @@ contains
           call print_real('    Overhang factor', &
                &   'overhang_factor', this%overhang_factor)
         end if
-
-      else if (this%i_solver_lw == ISolverDISORT) then
-        write(nulout, '(a)') '  DISORT options:'
-        call print_integer('    Number of SW angles per hemisphere', 'n_angles_per_hemisphere_sw', &
-             &  this%n_angles_per_hemisphere_sw)
-        call print_integer('    Number of LW angles per hemisphere', 'n_angles_per_hemisphere_lw', &
-             &  this%n_angles_per_hemisphere_lw)
       else if (this%i_solver_sw == ISolverMcICA &
            &  .or. this%i_solver_lw == ISolverMcICA) then
         call print_logical('  Use vectorizable McICA cloud generator', &
              &   'use_vectorizable_generator', this%use_vectorizable_generator)
       end if
-            
+      
+      if (this%do_lw .and. (this%i_solver_lw == ISolverDISORT &
+           .or. this%i_solver_lw == ISolverCloudlessDISORT &
+           .or. this%i_solver_lw == ISolverHomogeneousDISORT)) then
+        write(nulout, '(a)') '  DISORT longwave options:'
+        call print_enum('    LW quadrature scheme is', QuadratureName, 'i_quadrature_lw', &
+             &          this%i_quadrature_lw)
+        call print_integer('    Number of LW angles per hemisphere', 'n_angles_per_hemisphere_lw', &
+             &  this%n_angles_per_hemisphere_lw)
+        if (this%i_quadrature_lw == IQuadratureJacobi) then
+          call print_integer('    Power in Gauss-Jacobi quadrature', 'i_quadrature_lw', &
+               this%i_quadrature_power_lw)
+        end if
+      end if
+
+      if (this%do_sw .and. (this%i_solver_sw == ISolverDISORT &
+           &  .or. this%i_solver_sw == ISolverCloudlessDISORT &
+           &  .or. this%i_solver_sw == ISolverHomogeneousDISORT)) then
+        write(nulout, '(a)') '  DISORT shortwave options:'
+        call print_enum('    SW quadrature scheme is', QuadratureName, 'i_quadrature_sw', &
+             &          this%i_quadrature_sw)
+        call print_integer('    Number of SW angles per hemisphere', 'n_angles_per_hemisphere_sw', &
+             &  this%n_angles_per_hemisphere_sw)
+        if (this%i_quadrature_sw == IQuadratureJacobi) then
+          call print_integer('    Power in Gauss-Jacobi quadrature', 'i_quadrature_sw', &
+               this%i_quadrature_power_sw)
+        end if
+      end if
+
     end if
     
   end subroutine print_config

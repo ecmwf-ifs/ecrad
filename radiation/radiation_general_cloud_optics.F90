@@ -189,10 +189,10 @@ contains
     od_lw_cloud  = 0.0_jprb
     od_sw_cloud  = 0.0_jprb
     ssa_sw_cloud = 0.0_jprb
-    pf_sw_cloud   = 0.0_jprb
+    pf_sw_cloud  = 0.0_jprb
     if (config%do_lw_cloud_scattering) then
       ssa_lw_cloud = 0.0_jprb
-      pf_lw_cloud   = 0.0_jprb
+      pf_lw_cloud  = 0.0_jprb
     end if
 
     ! Loop over cloud types

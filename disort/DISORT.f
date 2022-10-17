@@ -4649,7 +4649,7 @@ c     .. Right Vector
      &        REAL(GL(K),8)*REAL(YLMC(K,IQ+NN),8)*REAL(YLM0(K,1),8)
    60    CONTINUE
 
-|         SSUM1 = SSUM1 + SUM1
+!         SSUM1 = SSUM1 + SUM1
 !         SSUM2 = SSUM2 + SUM2
          
          FACTOR = ( 2d0-REAL(DELM0,8) )*REAL(FBEAM,8)/( 4d0*REAL(PI,8) )

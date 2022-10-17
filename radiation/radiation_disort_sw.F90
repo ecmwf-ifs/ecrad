@@ -38,9 +38,7 @@ contains
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type, indexed_sum_profile, &
          &                               add_indexed_sum_profile
-    use radiation_gaussian_quadrature, only : gaussian_quadrature, self_test, &
-         &  IQuadratureLaguerre, IQuadratureLegendre, IQuadratureJacobi, &
-         &  IQuadratureChandrasekhar
+    use radiation_gaussian_quadrature, only : gaussian_quadrature, self_test
 
     implicit none
 
@@ -134,10 +132,9 @@ contains
     h_layer = 0.0_jprb
     
     !    call self_test(3)
-    call gaussian_quadrature(IQuadratureLegendre, config%n_angles_per_hemisphere_sw, mu_quad, weight_quad)
-    !    call gaussian_quadrature(IQuadratureLaguerre, config%n_angles_per_hemisphere_sw, mu_quad, weight_quad)
-    !call gaussian_quadrature(IQuadratureJacobi, config%n_angles_per_hemisphere_sw, mu_quad, weight_quad, 5)
-!    call gaussian_quadrature(IQuadratureChandrasekhar, config%n_angles_per_hemisphere_sw, mu_quad, weight_quad)
+    call gaussian_quadrature(config%i_quadrature_sw, config%n_angles_per_hemisphere_sw, &
+         &  mu_quad, weight_quad, config%i_quadrature_power_sw)
+
     ! Duplicate for opposite hemisphere
     do jcomp = 1,config%n_angles_per_hemisphere_sw
       mu_quad    (jcomp + config%n_angles_per_hemisphere_sw) = -mu_quad    (jcomp)

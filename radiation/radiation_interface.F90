@@ -189,7 +189,7 @@ contains
     use radiation_config,         only : config_type, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, &
          &   ISolverMcICA, ISolverSpartacus, ISolverHomogeneous, &
-         &   ISolverTripleclouds, ISolverDISORT
+         &   ISolverTripleclouds, ISolverDISORT, ISolverCloudlessDISORT
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_gas,            only : gas_type
@@ -207,7 +207,7 @@ contains
     use radiation_homogeneous_sw, only : solver_homogeneous_sw
     use radiation_homogeneous_lw, only : solver_homogeneous_lw
     use radiation_disort_sw,      only : solver_disort_sw
-    use radiation_disort_lw,      only : solver_disort_lw
+    use radiation_disort_lw,      only : solver_disort_lw, solver_cloudless_disort_lw
     use radiation_save,           only : save_radiative_properties
 
     ! Treatment of gas and hydrometeor optics 
@@ -440,6 +440,11 @@ contains
                &  config, cloud, & 
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
                &  pf_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
+        elseif (config%i_solver_lw == ISolverCloudlessDISORT) then
+          ! Compute fluxes using the cloudless DISORT solver
+          call solver_cloudless_disort_lw(nlev,istartcol,iendcol, &
+               &  config, od_lw, ssa_lw, g_lw, &
+               &  planck_hl, lw_emission, lw_albedo, flux)
         else
           ! Compute fluxes using the cloudless solver
           call solver_cloudless_lw(nlev,istartcol,iendcol, &

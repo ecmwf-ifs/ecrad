@@ -92,7 +92,8 @@ radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
 	radiation_cloud_cover.o radiation_random_numbers.o
 radiation_lw_derivatives.o: radiation_matrix.o
 
-radiation_config.o: radiation_cloud_generator.o radiation_ecckd.o radiation_general_cloud_optics_data.o
+radiation_config.o: radiation_cloud_generator.o radiation_ecckd.o \
+	radiation_general_cloud_optics_data.o radiation_gaussian_quadrature.o
 
 radiation_aerosol_optics.F90 radiation_cloud_optics.F90 radiation_homogeneous_sw.F90 \
 	radiation_mcica_sw.F90 radiation_cloudless_sw.o: radiation_delta_eddington.h
