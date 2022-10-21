@@ -37,8 +37,9 @@ contains
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type, indexed_sum_profile
     !use radiation_lw_derivatives, only : calc_lw_derivatives_ica
-    use radiation_gaussian_quadrature, only : gaussian_quadrature, self_test
+    use radiation_gaussian_quadrature, only : gaussian_quadrature, self_test, QuadratureName
     use radiation_cloud_cover, only    : cloud_cover
+    use radiation_io, only             : nulout
     
     implicit none
 
@@ -156,12 +157,17 @@ contains
 !    call self_test(3)
     call gaussian_quadrature(config%i_quadrature_lw, config%n_angles_per_hemisphere_lw, &
          &  mu_quad, weight_quad, config%i_quadrature_power_lw)
-
+    
     do jcomp = 1,config%n_angles_per_hemisphere_lw
       mu_quad    (jcomp + config%n_angles_per_hemisphere_lw) = -mu_quad    (jcomp)
       weight_quad(jcomp + config%n_angles_per_hemisphere_lw) =  weight_quad(jcomp)
     end do
     
+    !if (config%iverbose >= 5) then
+    !  write(nulout, *) 'Quadrature: ', QuadratureName(config%i_quadrature_lw), config%n_angles_per_hemisphere_lw, &
+    !       &  ' mu=[', mu_quad, '] wt=[', weight_quad, ']'
+    !end if
+
     ng = config%n_g_lw
 
     header = 'ecRad profile'
