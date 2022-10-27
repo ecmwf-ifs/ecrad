@@ -910,7 +910,7 @@ contains
                   g_lw(jg,jlev,jcol) = scat_g_lw_aerosol(iband,jlev) &
                        &  / scat_lw_aerosol(iband,jlev)
                 end if
-                local_od             = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband,jlev)
+                local_od = od_lw(jg,jlev,jcol) + od_lw_aerosol(iband,jlev)
                 ssa_lw(jg,jlev,jcol) = scat_lw_aerosol(iband,jlev) / local_od
                 od_lw (jg,jlev,jcol) = local_od
               end if
