@@ -309,7 +309,7 @@ contains
     end if
 
     if (is_ambiguous) then
-      write(nulout,'(a,a2,a,l,a)') 'Warning: get_index("', code_str, '",', lhydrophilic, &
+      write(nulout,'(a,a2,a,l1,a)') 'Warning: get_index("', code_str, '",', lhydrophilic, &
            &  ',...) does not unambiguously identify an aerosol optical property index'
     end if
 
