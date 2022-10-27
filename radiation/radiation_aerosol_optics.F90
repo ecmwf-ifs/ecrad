@@ -860,7 +860,7 @@ contains
               ! simply weights the aerosol asymmetry by the scattering
               ! optical depth
               g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(iband,jlev) / local_scat
-              local_od             = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband,jlev)
+              local_od = od_sw(jg,jlev,jcol) + od_sw_aerosol(iband,jlev)
               ssa_sw(jg,jlev,jcol) = local_scat / local_od
               od_sw (jg,jlev,jcol) = local_od
             end do
