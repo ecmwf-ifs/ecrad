@@ -79,8 +79,8 @@ The subdirectories are as follows:
 
 - `driver` - the source code for the offline driver program
 
-- `ifs` - source files from the IFS that are used to provide inputs to
-        ecRad (but not used in this offline version)
+- `ifs` - slightly modified source files from the IFS that are used to provide inputs to
+        ecRad, but not used in this offline version except if you compile the ecrad_ifs_driver executable
 
 - `mod` - where Fortran module files are written
 

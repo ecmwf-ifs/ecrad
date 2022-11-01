@@ -2,6 +2,7 @@ INPUT = ecrad_meridian
 
 #DRIVER = totalview ../../bin/ecrad -a
 DRIVER = ../../bin/ecrad
+IFS_DRIVER = ../../bin/ecrad_ifs
 CHANGENAM = ../common/change_namelist.sh
 
 #CONFIG = configCY43R3.nam
@@ -26,6 +27,13 @@ test_ecckd: test_ecckd_mcica test_ecckd_tc test_ecckd_tc_noaer test_ecckd_sparta
 # overlap
 test_default:
 	$(DRIVER) $(CONFIG) $(INPUT).nc $(INPUT)_default_out.nc
+
+test_ifsdriver:
+	$(CHANGENAM) $(CONFIG) config_net.nam do_save_net_fluxes=true do_write_double_precision=true \
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"' \
+		overlap_scheme_name='"Exp-Ran"'
+	$(IFS_DRIVER) config_net.nam $(INPUT).nc $(INPUT)_ifsdriver_out.nc | tee $(INPUT)_ifsdriver_out.log
+	$(DRIVER) config_net.nam $(INPUT).nc $(INPUT)_net_out.nc | tee $(INPUT)_net_out.log
 
 # Turn off aerosols
 test_noaer:

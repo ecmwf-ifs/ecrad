@@ -1,5 +1,5 @@
-#!/usr/local/apps/perl/current/bin/perl
 #!/usr/bin/perl
+#!/usr/local/apps/perl/current/bin/perl
 #
 # (C) Copyright 2010- ECMWF.
 #
@@ -16,7 +16,7 @@
 
 use strict;
 use warnings;
-use lib "/home/rd/rdx/bin/prepifs/perl";
+#use lib "/home/rd/rdx/bin/prepifs/perl";
 use Fortran90_stuff;
 use Data::Dumper;
 $Data::Dumper::Indent = 1;

@@ -1,4 +1,4 @@
-! ecrad_driver.F90 - Driver for offline ECRAD radiation scheme
+! ecrad_ifs_driver.F90 - Driver for offline ECRAD radiation scheme
 !
 ! (C) Copyright 2014- ECMWF.
 !
@@ -21,11 +21,27 @@
 ! properties are provided by the RRTM-G gas optics scheme.
 
 ! This program takes three arguments:
-! 1) Namelist file to configure the radiation calculation
+! 1) Namelist file to configure the radiation calculation, but note
+!    that only the radiation_config group is read
 ! 2) Name of a NetCDF file containing one or more atmospheric profiles
 ! 3) Name of output NetCDF file
+!
+! This version uses the infrastructure of the IFS, such as computing
+! effective radius and cloud overlap from latitude and other
+! variables. To configure ecRad in this version you need to edit
+! ifs/yoerad.F90 in the ecRad package, but these options can be
+! overridden with the "radiation" namelist. This file requires the
+! input data to have compatible settings, e.g. the right number of
+! aerosol variables, and surface albedo/emissivity bands; a test file
+! satisfying this requirement is test/ifs/ecrad_meridian.nc in the
+! ecRad package.
+!
+! Note that the purpose of this file is simply to demonstrate the use
+! of the setup_radiation_scheme and radiation_scheme routines; all the
+! rest is using the offline ecRad driver containers to read a NetCDF
+! file to memory and pass it into these routines.
 
-program ecrad_driver
+program ecrad_ifs_driver
 
   ! --------------------------------------------------------
   ! Section 1: Declarations
@@ -33,29 +49,34 @@ program ecrad_driver
   use parkind1,                 only : jprb, jprd ! Working/double precision
 
   use radiation_io,             only : nulout
-  use radiation_interface,      only : setup_radiation, radiation, set_gas_units
-  use radiation_config,         only : config_type
+  use radiation_interface,      only : set_gas_units
   use radiation_single_level,   only : single_level_type
   use radiation_thermodynamics, only : thermodynamics_type
   use radiation_gas,            only : gas_type, &
        &   IVolumeMixingRatio, IMassMixingRatio, &
-       &   IH2O, ICO2, IO3, IN2O, ICO, ICH4, IO2, ICFC11, ICFC12, &
+       &   IH2O, ICO2, IO3, IN2O, INO2, ICO, ICH4, IO2, ICFC11, ICFC12, &
        &   IHCFC22, ICCl4, GasName, GasLowerCaseName, NMaxGases
   use radiation_cloud,          only : cloud_type
   use radiation_aerosol,        only : aerosol_type
   use radiation_flux,           only : flux_type
-  use radiation_save,           only : save_fluxes, save_net_fluxes, save_inputs
+  use radiation_save,           only : save_net_fluxes
+  use radiation_setup,          only : tradiation, setup_radiation_scheme
+  use radiation_constants,      only : Pi
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
 
   implicit none
 
+#include "radiation_scheme.intfb.h"
+
   ! The NetCDF file containing the input profiles
   type(netcdf_file)         :: file
 
+  ! Configuration for the radiation scheme, IFS style
+  type(tradiation)          :: yradiation
+  
   ! Derived types for the inputs to the radiation scheme
-  type(config_type)         :: config
   type(single_level_type)   :: single_level
   type(thermodynamics_type) :: thermodynamics
   type(gas_type)            :: gas
@@ -68,6 +89,14 @@ program ecrad_driver
   ! Derived type containing outputs from the radiation scheme
   type(flux_type)           :: flux
 
+  ! Additional arrays passed to radiation_scheme
+  real(jprb), allocatable, dimension(:) :: ccn_land, ccn_sea, sin_latitude, longitude_rad, land_frac
+  real(jprb), allocatable, dimension(:,:) :: pressure_fl, temperature_fl, zeros
+  real(jprb), allocatable, dimension(:,:,:) :: tegen_aerosol
+  real(jprb), allocatable, dimension(:) :: flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
+       &  flux_incoming, emissivity_out
+  real(jprb), allocatable, dimension(:,:) :: flux_diffuse_band, flux_direct_band
+  
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: istartcol, iendcol ! Range of columns to process
 
@@ -121,9 +150,6 @@ program ecrad_driver
     stop 'Failed to read name of namelist file as string of length < 512'
   end if
 
-  ! Read "radiation" namelist into radiation configuration type
-  call config%read(file_name=file_name)
-
   ! Read "radiation_driver" namelist into radiation driver config type
   call driver_config%read(file_name)
 
@@ -136,7 +162,6 @@ program ecrad_driver
 #else
     write(nulout,'(a)') 'Floating-point precision: double'
 #endif
-    call config%print(driver_config%iverbose)
   end if
 
   ! Albedo/emissivity intervals may be specified like this
@@ -161,7 +186,10 @@ program ecrad_driver
 
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
-  call setup_radiation(config)
+  call setup_radiation_scheme(yradiation, .true., file_name=file_name)
+  ! Or call without specifying the namelist filename, in which case
+  ! the default settings are from yoerad.F90
+  !call setup_radiation_scheme(yradiation, .true.)
 
   ! Demonstration of how to get weights for UV and PAR fluxes
   !if (config%do_sw) then
@@ -172,10 +200,6 @@ program ecrad_driver
   !       &  nweight_par, iband_par, weight_par,&
   !       &  'photosynthetically active radiation, PAR')
   !end if
-
-  if (driver_config%do_save_aerosol_optics) then
-    call config%aerosol_optics%save('aerosol_optics.nc', iverbose=driver_config%iverbose)
-  end if
 
   ! --------------------------------------------------------
   ! Section 3: Read input data file
@@ -202,14 +226,35 @@ program ecrad_driver
   ! program.
   call file%transpose_matrices(.true.)
 
-  ! Read input variables from NetCDF file
-  call read_input(file, config, driver_config, ncol, nlev, &
+  ! Read input variables from NetCDF file, noting that cloud overlap
+  ! and effective radius are ignored
+  call read_input(file, yradiation%rad_config, driver_config, ncol, nlev, &
        &          single_level, thermodynamics, &
        &          gas, cloud, aerosol)
 
+  ! Latitude is used for cloud overlap and ice effective radius
+  if (file%exists('lat')) then
+    call file%get('lat', sin_latitude)
+    sin_latitude = sin(sin_latitude * Pi/180.0_jprb)
+  else
+    allocate(sin_latitude(ncol))
+    sin_latitude = 0.0_jprb
+  end if
+
+  if (file%exists('lon')) then
+    call file%get('lon', longitude_rad)
+    longitude_rad = longitude_rad * Pi/180.0_jprb
+  else
+    allocate(longitude_rad(ncol))
+    longitude_rad = 0.0_jprb
+  end if
+  
   ! Close input file
   call file%close()
 
+  ! Convert gas units to mass-mixing ratio
+  call gas%set_units(IMassMixingRatio)
+  
   ! Compute seed from skin temperature residual
   !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
   !       &                            -int(single_level%skin_temperature)))
@@ -227,26 +272,13 @@ program ecrad_driver
     stop 1
   end if
   
-  ! Store inputs
-  if (driver_config%do_save_inputs) then
-    call save_inputs('inputs.nc', config, single_level, thermodynamics, &
-         &                gas, cloud, aerosol, &
-         &                lat=spread(0.0_jprb,1,ncol), &
-         &                lon=spread(0.0_jprb,1,ncol), &
-         &                iverbose=driver_config%iverbose)
-  end if
-
   ! --------------------------------------------------------
   ! Section 4: Call radiation scheme
   ! --------------------------------------------------------
 
-  ! Ensure the units of the gas mixing ratios are what is required
-  ! by the gas absorption model
-  call set_gas_units(config, gas)
-
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call
-  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
+  !  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
@@ -263,7 +295,31 @@ program ecrad_driver
   ! Allocate memory for the flux profiles, which may include arrays
   ! of dimension n_bands_sw/n_bands_lw, so must be called after
   ! setup_radiation
-  call flux%allocate(config, 1, ncol, nlev)
+  call flux%allocate(yradiation%rad_config, 1, ncol, nlev)
+
+  ! Allocate memory for additional arrays
+  allocate(ccn_land(ncol))
+  allocate(ccn_sea(ncol))
+  allocate(land_frac(ncol))
+  allocate(pressure_fl(ncol,nlev))
+  allocate(temperature_fl(ncol,nlev))
+  allocate(zeros(ncol,nlev))
+  allocate(tegen_aerosol(ncol,nlev,6))
+  allocate(flux_sw_direct_normal(ncol))
+  allocate(flux_uv(ncol))
+  allocate(flux_par(ncol))
+  allocate(flux_par_clear(ncol))
+  allocate(flux_incoming(ncol))
+  allocate(emissivity_out(ncol))
+  allocate(flux_diffuse_band(ncol,yradiation%yrerad%nsw))
+  allocate(flux_direct_band(ncol,yradiation%yrerad%nsw))
+
+  ccn_land = yradiation%yrerad%rccnlnd
+  ccn_sea = yradiation%yrerad%rccnsea
+  tegen_aerosol = 0.0_JPRB
+  pressure_fl = 0.5_jprb * (thermodynamics%pressure_hl(:,1:nlev)+thermodynamics%pressure_hl(:,2:nlev+1))
+  temperature_fl = 0.5_jprb * (thermodynamics%temperature_hl(:,1:nlev)+thermodynamics%temperature_hl(:,2:nlev+1))
+  zeros = 0.0_jprb ! Dummy snow/rain water mixing ratios
   
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -276,7 +332,7 @@ program ecrad_driver
 #endif
   do jrepeat = 1,driver_config%nrepeat
     
-    if (driver_config%do_parallel) then
+!    if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
       
       ! Compute number of blocks to process
@@ -300,27 +356,61 @@ program ecrad_driver
 #endif
         end if
         
-        ! Call the ECRAD radiation scheme
-        call radiation(ncol, nlev, istartcol, iendcol, config, &
-             &  single_level, thermodynamics, gas, cloud, aerosol, flux)
-        
+        ! Call the ECRAD radiation scheme; note that we are simply
+        ! passing arrays in rather than ecRad structures, which are
+        ! used here just for convenience
+        call radiation_scheme(yradiation, istartcol, iendcol, ncol, nlev, size(aerosol%mixing_ratio,3), &
+             &  single_level%solar_irradiance, single_level%cos_sza, single_level%skin_temperature, &
+             &  single_level%sw_albedo, single_level%sw_albedo_direct, single_level%lw_emissivity, &
+             &  ccn_land, ccn_sea, longitude_rad, sin_latitude, land_frac, pressure_fl, temperature_fl, &
+             &  thermodynamics%pressure_hl, thermodynamics%temperature_hl, &
+             &  gas%mixing_ratio(:,:,IH2O), gas%mixing_ratio(:,:,ICO2), &
+             &  gas%mixing_ratio(:,:,ICH4), gas%mixing_ratio(:,:,IN2O), gas%mixing_ratio(:,:,INO2), &
+             &  gas%mixing_ratio(:,:,ICFC11), gas%mixing_ratio(:,:,ICFC12), gas%mixing_ratio(:,:,IHCFC22), &
+             &  gas%mixing_ratio(:,:,ICCl4), gas%mixing_ratio(:,:,IO3), cloud%fraction, cloud%q_liq, &
+             &  cloud%q_ice, zeros, zeros, tegen_aerosol, aerosol%mixing_ratio, flux%sw_up, flux%lw_up, &
+             &  flux%sw_up_clear, flux%lw_up_clear, flux%sw_dn(:,nlev+1), flux%lw_dn(:,nlev+1), &
+             &  flux%sw_dn_clear(:,nlev+1), flux%lw_dn_clear(:,nlev+1), &
+             &  flux%sw_dn_direct(:,nlev+1), flux%sw_dn_direct_clear(:,nlev+1), flux_sw_direct_normal, &
+             &  flux_uv, flux_par, &
+             &  flux_par_clear, flux%sw_dn(:,1), emissivity_out, flux%lw_derivatives, flux_diffuse_band, &
+             &  flux_direct_band)
       end do
       !$OMP END PARALLEL DO
       
-    else
+!    else
       ! Run radiation scheme serially
-      if (driver_config%iverbose >= 3) then
-        write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
-      end if
+!      if (driver_config%iverbose >= 3) then
+!        write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
+!      end if
       
       ! Call the ECRAD radiation scheme
-      call radiation(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
-           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
+!      call radiation_scheme(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
+!           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
       
-    end if
+!    end if
     
   end do
 
+  ! "up" fluxes are actually net fluxes at this point - we modify the
+  ! upwelling flux so that net=dn-up, while the TOA and surface
+  ! downwelling fluxes are correct.
+  flux%sw_up = -flux%sw_up
+  flux%sw_up(:,1) = flux%sw_up(:,1)+flux%sw_dn(:,1)
+  flux%sw_up(:,nlev+1) = flux%sw_up(:,nlev+1)+flux%sw_dn(:,nlev+1)
+
+  flux%lw_up = -flux%lw_up
+  flux%lw_up(:,1) = flux%lw_up(:,1)+flux%lw_dn(:,1)
+  flux%lw_up(:,nlev+1) = flux%lw_up(:,nlev+1)+flux%lw_dn(:,nlev+1)
+
+  flux%sw_up_clear = -flux%sw_up_clear
+  flux%sw_up_clear(:,1) = flux%sw_up_clear(:,1)+flux%sw_dn_clear(:,1)
+  flux%sw_up_clear(:,nlev+1) = flux%sw_up_clear(:,nlev+1)+flux%sw_dn_clear(:,nlev+1)
+
+  flux%lw_up_clear = -flux%lw_up_clear
+  flux%lw_up_clear(:,1) = flux%lw_up_clear(:,1)+flux%lw_dn_clear(:,1)
+  flux%lw_up_clear(:,nlev+1) = flux%lw_up_clear(:,nlev+1)+flux%lw_dn_clear(:,nlev+1)
+  
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
@@ -330,23 +420,21 @@ program ecrad_driver
   ! Section 5: Check and save output
   ! --------------------------------------------------------
 
-  is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
+  ! This is unreliable because only the net fluxes are valid:
+  !is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   ! Store the fluxes in the output file
-  if (.not. driver_config%do_save_net_fluxes) then
-    call save_fluxes(file_name, config, thermodynamics, flux, &
-         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
-         &   experiment_name=driver_config%experiment_name, &
-         &   is_double_precision=driver_config%do_write_double_precision)
-  else
-    call save_net_fluxes(file_name, config, thermodynamics, flux, &
-         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
-         &   experiment_name=driver_config%experiment_name, &
-         &   is_double_precision=driver_config%do_write_double_precision)
-  end if
+  yradiation%rad_config%do_surface_sw_spectral_flux = .false.
+  yradiation%rad_config%do_canopy_fluxes_sw = .false.
+  yradiation%rad_config%do_canopy_fluxes_lw = .false.
   
+  call save_net_fluxes(file_name, yradiation%rad_config, thermodynamics, flux, &
+       &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+       &   experiment_name=driver_config%experiment_name, &
+       &   is_double_precision=driver_config%do_write_double_precision)
+    
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
 
-end program ecrad_driver
+end program ecrad_ifs_driver

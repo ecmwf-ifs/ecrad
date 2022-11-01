@@ -106,9 +106,14 @@ lib:
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps
 	cd ifsrrtm && $(MAKE) deps
+	cd ifs && $(MAKE) deps
 
 clean-deps:
 	rm -f include/*.intfb.h
+
+ifsdriver: libifsaux libdummydrhook libifsrrtm libutilities libradiation
+	cd ifs && $(MAKE)
+	cd driver && $(MAKE) ecrad_ifs_driver
 
 libifsaux:
 	cd ifsaux && $(MAKE)
@@ -162,6 +167,7 @@ clean-utilities:
 	cd utilities && $(MAKE) clean
 	cd ifsrrtm && $(MAKE) clean
 	cd drhook && $(MAKE) clean
+	cd ifs && $(MAKE) clean
 
 clean-mods:
 	rm -f mod/*.mod
@@ -173,5 +179,5 @@ clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
-	libradiation driver symlinks clean clean-toplevel test test_ifs \
+	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver \
 	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
