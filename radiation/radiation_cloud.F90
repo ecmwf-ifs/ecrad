@@ -614,7 +614,7 @@ contains
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: istartcol, iendcol
 
-    integer :: nlev
+    integer :: nlev, ntype
     integer :: jcol, jlev, jh
 
     real(jprb) :: cloud_fraction_threshold, cloud_mixing_ratio_threshold
@@ -624,13 +624,14 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',0,hook_handle)
 
-    nlev = size(this%fraction,2)
-
+    nlev  = size(this%fraction,2)
+    ntype = size(this%mixing_ratio,3)
+    
     do jlev = 1,nlev
       do jcol = istartcol,iendcol
         sum_mixing_ratio(jcol) = 0.0_jprb
       end do
-      do jh = 1, this%ntype
+      do jh = 1, ntype
         do jcol = istartcol,iendcol
           sum_mixing_ratio(jcol) = sum_mixing_ratio(jcol) + this%mixing_ratio(jcol,jlev,jh)
         end do
