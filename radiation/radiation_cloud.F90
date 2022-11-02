@@ -33,6 +33,7 @@ module radiation_cloud
   type cloud_type
     ! For maximum flexibility, an arbitrary number "ntype" of
     ! hydrometeor types can be stored, dimensioned (ncol,nlev,ntype)
+    integer                                   :: ntype = 0
     real(jprb), allocatable, dimension(:,:,:) :: &
          &  mixing_ratio, &  ! mass mixing ratio (kg/kg)
          &  effective_radius ! (m)
@@ -120,17 +121,18 @@ contains
     if (lhook) call dr_hook('radiation_cloud:allocate',0,hook_handle)
 
     if (present(ntype)) then
-      ! Arbitrary number of types
-      allocate(this%mixing_ratio(ncol,nlev,ntype))
-      allocate(this%effective_radius(ncol,nlev,ntype))
-      nullify(this%q_liq)
-      nullify(this%q_ice)
-      nullify(this%re_liq)
-      nullify(this%re_ice)
+      this%ntype = ntype
     else
+      this%ntype = 2
+    end if
+    allocate(this%mixing_ratio(ncol,nlev,this%ntype))
+    allocate(this%effective_radius(ncol,nlev,this%ntype))
+    nullify(this%q_liq)
+    nullify(this%q_ice)
+    nullify(this%re_liq)
+    nullify(this%re_ice)
+    if (.not. present(ntype)) then
       ! Older interface in which only liquid and ice are supported
-      allocate(this%mixing_ratio(ncol,nlev,2))
-      allocate(this%effective_radius(ncol,nlev,2))
       this%q_liq  => this%mixing_ratio(:,:,1)
       this%q_ice  => this%mixing_ratio(:,:,2)
       this%re_liq => this%effective_radius(:,:,1)
@@ -625,22 +627,31 @@ contains
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: istartcol, iendcol
 
-    integer :: nlev
-    integer :: jcol, jlev
+    integer :: nlev, ntype
+    integer :: jcol, jlev, jh
 
     real(jprb) :: cloud_fraction_threshold, cloud_mixing_ratio_threshold
+    real(jprb) :: sum_mixing_ratio(istartcol:iendcol)
 
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',0,hook_handle)
 
-    nlev = size(this%fraction,2)
-
+    nlev  = size(this%fraction,2)
+    ntype = size(this%mixing_ratio,3)
+    
     do jlev = 1,nlev
       do jcol = istartcol,iendcol
-        if (this%fraction(jcol,jlev) < cloud_fraction_threshold &
-             &  .or. sum(this%mixing_ratio(jcol,jlev,:)) &
-             &        < cloud_mixing_ratio_threshold) then
+        sum_mixing_ratio(jcol) = 0.0_jprb
+      end do
+      do jh = 1, ntype
+        do jcol = istartcol,iendcol
+          sum_mixing_ratio(jcol) = sum_mixing_ratio(jcol) + this%mixing_ratio(jcol,jlev,jh)
+        end do
+      end do
+      do jcol = istartcol,iendcol
+        if (this%fraction(jcol,jlev)        < cloud_fraction_threshold &
+             &  .or. sum_mixing_ratio(jcol) < cloud_mixing_ratio_threshold) then
           this%fraction(jcol,jlev) = 0.0_jprb
         end if
       end do

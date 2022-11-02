@@ -170,6 +170,7 @@ contains
       cloud%q_ice  => cloud%mixing_ratio(:,:,2)
       cloud%re_liq => cloud%effective_radius(:,:,1)
       cloud%re_ice => cloud%effective_radius(:,:,2)
+      cloud%ntype = size(cloud%mixing_ratio,3)
 
       ! Simple initialization of the seeds for the Monte Carlo scheme
       call single_level%init_seed_simple(1,ncol)
