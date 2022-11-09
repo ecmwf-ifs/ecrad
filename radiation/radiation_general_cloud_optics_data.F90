@@ -35,13 +35,17 @@ module radiation_general_cloud_optics_data
     ! versus effective radius dimensioned (nband,n_effective_radius)
     
     ! Extinction coefficient per unit mass (m2 kg-1)
-    real(jprb), allocatable, dimension(:,:) :: &
-         &  mass_ext
+    real(jprb), allocatable, dimension(:,:) :: mass_ext
     
     ! Single-scattering albedo and asymmetry factor (dimensionless)
-    real(jprb), allocatable, dimension(:,:) :: &
-         &  ssa, asymmetry
+    real(jprb), allocatable, dimension(:,:) :: ssa, asymmetry
 
+    ! Support for RTTOV-style look-up table using water content and
+    ! temperature, rather than effective radius; here the look-up
+    ! tables are dimensioned (nband, n_water_content, n_temperature)
+    real(jprb), allocatable, dimension(:,:,:) &
+         &  :: mass_ext_wct, ssa_wct, asymmetry_wct
+    
 #ifdef FLOTSAM
     ! Scattering angle (radians)
     real(jprb), allocatable, dimension(:)     :: scattering_angle
@@ -52,10 +56,20 @@ module radiation_general_cloud_optics_data
 #endif
 
     ! Number of effective radius coefficients, start value and
-    ! interval in look-up table
+    ! interval (m) in look-up table
     integer    :: n_effective_radius = 0
     real(jprb) :: effective_radius_0, d_effective_radius
 
+    ! Number of water content coefficients, natural log of start value
+    ! (kg m-3) and interval in look-up table
+    integer    :: n_water_content = 0
+    real(jprb) :: ln_water_content_0, d_ln_water_content
+
+    ! Number of temperature coefficients, start value and interval (K)
+    ! in look-up table
+    integer    :: n_temperature = 0
+    real(jprb) :: temperature_0, d_temperature
+    
     ! Name of cloud/precip type (e.g. "liquid", "ice", "rain", "snow")
     ! and the name of the optics scheme.  These two are used to
     ! generate the name of the data file from which the coefficients
@@ -65,8 +79,12 @@ module radiation_general_cloud_optics_data
     ! Do we use bands or g-points?
     logical :: use_bands = .false.
 
+    ! Use effective radius, or water content and temperature?
+    logical :: use_effective_radius = .true.
+
    contains
      procedure :: setup => setup_general_cloud_optics
+     procedure :: setup_wct => setup_general_cloud_optics_wct
      procedure :: add_optical_properties
 #ifdef FLOTSAM
      procedure :: add_optical_properties_flotsam
@@ -163,6 +181,16 @@ contains
     ! Open the scattering file and configure the way it is read
     call file%open(trim(file_name), iverbose=iverb)
     !call file%transpose_matrices()
+
+    if (file%exists('water_content')) then
+      ! File assumed to provide optical properties as a function of
+      ! water content and temperature; call alternative routine, close
+      ! the file and return
+      call this%setup_wct(file_name, file, specdef, use_bands_local, &
+           &              use_thick_averaging_local, weighting_temperature, iverb)
+      call file%close()
+      return
+    end if
 
     ! Read coordinate variables
     call file%get('wavenumber', wavenumber)
@@ -317,12 +345,189 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Setup cloud optics coefficients as a function of water content and
+  ! temperature
+  subroutine setup_general_cloud_optics_wct(this, file_name, file, specdef, &
+       &                                    use_bands, use_thick_averaging, &
+       &                                    weighting_temperature, &
+       &                                    iverbose)
+
+    use yomhook,                       only : lhook, dr_hook
+    use easy_netcdf,                   only : netcdf_file
+    use radiation_spectral_definition, only : spectral_definition_type
+    use radiation_io,                  only : nulout, nulerr, radiation_abort
+    use radiation_constants,           only : Pi
+
+    class(general_cloud_optics_type), intent(inout)    :: this
+    ! The NetCDF file containing the coefficients
+    character(len=*), intent(in)               :: file_name
+    type(netcdf_file), intent(inout)           :: file
+    type(spectral_definition_type), intent(in) :: specdef
+    logical, intent(in)                        :: use_bands, use_thick_averaging
+    real(jprb), intent(in)                     :: weighting_temperature ! K
+    integer, intent(in)                        :: iverbose
+    
+    ! Spectral properties read from file, dimensioned (wavenumber,
+    ! water_content, temperature)
+    real(jprb), dimension(:,:,:), allocatable :: mass_ext, & ! m2 kg-1
+         &                                       ssa, asymmetry
+
+    ! Reflectance of an infinitely thick cloud, needed for thick
+    ! averaging
+    real(jprb), dimension(:,:,:), allocatable :: ref_inf
+
+    ! Coordinate variables from file
+    real(jprb), dimension(:), allocatable :: wavenumber       ! cm-1
+    real(jprb), dimension(:), allocatable :: water_content    ! m
+    real(jprb), dimension(:), allocatable :: temperature      ! m
+    
+    ! Matrix mapping optical properties in the file to values per
+    ! g-point or band, such that in the thin-averaging case,
+    ! this%mass_ext=matmul(mapping,file%mass_ext), so mapping is
+    ! dimensioned (ngpoint,nwav)
+    real(jprb), dimension(:,:), allocatable :: mapping
+
+    real(jprb) :: diff_spread
+    integer    :: iverb
+    integer    :: nwc  ! Number of water contents
+    integer    :: ntemp! Number of temperatures
+    integer    :: nwav ! Number of wavenumbers describing cloud
+    integer    :: nband! Number of bands (or g points)
+
+    integer    :: jband, jwav, jt ! Loop indices
+
+    real(jprb) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup_wct',0,hook_handle)
+
+    ! Read coordinate variables
+    call file%get('wavenumber', wavenumber)
+    call file%get('water_content', water_content)
+    call file%get('temperature', temperature)
+    
+    ! Read the band-specific coefficients
+    call file%get('mass_extinction_coefficient', mass_ext)
+    call file%get('single_scattering_albedo', ssa)
+    call file%get('asymmetry_factor', asymmetry)
+
+    this%use_effective_radius = .false.
+
+    ! Check temperature is evenly spaced
+    ntemp = size(temperature)
+    ! Fractional range of differences, should be near zero for evenly
+    ! spaced data
+    diff_spread = (maxval(temperature(2:ntemp)-temperature(1:ntemp-1))  &
+         &        -minval(temperature(2:ntemp)-temperature(1:ntemp-1))) &
+         &      /  minval(abs(temperature(2:ntemp)-temperature(1:ntemp-1)))
+    if (diff_spread > 0.01_jprb) then
+      write(nulerr, '(a,a,a)') '*** Error: temperature in ', &
+           &  trim(file_name), ', is not evenly spaced to 1%'
+      call radiation_abort('Radiation configuration error')
+    end if
+
+    this%n_temperature = ntemp
+    this%temperature_0 = temperature(1)
+    this%d_temperature = temperature(2) - temperature(1)
+    
+    ! Check water content is logarithmically spaced
+    nwc = size(water_content)
+    ! Fractional range of differences, should be near zero for evenly
+    ! spaced data
+    diff_spread = (maxval(log(water_content(2:nwc))-log(water_content(1:nwc-1))) &
+         &        -minval(log(water_content(2:nwc))-log(water_content(1:nwc-1)))) &
+         &      /  minval(abs(log(water_content(2:nwc))-log(water_content(1:nwc-1))))
+    if (diff_spread > 0.01_jprb) then
+      write(nulerr, '(a,a,a)') '*** Error: log(water_content) in ', &
+           &  trim(file_name), ', is not evenly spaced to 1%'
+      call radiation_abort('Radiation configuration error')
+    end if
+
+    this%n_water_content = nwc
+    this%ln_water_content_0 = log(water_content(1))
+    this%d_ln_water_content = log(water_content(2)/water_content(1))
+
+    nwav = size(wavenumber)
+
+    ! Define the mapping matrix
+    call specdef%calc_mapping(weighting_temperature, &
+         &                    wavenumber, mapping, use_bands=use_bands)
+
+    ! Thick averaging should be performed on delta-Eddington scaled
+    ! quantities (it makes no difference to thin averaging)
+    call delta_eddington(mass_ext, ssa, asymmetry)
+
+    ! Thin averaging
+    nband = size(mapping,1)
+    allocate(this%mass_ext_wct(nband,nwc,ntemp))
+    allocate(this%ssa_wct(nband,nwc,ntemp))
+    allocate(this%asymmetry_wct(nband,nwc,ntemp))
+    do jt = 1,ntemp
+      this%mass_ext_wct(:,:,jt)  = matmul(mapping, mass_ext(:,:,jt))
+      this%ssa_wct(:,:,jt)       = matmul(mapping, ssa(:,:,jt))
+      this%asymmetry_wct(:,:,jt) = matmul(mapping, asymmetry(:,:,jt))
+    end do
+    
+    if (use_thick_averaging) then
+      ! Thick averaging as described by Edwards and Slingo (1996),
+      ! modifying only the single-scattering albedo
+      allocate(ref_inf(nwav, nwc, ntemp))
+
+      ! Eqs. 18 and 17 of Edwards & Slingo (1996)
+      ref_inf = sqrt((1.0_jprb - ssa) / (1.0_jprb - ssa*asymmetry))
+      ref_inf = (1.0_jprb - ref_inf) / (1.0_jprb + ref_inf)
+      ! Here the left-hand side is actually the averaged ref_inf
+      
+      do jt = 1,ntemp
+        this%ssa_wct(:,:,jt) = matmul(mapping, ref_inf(:,:,jt))
+      end do
+
+      ! Eq. 19 of Edwards and Slingo (1996)
+      this%ssa_wct = 4.0_jprb * this%ssa_wct / ((1.0_jprb + this%ssa_wct)**2 &
+           &  - this%asymmetry_wct * (1.0_jprb - this%ssa_wct)**2)
+
+      deallocate(ref_inf)
+    end if
+
+    deallocate(mapping)
+
+    ! Revert back to unscaled quantities
+    call revert_delta_eddington(this%mass_ext_wct, this%ssa_wct, this%asymmetry_wct)
+
+    if (iverb >= 2) then
+      write(nulout,'(a,a)') '  File: ', trim(file_name)
+      write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', weighting_temperature, ' K'
+      if (use_thick_averaging) then
+        write(nulout,'(a)') '  SSA averaging: optically thick limit'
+      else
+        write(nulout,'(a)') '  SSA averaging: optically thin limit'
+      end if
+      if (use_bands) then
+        write(nulout,'(a,i0,a)') '  Spectral discretization: ', specdef%nband, ' bands'
+      else
+        write(nulout,'(a,i0,a)') '  Spectral discretization: ', specdef%ng, ' g-points'
+      end if
+      write(nulout,'(a,i0,a,f6.1,a,f6.1,a)') '  Water-content look-up: ', nwc, ' log-spaced points in range ', &
+           &  water_content(1), '-', water_content(nwc), ' kg m-3'
+      write(nulout,'(a,i0,a,f6.1,a,f6.1,a)') '  Temperature look-up: ', ntemp, ' points in range ', &
+           &  temperature(1), '-', temperature(ntemp), ' K'
+      
+      write(nulout,'(a,i0,a,i0,a)') '  Wavenumber range: ', int(specdef%min_wavenumber()), '-', &
+           &  int(specdef%max_wavenumber()), ' cm-1'
+    end if
+    
+    if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup_wct',1,hook_handle)
+
+  end subroutine setup_general_cloud_optics_wct
+  
+    
+  !---------------------------------------------------------------------
   ! Add the optical properties of a particular cloud type to the
   ! accumulated optical properties of all cloud types
   subroutine add_optical_properties(this, ng, nlev, ncol, &
        &                            cloud_fraction, &
        &                            water_path, effective_radius, &
-       &                            od, scat_od, scat_asymmetry)
+       &                            od, scat_od, scat_asymmetry, &
+       &                            layer_depth, temperature_fl)
 
     use yomhook, only : lhook, dr_hook
 
@@ -344,10 +549,27 @@ contains
          &  :: scat_od, &     ! Scattering optical depth of layer
          &     scat_asymmetry ! Scattering optical depth x asymmetry factor
 
+    ! Layer thickness (m), full-level temperature (K)
+    real(jprb), intent(in), optional :: layer_depth(ncol,nlev)
+    real(jprb), intent(in), optional :: temperature_fl(ncol,nlev)
+
+    ! Local optical depth
     real(jprb) :: od_local(ng)
 
+    ! Natural logarithm of water content (kg m-3)
+    real(jprb) :: ln_water_content
+    
+    ! Effective radius interpolation index and weights
     real(jprb) :: re_index, weight1, weight2
-    integer :: ire
+
+    ! Water content interpolation index and weights
+    real(jprb) :: wc_index, weight_wc1, weight_wc2
+
+    ! Temperature interpolation index and weights
+    real(jprb) :: t_index, weight_t1, weight_t2
+
+    ! Interpolation indices to first of the two points
+    integer :: ire, iwc, it
 
     integer :: jcol, jlev
 
@@ -355,44 +577,90 @@ contains
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',0,hook_handle)
 
-    if (present(scat_od)) then
-      do jcol = 1,ncol
-        do jlev = 1,nlev
-          if (cloud_fraction(jcol, jlev) > 0.0_jprb) then
-            re_index = max(1.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
-                 &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
-            ire = int(re_index)
-            weight2 = re_index - ire
-            weight1 = 1.0_jprb - weight2
-            od_local = water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
-                 &                              +weight2*this%mass_ext(:,ire+1))
-            od(:,jlev,jcol) = od(:,jlev,jcol) + od_local
-            od_local = od_local * (weight1*this%ssa(:,ire) &
-                 &                +weight2*this%ssa(:,ire+1))
-            scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
-            scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
-                 & + od_local * (weight1*this%asymmetry(:,ire) &
-                 &              +weight2*this%asymmetry(:,ire+1))
-          end if
+    if (this%use_effective_radius) then
+
+      ! Look-up versus effective radius
+      if (present(scat_od)) then
+        do jcol = 1,ncol
+          do jlev = 1,nlev
+            if (cloud_fraction(jcol, jlev) > 0.0_jprb) then
+              re_index = max(1.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+                   &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
+              ire = int(re_index)
+              weight2 = re_index - ire
+              weight1 = 1.0_jprb - weight2
+              od_local = water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
+                   &                              +weight2*this%mass_ext(:,ire+1))
+              od(:,jlev,jcol) = od(:,jlev,jcol) + od_local
+              od_local = od_local * (weight1*this%ssa(:,ire) &
+                   &                +weight2*this%ssa(:,ire+1))
+              scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
+              scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
+                   & + od_local * (weight1*this%asymmetry(:,ire) &
+                   &              +weight2*this%asymmetry(:,ire+1))
+            end if
+          end do
         end do
-      end do
+      else
+        ! No scattering: return the absorption optical depth
+        do jcol = 1,ncol
+          do jlev = 1,nlev
+            if (water_path(jcol, jlev) > 0.0_jprb) then
+              re_index = max(1.0, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+                   &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
+              ire = int(re_index)
+              weight2 = re_index - ire
+              weight1 = 1.0_jprb - weight2
+              od(:,jlev,jcol) = od(:,jlev,jcol) &
+                   &  + water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
+                   &                             +weight2*this%mass_ext(:,ire+1)) &
+                   &  * (1.0_jprb - (weight1*this%ssa(:,ire)+weight2*this%ssa(:,ire+1)))
+            end if
+          end do
+        end do
+      end if
+
     else
-      ! No scattering: return the absorption optical depth
-      do jcol = 1,ncol
-        do jlev = 1,nlev
-          if (water_path(jcol, jlev) > 0.0_jprb) then
-            re_index = max(1.0, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
-                 &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
-            ire = int(re_index)
-            weight2 = re_index - ire
-            weight1 = 1.0_jprb - weight2
-            od(:,jlev,jcol) = od(:,jlev,jcol) &
-                 &  + water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
-                 &                             +weight2*this%mass_ext(:,ire+1)) &
-                 &  * (1.0_jprb - (weight1*this%ssa(:,ire)+weight2*this%ssa(:,ire+1)))
-          end if
+
+      ! Look-up versus water content and temperature
+      if (present(scat_od)) then
+        do jcol = 1,ncol
+          do jlev = 1,nlev
+            if (cloud_fraction(jcol, jlev) > 0.0_jprb) then
+              ln_water_content = log(max(1.0e-12, water_path(jcol,jlev)/layer_depth(jcol,jlev)))
+              t_index = max(1.0_jprb, min(1.0_jprb + (temperature_fl(jcol,jlev)-this%temperature_0) &
+                   &              / this%d_temperature, this%n_temperature-0.0001_jprb))
+              wc_index = max(1.0_jprb, min(1.0_jprb + (ln_water_content-this%ln_water_content_0) &
+                   &              / this%d_ln_water_content, this%n_water_content-0.0001_jprb))
+              it = int(t_index)
+              weight_t2 = t_index - it
+              weight_t1 = 1.0_jprb - weight_t2
+              
+              iwc = int(wc_index)
+              weight_wc2 = wc_index - iwc
+              weight_wc1 = 1.0_jprb - weight_wc2
+              od_local = water_path(jcol, jlev) * (weight_t1*(weight_wc1*this%mass_ext_wct(:,iwc,it) &
+                   &                                         +weight_wc2*this%mass_ext_wct(:,iwc+1,it)) &
+                   &                              +weight_t2*(weight_wc1*this%mass_ext_wct(:,iwc,it+1) &
+                   &                                         +weight_wc2*this%mass_ext_wct(:,iwc+1,it+1)))
+              od(:,jlev,jcol) = od(:,jlev,jcol) + od_local
+              od_local = od_local * (weight_t1*(weight_wc1*this%ssa_wct(:,iwc,it) &
+                   &                           +weight_wc2*this%ssa_wct(:,iwc+1,it)) &
+                   &                +weight_t2*(weight_wc1*this%ssa_wct(:,iwc,it+1) &
+                   &                           +weight_wc2*this%ssa_wct(:,iwc+1,it+1)))
+              scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
+              scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
+                   & + od_local * (weight_t1*(weight_wc1*this%asymmetry_wct(:,iwc,it) &
+                   &                         +weight_wc2*this%asymmetry_wct(:,iwc+1,it)) &
+                   &              +weight_t2*(weight_wc1*this%asymmetry_wct(:,iwc,it+1) &
+                   &                         +weight_wc2*this%asymmetry_wct(:,iwc+1,it+1)))
+            end if
+          end do
         end do
-      end do
+      else
+
+      end if
+        
     end if
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',1,hook_handle)

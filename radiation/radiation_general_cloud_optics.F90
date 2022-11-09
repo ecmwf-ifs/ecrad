@@ -144,6 +144,8 @@ contains
     use radiation_cloud, only             : cloud_type
     use radiation_constants, only         : AccelDueToGravity
     !use radiation_general_cloud_optics_data, only : general_cloud_optics_type
+    use radiation_constants, only        : Pi, GasConstantDryAir, &
+         &                                 AccelDueToGravity
 
     integer, intent(in) :: nlev               ! number of model levels
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
@@ -151,6 +153,9 @@ contains
     type(single_level_type), intent(in)   :: single_level
     type(thermodynamics_type),intent(in)  :: thermodynamics
     type(cloud_type),   intent(in)        :: cloud
+
+    ! Ratio of gas constant for dry air to acceleration due to gravity
+    real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
 
     ! Layer optical depth, single scattering albedo and asymmetry
     ! factor of clouds in each longwave band, where the latter two
@@ -172,6 +177,9 @@ contains
     ! In-cloud water path of one cloud type (kg m-2)
     real(jprb), dimension(istartcol:iendcol,nlev) :: water_path
 
+    ! Layer thickness (m), full-level temperature (K)
+    real(jprb), dimension(istartcol:iendcol,nlev) :: layer_depth, temperature_fl
+    
     ! Loop indices
     integer :: jtype, jcol, jlev, jcomp
 
@@ -193,6 +201,23 @@ contains
       g_lw_cloud   = 0.0_jprb
     end if
 
+    ! The following is from the hydrostatic equation and ideal gas
+    ! law: dz = dp * R * T / (p * g)
+    do jlev = 1,nlev
+      do jcol = istartcol,iendcol
+        temperature_fl(jcol,jlev) &
+             &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev) &
+             &              + thermodynamics%temperature_hl(jcol,jlev+1))
+        layer_depth(jcol,jlev) = R_over_g &
+             &  * (thermodynamics%pressure_hl(jcol,jlev+1) &
+             &     - thermodynamics%pressure_hl(jcol,jlev)) &
+             &  * (thermodynamics%temperature_hl(jcol,jlev) &
+             &     + thermodynamics%temperature_hl(jcol,jlev+1)) &
+             &  / (thermodynamics%pressure_hl(jcol,jlev) &
+             &     + thermodynamics%pressure_hl(jcol,jlev+1))
+      end do
+    end do
+    
     ! Loop over cloud types
     do jtype = 1,config%n_cloud_types
       ! Compute in-cloud water path
@@ -220,11 +245,12 @@ contains
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
                &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
-               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud)
+               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, layer_depth, temperature_fl)
         else
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
                &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
-               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud)
+               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud, &
+               &  layer_depth, temperature_fl)
         end if
       end if
       
@@ -239,13 +265,14 @@ contains
                &  iendcol+1-istartcol, config%n_sw_pf, cloud%fraction(istartcol:iendcol,:), &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
                &  single_level%scattering_angle(istartcol:iendcol), &
-               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud) ! layer depth & temperature_fl not needed
         else
 #endif
           call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
                &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
-               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud(:,:,:,1))
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud(:,:,:,1), &
+               &  layer_depth, temperature_fl)
 #ifdef FLOTSAM
         end if
 #endif
