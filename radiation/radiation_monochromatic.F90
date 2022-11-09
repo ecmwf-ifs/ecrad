@@ -344,11 +344,11 @@ contains
          &  :: od_sw, ssa_sw
     real(jprb), dimension(config%n_g_sw,nlev,istartcol:iendcol), intent(out) :: g_sw
 
-    g_sw = 0.0_jprb
+    g_sw(:,:,istartcol:iendcol) = 0.0_jprb
 
     if (config%do_lw_aerosol_scattering) then
-      ssa_lw = 0.0_jprb
-      g_lw   = 0.0_jprb
+      ssa_lw(:,:,istartcol:iendcol) = 0.0_jprb
+      g_lw(:,:,istartcol:iendcol)   = 0.0_jprb
     end if
 
   end subroutine add_aerosol_optics

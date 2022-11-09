@@ -94,8 +94,10 @@ module radiation_single_level
 contains
   
   !---------------------------------------------------------------------
+  ! Allocate the arrays of a single-level type
   subroutine allocate_single_level(this, ncol, nalbedobands, nemisbands, &
-       &                           use_sw_albedo_direct, is_simple_surface)
+       &                           use_sw_albedo_direct, is_simple_surface, &
+       &                           use_acc)
 
     use yomhook, only : lhook, dr_hook
 
@@ -103,6 +105,9 @@ contains
     integer,                  intent(in)    :: ncol, nalbedobands, nemisbands
     logical,        optional, intent(in)    :: use_sw_albedo_direct
     logical,        optional, intent(in)    :: is_simple_surface
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,        optional, intent(in)    :: use_acc
 
     real(jprb) :: hook_handle
 
@@ -141,11 +146,15 @@ contains
 
 
   !---------------------------------------------------------------------
-  subroutine deallocate_single_level(this)
+  ! Deallocate the arrays of a single-level type
+  subroutine deallocate_single_level(this, use_acc)
 
     use yomhook, only : lhook, dr_hook
 
     class(single_level_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,        optional, intent(in)    :: use_acc
 
     real(jprb) :: hook_handle
 
@@ -226,90 +235,113 @@ contains
 
     ! Temporary storage of albedo in ecRad bands
     real(jprb) :: sw_albedo_band(istartcol:iendcol, config%n_bands_sw)
-    real(jprb) :: lw_albedo_band (istartcol:iendcol, config%n_bands_lw)
+    real(jprb) :: lw_albedo_band(istartcol:iendcol, config%n_bands_lw)
 
     ! Number of albedo bands
     integer :: nalbedoband
 
     ! Loop indices for ecRad bands and albedo bands
-    integer :: jband, jalbedoband
+    integer :: jband, jalbedoband, jcol
 
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:get_albedos',0,hook_handle)
 
-    ! Albedos/emissivities are stored in single_level in their own
-    ! spectral intervals and with column as the first dimension
-    if (config%use_canopy_full_spectrum_sw) then
-      ! Albedos provided in each g point
-      sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol,:))
-      if (allocated(this%sw_albedo_direct)) then
-        sw_albedo_direct = transpose(this%sw_albedo_direct(istartcol:iendcol,:))
-      end if
-    elseif (.not. config%do_nearest_spectral_sw_albedo) then
-      ! Albedos averaged accurately to ecRad spectral bands
-      nalbedoband = size(config%sw_albedo_weights,1)
-      sw_albedo_band = 0.0_jprb
-      do jband = 1,config%n_bands_sw
-        do jalbedoband = 1,nalbedoband
-          if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
-            sw_albedo_band(istartcol:iendcol,jband) &
-                 &  = sw_albedo_band(istartcol:iendcol,jband) & 
-                 &  + config%sw_albedo_weights(jalbedoband,jband) &
-                 &    * this%sw_albedo(istartcol:iendcol, jalbedoband)
-          end if
-        end do
-      end do
+    if (config%do_sw) then
+      ! Albedos/emissivities are stored in single_level in their own
+      ! spectral intervals and with column as the first dimension
+      if (config%use_canopy_full_spectrum_sw) then
+        ! Albedos provided in each g point
+        if (size(this%sw_albedo,2) /= config%n_g_sw) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%sw_albedo does not have the expected ', &
+               &  config%n_g_sw, ' spectral intervals'
+          call radiation_abort()
+        end if
+        sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol,:))
+        if (allocated(this%sw_albedo_direct)) then
+          sw_albedo_direct = transpose(this%sw_albedo_direct(istartcol:iendcol,:))
+        end if
+      else if (.not. config%do_nearest_spectral_sw_albedo) then
+        ! Albedos averaged accurately to ecRad spectral bands
+        nalbedoband = size(config%sw_albedo_weights,1)
+        if (size(this%sw_albedo,2) /= nalbedoband) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%sw_albedo does not have the expected ', &
+               &  nalbedoband, ' bands'
+          call radiation_abort()
+        end if
 
-      sw_albedo_diffuse = transpose(sw_albedo_band(istartcol:iendcol, &
-           &                              config%i_band_from_reordered_g_sw))
-      if (allocated(this%sw_albedo_direct)) then
         sw_albedo_band = 0.0_jprb
         do jband = 1,config%n_bands_sw
           do jalbedoband = 1,nalbedoband
             if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
-              sw_albedo_band(istartcol:iendcol,jband) &
-                   &  = sw_albedo_band(istartcol:iendcol,jband) & 
-                   &  + config%sw_albedo_weights(jalbedoband,jband) &
-                   &    * this%sw_albedo_direct(istartcol:iendcol, jalbedoband)
+              do jcol = istartcol,iendcol
+                sw_albedo_band(jcol,jband) &
+                    &  = sw_albedo_band(jcol,jband) & 
+                    &  + config%sw_albedo_weights(jalbedoband,jband) &
+                    &    * this%sw_albedo(jcol, jalbedoband)
+              end do
             end if
           end do
         end do
-        sw_albedo_direct = transpose(sw_albedo_band(istartcol:iendcol, &
-             &                             config%i_band_from_reordered_g_sw))
+
+        sw_albedo_diffuse = transpose(sw_albedo_band(istartcol:iendcol, &
+             &                              config%i_band_from_reordered_g_sw))
+        if (allocated(this%sw_albedo_direct)) then
+          sw_albedo_band = 0.0_jprb
+          do jband = 1,config%n_bands_sw
+            do jalbedoband = 1,nalbedoband
+              if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
+                sw_albedo_band(istartcol:iendcol,jband) &
+                     &  = sw_albedo_band(istartcol:iendcol,jband) & 
+                     &  + config%sw_albedo_weights(jalbedoband,jband) &
+                     &    * this%sw_albedo_direct(istartcol:iendcol, jalbedoband)
+              end if
+            end do
+          end do
+          sw_albedo_direct = transpose(sw_albedo_band(istartcol:iendcol, &
+               &                             config%i_band_from_reordered_g_sw))
+        else
+          sw_albedo_direct = sw_albedo_diffuse
+        end if
       else
-        sw_albedo_direct = sw_albedo_diffuse
-      end if
-    else
-      ! Albedos mapped less accurately to ecRad spectral bands
-      sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol, &
-           &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw)))
-      if (allocated(this%sw_albedo_direct)) then
-        sw_albedo_direct = transpose(this%sw_albedo_direct(istartcol:iendcol, &
+        ! Albedos mapped less accurately to ecRad spectral bands
+        sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol, &
              &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw)))
-      else
-        sw_albedo_direct = sw_albedo_diffuse
+        if (allocated(this%sw_albedo_direct)) then
+          sw_albedo_direct = transpose(this%sw_albedo_direct(istartcol:iendcol, &
+               &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw)))
+        else
+          sw_albedo_direct = sw_albedo_diffuse
+        end if
       end if
     end if
 
-    if (present(lw_albedo)) then
+    if (config%do_lw .and. present(lw_albedo)) then
       if (config%use_canopy_full_spectrum_lw) then
         if (config%n_g_lw /= size(this%lw_emissivity,2)) then
-          write(nulerr,'(a)') '*** Error: single_level%lw_emissivity has the wrong number of spectral intervals'
-          call radiation_abort()   
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%lw_emissivity does not have the expected ', &
+               &  config%n_g_lw, ' spectral intervals'
+          call radiation_abort()
         end if
         lw_albedo = 1.0_jprb - transpose(this%lw_emissivity(istartcol:iendcol,:))
       else if (.not. config%do_nearest_spectral_lw_emiss) then
         ! Albedos averaged accurately to ecRad spectral bands
         nalbedoband = size(config%lw_emiss_weights,1)
+        if (nalbedoband /= size(this%lw_emissivity,2)) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%lw_emissivity does not have the expected ', &
+               &  nalbedoband, ' bands'
+          call radiation_abort()
+        end if
         lw_albedo_band = 0.0_jprb
         do jband = 1,config%n_bands_lw
           do jalbedoband = 1,nalbedoband
             if (config%lw_emiss_weights(jalbedoband,jband) /= 0.0_jprb) then
-              lw_albedo_band(istartcol:iendcol,jband) &
-                   &  = lw_albedo_band(istartcol:iendcol,jband) & 
-                   &  + config%lw_emiss_weights(jalbedoband,jband) &
-                   &    * (1.0_jprb-this%lw_emissivity(istartcol:iendcol, jalbedoband))
+              do jcol = istartcol,iendcol
+                lw_albedo_band(jcol,jband) &
+                    &  = lw_albedo_band(jcol,jband) & 
+                    &  + config%lw_emiss_weights(jalbedoband,jband) &
+                    &    * (1.0_jprb-this%lw_emissivity(jcol, jalbedoband))
+              end do
             end if
           end do
         end do
@@ -334,7 +366,7 @@ contains
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : out_of_bounds_1d, out_of_bounds_2d
+    use radiation_check,  only : out_of_bounds_1d, out_of_bounds_2d
 
     class(single_level_type), intent(inout) :: this
     integer,         optional,intent(in) :: istartcol, iendcol

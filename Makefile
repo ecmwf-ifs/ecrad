@@ -41,7 +41,7 @@ endif
 # Add single-precision flag if SINGLE_PRECISION=1 was given on the
 # "make" command line
 ifdef SINGLE_PRECISION
-CPPFLAGS += -DSINGLE_PRECISION
+CPPFLAGS += -DPARKIND1_SINGLE
 endif
 
 # If PRINT_ENTRAPMENT_DATA=1 was given on the "make" command line
@@ -65,7 +65,7 @@ endif
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
-export LIBS    = $(LDFLAGS) -L../lib -lradsurf -lradiation -lutilities \
+export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
 	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
 ifdef DR_HOOK
 LIBS += -ldl -lrt
@@ -91,9 +91,9 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifdef DR_HOOK
-build: directories libifsaux libdrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
+build: directories libifsaux libdrhook libutilities libifsrrtm libradiation driver symlinks
 else
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation libradsurf driver symlinks
+build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -128,9 +128,6 @@ libifsrrtm:
 libradiation:
 	cd radiation && $(MAKE)
 
-libradsurf:
-	cd radsurf && $(MAKE)
-
 driver:
 	cd driver && $(MAKE)
 
@@ -138,7 +135,7 @@ symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
 	cd practical && ln -s ../data
 
-test: test_ifs test_i3rc
+test: test_ifs test_i3rc test_ckdmip
 
 test_ifs:
 	cd test/ifs && $(MAKE) test
@@ -146,19 +143,18 @@ test_ifs:
 test_i3rc:
 	cd test/i3rc && $(MAKE) test
 
-test_surface:
-	cd test/surface && $(MAKE) test
+test_ckdmip:
+	cd test/ckdmip && $(MAKE) test
 
 clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks
 
 clean-tests:
 	cd test/ifs && $(MAKE) clean
 	cd test/i3rc && $(MAKE) clean
-	cd test/surface && $(MAKE) clean
+	cd test/ckdmip && $(MAKE) clean
 
 clean-toplevel:
 	cd radiation && $(MAKE) clean
-	cd radsurf && $(MAKE) clean
 	cd driver && $(MAKE) clean
 
 clean-utilities:
@@ -177,5 +173,5 @@ clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
-	libradiation libradsurf driver symlinks clean clean-toplevel test test_ifs \
-	test_i3rc test_surface clean-tests clean-utilities clean-mods clean-symlinks
+	libradiation driver symlinks clean clean-toplevel test test_ifs \
+	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks

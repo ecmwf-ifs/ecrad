@@ -1,4 +1,4 @@
-! radiation_delta_eddington.h - Delta-Eddington scaling
+! radiation_delta_eddington.h - Delta-Eddington scaling -*- f90 -*-
 !
 ! (C) Copyright 2015- ECMWF.
 !
@@ -91,3 +91,25 @@ elemental subroutine delta_eddington_scat_od(od, scat_od, g)
 
 end subroutine delta_eddington_scat_od
 
+
+!---------------------------------------------------------------------
+! Revert delta-Eddington-scaled quantities in-place, back to their
+! original state
+elemental subroutine revert_delta_eddington(od, ssa, g)
+
+  use parkind1, only : jprb
+  
+  ! Total optical depth, single scattering albedo and asymmetry
+  ! factor
+  real(jprb), intent(inout) :: od, ssa, g
+  
+  ! Fraction of the phase function deemed to be in the forward lobe
+  ! and therefore treated as if it is not scattered at all
+  real(jprb) :: f
+  
+  g   = g / (1.0_jprb - g)
+  f   = g*g
+  ssa = ssa / (1.0_jprb - f + f*ssa);
+  od  = od / (1.0_jprb - ssa*f)
+  
+end subroutine revert_delta_eddington

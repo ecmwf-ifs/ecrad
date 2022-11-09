@@ -75,6 +75,9 @@ module ecrad_driver_config
 
      ! Save inputs in "inputs.nc"
      logical :: do_save_inputs
+     
+     ! Save aerosol optical properties to "aerosol_optics.nc"
+     logical :: do_save_aerosol_optics
 
      ! Do we ignore the inv_inhom_effective_size variable and instead
      ! assume the scale of cloud inhomogeneities is the same as the
@@ -90,6 +93,9 @@ module ecrad_driver_config
      ! Do we write NetCDF4/HDF5 file format, needed for very large
      ! files?
      logical :: do_write_hdf5 = .false.
+
+     ! Do we write fluxes in double precision?
+     logical :: do_write_double_precision = .false.
 
      ! Name of the experiment, to save in output file
      character(len=NMaxStringLength) :: experiment_name = ''
@@ -162,8 +168,10 @@ contains
     logical :: do_parallel
     integer :: nblocksize
 
-    logical :: do_save_inputs, do_ignore_inhom_effective_size, &
-         &  do_correct_unphysical_inputs, do_write_hdf5
+    logical :: do_save_inputs, do_save_aerosol_optics, &
+         &  do_ignore_inhom_effective_size, &
+         &  do_correct_unphysical_inputs, do_write_hdf5, &
+         &  do_write_double_precision
     integer :: nrepeat
 
     ! Process a limited number of columns (iendcol=0 indicates to
@@ -186,12 +194,13 @@ contains
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
+         &  do_save_aerosol_optics, &
          &  cloud_separation_scale_toa, cloud_separation_scale_surface, &
          &  cloud_separation_scale_power, do_correct_unphysical_inputs, &
          &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
          &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling, &
-         &  vmr_suffix_str, experiment_name
+         &  vmr_suffix_str, experiment_name, do_write_double_precision
 
     real(jprb) :: hook_handle
 
@@ -200,6 +209,7 @@ contains
     ! Default values
     do_parallel = .true.
     do_save_inputs = .false.
+    do_save_aerosol_optics = .false.
     do_ignore_inhom_effective_size = .false.
     nblocksize = 8
 
@@ -243,6 +253,7 @@ contains
     nrepeat = 1
     do_correct_unphysical_inputs = .false.
     do_write_hdf5 = .false.
+    do_write_double_precision = .false.
     experiment_name = ''
 
     ! Open the namelist file and read the radiation_driver namelist
@@ -269,6 +280,7 @@ contains
     ! Copy namelist data into configuration object
     this%do_parallel = do_parallel
     this%do_save_inputs = do_save_inputs
+    this%do_save_aerosol_optics = do_save_aerosol_optics
     this%do_ignore_inhom_effective_size = do_ignore_inhom_effective_size
     this%nblocksize = nblocksize
     this%iverbose = iverbose
@@ -331,6 +343,7 @@ contains
     this%cloud_separation_scale_power = cloud_separation_scale_power
     this%do_correct_unphysical_inputs = do_correct_unphysical_inputs
     this%do_write_hdf5  = do_write_hdf5
+    this%do_write_double_precision = do_write_double_precision
     this%h2o_scaling    = h2o_scaling
     this%co2_scaling    = co2_scaling
     this%o3_scaling     = o3_scaling

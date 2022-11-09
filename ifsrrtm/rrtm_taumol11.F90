@@ -1,7 +1,7 @@
 !******************************************************************************
-SUBROUTINE RRTM_TAUMOL11 (KIDIA,KFDIA,KLEV,P_TAU,&
- & P_TAUAERL,P_FAC00,P_FAC01,P_FAC10,P_FAC11,P_FORFAC,P_FORFRAC,K_INDFOR,K_JP,K_JT,K_JT1,&
- & P_COLH2O,P_COLO2,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC,P_MINORFRAC,KINDMINOR,PSCALEMINOR)  
+SUBROUTINE RRTM_TAUMOL11 (KIDIA,KFDIA,KLEV,taug,&
+ & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,&
+ & colh2o,colo2,laytrop,selffac,selffrac,indself,fracs,minorfrac,indminor,scaleminor)  
 
 !     BAND 11:  1480-1800 cm-1 (low - H2O; high - H2O)
 
@@ -33,38 +33,63 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO2(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colh2o(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colo2(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: fracs(KIDIA:KFDIA,JPGPT,KLEV) 
 
-INTEGER(KIND=JPIM),INTENT(IN)   :: K_INDFOR(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_MINORFRAC(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: KINDMINOR(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: PSCALEMINOR(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: scaleminor(KIDIA:KFDIA,KLEV)
 ! ---------------------------------------------------------------------------
 
-INTEGER(KIND=JPIM) :: IND0(KLEV),IND1(KLEV)
-INTEGER(KIND=JPIM) :: INDS(KLEV),INDF(KLEV),INDM(KLEV)
+INTEGER(KIND=JPIM) :: ind0,ind1
+INTEGER(KIND=JPIM) :: inds,indf,indm
 
-INTEGER(KIND=JPIM) :: IG, JLAY
-INTEGER(KIND=JPIM) :: JLON
-REAL(KIND=JPRB) :: ZTAUFOR,ZTAUSELF,ZSCALEO2, ZTAUO2
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+INTEGER(KIND=JPIM) :: IG, lay
+REAL(KIND=JPRB) :: taufor,tauself,scaleO2, tauO2
+    !     local integer arrays
+    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
+    integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
+    INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
+
+    laytrop_min = MINVAL(laytrop)
+    laytrop_max = MAXVAL(laytrop)
+
+    ixlow  = 0
+    ixhigh = 0
+    ixc    = 0
+
+    ! create index lists for mixed layers
+    do lay = laytrop_min+1, laytrop_max
+      icl = 0
+      ich = 0
+      do jc = KIDIA, KFDIA
+        if ( lay <= laytrop(jc) ) then
+          icl = icl + 1
+          ixlow(icl,lay) = jc
+        else
+          ich = ich + 1
+          ixhigh(ich,lay) = jc
+        endif
+      enddo
+      ixc(lay) = icl
+    enddo
 
 ! Minor gas mapping level :
 !     lower - o2, p = 706.2720 mbar, t = 278.94 k
@@ -74,76 +99,127 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 !     temperature.  Below LAYTROP, the water vapor self-continuum and foreign continuum 
 !     is interpolated (in temperature) separately.
   
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL11',0,ZHOOK_HANDLE)
+      ! Lower atmosphere loop
+      do lay = 1, laytrop_min
+        do jl = KIDIA, KFDIA
 
-DO JLAY = 1, KLEV
-  DO JLON = KIDIA, KFDIA
-    IF (JLAY <= K_LAYTROP(JLON)) THEN
-      IND0(JLAY) = ((K_JP(JLON,JLAY)-1)*5+(K_JT(JLON,JLAY)-1))*NSPA(11) + 1
-      IND1(JLAY) = (K_JP(JLON,JLAY)*5+(K_JT1(JLON,JLAY)-1))*NSPA(11) + 1
-      INDS(JLAY) = K_INDSELF(JLON,JLAY)
-      INDF(JLAY) = K_INDFOR(JLON,JLAY)
-      INDM(JLAY) = KINDMINOR(JLON,JLAY)
-      ZSCALEO2 = P_COLO2(JLON,JLAY)*PSCALEMINOR(JLON,JLAY)
-!-- DS_000515  
-!CDIR UNROLL=NG11
-      DO IG = 1, NG11
-!-- DS_000515  
-        ZTAUSELF = P_SELFFAC(JLON,JLAY) * (SELFREF(INDS(JLAY),IG) + &
-     &           P_SELFFRAC(JLON,JLAY) * &
-     &           (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG))) 
+          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(11) + 1
+          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(11) + 1
+          inds = indself(jl,lay)
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
+          scaleo2 = colo2(jl,lay)*scaleminor(jl,lay)
+!$NEC unroll(NG11)
+          do ig = 1, ng11
+            tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                 (selfref(inds+1,ig) - selfref(inds,ig)))
+            taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            tauo2 =  scaleo2 * (ka_mo2(indm,ig) + minorfrac(jl,lay) * &
+                 (ka_mo2(indm+1,ig) - ka_mo2(indm,ig)))
+            taug(jl,ngs10+ig,lay) = colh2o(jl,lay) * &
+                 (fac00(jl,lay) * absa(ind0,ig) + &
+                 fac10(jl,lay) * absa(ind0+1,ig) + &
+                 fac01(jl,lay) * absa(ind1,ig) + &
+                 fac11(jl,lay) * absa(ind1+1,ig)) &
+                 + tauself + taufor &
+                 + tauo2
+            fracs(jl,ngs10+ig,lay) = fracrefa(ig)
+          enddo
+        enddo
 
-        ZTAUFOR =  P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + &
-     &           P_FORFRAC(JLON,JLAY) * (FORREF(INDF(JLAY)+1,IG) - &
-     &           FORREF(INDF(JLAY),IG)))  
-        ZTAUO2 = ZSCALEO2*(KA_MO2(INDM(JLAY),IG) +   &
-     &           P_MINORFRAC(JLON,JLAY) * &
-     &           (KA_MO2(INDM(JLAY)+1,IG) - KA_MO2(INDM(JLAY),IG))) 
+      enddo
 
-        P_TAU(JLON,NGS10+IG,JLAY) = P_COLH2O(JLON,JLAY) *&
-         & (P_FAC00(JLON,JLAY) * ABSA(IND0(JLAY)  ,IG) +&
-         & P_FAC10(JLON,JLAY) * ABSA(IND0(JLAY)+1,IG) +&
-         & P_FAC01(JLON,JLAY) * ABSA(IND1(JLAY)  ,IG) +&
-         & P_FAC11(JLON,JLAY) * ABSA(IND1(JLAY)+1,IG)) +&
-         & ZTAUSELF + ZTAUFOR + ZTAUO2 &
-         & + P_TAUAERL(JLON,JLAY,11)  
-        PFRAC(JLON,NGS10+IG,JLAY) = FRACREFA(IG)
-      ENDDO
-    ENDIF
+      ! Upper atmosphere loop
+      do lay = laytrop_max+1, KLEV
+        do jl = KIDIA, KFDIA
 
-    IF (JLAY > K_LAYTROP(JLON)) THEN
-      IND0(JLAY) = ((K_JP(JLON,JLAY)-13)*5+(K_JT(JLON,JLAY)-1))*NSPB(11) + 1
-      IND1(JLAY) = ((K_JP(JLON,JLAY)-12)*5+(K_JT1(JLON,JLAY)-1))*NSPB(11) + 1
-      INDF(JLAY) = K_INDFOR(JLON,JLAY)
-      INDM(JLAY) = KINDMINOR(JLON,JLAY)
-      ZSCALEO2 = P_COLO2(JLON,JLAY) * PSCALEMINOR(JLON,JLAY)
-!-- JJM_000517
-!CDIR UNROLL=NG11
-      DO IG = 1, NG11
-!-- JJM_000517
-        ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + &
-     &           P_FORFRAC(JLON,JLAY) * &
-     &           (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
+          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(11) + 1
+          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(11) + 1
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
+          scaleo2 = colo2(jl,lay)*scaleminor(jl,lay)
+!$NEC unroll(NG11)
+          do ig = 1, ng11
+            taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            tauo2 =  scaleo2 * (kb_mo2(indm,ig) + minorfrac(jl,lay) * &
+                 (kb_mo2(indm+1,ig) - kb_mo2(indm,ig)))
+            taug(jl,ngs10+ig,lay) = colh2o(jl,lay) * &
+                 (fac00(jl,lay) * absb(ind0,ig) + &
+                 fac10(jl,lay) * absb(ind0+1,ig) + &
+                 fac01(jl,lay) * absb(ind1,ig) + &
+                 fac11(jl,lay) * absb(ind1+1,ig))  &
+                 + taufor &
+                 + tauo2
+            fracs(jl,ngs10+ig,lay) = fracrefb(ig)
+          enddo
+        enddo
 
-        ZTAUO2 = ZSCALEO2*(KB_MO2(INDM(JLAY),IG) +  &
-     &           P_MINORFRAC(JLON,JLAY) * &
-     &           (KB_MO2(INDM(JLAY)+1,IG) - KB_MO2(INDM(JLAY),IG)))
+      enddo
 
+      IF (laytrop_max == laytrop_min) RETURN
+      ! Mixed loop
+      ! Lower atmosphere part
+      do lay = laytrop_min+1, laytrop_max
+        ixc0 = ixc(lay)
+!$NEC ivdep
+        do ixp = 1, ixc0
+          jl = ixlow(ixp,lay)
 
-        P_TAU(JLON,NGS10+IG,JLAY) = P_COLH2O(JLON,JLAY) *&
-         & (P_FAC00(JLON,JLAY) * ABSB(IND0(JLAY)  ,IG) +&
-         & P_FAC10(JLON,JLAY) * ABSB(IND0(JLAY)+1,IG) +&
-         & P_FAC01(JLON,JLAY) * ABSB(IND1(JLAY)  ,IG) +&
-         & P_FAC11(JLON,JLAY) * ABSB(IND1(JLAY)+1,IG)) +&
-         & ZTAUFOR + ZTAUO2 + P_TAUAERL(JLON,JLAY,11)  
-        PFRAC(JLON,NGS10+IG,JLAY) = FRACREFB(IG)
-      ENDDO
-    ENDIF
-  ENDDO
-ENDDO
+          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(11) + 1
+          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(11) + 1
+          inds = indself(jl,lay)
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
+          scaleo2 = colo2(jl,lay)*scaleminor(jl,lay)
+!$NEC unroll(NG11)
+          do ig = 1, ng11
+            tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                 (selfref(inds+1,ig) - selfref(inds,ig)))
+            taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            tauo2 =  scaleo2 * (ka_mo2(indm,ig) + minorfrac(jl,lay) * &
+                 (ka_mo2(indm+1,ig) - ka_mo2(indm,ig)))
+            taug(jl,ngs10+ig,lay) = colh2o(jl,lay) * &
+                 (fac00(jl,lay) * absa(ind0,ig) + &
+                 fac10(jl,lay) * absa(ind0+1,ig) + &
+                 fac01(jl,lay) * absa(ind1,ig) + &
+                 fac11(jl,lay) * absa(ind1+1,ig)) &
+                 + tauself + taufor &
+                 + tauo2
+            fracs(jl,ngs10+ig,lay) = fracrefa(ig)
+          enddo
+        enddo
 
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL11',1,ZHOOK_HANDLE)
+        ! Upper atmosphere part
+        ixc0 = KFDIA - KIDIA + 1 - ixc0
+!$NEC ivdep
+        do ixp = 1, ixc0
+          jl = ixhigh(ixp,lay)
 
-END ASSOCIATE
+          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(11) + 1
+          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(11) + 1
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
+          scaleo2 = colo2(jl,lay)*scaleminor(jl,lay)
+!$NEC unroll(NG11)
+          do ig = 1, ng11
+            taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            tauo2 =  scaleo2 * (kb_mo2(indm,ig) + minorfrac(jl,lay) * &
+                 (kb_mo2(indm+1,ig) - kb_mo2(indm,ig)))
+            taug(jl,ngs10+ig,lay) = colh2o(jl,lay) * &
+                 (fac00(jl,lay) * absb(ind0,ig) + &
+                 fac10(jl,lay) * absb(ind0+1,ig) + &
+                 fac01(jl,lay) * absb(ind1,ig) + &
+                 fac11(jl,lay) * absb(ind1+1,ig))  &
+                 + taufor &
+                 + tauo2
+            fracs(jl,ngs10+ig,lay) = fracrefb(ig)
+          enddo
+        enddo
+
+      enddo
+
 END SUBROUTINE RRTM_TAUMOL11

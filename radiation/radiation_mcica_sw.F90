@@ -120,6 +120,11 @@ contains
     ! inhomogeneity
     real(jprb), dimension(config%n_g_sw) :: od_cloud_new
 
+    ! Temporary working array
+    real(jprb), dimension(config%n_g_sw,nlev+1) :: tmp_work_albedo, &
+      &                                            tmp_work_source
+    real(jprb), dimension(config%n_g_sw,nlev) :: tmp_work_inv_denominator
+
     ! Total cloud cover output from the cloud generator
     real(jprb) :: total_cloud_cover
 
@@ -183,9 +188,12 @@ contains
 
         ! Use adding method to compute fluxes
         call adding_ica_sw(ng, nlev, incoming_sw(:,jcol), &
-             &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), spread(cos_sza,1,ng), &
+             &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), cos_sza, &
              &  ref_clear, trans_clear, ref_dir_clear, trans_dir_diff_clear, &
-             &  trans_dir_dir_clear, flux_up, flux_dn_diffuse, flux_dn_direct)
+             &  trans_dir_dir_clear, flux_up, flux_dn_diffuse, flux_dn_direct, &
+             &  albedo=tmp_work_albedo, &
+             &  source=tmp_work_source, &
+             &  inv_denominator=tmp_work_inv_denominator)
         
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes
@@ -210,7 +218,8 @@ contains
              &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), &
              &  config%cloud_inhom_decorr_scaling, cloud%fractional_std(jcol,:), &
              &  config%pdf_sampler, od_scaling, total_cloud_cover, &
-             &  is_beta_overlap=config%use_beta_overlap)
+             &  use_beta_overlap=config%use_beta_overlap, &
+             &  use_vectorizable_generator=config%use_vectorizable_generator)
 
         ! Store total cloud cover
         flux%cloud_cover_sw(jcol) = total_cloud_cover
@@ -220,15 +229,16 @@ contains
           do jlev = 1,nlev
             ! Compute combined gas+aerosol+cloud optical properties
             if (cloud%fraction(jcol,jlev) >= config%cloud_fraction_threshold) then
-              od_cloud_new = od_scaling(:,jlev) &
-                   &  * od_cloud(config%i_band_from_reordered_g_sw,jlev,jcol)
-              od_total  = od(:,jlev,jcol) + od_cloud_new
-              ssa_total = 0.0_jprb
-              g_total   = 0.0_jprb
-              ! In single precision we need to protect against the
-              ! case that od_total > 0.0 and ssa_total > 0.0 but
-              ! od_total*ssa_total == 0 due to underflow
               do jg = 1,ng
+                od_cloud_new(jg) = od_scaling(jg,jlev) &
+                   &  * od_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol)
+                od_total(jg)  = od(jg,jlev,jcol) + od_cloud_new(jg)
+                ssa_total(jg) = 0.0_jprb
+                g_total(jg)   = 0.0_jprb
+
+                ! In single precision we need to protect against the
+                ! case that od_total > 0.0 and ssa_total > 0.0 but
+                ! od_total*ssa_total == 0 due to underflow
                 if (od_total(jg) > 0.0_jprb) then
                   scat_od = ssa(jg,jlev,jcol)*od(jg,jlev,jcol) &
                        &     + ssa_cloud(config%i_band_from_reordered_g_sw(jg),jlev,jcol) &
@@ -275,9 +285,12 @@ contains
             
           ! Use adding method to compute fluxes for an overcast sky
           call adding_ica_sw(ng, nlev, incoming_sw(:,jcol), &
-               &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), spread(cos_sza,1,ng), &
+               &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), cos_sza, &
                &  reflectance, transmittance, ref_dir, trans_dir_diff, &
-               &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct)
+               &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
+               &  albedo=tmp_work_albedo, &
+               &  source=tmp_work_source, &
+               &  inv_denominator=tmp_work_inv_denominator)
           
           ! Store overcast broadband fluxes
           flux%sw_up(jcol,:) = sum(flux_up,1)

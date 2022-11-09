@@ -10,23 +10,8 @@ is important to test the offline ecRad for such conditions, so from
 version 1.1.7, the cos_solar_zenith_angle variable has been modified
 to allow the sun to go below the horizon.
 
-Typing "make" in this directory runs four configurations of ECRAD in a
-configuration similar to forthcoming cycle 46R1:
-
-  (a) default settings with McICA solver and Exp-Exp cloud overlap;
-
-  (b) as "a" but with aerosols turned off;
-
-  (c) as "a" but with Exp-Ran overlap;
-
-  (d) as "d" but with the Tripleclouds solver;
-
-  (e) as "a" but with longwave scattering (default since 46R1);
-
-  (f) as "d" but with the SPARTACUS solver (explicit entrapment)
-
-  (g) as "f" but with an older configuration of the SPARTACUS solver
-    (maximum entrapment).
+Typing "make" in this directory runs various configurations of ECRAD -
+see the Makefile for details.
 
 To run with a configuration similar to older cycle 43R3, type
 
@@ -37,7 +22,8 @@ to visualize the results. The file
 "ecrad_meridian_default_out_REFERENCE.nc" contains a reference version
 of the output file "ecrad_meridian_default_out.nc" (case "a" above),
 which you can compare to be sure your compilation is working as
-expected.
+expected. Sometimes this file lags intermediate versions of ecRad,
+especially git snapshots.
 
-Note that the shortwave diagnosed cloud cover will be set to minus one
-when the sun is below the horizon.
+Note that the shortwave diagnosed cloud cover will be set to -1 when
+the sun is below the horizon.

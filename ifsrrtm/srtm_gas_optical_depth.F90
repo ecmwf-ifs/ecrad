@@ -91,9 +91,9 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KJP(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)    :: KJT(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)    :: KJT1(KIDIA:KFDIA,KLEV)
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: POD(KIDIA:KFDIA,KLEV,JPGPT) ! Optical depth
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSSA(KIDIA:KFDIA,KLEV,JPGPT) ! Single scattering albedo
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PINCSOL(KIDIA:KFDIA,JPGPT) ! Incoming solar flux
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: POD(KIDIA:KFDIA,KLEV,JPGPT) ! Optical depth
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PSSA(KIDIA:KFDIA,KLEV,JPGPT) ! Single scattering albedo
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: PINCSOL(KIDIA:KFDIA,JPGPT) ! Incoming solar flux
 
 
 !     ------------------------------------------------------------------
@@ -308,6 +308,8 @@ DO JB = IB1, IB2
   ENDIF
    
   DO JG=1,IGT
+! Added for DWD (2020)
+!NEC$ ivdep
     DO IC=1,ICOUNT
       JL=IND(IC)
       IW(JL)=IW(JL)+1

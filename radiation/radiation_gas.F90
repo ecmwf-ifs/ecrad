@@ -18,51 +18,10 @@
 module radiation_gas
 
   use parkind1, only : jprb
+  use radiation_gas_constants
 
   implicit none
   public
-
-  ! Gas codes; these indices match those of RRTM-LW up to 7
-  integer, parameter :: IGasNotPresent = 0
-  integer, parameter :: IH2O   = 1
-  integer, parameter :: ICO2   = 2
-  integer, parameter :: IO3    = 3
-  integer, parameter :: IN2O   = 4
-  integer, parameter :: ICO    = 5
-  integer, parameter :: ICH4   = 6
-  integer, parameter :: IO2    = 7
-  integer, parameter :: ICFC11 = 8
-  integer, parameter :: ICFC12 = 9
-  integer, parameter :: IHCFC22= 10
-  integer, parameter :: ICCl4  = 11 
-  integer, parameter :: INO2   = 12
-  integer, parameter :: NMaxGases = 12
-
-  ! Molar masses (g mol-1) of dry air and the various gases above
-  real(jprb), parameter :: IAirMolarMass = 28.970
-  real(jprb), parameter, dimension(0:NMaxGases) :: IGasMolarMass = (/ &
-       & 0.0_jprb,        & ! Gas not present
-       & 18.0152833_jprb, & ! H2O
-       & 44.011_jprb,     & ! CO2
-       & 47.9982_jprb,    & ! O3
-       & 44.013_jprb,     & ! N2O
-       & 28.0101_jprb,    & ! CO
-       & 16.043_jprb,     & ! CH4
-       & 31.9988_jprb,    & ! O2
-       & 137.3686_jprb,   & ! CFC11
-       & 120.914_jprb,    & ! CFC12
-       & 86.469_jprb,     & ! HCFC22
-       & 153.823_jprb,    & ! CCl4    
-       & 46.0055_jprb /)    ! NO2
-
-  ! The corresponding names of the gases in upper and lower case, used
-  ! for reading variables from the input file
-  character*6, dimension(NMaxGases), parameter :: GasName &
-       &  = (/'H2O   ','CO2   ','O3    ','N2O   ','CO    ','CH4   ', &
-       &      'O2    ','CFC11 ','CFC12 ','HCFC22','CCl4  ','NO2   '/)
-  character*6, dimension(NMaxGases), parameter :: GasLowerCaseName &
-       &  = (/'h2o   ','co2   ','o3    ','n2o   ','co    ','ch4   ', &
-       &      'o2    ','cfc11 ','cfc12 ','hcfc22','ccl4  ','no2   '/)
 
   ! Available units
   enum, bind(c)
@@ -120,12 +79,17 @@ contains
 
 
   !---------------------------------------------------------------------
-  subroutine allocate_gas(this, ncol, nlev)
+  ! Allocate a derived type for holding gas mixing ratios given the
+  ! number of columns and levels
+  subroutine allocate_gas(this, ncol, nlev, use_acc)
 
     use yomhook, only : lhook, dr_hook
 
     class(gas_type), intent(inout) :: this
     integer,         intent(in)    :: ncol, nlev
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)  :: use_acc
 
     real(jprb)          :: hook_handle
 
@@ -146,11 +110,14 @@ contains
 
   !---------------------------------------------------------------------
   ! Deallocate memory and reset arrays
-  subroutine deallocate_gas(this)
+  subroutine deallocate_gas(this, use_acc)
 
     use yomhook, only : lhook, dr_hook
 
     class(gas_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)  :: use_acc
 
     real(jprb)          :: hook_handle
 
@@ -178,7 +145,7 @@ contains
   ! Put gas mixing ratio corresponding to gas ID "igas" with units
   ! "iunits"
   subroutine put_gas(this, igas, iunits, mixing_ratio, scale_factor, &
-       istartcol)
+       istartcol, use_acc)
 
     use yomhook,        only : lhook, dr_hook
     use radiation_io,   only : nulerr, radiation_abort
@@ -189,8 +156,12 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio(:,:)
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,    optional, intent(in)    :: use_acc
 
-    integer :: i1, i2
+    integer :: i1, i2, jc, jk
+
 
     real(jprb)                          :: hook_handle
 
@@ -244,8 +215,12 @@ contains
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
-    this%mixing_ratio(i1:i2,:,igas) = mixing_ratio
 
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+      end do
+    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -261,7 +236,7 @@ contains
   ! Put well-mixed gas mixing ratio corresponding to gas ID "igas"
   ! with units "iunits"
   subroutine put_well_mixed_gas(this, igas, iunits, mixing_ratio, &
-       scale_factor, istartcol, iendcol)
+       scale_factor, istartcol, iendcol, use_acc)
 
     use yomhook,        only : lhook, dr_hook
     use radiation_io,   only : nulerr, radiation_abort
@@ -272,10 +247,13 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol, iendcol
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical,    optional, intent(in)    :: use_acc
 
     real(jprb)                          :: hook_handle
 
-    integer :: i1, i2
+    integer :: i1, i2, jc, jk
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
@@ -325,8 +303,12 @@ contains
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
-    this%mixing_ratio(i1:i2,:,igas)    = mixing_ratio
 
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio
+      end do
+    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -343,7 +325,6 @@ contains
   ! double CO2.  Note that this does not perform the scaling
   ! immediately, but changes the scale factor for the specified gas,
   ! ready to be used in set_units_gas.
-
   subroutine scale_gas(this, igas, scale_factor, lverbose)
 
     use radiation_io, only : nulout
@@ -410,10 +391,10 @@ contains
       if (this%is_present(igas)) then
         if (iunits == IMassMixingRatio &
              &   .and. this%iunits(igas) == IVolumeMixingRatio) then
-          sf = sf * IGasMolarMass(igas) / IAirMolarMass
+          sf = sf * GasMolarMass(igas) / AirMolarMass
         else if (iunits == IVolumeMixingRatio &
              &   .and. this%iunits(igas) == IMassMixingRatio) then
-          sf = sf * IAirMolarMass / IGasMolarMass(igas)
+          sf = sf * AirMolarMass / GasMolarMass(igas)
         end if
         sf = sf * this%scale_factor(igas)
         
@@ -537,10 +518,10 @@ contains
     else 
       if (iunits == IMassMixingRatio &
            &   .and. this%iunits(igas) == IVolumeMixingRatio) then
-        sf = sf * IGasMolarMass(igas) / IAirMolarMass
+        sf = sf * GasMolarMass(igas) / AirMolarMass
       else if (iunits == IVolumeMixingRatio &
            &   .and. this%iunits(igas) == IMassMixingRatio) then
-        sf = sf * IAirMolarMass / IGasMolarMass(igas)
+        sf = sf * AirMolarMass / GasMolarMass(igas)
       end if
       sf = sf * this%scale_factor(igas)
         
@@ -590,7 +571,7 @@ contains
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : out_of_bounds_3d
+    use radiation_check,  only : out_of_bounds_3d
 
     class(gas_type),   intent(inout) :: this
     integer,  optional,intent(in) :: istartcol, iendcol

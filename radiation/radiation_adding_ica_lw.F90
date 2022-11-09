@@ -137,7 +137,7 @@ contains
   subroutine fast_adding_ica_lw(ncol, nlev, &
        &  reflectance, transmittance, source_up, source_dn, emission_surf, albedo_surf, &
        &  is_clear_sky_layer, i_cloud_top, flux_dn_clear, &
-       &  flux_up, flux_dn)
+       &  flux_up, flux_dn, albedo, source, inv_denominator)
 
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook
@@ -172,14 +172,14 @@ contains
     
     ! Albedo of the entire earth/atmosphere system below each half
     ! level
-    real(jprb), dimension(ncol, nlev+1) :: albedo
+    real(jprb), intent(out), dimension(ncol, nlev+1) :: albedo
 
     ! Upwelling radiation at each half-level due to emission below
     ! that half-level (W m-2)
-    real(jprb), dimension(ncol, nlev+1) :: source
+    real(jprb), intent(out), dimension(ncol, nlev+1) :: source
 
     ! Equal to 1/(1-albedo*reflectance)
-    real(jprb), dimension(ncol, nlev)   :: inv_denominator
+    real(jprb), intent(out), dimension(ncol, nlev)   :: inv_denominator
 
     ! Loop index for model level and column
     integer :: jlev, jcol
@@ -295,7 +295,7 @@ contains
     real(jprb), intent(out), dimension(ncol, nlev+1) :: flux_up, flux_dn
     
     ! Loop index for model level
-    integer :: jlev
+    integer :: jlev, jcol
 
     real(jprb) :: hook_handle
 
@@ -306,8 +306,12 @@ contains
 
     ! Work down through the atmosphere computing the downward fluxes
     ! at each half-level
+! Added for DWD (2020)
+!NEC$ outerloop_unroll(8)
     do jlev = 1,nlev
-      flux_dn(:,jlev+1) = transmittance(:,jlev)*flux_dn(:,jlev) + source_dn(:,jlev)
+      do jcol = 1,ncol
+        flux_dn(jcol,jlev+1) = transmittance(jcol,jlev)*flux_dn(jcol,jlev) + source_dn(jcol,jlev)
+      end do
     end do
 
     ! Surface reflection and emission
@@ -315,8 +319,12 @@ contains
 
     ! Work back up through the atmosphere computing the upward fluxes
     ! at each half-level
+! Added for DWD (2020)
+!NEC$ outerloop_unroll(8)
     do jlev = nlev,1,-1
-      flux_up(:,jlev) = transmittance(:,jlev)*flux_up(:,jlev+1) + source_up(:,jlev)
+      do jcol = 1,ncol
+        flux_up(jcol,jlev) = transmittance(jcol,jlev)*flux_up(jcol,jlev+1) + source_up(jcol,jlev)
+      end do
     end do
     
     if (lhook) call dr_hook('radiation_adding_ica_lw:calc_fluxes_no_scattering_lw',1,hook_handle)

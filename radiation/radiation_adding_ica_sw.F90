@@ -24,7 +24,8 @@ contains
   subroutine adding_ica_sw(ncol, nlev, incoming_toa, &
        &  albedo_surf_diffuse, albedo_surf_direct, cos_sza, &
        &  reflectance, transmittance, ref_dir, trans_dir_diff, trans_dir_dir, &
-       &  flux_up, flux_dn_diffuse, flux_dn_direct)
+       &  flux_up, flux_dn_diffuse, flux_dn_direct, &
+       &  albedo, source, inv_denominator)
 
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook
@@ -43,7 +44,7 @@ contains
          &                                              albedo_surf_direct
 
     ! Cosine of the solar zenith angle
-    real(jprb), intent(in),  dimension(ncol)         :: cos_sza
+    real(jprb), intent(in)                           :: cos_sza
 
     ! Diffuse reflectance and transmittance of each layer
     real(jprb), intent(in),  dimension(ncol, nlev)   :: reflectance, transmittance
@@ -64,14 +65,14 @@ contains
     
     ! Albedo of the entire earth/atmosphere system below each half
     ! level
-    real(jprb), dimension(ncol, nlev+1) :: albedo
+    real(jprb), intent(out), dimension(ncol, nlev+1) :: albedo
 
     ! Upwelling radiation at each half-level due to scattering of the
     ! direct beam below that half-level (W m-2)
-    real(jprb), dimension(ncol, nlev+1) :: source
+    real(jprb), intent(out), dimension(ncol, nlev+1) :: source
 
     ! Equal to 1/(1-albedo*reflectance)
-    real(jprb), dimension(ncol, nlev)   :: inv_denominator
+    real(jprb), intent(out), dimension(ncol, nlev)   :: inv_denominator
 
     ! Loop index for model level and column
     integer :: jlev, jcol
@@ -97,6 +98,8 @@ contains
     ! the entire earth/atmosphere system below that half-level, and
     ! also the "source", which is the upwelling flux due to direct
     ! radiation that is scattered below that level
+! Added for DWD (2020)
+!NEC$ outerloop_unroll(8)
     do jlev = nlev,1,-1
       ! Next loop over columns. We could do this by indexing the
       ! entire inner dimension as follows, e.g. for the first line:
@@ -127,6 +130,8 @@ contains
 
     ! Work back down through the atmosphere computing the fluxes at
     ! each half-level
+! Added for DWD (2020)
+!NEC$ outerloop_unroll(8)
     do jlev = 1,nlev
       do jcol = 1,ncol
         ! Shonk & Hogan (2008) Eq 14 (after simplification):
@@ -137,7 +142,7 @@ contains
         ! Shonk & Hogan (2008) Eq 12:
         flux_up(jcol,jlev+1) = albedo(jcol,jlev+1)*flux_dn_diffuse(jcol,jlev+1) &
              &            + source(jcol,jlev+1)
-        flux_dn_direct(jcol,jlev) = flux_dn_direct(jcol,jlev)*cos_sza(jcol)
+        flux_dn_direct(jcol,jlev) = flux_dn_direct(jcol,jlev)*cos_sza
       end do
     end do
     flux_dn_direct(:,nlev+1) = flux_dn_direct(:,nlev+1)*cos_sza

@@ -66,7 +66,7 @@ contains
   !---------------------------------------------------------------------
   ! Allocate variables with specified dimensions
   subroutine allocate_thermodynamics_arrays(this, ncol, nlev, &
-       &                                    use_h2o_sat, rrtm_pass_temppres_fl)
+       &                                    use_h2o_sat, rrtm_pass_temppres_fl, use_acc)
 
     use yomhook,  only : lhook, dr_hook
 
@@ -78,6 +78,9 @@ contains
                                                            ! and pressure on full levels
 
     logical :: use_h2o_sat_local
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, intent(in), optional :: use_acc
 
     real(jprb) :: hook_handle
 
@@ -112,11 +115,14 @@ contains
 
   !---------------------------------------------------------------------
   ! Deallocate variables
-  subroutine deallocate_thermodynamics_arrays(this)
+  subroutine deallocate_thermodynamics_arrays(this, use_acc)
 
     use yomhook,  only : lhook, dr_hook
 
     class(thermodynamics_type), intent(inout) :: this
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, optional, intent(in)             :: use_acc
 
     real(jprb) :: hook_handle
 
@@ -145,12 +151,15 @@ contains
 
   !---------------------------------------------------------------------
   ! Calculate approximate saturation with respect to liquid
-  subroutine calc_saturation_wrt_liquid(this,istartcol,iendcol)
+  subroutine calc_saturation_wrt_liquid(this,istartcol,iendcol,use_acc)
 
     use yomhook,  only : lhook, dr_hook
 
     class(thermodynamics_type), intent(inout) :: this
     integer, intent(in)                       :: istartcol, iendcol
+    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
+    ! synchronized interfaces with GPU-port
+    logical, intent(in), optional             :: use_acc
 
     ! Pressure and temperature at full levels
     real(jprb) :: pressure, temperature
@@ -326,7 +335,7 @@ contains
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : out_of_bounds_2d
+    use radiation_check,  only : out_of_bounds_2d
 
     class(thermodynamics_type), intent(inout) :: this
     integer,           optional,intent(in) :: istartcol, iendcol

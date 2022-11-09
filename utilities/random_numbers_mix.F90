@@ -238,7 +238,7 @@ SUBROUTINE UNIFORM_DISTRIBUTION (PX,YD_STREAM)
   !--------------------------------------------------------------------------------
   ! Generate uniformly distributed random numbers in the range 0.0<= px < 1.0
   !--------------------------------------------------------------------------------
-  INTEGER(KIND=JPIM), PARAMETER :: IVAR=Z"3FFFFFFF"
+  INTEGER(KIND=JPIM), PARAMETER :: IVAR = INT(Z"3FFFFFFF",JPIM)
   TYPE(RANDOMNUMBERSTREAM), INTENT(INOUT) :: YD_STREAM
   REAL(KIND=JPRB), DIMENSION(:),     INTENT(  OUT) :: PX
 
@@ -251,7 +251,7 @@ SUBROUTINE UNIFORM_DISTRIBUTION (PX,YD_STREAM)
 ! IF (LHOOK) CALL DR_HOOK('RANDOM_NUMBERS_MIX:UNIFORM_DISTRIBUTION',0,ZHOOK_HANDLE)
   IF(YD_STREAM%INITTEST /= INITVALUE) &
     & CALL ABOR1 ('uniform_distribution called before initialize_random_numbers')
-  
+
   !--------------------------------------------------------------------------------
   ! Copy numbers that were generated during the last call, but not used.
   !--------------------------------------------------------------------------------

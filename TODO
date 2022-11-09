@@ -1,21 +1,21 @@
 FEATURES
- - Ensure inv_inhom_effective_size used for fractal entrapment
  - Option to have more McICA columns to reduce noise
- - Incorporate UV processor
+ - Compute UV index when sufficient UV bands
 
 LONGER TERM FEATURES
  - Option to provide date, time, longitude and latitude from which the
    IFS values will be calculated of: solar zenith angle, trace gas and
    aerosol mixing ratio, and cloud effective ratio
- - Complete surface radiative transfer component including vegetation
-   and urban surfaces (?)
- - Incorporate RRTMGP and FSCK
+ - Incorporate RRTMGP
+ - Solar cycle in spectral irradiance
 
 INTERFACE
  - Rename "do_3d" as it is misleading
  - Add deallocate method for config type
  - Column is last array argument for all input and output arrays?
  - Why are the flux%*_band variables dimensioned (g,col,lev) not (g,lev,col)?
+
+ECCKD AND GENERALIZED CLOUD/AEROSOL
 
 DOCUMENTATION
  - Add chapters on API, internal structure and underpinning science
@@ -24,10 +24,13 @@ MISC
  - Definition of Tdir in two_stream
 
 DIFFERENCES IN IFS VERSION OF ECRAD
- - Numerous files contain easy_netcdf_with_read_mpi instead of easy_netcdf
- - radiation_cloud_generator.F90 contains SIMD routine
+ - Several files contain easy_netcdf_with_read_mpi instead of
+   easy_netcdf (radiation_aerosol_optics_data,
+   radiation_cloud_optics_data, radiation_pdf_sampler)
+ - radiation_cloud_generator.F90 uses SIMD routine to sample PDF
  - radiation_delta_eddington.h contains SIMD routine
- - radiation_mcica_*.F90 contain Intel optimizations
- - radiation_interface.F90 and radiation_ifs_rrtm.F90 take YDERAD arguments
+ - radiation_interface.F90 and radiation_ifs_rrtm.F90 take YDERAD
+   arguments, the latter has other differences
+ - radiation_constants should use IFS values?
 
 KNOWN BUGS
