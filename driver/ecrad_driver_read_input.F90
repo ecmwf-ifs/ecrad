@@ -257,8 +257,17 @@ contains
       ! Read cloud properties needed by most solvers
       ! --------------------------------------------------------
 
-      ! Read cloud descriptors with dimensions (ncol, nlev)
-      call file%get('cloud_fraction',cloud%fraction)
+      if (driver_config%cloud_fraction_override >= 0.0_jprb) then
+        allocate(cloud%fraction(ncol,nlev))
+        cloud%fraction = driver_config%cloud_fraction_override
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3)') '  Overriding cloud fraction with ', &
+               &  driver_config%cloud_fraction_override
+        end if
+      else
+        ! Read cloud descriptors with dimensions (ncol, nlev)
+        call file%get('cloud_fraction',cloud%fraction)
+      end if
 
       ! Fractional standard deviation of in-cloud water content
       if (file%exists('fractional_std')) then

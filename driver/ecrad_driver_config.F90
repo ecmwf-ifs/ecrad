@@ -41,7 +41,7 @@ module ecrad_driver_config
      real(jprb) :: sw_albedo_override
      real(jprb) :: lw_emissivity_override
      real(jprb) :: q_liq_scaling, q_ice_scaling
-     real(jprb) :: cloud_fraction_scaling
+     real(jprb) :: cloud_fraction_scaling, cloud_fraction_override
      real(jprb) :: overlap_decorr_length_scaling
      real(jprb) :: skin_temperature_override ! K
      real(jprb) :: solar_irradiance_override ! W m-2
@@ -150,7 +150,7 @@ contains
     real(jprb) :: sw_albedo
     real(jprb) :: lw_emissivity
     real(jprb) :: q_liquid_scaling, q_ice_scaling
-    real(jprb) :: cloud_fraction_scaling
+    real(jprb) :: cloud_fraction_scaling, cloud_fraction
     real(jprb) :: overlap_decorr_length_scaling
     real(jprb) :: skin_temperature
     real(jprb) :: cos_solar_zenith_angle
@@ -212,6 +212,7 @@ contains
          &  lw_emissivity, q_liquid_scaling, q_ice_scaling, &
          &  istartcol, iendcol, solar_irradiance_override, &
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
+         &  cloud_fraction, &
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
          &  do_save_aerosol_optics, &
@@ -247,6 +248,7 @@ contains
     q_liquid_scaling = -1.0_jprb
     q_ice_scaling = -1.0_jprb
     cloud_fraction_scaling = -1.0_jprb
+    cloud_fraction = -1.0_jprb
     overlap_decorr_length_scaling = -1.0_jprb
     skin_temperature = -1.0_jprb
     cos_solar_zenith_angle = -1.0_jprb
@@ -362,6 +364,7 @@ contains
     this%q_liq_scaling = q_liquid_scaling
     this%q_ice_scaling = q_ice_scaling
     this%cloud_fraction_scaling = cloud_fraction_scaling
+    this%cloud_fraction_override = cloud_fraction
     this%overlap_decorr_length_scaling = overlap_decorr_length_scaling
     this%skin_temperature_override = skin_temperature
     this%cos_sza_override = cos_solar_zenith_angle
