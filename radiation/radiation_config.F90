@@ -317,7 +317,7 @@ module radiation_config
     ! the wavelength bounds specified in sw_albedo_wavelength_bound
     ! and lw_emiss_wavelength_bound
     integer :: i_sw_albedo_index(NMaxAlbedoIntervals) = 0
-    integer :: i_lw_emiss_index (NMaxAlbedoIntervals)  = 0
+    integer :: i_lw_emiss_index (NMaxAlbedoIntervals) = 0
 
     ! Do we compute longwave and/or shortwave radiation?
     logical :: do_lw = .true.
@@ -620,6 +620,7 @@ module radiation_config
      procedure :: set  => set_config
      procedure :: print => print_config
      procedure :: get_sw_weights
+     procedure :: get_sw_mapping
      procedure :: define_sw_albedo_intervals
      procedure :: define_lw_emiss_intervals
      procedure :: set_aerosol_wavelength_mono
@@ -1550,7 +1551,6 @@ contains
   end subroutine print_config
 
 
-
   !---------------------------------------------------------------------
   ! In order to estimate UV and photosynthetically active radiation,
   ! we need weighted sum of fluxes considering wavelength range
@@ -1637,6 +1637,50 @@ contains
     end if
 
   end subroutine get_sw_weights
+
+  
+  subroutine get_sw_mapping(this, wavelength_bound, mapping)
+
+    use parkind1, only : jprb
+    use radiation_io, only : nulout, nulerr, radiation_abort
+    use radiation_spectral_definition, only : SolarReferenceTemperature
+
+    class(config_type), intent(in) :: this
+    ! Range of wavelengths to get weights for (m)
+    real(jprb), intent(in)  :: wavelength_bound(:)
+    real(jprb), intent(out), allocatable :: mapping(:,:)
+
+    real(jprb), allocatable :: mapping_local(:,:)
+    integer, allocatable :: diag_ind(:)
+
+    integer :: ninterval
+    
+    integer :: jband ! Loop index for spectral band
+    integer :: jint  ! Loop for interval
+    
+    if (this%n_bands_sw <= 0) then
+      write(nulerr,'(a)') '*** Error: get_sw_mapping called before number of shortwave bands set'
+      call radiation_abort('Radiation configuration error')
+    end if
+
+    ninterval = size(wavelength_bound)-1
+    allocate(diag_ind(ninterval+2))
+    diag_ind = 0
+    do jint = 1,ninterval+2
+      diag_ind(jint) = jint
+    end do
+    !diag_ind(ninterval+2) = 0
+    
+    call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
+         &  wavelength_bound, diag_ind, mapping_local, &
+         &  use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point), use_fluxes=.false.)
+
+    ! "mapping" now contains a (ninterval+2)*nband matrix, where the
+    ! first and last rows correspond to wavelengths smaller than the
+    ! first and larger than the last, which we discard
+    mapping = mapping_local(2:ninterval+1,:)
+    
+  end subroutine get_sw_mapping
 
 
   !---------------------------------------------------------------------

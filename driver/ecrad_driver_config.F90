@@ -23,6 +23,9 @@ module ecrad_driver_config
   ! Max length of "experiment" global attribute
   integer, parameter :: NMaxStringLength = 2000
 
+  ! Maximum number of spectral diagnostics
+  integer, parameter :: NMaxSpectralDiag = 256
+  
   type driver_config_type
 
      ! Parallel settings
@@ -63,6 +66,20 @@ module ecrad_driver_config
      real(jprb) :: hcfc22_scaling = 1.0_jprb
      real(jprb) :: ccl4_scaling   = 1.0_jprb
      real(jprb) :: no2_scaling    = 1.0_jprb
+
+     ! Optional monotonically increasing wavelength bounds (m) for
+     ! shortwave spectral flux diagnostics, to be written to
+     ! sw_diagnostic_file_name
+     real(jprb) :: sw_diag_wavelength_bound(NMaxSpectralDiag+1) = -1.0_jprb
+
+     ! Name of file to write shortwave spectral diagnostics to, but
+     ! only if sw_diag_wavelength_bound is populated via the namelist
+     character(len=NMaxStringLength) :: sw_diag_file_name = 'sw_diagnostics.nc'
+
+     ! Number of shortwave diagnostics, worked out from first
+     ! unassigned value in sw_diag_wavelength_bound after reading
+     ! namelist
+     integer :: n_sw_diag
      
      ! Volume mixing ratios (m3 m-3) in model layers (or equivalently
      ! mole fractions (mol mol-1)) are typically stored in the input
@@ -163,6 +180,8 @@ contains
     real(jprb) :: hcfc22_scaling
     real(jprb) :: ccl4_scaling  
     real(jprb) :: no2_scaling   
+    real(jprb) :: sw_diag_wavelength_bound(NMaxSpectralDiag+1)
+    character(len=NMaxStringLength) :: sw_diag_file_name
     character(len=32) :: vmr_suffix_str
     character(len=NMaxStringLength) :: experiment_name
 
@@ -186,6 +205,9 @@ contains
     ! Are we going to override the effective size?
     logical :: do_override_eff_size
 
+    ! Loop index
+    integer :: jdiag
+    
     namelist /radiation_driver/ fractional_std, &
          &  overlap_decorr_length, inv_effective_size, sw_albedo, &
          &  high_inv_effective_size, middle_inv_effective_size, &
@@ -203,7 +225,8 @@ contains
          &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
          &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling, &
-         &  vmr_suffix_str, experiment_name, do_write_double_precision
+         &  vmr_suffix_str, experiment_name, do_write_double_precision, &
+         &  sw_diag_wavelength_bound, sw_diag_file_name
 
     real(jprb) :: hook_handle
 
@@ -259,7 +282,9 @@ contains
     do_write_hdf5 = .false.
     do_write_double_precision = .false.
     experiment_name = ''
-
+    sw_diag_wavelength_bound = this%sw_diag_wavelength_bound
+    sw_diag_file_name = this%sw_diag_file_name
+    
     ! Open the namelist file and read the radiation_driver namelist
     open(unit=10, iostat=iosopen, file=trim(file_name))
     if (iosopen /= 0) then
@@ -363,7 +388,18 @@ contains
     this%no2_scaling    = no2_scaling
     this%vmr_suffix_str = trim(vmr_suffix_str)
     this%experiment_name= trim(experiment_name)
-
+    this%sw_diag_file_name = trim(sw_diag_file_name)
+    this%sw_diag_wavelength_bound = sw_diag_wavelength_bound
+    ! Work out number of shortwave diagnostics from first negative
+    ! wavelength bound, noting that the number of diagnostics is one
+    ! fewer than the number of valid bounds
+    do jdiag = 0,NMaxSpectralDiag
+      if (this%sw_diag_wavelength_bound(jdiag+1) < 0.0_jprb) then
+        this%n_sw_diag = max(0,jdiag-1)
+        exit
+      end if
+    end do
+    
     if (lhook) call dr_hook('ecrad_driver_config:read',1,hook_handle)
 
   end subroutine read_config_from_namelist
