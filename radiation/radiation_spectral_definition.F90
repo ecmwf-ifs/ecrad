@@ -476,9 +476,9 @@ contains
     ! Monotonically increasing wavelength bounds (m) between
     ! intervals, not including the outer bounds (which are assumed to
     ! be zero and infinity)
-    real(jprb), intent(in)    :: wavelength_bound(:)
+    real(jprb),                      intent(in)    :: wavelength_bound(:)
     ! The albedo band indices corresponding to each interval
-    integer,    intent(in)    :: i_intervals(:)
+    integer,                         intent(in)    :: i_intervals(:)
     real(jprb), allocatable,         intent(inout) :: mapping(:,:)
     logical,    optional,            intent(in)    :: use_bands
     logical,    optional,            intent(in)    :: use_fluxes
@@ -519,7 +519,7 @@ contains
     logical    :: use_bands_local, use_fluxes_local
 
     ! Loop indices
-    integer    :: jg, jband, jin, jint
+    integer    :: jg, jband, jin, jint, jwav
 
     real(jprb) :: hook_handle
 
@@ -631,6 +631,7 @@ contains
       wavenumber_mid = 0.5_jprb * (this%wavenumber1 + this%wavenumber2)
       planck = calc_planck_function_wavenumber(wavenumber_mid, temperature)
 
+#ifdef USE_COARSE_MAPPING
       ! In the processing that follows, we assume that the wavenumber
       ! grid on which the g-points are defined in the spectral
       ! definition is much finer than the albedo/emissivity intervals
@@ -651,8 +652,8 @@ contains
         end where
       end do
 
-      ! Final interval in wavelength space goes up to wavenumber of
-      ! infinity
+      ! Final interval in wavelength space goes up to wavelength of
+      ! infinity (wavenumber of zero)
       if (ninterval > 1) then
         wavenumber2_bound = 0.01_jprb / wavelength_bound(ninterval-1)
         where (wavenumber_mid <= wavenumber2_bound)
@@ -670,6 +671,51 @@ contains
         end do
       end do
 
+#else
+
+      ! Loop through all intervals
+      do jint = 1,ninterval
+        ! Loop through the wavenumbers for gpoint_fraction
+        do jwav = 1,this%nwav
+          if (jint == 1) then
+            ! First input interval in wavelength space: lower
+            ! wavelength bound is 0 m, so infinity cm-1
+            wavenumber2_bound = this%wavenumber2(jwav)
+          else
+            wavenumber2_bound = min(this%wavenumber2(jwav), &
+                 &                  0.01_jprb/wavelength_bound(jint-1))
+          end if
+
+          if (jint == ninterval) then
+            ! Final input interval in wavelength space: upper
+            ! wavelength bound is infinity m, so 0 cm-1
+            wavenumber1_bound = this%wavenumber1(jwav)
+          else
+            wavenumber1_bound = max(this%wavenumber1(jwav), &
+                 &                  0.01_jprb/wavelength_bound(jint))
+
+          end if
+
+          if (wavenumber2_bound > wavenumber1_bound) then
+            ! Overlap between input interval and gpoint_fraction
+            ! interval: compute the weight of the contribution in
+            ! proportion to an approximate calculation of the integral
+            ! of the Planck function over the relevant part of the
+            ! spectrum
+            mapping(i_intervals(jint),:) = mapping(i_intervals(jint),:) + this%gpoint_fraction(jwav,:) &
+                 &  * (planck(jwav) * (wavenumber2_bound - wavenumber1_bound) &
+                 &                  / (this%wavenumber2(jwav)-this%wavenumber1(jwav)))
+          end if
+        end do
+      end do
+      if (use_fluxes_local) then
+        do jg = 1,this%ng
+          mapping(:,jg) = mapping(:,jg) / sum(this%gpoint_fraction(:,jg) * planck)
+        end do
+      end if
+
+#endif
+      
     end if
 
     if (.not. use_fluxes_local) then
@@ -691,7 +737,6 @@ contains
        &  wavenumber1, wavenumber2, mapping, use_bands, use_fluxes)
 
     use yomhook,      only : lhook, dr_hook
-    use radiation_io, only : nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
     real(jprb),                      intent(in)    :: temperature   ! K
