@@ -227,8 +227,8 @@ contains
     call ao%allocate(n_type_phobic, n_type_philic, nrh, nspeclw, nspecsw, nmono)
 
     if (config%do_sw) then
-      call config%gas_optics_sw%spectral_def%calc_mapping(SolarReferenceTemperature, &
-           &  wavenumber, mapping, use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point))
+      call config%gas_optics_sw%spectral_def%calc_mapping(wavenumber, mapping, &
+           &          use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point))
 
       ao%mass_ext_sw_phobic = matmul(mapping, mass_ext_phobic)
       ao%ssa_sw_phobic = matmul(mapping, mass_ext_phobic*ssa_phobic) &
@@ -250,8 +250,8 @@ contains
     end if
 
     if (config%do_lw) then
-      call config%gas_optics_lw%spectral_def%calc_mapping(TerrestrialReferenceTemperature, &
-           &  wavenumber, mapping, use_bands=(.not. config%do_cloud_aerosol_per_lw_g_point))
+      call config%gas_optics_lw%spectral_def%calc_mapping(wavenumber, mapping, &
+           &          use_bands=(.not. config%do_cloud_aerosol_per_lw_g_point))
 
       ao%mass_ext_lw_phobic = matmul(mapping, mass_ext_phobic)
       ao%ssa_lw_phobic = matmul(mapping, mass_ext_phobic*ssa_phobic) &
@@ -389,7 +389,7 @@ contains
     ! ao%use_monochromatic = ao_legacy%use_monochromatic
 
     if (config%do_sw) then
-      call config%gas_optics_sw%spectral_def%calc_mapping_from_wavenumber_bands(SolarReferenceTemperature, &
+      call config%gas_optics_sw%spectral_def%calc_mapping_from_wavenumber_bands( &
            &  ao_legacy%wavenumber1_sw, ao_legacy%wavenumber2_sw, mapping_transp, &
            &  use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point))
       if (allocated(mapping)) then
@@ -421,7 +421,7 @@ contains
       if (allocated(mapping_transp)) then
         deallocate(mapping_transp)
       end if
-      call config%gas_optics_lw%spectral_def%calc_mapping_from_wavenumber_bands(TerrestrialReferenceTemperature, &
+      call config%gas_optics_lw%spectral_def%calc_mapping_from_wavenumber_bands( &
            &  ao_legacy%wavenumber1_lw, ao_legacy%wavenumber2_lw, mapping_transp, &
            &  use_bands=(.not. config%do_cloud_aerosol_per_lw_g_point))
       if (allocated(mapping)) then

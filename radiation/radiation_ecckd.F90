@@ -280,10 +280,10 @@ contains
   !---------------------------------------------------------------------
   ! Read the amplitude of the spectral variations associated with the
   ! solar cycle and map to g-points
-  subroutine read_spectral_solar_cycle(this, filename, iverbose)
+  subroutine read_spectral_solar_cycle(this, filename, iverbose, use_updated_solar_spectrum)
 
     use easy_netcdf,  only : netcdf_file
-    use radiation_io, only : nulout
+    use radiation_io, only : nulout, nulerr, radiation_abort
     use yomhook,      only : lhook, dr_hook
 
     ! Reference total solar irradiance (W m-2)
@@ -292,6 +292,9 @@ contains
     class(ckd_model_type), intent(inout) :: this
     character(len=*),      intent(in)    :: filename
     integer, optional,     intent(in)    :: iverbose
+    ! Do we update the mean solar spectral irradiance for each g-point
+    ! based on the contents of the file?
+    logical, optional,     intent(in)    :: use_updated_solar_spectrum
 
     type(netcdf_file) :: file
 
@@ -301,18 +304,17 @@ contains
     real(jprb), allocatable :: ssi(:) ! W m-2 cm
     real(jprb), allocatable :: ssi_amplitude(:) ! W m-2 cm
 
-    ! Width of each wavenumber interval
-    real(jprb), allocatable :: dwavenumber(:) ! cm-1
-    
     ! As above but on the wavenumber grid delimited by
     ! this%wavenumber1 and this%wavenumber2
     real(jprb), allocatable :: ssi_grid(:)
     real(jprb), allocatable :: ssi_amplitude_grid(:)
+    real(jprb), allocatable :: wavenumber_grid(:)
     
-    ! Spectral solar irradiance per g point, from file
-    real(jprb), allocatable :: ssi_g(:)
-
-    real(jprb) :: min_change, max_change
+    ! Old normalized solar irradiance in case it gets changed and we
+    ! need to report the amplitude of the change
+    real(jprb), allocatable :: old_norm_solar_irradiance(:)
+    
+    real(jprb) :: dwav_grid
     
     ! Number of input wavenumbers, and number on ecCKD model's grid
     integer :: nwav, nwav_grid
@@ -343,36 +345,58 @@ contains
 
     nwav = size(wavenumber)
     
-    allocate(dwavenumber(nwav))
-
-    dwavenumber(1) = 0.5_jprb*(wavenumber(2)-wavenumber(1))
-    do jwav = 2,nwav-1
-      dwavenumber(jwav) = 0.5_jprb*(wavenumber(jwav+1)-wavenumber(jwav-1))
-    end do
-
     nwav_grid = size(this%spectral_def%wavenumber1)
     allocate(ssi_grid(nwav_grid))
     allocate(ssi_amplitude_grid(nwav_grid))
+    allocate(wavenumber_grid(nwav_grid))
+    wavenumber_grid = 0.5_jprb * (this%spectral_def%wavenumber1+this%spectral_def%wavenumber2)
+    dwav_grid = this%spectral_def%wavenumber2(1)-this%spectral_def%wavenumber1(1)
+    
     ssi_grid = 0.0_jprb
     ssi_amplitude_grid = 0.0_jprb
-    
+
+    ! Interpolate input SSI to regular wavenumber grid
     do jwav_grid = 1,nwav_grid
-      do jwav = 1,nwav
-        if (wavenumber(jwav) > this%spectral_def%wavenumber1(jwav_grid) &
-             &  .and. wavenumber(jwav) <= this%spectral_def%wavenumber2(jwav_grid)) then
-          ssi_grid(jwav_grid) = ssi_grid(jwav_grid) + ssi(jwav)*dwavenumber(jwav)
-          ssi_amplitude_grid(jwav_grid) = ssi_amplitude_grid(jwav_grid) &
-               &  + ssi_amplitude(jwav)*dwavenumber(jwav)
+      do jwav = 1,nwav-1
+        if (wavenumber(jwav) < wavenumber_grid(jwav_grid) &
+             &  .and. wavenumber(jwav+1) >= wavenumber_grid(jwav_grid)) then
+          ! Linear interpolation - this is not perfect
+          ssi_grid(jwav_grid) = (ssi(jwav)*(wavenumber(jwav+1)-wavenumber_grid(jwav_grid)) &
+               &                +ssi(jwav+1)*(wavenumber_grid(jwav_grid)-wavenumber(jwav))) &
+               &                * dwav_grid / (wavenumber(jwav+1)-wavenumber(jwav))
+          ssi_amplitude_grid(jwav_grid) = (ssi_amplitude(jwav)*(wavenumber(jwav+1)-wavenumber_grid(jwav_grid)) &
+               &                +ssi_amplitude(jwav+1)*(wavenumber_grid(jwav_grid)-wavenumber(jwav))) &
+               &                * dwav_grid / (wavenumber(jwav+1)-wavenumber(jwav))
+          exit
         end if
       end do
     end do
 
+    ! Optionally update the solar irradiances in each g-point, and the
+    ! spectral solar irradiance on the wavenumber grid corresponding
+    ! to gpoint_fraction
+    allocate(old_norm_solar_irradiance(nwav_grid))
+    old_norm_solar_irradiance = this%norm_solar_irradiance
+    if (present(use_updated_solar_spectrum)) then
+      if (use_updated_solar_spectrum) then
+        if (.not. allocated(this%spectral_def%solar_spectral_irradiance)) then
+          write(nulerr,'(a)') 'Cannot use_updated_solar_spectrum unless gas optics model is from ecCKD >= 1.4'
+          call radiation_abort()
+        end if
+        this%norm_solar_irradiance = old_norm_solar_irradiance &
+             &  * matmul(ssi_grid,this%spectral_def%gpoint_fraction) &
+             &  / matmul(this%spectral_def%solar_spectral_irradiance,this%spectral_def%gpoint_fraction)
+        this%norm_solar_irradiance = this%norm_solar_irradiance / sum(this%norm_solar_irradiance)
+        this%spectral_def%solar_spectral_irradiance = ssi_grid
+      end if
+    end if
+    
     ! Map on to g-points
     this%norm_amplitude_solar_irradiance &
          &  = this%norm_solar_irradiance &
          &  * matmul(ssi_amplitude_grid, this%spectral_def%gpoint_fraction) &
          &  / matmul(ssi_grid,this%spectral_def%gpoint_fraction)
-
+    
     ! Remove the mean from the solar-cycle fluctuations, since the
     ! user will scale with total solar irradiance
     this%norm_amplitude_solar_irradiance &
@@ -383,21 +407,25 @@ contains
     ! Print the spectral solar irradiance per g point, and solar cycle amplitude 
     if (iverbose_local >= 2) then
       write(nulout,'(a,f6.1,a)') 'G-point, solar irradiance for nominal TSI = ', &
-           &  ReferenceTSI, ' W m-2, solar cycle amplitude (at solar maximum)'
+           &  ReferenceTSI, ' W m-2, solar cycle amplitude (at solar maximum), update to original solar irradiance'
       iband = 0
       do jg = 1,this%ng
         if (this%spectral_def%i_band_number(jg) > iband) then
           iband = this%spectral_def%i_band_number(jg)
-          write(nulout, '(i2,f10.4,f7.3,a,i2,a,f7.1,a,f7.1,a)') &
+          write(nulout, '(i2,f10.4,f7.3,a,f8.4,a,i2,a,f7.1,a,f7.1,a)') &
                &  jg, ReferenceTSI*this%norm_solar_irradiance(jg), &
                &  100.0_jprb * this%norm_amplitude_solar_irradiance(jg) &
-               &  / this%norm_solar_irradiance(jg), '% Band ', iband, ': ', &
+               &  / this%norm_solar_irradiance(jg), '% ', &
+               &  100.0_jprb * (this%norm_solar_irradiance(jg) &
+               &  / old_norm_solar_irradiance(jg) - 1.0_jprb), '% Band ', iband, ': ', &
                &  this%spectral_def%wavenumber1_band(iband), '-', &
                &  this%spectral_def%wavenumber2_band(iband), ' cm-1'
         else
-          write(nulout, '(i2,f10.4,f7.3,a)') jg, ReferenceTSI*this%norm_solar_irradiance(jg), &
+          write(nulout, '(i2,f10.4,f7.3,a,f8.4,a)') jg, ReferenceTSI*this%norm_solar_irradiance(jg), &
                &  100.0_jprb * this%norm_amplitude_solar_irradiance(jg) &
-               &  / this%norm_solar_irradiance(jg), '%'
+               &  / this%norm_solar_irradiance(jg), '% ', &
+               &  100.0_jprb * (this%norm_solar_irradiance(jg) &
+               &  / old_norm_solar_irradiance(jg) - 1.0_jprb), '%'
         end if
       end do
     end if

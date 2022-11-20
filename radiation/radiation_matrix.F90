@@ -42,7 +42,8 @@ module radiation_matrix
   public  :: mat_x_vec, singlemat_x_vec, mat_x_mat, &
        &     singlemat_x_mat, mat_x_singlemat, &
        &     identity_minus_mat_x_mat, solve_vec, solve_mat, expm, &
-       &     fast_expm_exchange_2, fast_expm_exchange_3
+       &     fast_expm_exchange_2, fast_expm_exchange_3, &
+       &     sparse_x_dense
 
   private :: solve_vec_2, solve_vec_3, solve_mat_2, &
        &     solve_mat_3, lu_factorization, lu_substitution, solve_mat_n, &
@@ -318,6 +319,33 @@ contains
 
   end function identity_minus_mat_x_mat
 
+
+  
+  !---------------------------------------------------------------------
+  ! Replacement for matmul in the case that the first matrix is sparse
+  function sparse_x_dense(sparse, dense)
+
+    real(jprb), intent(in) :: sparse(:,:), dense(:,:)
+    real(jprb) :: sparse_x_dense(size(sparse,1),size(dense,2))
+
+    integer :: j1, j2, j3 ! Loop indices
+    integer :: n1, n2, n3 ! Array sizes
+
+    n1 = size(sparse,1)
+    n2 = size(sparse,2)
+    n3 = size(dense,2)
+    
+    sparse_x_dense = 0.0_jprb
+    do j2 = 1,n2
+      do j1 = 1,n1
+        if (sparse(j1,j2) /= 0.0_jprb) then
+          sparse_x_dense(j1,:) = sparse_x_dense(j1,:) + sparse(j1,j2)*dense(j2,:)
+        end if
+      end do
+    end do
+    
+  end function sparse_x_dense
+  
 
   ! --- REPEATEDLY SQUARE A MATRIX ---
 
@@ -996,5 +1024,5 @@ contains
 
 !  generic :: fast_expm_exchange => fast_expm_exchange_2, fast_expm_exchange_3
 
-
+ 
 end module radiation_matrix

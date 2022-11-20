@@ -73,7 +73,7 @@ contains
       ! Override solar spectral irradiance, if filename provided
       if (config%use_spectral_solar_cycle) then
         call config%gas_optics_sw%read_spectral_solar_cycle(config%ssi_file_name, &
-             &                                              config%iverbosesetup)
+             &           config%iverbosesetup, config%use_updated_solar_spectrum)
       end if
 
     end if

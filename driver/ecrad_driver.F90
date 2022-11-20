@@ -183,7 +183,8 @@ program ecrad_driver
     if (.not. config%do_surface_sw_spectral_flux) then
       stop 'Error: shortwave spectral diagnostics require do_surface_sw_spectral_flux=true'
     end if
-    call config%get_sw_mapping(driver_config%sw_diag_wavelength_bound(1:driver_config%n_sw_diag+1), sw_diag_mapping)
+    call config%get_sw_mapping(driver_config%sw_diag_wavelength_bound(1:driver_config%n_sw_diag+1), &
+         &  sw_diag_mapping, 'user-specified diagnostic intervals')
     !if (driver_config%iverbose >= 3) then
     !  call print_matrix(sw_diag_mapping, 'Shortwave diagnostic mapping', nulout)
     !end if
@@ -355,6 +356,8 @@ program ecrad_driver
        &   is_double_precision=driver_config%do_write_double_precision)
 
   if (driver_config%n_sw_diag > 0) then
+    ! Store spectral fluxes in user-defined intervals in a second
+    ! output file
     call save_sw_diagnostics(driver_config%sw_diag_file_name, config, &
          &  driver_config%sw_diag_wavelength_bound(1:driver_config%n_sw_diag+1), &
          &  sw_diag_mapping, flux, iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &

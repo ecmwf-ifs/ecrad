@@ -141,6 +141,14 @@ test_ecckd_tc_noaer:
 		use_aerosols=false 
 	$(DRIVER) config_ecckd_tc_noaer.nam $(INPUT).nc $(INPUT)_ecckd_tc_noaer_out.nc
 
+# ecCKD gas optics with spectral diagnostics every 25nm in the visible
+# written to a separate file
+test_ecckd_diag:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_diag.nam \
+		sw_diag_file_name='"sw_diag_vis25nm.nc"' \
+		sw_diag_wavelength_bound=".4e-6,.425e-6,.45e-6,.475e-6,.5e-6,.525e-6,.55e-6,.575e-6,.6e-6,.625e-6,.65e-6,.675e-6,.7e-6"
+	$(DRIVER) config_ecckd_diag.nam $(INPUT).nc $(INPUT)_ecckd_diag.nc
+
 # Clean data files
 clean:
 	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc \
