@@ -25,13 +25,13 @@ $(TEST): $(TEST).F90 ../lib/*.a
 	$(FC) $(FCFLAGS) $(TEST).F90 $(LIBS) -o $(TEST)
 
 $(IFSEXE): ecrad_ifs_driver.o $(OBJECTS) ../lib/*.a
-	$(FC) $(FCFLAGS) ecrad_ifs_driver.o $(OBJECTS) -lifs $(LIBS) -o $(IFSEXE)
+	$(FC) $(FCFLAGS) ecrad_ifs_driver.o ecrad_ifs.o $(OBJECTS) -lifs $(LIBS) -o $(IFSEXE)
 
 
 clean:
 	rm -f *.o ecrad_driver.o ecrad_ifs_driver.o $(OBJECTS) $(EXECUTABLE) $(TEST) $(IFSEXE)
 
 ecrad_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o ecrad_standalone.o
-ecrad_ifs_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
+ecrad_ifs_driver.o: ecrad_ifs.o ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_driver_read_input.o: ecrad_driver_config.o
 ecrad_standalone.o: ecrad_driver_config.o ecrad_driver_read_input.o
