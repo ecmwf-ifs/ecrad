@@ -142,14 +142,23 @@ test_ecckd_tc_noaer:
 	$(DRIVER) config_ecckd_tc_noaer.nam $(INPUT).nc $(INPUT)_ecckd_tc_noaer_out.nc
 
 # ecCKD gas optics with spectral diagnostics every 25nm in the visible
-# written to a separate file
-test_ecckd_diag:
-	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_diag.nam \
-		sw_diag_file_name='"sw_diag_vis25nm.nc"' \
-		sw_diag_wavelength_bound=".4e-6,.425e-6,.45e-6,.475e-6,.5e-6,.525e-6,.55e-6,.575e-6,.6e-6,.625e-6,.65e-6,.675e-6,.7e-6"
-	$(DRIVER) config_ecckd_diag.nam $(INPUT).nc $(INPUT)_ecckd_diag.nc
+# written to a separate file; do this both with the 32- and 96-gpoint
+# models (which have 100nm and 25nm resolution in the visible,
+# respectively).
+DIAGBOUNDS="sw_diag_wavelength_bound=.4e-6,.425e-6,.45e-6,.475e-6,.5e-6,.525e-6,.55e-6,.575e-6,.6e-6,.625e-6,.65e-6,.675e-6,.7e-6"
+test_diag:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_rrtmg.nc"' gas_model_name='"RRTMG-IFS"'
+	$(DRIVER) config_diag.nam $(INPUT).nc $(INPUT)_diag_rrtmg_out.nc
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_rgb_orig.nc"'
+	$(DRIVER) config_ecckd_diag.nam $(INPUT).nc $(INPUT)_ecckd_diag_rgb_orig_out.nc
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_rgb.nc"' \
+		gas_optics_sw_override_file_name='"ecckd-1.4_sw_climate_rgb-32b_ckd-definition.nc"'
+	$(DRIVER) config_ecckd_diag.nam $(INPUT).nc $(INPUT)_ecckd_diag_rgb_out.nc
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_vfine.nc"' \
+		gas_optics_sw_override_file_name='"ecckd-1.4_sw_climate_vfine-96b_ckd-definition.nc"'
+	$(DRIVER) config_ecckd_diag.nam $(INPUT).nc $(INPUT)_ecckd_diag_vfine_out.nc
 
 # Clean data files
 clean:
-	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc \
+	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc sw_diag*nc \
 	config_*.nam gmon.out
