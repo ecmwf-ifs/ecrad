@@ -56,8 +56,7 @@ contains
     use radiation_flux, only           : flux_type, &
          &                               indexed_sum, add_indexed_sum
     use radiation_matrix, only         : singlemat_x_vec
-    use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
-         &                       calc_reflectance_transmittance_sw
+    use radiation_two_stream, only     : calc_ref_trans_sw
 
     implicit none
 
@@ -110,9 +109,6 @@ contains
     ! including top-of-atmosphere and the surface
     real(jprb), dimension(nregions,nregions,nlev+1, &
          &                istartcol:iendcol) :: u_matrix, v_matrix
-
-    ! Two-stream variables
-    real(jprb), dimension(config%n_g_sw) :: gamma1, gamma2, gamma3
 
     ! Diffuse reflection and transmission matrices of each layer
     real(jprb), dimension(config%n_g_sw, nregions, nlev) &
@@ -261,11 +257,6 @@ contains
       ! are computed for each layer
       do jlev = 1,nlev ! Start at top-of-atmosphere
 
-        ! Array-wise assignments
-        gamma1 = 0.0_jprb
-        gamma2 = 0.0_jprb
-        gamma3 = 0.0_jprb
-
         nreg = nregions
         if (is_clear_sky_layer(jlev)) then
           nreg = 1
@@ -300,12 +291,8 @@ contains
             ! mixture
             call delta_eddington(od_total, ssa_total, g_total)
           end if
-          call calc_two_stream_gammas_sw(ng, &
-               &  mu0, ssa_total, g_total, &
-               &  gamma1, gamma2, gamma3)
-          call calc_reflectance_transmittance_sw(ng, &
-               &  mu0, od_total, ssa_total, &
-               &  gamma1, gamma2, gamma3, &
+          call calc_ref_trans_sw(ng, &
+               &  mu0, od_total, ssa_total, g_total, &
                &  reflectance(:,jreg,jlev), transmittance(:,jreg,jlev), &
                &  ref_dir(:,jreg,jlev), trans_dir_diff(:,jreg,jlev), &
                &  trans_dir_dir(:,jreg,jlev) )

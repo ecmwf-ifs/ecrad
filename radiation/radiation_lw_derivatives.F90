@@ -30,6 +30,7 @@
 !
 ! Modifications
 !   2017-10-23  R. Hogan  Renamed single-character variables
+!   2022-11-22  P. Ukkonen / R. Hogan  Optimized calc_lw_derivatives_region
 
 module radiation_lw_derivatives
 
@@ -195,7 +196,7 @@ contains
   !---------------------------------------------------------------------
   ! Calculation for solvers involving multiple regions but no 3D
   ! effects: the difference from calc_lw_derivatives_matrix is that transmittance
-  ! has one less dimensions
+  ! has one fewer dimensions
   subroutine calc_lw_derivatives_region(ng, nlev, nreg, icol, transmittance, &
        &                                u_matrix, flux_up_surf, lw_derivatives)
 
@@ -220,9 +221,10 @@ contains
 
     ! Rate of change of spectral flux at a given height with respect
     ! to the surface value
-    real(jprb) :: lw_derivatives_g_reg(ng,nreg)
+    real(jprb) :: lw_deriv(ng,nreg), lw_deriv_below(ng,nreg)
+    real(jprb) :: partial_sum(ng)
 
-    integer    :: jlev
+    integer    :: jlev, jg
 
     real(jprb) :: hook_handle
 
@@ -231,24 +233,58 @@ contains
     ! Initialize the derivatives at the surface; the surface is
     ! treated as a single clear-sky layer so we only need to put
     ! values in region 1.
-    lw_derivatives_g_reg = 0.0_jprb
-    lw_derivatives_g_reg(:,1) = flux_up_surf / sum(flux_up_surf)
+    lw_deriv = 0.0_jprb
+    lw_deriv(:,1) = flux_up_surf / sum(flux_up_surf)
     lw_derivatives(icol, nlev+1) = 1.0_jprb
 
-    ! Move up through the atmosphere computing the derivatives at each
-    ! half-level
-    do jlev = nlev,1,-1
-      ! Compute effect of overlap at half-level jlev+1, yielding
-      ! derivatives just above that half-level
-      lw_derivatives_g_reg = singlemat_x_vec(ng,ng,nreg,u_matrix(:,:,jlev+1),lw_derivatives_g_reg)
+    if (nreg == 3) then 
+      ! Optimize the most common case of 3 regions by removing the
+      ! nested call to singlemat_x_vec and unrolling the matrix
+      ! multiplication inline
+      
+      do jlev = nlev,1,-1
+        ! Compute effect of overlap at half-level jlev+1, yielding
+        ! derivatives just above that half-level
+        lw_deriv_below = lw_deriv
+        
+        associate(A=>u_matrix(:,:,jlev+1), b=>lw_deriv_below)
+          do jg = 1,ng   
+            ! Both inner and outer loop of the matrix loops j1 and j2 unrolled
+            ! inner loop:        j2=1             j2=2             j2=3 
+            lw_deriv(jg,1) = A(1,1)*b(jg,1) + A(1,2)*b(jg,2) + A(1,3)*b(jg,3) 
+            lw_deriv(jg,2) = A(2,1)*b(jg,1) + A(2,2)*b(jg,2) + A(2,3)*b(jg,3) 
+            lw_deriv(jg,3) = A(3,1)*b(jg,1) + A(3,2)*b(jg,2) + A(3,3)*b(jg,3) 
 
-      ! Compute effect of transmittance of layer jlev, yielding
-      ! derivatives just below the half-level above (jlev)
-      lw_derivatives_g_reg = transmittance(:,:,jlev) * lw_derivatives_g_reg
+            ! Compute effect of transmittance of layer jlev, yielding
+            ! derivatives just below the half-level above (jlev)
+            lw_deriv(jg,1) = lw_deriv(jg,1) * transmittance(jg,1,jlev)
+            lw_deriv(jg,2) = lw_deriv(jg,2) * transmittance(jg,2,jlev)
+            lw_deriv(jg,3) = lw_deriv(jg,3) * transmittance(jg,3,jlev)
 
-      lw_derivatives(icol, jlev) = sum(lw_derivatives_g_reg)
-    end do
+            partial_sum(jg) = lw_deriv(jg,1) + lw_deriv(jg,2) + lw_deriv(jg,3)
+          end do
+        end associate
 
+        lw_derivatives(icol, jlev) = sum(partial_sum)
+      end do
+    else
+      ! General case when number of regions is not 3
+      
+      ! Move up through the atmosphere computing the derivatives at each
+      ! half-level
+      do jlev = nlev,1,-1
+        ! Compute effect of overlap at half-level jlev+1, yielding
+        ! derivatives just above that half-level
+        lw_deriv = singlemat_x_vec(ng,ng,nreg,u_matrix(:,:,jlev+1),lw_deriv)
+        
+        ! Compute effect of transmittance of layer jlev, yielding
+        ! derivatives just below the half-level above (jlev)
+        lw_deriv = transmittance(:,:,jlev) * lw_deriv
+        
+        lw_derivatives(icol, jlev) = sum(lw_deriv)
+      end do
+    end if
+    
     if (lhook) call dr_hook('radiation_lw_derivatives:calc_lw_derivatives_region',1,hook_handle)
 
   end subroutine calc_lw_derivatives_region

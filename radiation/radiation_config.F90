@@ -1500,7 +1500,6 @@ contains
   end subroutine print_config
 
 
-
   !---------------------------------------------------------------------
   ! In order to estimate UV and photosynthetically active radiation,
   ! we need weighted sum of fluxes considering wavelength range

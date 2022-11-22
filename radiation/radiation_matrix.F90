@@ -118,7 +118,7 @@ contains
     integer    :: j1, j2
     real(jprb) :: hook_handle
 
-    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',0,hook_handle)
+!    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',0,hook_handle)
 
     ! Array-wise assignment
     singlemat_x_vec = 0.0_jprb
@@ -130,7 +130,7 @@ contains
       end do
     end do
 
-    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',1,hook_handle)
+!    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',1,hook_handle)
 
   end function singlemat_x_vec
 
