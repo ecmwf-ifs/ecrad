@@ -49,13 +49,11 @@ program ecrad_ifs_driver
   use parkind1,                 only : jprb, jprd ! Working/double precision
 
   use radiation_io,             only : nulout
-  use radiation_interface,      only : set_gas_units
   use radiation_single_level,   only : single_level_type
   use radiation_thermodynamics, only : thermodynamics_type
-  use radiation_gas,            only : gas_type, &
-       &   IVolumeMixingRatio, IMassMixingRatio, &
+  use radiation_gas,            only : gas_type, IMassMixingRatio, &
        &   IH2O, ICO2, IO3, IN2O, INO2, ICO, ICH4, IO2, ICFC11, ICFC12, &
-       &   IHCFC22, ICCl4, GasName, GasLowerCaseName, NMaxGases
+       &   IHCFC22, ICCl4
   use radiation_cloud,          only : cloud_type
   use radiation_aerosol,        only : aerosol_type
   use radiation_flux,           only : flux_type
@@ -304,7 +302,7 @@ program ecrad_ifs_driver
   allocate(pressure_fl(ncol,nlev))
   allocate(temperature_fl(ncol,nlev))
   allocate(zeros(ncol,nlev))
-  allocate(tegen_aerosol(ncol,nlev,6))
+  allocate(tegen_aerosol(ncol,6,nlev))
   allocate(flux_sw_direct_normal(ncol))
   allocate(flux_uv(ncol))
   allocate(flux_par(ncol))
@@ -316,7 +314,7 @@ program ecrad_ifs_driver
 
   ccn_land = yradiation%yrerad%rccnlnd
   ccn_sea = yradiation%yrerad%rccnsea
-  tegen_aerosol = 0.0_JPRB
+  tegen_aerosol = 0.0_jprb
   pressure_fl = 0.5_jprb * (thermodynamics%pressure_hl(:,1:nlev)+thermodynamics%pressure_hl(:,2:nlev+1))
   temperature_fl = 0.5_jprb * (thermodynamics%temperature_hl(:,1:nlev)+thermodynamics%temperature_hl(:,2:nlev+1))
   zeros = 0.0_jprb ! Dummy snow/rain water mixing ratios

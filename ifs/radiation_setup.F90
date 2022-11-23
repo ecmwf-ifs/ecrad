@@ -442,6 +442,7 @@ CONTAINS
       
     ! Populate the mapping between the 14 RRTM shortwave bands and the
     ! 6 albedo inputs.
+    YDERAD%NSW = 6
     ZWAVBOUND(1:5) = [ 0.25e-6_jprb, 0.44e-6_jprb, 0.69e-6_jprb, &
          &             1.19e-6_jprb, 2.38e-6_jprb ]
     IBAND(1:6)  = [ 1,2,3,4,5,6 ]
@@ -458,7 +459,7 @@ CONTAINS
     ! the MODIS dataset, not shifted to the nearest RRTM band boundary
     ! at 0.625 microns.
     LL_DO_NEAREST_SW_ALBEDO = .FALSE.
-    CALL RAD_CONFIG%DEFINE_SW_ALBEDO_INTERVALS(6, ZWAVBOUND, IBAND, &
+    CALL RAD_CONFIG%DEFINE_SW_ALBEDO_INTERVALS(YDERAD%NSW, ZWAVBOUND, IBAND, &
          &  DO_NEAREST=LL_DO_NEAREST_SW_ALBEDO)
 
     ! Likewise between the 16 RRTM longwave bands and the NLWEMISS

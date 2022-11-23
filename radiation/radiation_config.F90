@@ -1624,7 +1624,9 @@ contains
     else
       this%do_nearest_spectral_sw_albedo = .false.
     end if
-    this%sw_albedo_wavelength_bound(1:ninterval-1) = wavelength_bound(1:ninterval-1)
+    if (ninterval > 1) then
+      this%sw_albedo_wavelength_bound(1:ninterval-1) = wavelength_bound(1:ninterval-1)
+    end if
     this%sw_albedo_wavelength_bound(ninterval:)    = -1.0_jprb
     this%i_sw_albedo_index(1:ninterval)            = i_intervals(1:ninterval)
     this%i_sw_albedo_index(ninterval+1:)           = 0
@@ -1670,7 +1672,9 @@ contains
     else
       this%do_nearest_spectral_lw_emiss = .false.
     end if
-    this%lw_emiss_wavelength_bound(1:ninterval-1) = wavelength_bound(1:ninterval-1)
+    if (ninterval > 1) then
+      this%lw_emiss_wavelength_bound(1:ninterval-1) = wavelength_bound(1:ninterval-1)
+    end if
     this%lw_emiss_wavelength_bound(ninterval:)    = -1.0_jprb
     this%i_lw_emiss_index(1:ninterval)            = i_intervals(1:ninterval)
     this%i_lw_emiss_index(ninterval+1:)           = 0
