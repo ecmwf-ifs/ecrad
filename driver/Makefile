@@ -31,4 +31,4 @@ clean:
 	rm -f *.o $(EXECUTABLE) $(IFS_EXECUTABLE) $(TEST)
 
 ecrad_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
-ecrad_driver_read_input.o: ecrad_driver_config.o
+ecrad_ifs_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
