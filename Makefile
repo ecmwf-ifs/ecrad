@@ -113,9 +113,14 @@ deps: clean-deps
 clean-deps:
 	rm -f include/*.intfb.h
 
-ifsdriver: libifsaux libdummydrhook libifsrrtm libutilities libradiation
-	cd ifs && $(MAKE)
+ifsdriver: libifsaux libdummydrhook libifsrrtm libutilities libradiation libifs
 	cd driver && $(MAKE) ecrad_ifs_driver
+
+ifsdriver_blocked: libifsaux libdummydrhook libifsrrtm libutilities libradiation libifs
+	cd driver && $(MAKE) ecrad_ifs_driver_blocked
+
+libifs: libradiation
+	cd ifs && $(MAKE)
 
 libifsaux:
 	cd ifsaux && $(MAKE)
@@ -181,5 +186,5 @@ clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
-	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver \
-	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
+	libradiation libifs driver symlinks clean clean-toplevel test test_ifs ifsdriver \
+	ifsdriver_blocked test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
