@@ -141,6 +141,22 @@ test_ecckd_tc_noaer:
 		use_aerosols=false 
 	$(DRIVER) config_ecckd_tc_noaer.nam $(INPUT).nc $(INPUT)_ecckd_tc_noaer_out.nc
 
+# Profiling
+TAG = default
+profile:
+	$(CHANGENAM) $(CONFIG) config_profile.nam \
+		nrepeat=100 do_save_spectral_flux=false
+	$(DRIVER) config_profile.nam $(INPUT).nc $(INPUT)_default_prof_out.nc \
+		| tee $(INPUT)_default_prof_out.log
+	if [[ -f gmon.out ]]; then gprof $(DRIVER) gmon.out > $(INPUT)_default_prof_out.gprof; fi
+	$(CHANGENAM) $(CONFIG_ECCKD) config_profile.nam \
+		nrepeat=100 do_save_spectral_flux=false do_save_radiative_properties=false
+	$(DRIVER) config_profile.nam $(INPUT).nc $(INPUT)_ecckd_tc_prof_out.nc \
+		| tee $(INPUT)_ecckd_tc_prof_out.log
+	if [[ -f gmon.out ]]; then gprof $(DRIVER) gmon.out > $(INPUT)_ecckd_tc_prof_out.gprof; fi
+	mkdir -p profiling_$(TAG)
+	mv $(INPUT)_*_prof_out.* profiling_$(TAG)
+
 # Clean data files
 clean:
 	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc \
