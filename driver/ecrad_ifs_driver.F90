@@ -73,7 +73,7 @@ program ecrad_ifs_driver
 
   ! Configuration for the radiation scheme, IFS style
   type(tradiation)          :: yradiation
-  
+
   ! Derived types for the inputs to the radiation scheme
   type(single_level_type)   :: single_level
   type(thermodynamics_type) :: thermodynamics
@@ -94,7 +94,7 @@ program ecrad_ifs_driver
   real(jprb), allocatable, dimension(:) :: flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
        &  flux_incoming, emissivity_out
   real(jprb), allocatable, dimension(:,:) :: flux_diffuse_band, flux_direct_band
-  
+
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: istartcol, iendcol ! Range of columns to process
 
@@ -246,13 +246,13 @@ program ecrad_ifs_driver
     allocate(longitude_rad(ncol))
     longitude_rad = 0.0_jprb
   end if
-  
+
   ! Close input file
   call file%close()
 
   ! Convert gas units to mass-mixing ratio
   call gas%set_units(IMassMixingRatio)
-  
+
   ! Compute seed from skin temperature residual
   !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
   !       &                            -int(single_level%skin_temperature)))
@@ -269,7 +269,7 @@ program ecrad_ifs_driver
          &  ncol, ')'
     stop 1
   end if
-  
+
   ! --------------------------------------------------------
   ! Section 4: Call radiation scheme
   ! --------------------------------------------------------
@@ -288,12 +288,29 @@ program ecrad_ifs_driver
        & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
        &                                            driver_config%do_correct_unphysical_inputs) &
        & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) 
-  
+       &                                            driver_config%do_correct_unphysical_inputs)
+
   ! Allocate memory for the flux profiles, which may include arrays
   ! of dimension n_bands_sw/n_bands_lw, so must be called after
   ! setup_radiation
   call flux%allocate(yradiation%rad_config, 1, ncol, nlev)
+
+  ! set relevant fluxes to zero
+  flux%lw_up(:,:) = 0._jprb
+  flux%lw_dn(:,:) = 0._jprb
+  flux%sw_up(:,:) = 0._jprb
+  flux%sw_dn(:,:) = 0._jprb
+  flux%sw_dn_direct(:,:) = 0._jprb
+  flux%lw_up_clear(:,:) = 0._jprb
+  flux%lw_dn_clear(:,:) = 0._jprb
+  flux%sw_up_clear(:,:) = 0._jprb
+  flux%sw_dn_clear(:,:) = 0._jprb
+  flux%sw_dn_direct_clear(:,:) = 0._jprb
+
+  flux%lw_dn_surf_canopy(:,:) = 0._jprb
+  flux%sw_dn_diffuse_surf_canopy(:,:) = 0._jprb
+  flux%sw_dn_direct_surf_canopy(:,:) = 0._jprb
+  flux%lw_derivatives(:,:) = 0._jprb
 
   ! Allocate memory for additional arrays
   allocate(ccn_land(ncol))
@@ -318,25 +335,25 @@ program ecrad_ifs_driver
   pressure_fl = 0.5_jprb * (thermodynamics%pressure_hl(:,1:nlev)+thermodynamics%pressure_hl(:,2:nlev+1))
   temperature_fl = 0.5_jprb * (thermodynamics%temperature_hl(:,1:nlev)+thermodynamics%temperature_hl(:,2:nlev+1))
   zeros = 0.0_jprb ! Dummy snow/rain water mixing ratios
-  
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
-  
+
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
 #ifndef NO_OPENMP
-  tstart = omp_get_wtime() 
+  tstart = omp_get_wtime()
 #endif
   do jrepeat = 1,driver_config%nrepeat
-    
+
 !    if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
-      
+
       ! Compute number of blocks to process
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
-     
+
       !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
       do jblock = 1, nblock
         ! Specify the range of columns to process.
@@ -344,7 +361,7 @@ program ecrad_ifs_driver
              &    + driver_config%istartcol
         iendcol = min(istartcol + driver_config%nblocksize - 1, &
              &        driver_config%iendcol)
-          
+
         if (driver_config%iverbose >= 3) then
 #ifndef NO_OPENMP
           write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
@@ -353,7 +370,7 @@ program ecrad_ifs_driver
           write(nulout,'(a,i0,a,i0)')  'Processing columns ', istartcol, '-', iendcol
 #endif
         end if
-        
+
         ! Call the ECRAD radiation scheme; note that we are simply
         ! passing arrays in rather than ecRad structures, which are
         ! used here just for convenience
@@ -375,19 +392,19 @@ program ecrad_ifs_driver
              &  flux_direct_band)
       end do
       !$OMP END PARALLEL DO
-      
+
 !    else
       ! Run radiation scheme serially
 !      if (driver_config%iverbose >= 3) then
 !        write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
 !      end if
-      
+
       ! Call the ECRAD radiation scheme
 !      call radiation_scheme(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
 !           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
-      
+
 !    end if
-    
+
   end do
 
   ! "up" fluxes are actually net fluxes at this point - we modify the
@@ -408,7 +425,7 @@ program ecrad_ifs_driver
   flux%lw_up_clear = -flux%lw_up_clear
   flux%lw_up_clear(:,1) = flux%lw_up_clear(:,1)+flux%lw_dn_clear(:,1)
   flux%lw_up_clear(:,nlev+1) = flux%lw_up_clear(:,nlev+1)+flux%lw_dn_clear(:,nlev+1)
-  
+
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
@@ -425,12 +442,12 @@ program ecrad_ifs_driver
   yradiation%rad_config%do_surface_sw_spectral_flux = .false.
   yradiation%rad_config%do_canopy_fluxes_sw = .false.
   yradiation%rad_config%do_canopy_fluxes_lw = .false.
-  
+
   call save_net_fluxes(file_name, yradiation%rad_config, thermodynamics, flux, &
        &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
        &   experiment_name=driver_config%experiment_name, &
        &   is_double_precision=driver_config%do_write_double_precision)
-    
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
