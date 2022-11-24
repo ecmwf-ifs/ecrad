@@ -379,9 +379,18 @@ subroutine ifs_copy_inputs_to_blocked ( &
 
       do jalb=1,yderad%nsw
         zrgp(1:il,ifs_config%iald+jalb-1,ib)  =  single_level%sw_albedo(ibeg:iend,jalb)
-        zrgp(1:il,ifs_config%ialp+jalb-1,ib)  =  single_level%sw_albedo_direct(ibeg:iend,jalb)
       enddo
 
+      if (allocated(single_level%sw_albedo_direct)) then
+        do jalb=1,yderad%nsw
+          zrgp(1:il,ifs_config%ialp+jalb-1,ib)  =  single_level%sw_albedo_direct(ibeg:iend,jalb)
+        end do
+      else
+        do jalb=1,yderad%nsw
+          zrgp(1:il,ifs_config%ialp+jalb-1,ib)  =  single_level%sw_albedo(ibeg:iend,jalb)
+        end do
+      end if
+      
       do jlev=1,nlev
         zrgp(1:il,ifs_config%iti+jlev-1,ib)   = temperature_fl(ibeg:iend,jlev) ! full level temperature
         zrgp(1:il,ifs_config%ipr+jlev-1,ib)   = pressure_fl(ibeg:iend,jlev) ! full level pressure

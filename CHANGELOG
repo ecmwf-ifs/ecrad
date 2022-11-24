@@ -4,7 +4,13 @@ version 1.5.1
  	  the Intel compiler
 	- Added "make ifsdriver" which compiles ifs/libifs.a and
 	  bin/ecrad_ifs to demonstrate use of IFS's radiation_scheme and
-	  setup_radiation_schem
+	  setup_radiation_scheme; test with make test_ifsdriver in
+	  test/ifs. Note that the input file must have variables with the
+	  dimensions expected in the IFS, as in test/ifs/ecrad_meridian.nc.
+	- Added "make ifsdriver_blocked" from Balthasar Reuter which
+	  compiles bin/ecrad_ifs_blocked, gathering the input data into
+	  blocks of length driver_config%nblocksize as in the IFS, which can
+	  benefit memory locality
 
 version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description

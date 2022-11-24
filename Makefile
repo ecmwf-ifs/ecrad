@@ -91,10 +91,10 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifdef DR_HOOK
-build: directories libifsaux libdrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifsaux libdrhook libutilities libifsrrtm libradiation driver ifsdriver ifsdriver_blocked symlinks
 libradiation libutilities: libdrhook
 else
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver ifsdriver ifsdriver_blocked symlinks
 libradiation libutilities: libdummydrhook
 endif
 
@@ -140,7 +140,7 @@ libifsrrtm: libifsaux
 libradiation: libutilities libifsaux
 	cd radiation && $(MAKE)
 
-driver: libradiation libifsrrtm libifsaux
+driver: libifsaux libdummydrhook libifsrrtm libutilities libradiation
 	cd driver && $(MAKE)
 
 symlinks: clean-symlinks
