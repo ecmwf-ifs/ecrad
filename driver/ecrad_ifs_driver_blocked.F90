@@ -1,4 +1,4 @@
-! ecrad_ifs_driver.F90 - Driver for offline ECRAD radiation scheme
+! ecrad_ifs_driver_blocked.F90 - Driver for offline ECRAD radiation scheme
 !
 ! (C) Copyright 2014- ECMWF.
 !
@@ -37,9 +37,10 @@
 ! ecRad package.
 !
 ! Note that the purpose of this file is simply to demonstrate the use
-! of the setup_radiation_scheme and radiation_scheme routines; all the
-! rest is using the offline ecRad driver containers to read a NetCDF
-! file to memory and pass it into these routines.
+! of the setup_radiation_scheme and radiation_scheme routines as well
+! as the use of a blocked memory layout to improve cache efficiency;
+! all the rest is using the offline ecRad driver containers to read
+! a NetCDF file to memory and pass it into these routines.
 
 program ecrad_ifs_driver
 
@@ -63,6 +64,7 @@ program ecrad_ifs_driver
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
+  use ifs_blocking
 
   implicit none
 
@@ -89,21 +91,22 @@ program ecrad_ifs_driver
 
   ! Additional arrays passed to radiation_scheme
   real(jprb), allocatable, dimension(:) :: ccn_land, ccn_sea, sin_latitude, longitude_rad, land_frac
-  real(jprb), allocatable, dimension(:,:) :: pressure_fl, temperature_fl, zeros
-  real(jprb), allocatable, dimension(:,:,:) :: tegen_aerosol
+  real(jprb), allocatable, dimension(:,:) :: pressure_fl, temperature_fl
   real(jprb), allocatable, dimension(:) :: flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
-       &  flux_incoming, emissivity_out
+       &  emissivity_out
   real(jprb), allocatable, dimension(:,:) :: flux_diffuse_band, flux_direct_band
 
+  ! Bespoke data types to set-up the blocked memory layout
+  type(ifs_config_type)        :: ifs_config
+  real(kind=jprb), allocatable :: zrgp(:,:,:) ! monolithic IFS data structure
+  integer, allocatable         :: iseed(:,:) ! Seed for random number generator
+
   integer :: ncol, nlev         ! Number of columns and levels
-  integer :: istartcol, iendcol ! Range of columns to process
+  integer :: nproma             ! block size
 
   ! Name of file names specified on command line
   character(len=512) :: file_name
   integer            :: istatus ! Result of command_argument_count
-
-  ! For parallel processing of multiple blocks
-  integer :: jblock, nblock ! Block loop index and number
 
 #ifndef NO_OPENMP
   ! OpenMP functions
@@ -125,6 +128,11 @@ program ecrad_ifs_driver
 
   ! Loop index for repeats (for benchmarking)
   integer :: jrepeat
+
+  ! Loop index
+  integer :: jrl, ibeg, iend, il, ib, jlev
+
+
 
   ! Are any variables out of bounds?
   logical :: is_out_of_bounds
@@ -150,6 +158,7 @@ program ecrad_ifs_driver
 
   ! Read "radiation_driver" namelist into radiation driver config type
   call driver_config%read(file_name)
+  nproma = driver_config%nblocksize
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------'
@@ -318,23 +327,32 @@ program ecrad_ifs_driver
   allocate(land_frac(ncol))
   allocate(pressure_fl(ncol,nlev))
   allocate(temperature_fl(ncol,nlev))
-  allocate(zeros(ncol,nlev))
-  allocate(tegen_aerosol(ncol,6,nlev))
   allocate(flux_sw_direct_normal(ncol))
   allocate(flux_uv(ncol))
   allocate(flux_par(ncol))
   allocate(flux_par_clear(ncol))
-  allocate(flux_incoming(ncol))
   allocate(emissivity_out(ncol))
   allocate(flux_diffuse_band(ncol,yradiation%yrerad%nsw))
   allocate(flux_direct_band(ncol,yradiation%yrerad%nsw))
 
   ccn_land = yradiation%yrerad%rccnlnd
   ccn_sea = yradiation%yrerad%rccnsea
-  tegen_aerosol = 0.0_jprb
   pressure_fl = 0.5_jprb * (thermodynamics%pressure_hl(:,1:nlev)+thermodynamics%pressure_hl(:,2:nlev+1))
   temperature_fl = 0.5_jprb * (thermodynamics%temperature_hl(:,1:nlev)+thermodynamics%temperature_hl(:,2:nlev+1))
-  zeros = 0.0_jprb ! Dummy snow/rain water mixing ratios
+
+  ! --------------------------------------------------------
+  ! Section 4a: Reshuffle into blocked memory layout
+  ! --------------------------------------------------------
+
+  call ifs_setup_indices(driver_config, ifs_config, yradiation, nlev)
+  call ifs_copy_inputs_to_blocked(driver_config, ifs_config, yradiation,&
+        & ncol, nlev, single_level, thermodynamics, gas, cloud, aerosol,&
+        & sin_latitude, longitude_rad, land_frac, pressure_fl, temperature_fl,&
+        & zrgp, iseed=iseed)
+
+  ! --------------------------------------------------------
+  ! Section 4b: Call radiation_scheme with blocked memory data
+  ! --------------------------------------------------------
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -350,46 +368,59 @@ program ecrad_ifs_driver
 !    if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
 
-      ! Compute number of blocks to process
-      nblock = (driver_config%iendcol - driver_config%istartcol &
-           &  + driver_config%nblocksize) / driver_config%nblocksize
-
-      !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
-      do jblock = 1, nblock
-        ! Specify the range of columns to process.
-        istartcol = (jblock-1) * driver_config%nblocksize &
-             &    + driver_config%istartcol
-        iendcol = min(istartcol + driver_config%nblocksize - 1, &
-             &        driver_config%iendcol)
+      !$OMP PARALLEL DO SCHEDULE(DYNAMIC,1)&
+      !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
+      do jrl=1,ncol,nproma
+        ibeg=jrl
+        iend=min(ibeg+nproma-1,ncol)
+        il=iend-ibeg+1
+        ib=(jrl-1)/nproma+1
 
         if (driver_config%iverbose >= 3) then
 #ifndef NO_OPENMP
           write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
-               &  ' processing columns ', istartcol, '-', iendcol
+               &  ' processing columns ', ibeg, '-', iend
 #else
-          write(nulout,'(a,i0,a,i0)')  'Processing columns ', istartcol, '-', iendcol
+          write(nulout,'(a,i0,a,i0)')  'Processing columns ', ibeg, '-', iend
 #endif
         end if
 
-        ! Call the ECRAD radiation scheme; note that we are simply
-        ! passing arrays in rather than ecRad structures, which are
-        ! used here just for convenience
-        call radiation_scheme(yradiation, istartcol, iendcol, ncol, nlev, size(aerosol%mixing_ratio,3), &
-             &  single_level%solar_irradiance, single_level%cos_sza, single_level%skin_temperature, &
-             &  single_level%sw_albedo, single_level%sw_albedo_direct, single_level%lw_emissivity, &
-             &  ccn_land, ccn_sea, longitude_rad, sin_latitude, land_frac, pressure_fl, temperature_fl, &
-             &  thermodynamics%pressure_hl, thermodynamics%temperature_hl, &
-             &  gas%mixing_ratio(:,:,IH2O), gas%mixing_ratio(:,:,ICO2), &
-             &  gas%mixing_ratio(:,:,ICH4), gas%mixing_ratio(:,:,IN2O), gas%mixing_ratio(:,:,INO2), &
-             &  gas%mixing_ratio(:,:,ICFC11), gas%mixing_ratio(:,:,ICFC12), gas%mixing_ratio(:,:,IHCFC22), &
-             &  gas%mixing_ratio(:,:,ICCl4), gas%mixing_ratio(:,:,IO3), cloud%fraction, cloud%q_liq, &
-             &  cloud%q_ice, zeros, zeros, tegen_aerosol, aerosol%mixing_ratio, flux%sw_up, flux%lw_up, &
-             &  flux%sw_up_clear, flux%lw_up_clear, flux%sw_dn(:,nlev+1), flux%lw_dn(:,nlev+1), &
-             &  flux%sw_dn_clear(:,nlev+1), flux%lw_dn_clear(:,nlev+1), &
-             &  flux%sw_dn_direct(:,nlev+1), flux%sw_dn_direct_clear(:,nlev+1), flux_sw_direct_normal, &
-             &  flux_uv, flux_par, &
-             &  flux_par_clear, flux%sw_dn(:,1), emissivity_out, flux%lw_derivatives, flux_diffuse_band, &
-             &  flux_direct_band)
+        ! Call the ECRAD radiation scheme
+        call radiation_scheme &
+             & (yradiation, &
+             &  1, il, nproma, &                       ! startcol, endcol, ncol
+             &  nlev, size(aerosol%mixing_ratio,3), &    ! nlev, naerosols
+             &  single_level%solar_irradiance, &                               ! solar_irrad
+             ! array inputs
+             &  zrgp(1,ifs_config%iamu0,ib), zrgp(1,ifs_config%its,ib), &    ! mu0, skintemp
+             &  zrgp(1,ifs_config%iald,ib) , zrgp(1,ifs_config%ialp,ib), &    ! albedo_dif, albedo_dir
+             &  zrgp(1,ifs_config%iemiss,ib), &                   ! spectral emissivity
+             &  zrgp(1,ifs_config%iccnl,ib), zrgp(1,ifs_config%iccno,ib) ,&  ! CCN concentration, land and sea
+             &  zrgp(1,ifs_config%igelam,ib),zrgp(1,ifs_config%igemu,ib), &  ! longitude, sine of latitude
+             &  zrgp(1,ifs_config%islm,ib), &                     ! land sea mask
+             &  zrgp(1,ifs_config%ipr,ib),   zrgp(1,ifs_config%iti,ib),  &   ! full level pressure and temperature
+             &  zrgp(1,ifs_config%iaprs,ib), zrgp(1,ifs_config%ihti,ib), &   ! half-level pressure and temperature
+             &  zrgp(1,ifs_config%iwv,ib),   zrgp(1,ifs_config%iico2,ib), &
+             &  zrgp(1,ifs_config%iich4,ib), zrgp(1,ifs_config%iin2o,ib), &
+             &  zrgp(1,ifs_config%ino2,ib),  zrgp(1,ifs_config%ic11,ib), &
+             &  zrgp(1,ifs_config%ic12,ib),  zrgp(1,ifs_config%ic22,ib), &
+             &  zrgp(1,ifs_config%icl4,ib),  zrgp(1,ifs_config%ioz,ib), &
+             &  zrgp(1,ifs_config%iclc,ib),  zrgp(1,ifs_config%ilwa,ib), &
+             &  zrgp(1,ifs_config%iiwa,ib),  zrgp(1,ifs_config%irwa,ib), &
+             &  zrgp(1,ifs_config%iswa,ib), &
+             &  zrgp(1,ifs_config%iaer,ib),  zrgp(1,ifs_config%iaero,ib), &
+             ! flux outputs
+             &  zrgp(1,ifs_config%ifrso,ib), zrgp(1,ifs_config%ifrth,ib), &
+             &  zrgp(1,ifs_config%iswfc,ib), zrgp(1,ifs_config%ilwfc,ib),&
+             &  zrgp(1,ifs_config%ifrsod,ib),zrgp(1,ifs_config%ifrted,ib), &
+             &  zrgp(1,ifs_config%ifrsodc,ib),zrgp(1,ifs_config%ifrtedc,ib),&
+             &  zrgp(1,ifs_config%ifdir,ib), zrgp(1,ifs_config%icdir,ib), &
+             &  zrgp(1,ifs_config%isudu,ib), &
+             &  zrgp(1,ifs_config%iuvdf,ib), zrgp(1,ifs_config%iparf,ib), &
+             &  zrgp(1,ifs_config%iparcf,ib),zrgp(1,ifs_config%itincf,ib), &
+             &  zrgp(1,ifs_config%iemit,ib) ,zrgp(1,ifs_config%ilwderivative,ib), &
+             &  zrgp(1,ifs_config%iswdiffuseband,ib), zrgp(1,ifs_config%iswdirectband,ib)&
+             & )
       end do
       !$OMP END PARALLEL DO
 
@@ -406,6 +437,19 @@ program ecrad_ifs_driver
 !    end if
 
   end do
+
+#ifndef NO_OPENMP
+  tstop = omp_get_wtime()
+  write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+#endif
+
+  ! --------------------------------------------------------
+  ! Section 4c: Copy fluxes from blocked memory data
+  ! --------------------------------------------------------
+
+  call ifs_copy_fluxes_from_blocked(driver_config, ifs_config, yradiation, ncol, nlev,&
+          & zrgp, flux, flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
+          & emissivity_out, flux_diffuse_band, flux_direct_band)
 
   ! "up" fluxes are actually net fluxes at this point - we modify the
   ! upwelling flux so that net=dn-up, while the TOA and surface
@@ -425,11 +469,6 @@ program ecrad_ifs_driver
   flux%lw_up_clear = -flux%lw_up_clear
   flux%lw_up_clear(:,1) = flux%lw_up_clear(:,1)+flux%lw_dn_clear(:,1)
   flux%lw_up_clear(:,nlev+1) = flux%lw_up_clear(:,nlev+1)+flux%lw_dn_clear(:,nlev+1)
-
-#ifndef NO_OPENMP
-  tstop = omp_get_wtime()
-  write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
-#endif
 
   ! --------------------------------------------------------
   ! Section 5: Check and save output
