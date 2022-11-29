@@ -361,16 +361,26 @@ contains
 !      YRDIMV%NFLEVG = nlev
 !    end if
 
-    do jlev=1,nlev
-      do jcol= istartcol,iendcol
-        pressure_fl(jcol,jlev) &
-            &  = 0.5_jprb * (thermodynamics%pressure_hl(jcol,jlev+istartlev-1) &
-            &               +thermodynamics%pressure_hl(jcol,jlev+istartlev))
-        temperature_fl(jcol,jlev) &
-            &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev+istartlev-1) &
-            &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
+    ! Are full level temperature and pressure available in thermodynmics? If not, interpolate.
+    if (thermodynamics%rrtm_pass_temppres_fl) then
+      do jlev=1,nlev
+        do jcol= istartcol,iendcol
+          pressure_fl   (jcol,jlev) = thermodynamics%pressure_fl   (jcol,jlev)
+          temperature_fl(jcol,jlev) = thermodynamics%temperature_fl(jcol,jlev)
+        end do
       end do
-    end do
+    else
+      do jlev=1,nlev
+        do jcol= istartcol,iendcol
+          pressure_fl(jcol,jlev) &
+              &  = 0.5_jprb * (thermodynamics%pressure_hl(jcol,jlev+istartlev-1) &
+              &               +thermodynamics%pressure_hl(jcol,jlev+istartlev))
+          temperature_fl(jcol,jlev) &
+              &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev+istartlev-1) &
+              &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
+        end do
+      end do
+    end if
     
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)

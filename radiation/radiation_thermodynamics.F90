@@ -25,11 +25,13 @@ module radiation_thermodynamics
   public
 
   !---------------------------------------------------------------------
-  ! Derived type for storing pressure and temperature at half levels
+  ! Derived type for storing pressure and temperature at half and full levels
   type thermodynamics_type
      real(jprb), allocatable, dimension(:,:) :: &
-          &  pressure_hl, &   ! (ncol,nlev+1) pressure (Pa)
-          &  temperature_hl   ! (ncol,nlev+1) temperature (K)
+          &  pressure_hl,    & ! (ncol,nlev+1) pressure (Pa)
+          &  temperature_hl, & ! (ncol,nlev+1) temperature (K)
+          &  pressure_fl,    & ! (ncol,nlev) pressure (Pa)
+          &  temperature_fl    ! (ncol,nlev) temperature (K)
 
      ! The following is a function of pressure and temperature: you
      ! can calculate it according to your favourite formula, or the
@@ -38,6 +40,16 @@ module radiation_thermodynamics
      real(jprb), allocatable, dimension(:,:) :: &
           &  h2o_sat_liq ! (ncol,nlev) specific humidity at liquid
                          ! saturation (kg/kg)
+
+     ! Using the interpolation method for temperature and pressure from half levels
+     ! to full levels that is used in the subroutine gas_optics in radiation_ifs_rrtm
+     ! can result in values for ind1 that exceed the bounds of absa within 
+     ! srtm_taumol16 for ecRad inside ICON. This can be avoided by directly
+     ! passing pressure_fl and temperature_fl from ICON to ecRad. With 
+     ! rrtm_pass_temppres_fl = .TRUE., the fields pressure_fl and temperature_fl
+     ! are allocated and used within gas_optics in radiation_ifs_rrtm.
+     logical :: &
+          &  rrtm_pass_temppres_fl 
    contains
      procedure :: allocate   => allocate_thermodynamics_arrays
      procedure :: deallocate => deallocate_thermodynamics_arrays
@@ -54,7 +66,7 @@ contains
   !---------------------------------------------------------------------
   ! Allocate variables with specified dimensions
   subroutine allocate_thermodynamics_arrays(this, ncol, nlev, &
-       &                                    use_h2o_sat, use_acc)
+       &                                    use_h2o_sat, rrtm_pass_temppres_fl, use_acc)
 
     use yomhook,  only : lhook, dr_hook
 
@@ -62,6 +74,8 @@ contains
     integer, intent(in)           :: ncol  ! Number of columns
     integer, intent(in)           :: nlev  ! Number of levels
     logical, intent(in), optional :: use_h2o_sat ! Allocate h2o_sat_liq?
+    logical, intent(in), optional :: rrtm_pass_temppres_fl ! Directly pass temperature
+                                                           ! and pressure on full levels
 
     logical :: use_h2o_sat_local
     ! MeteoSwiss/DWD: Optional argument use_acc necessary for
@@ -78,6 +92,16 @@ contains
     use_h2o_sat_local = .false.
     if (present(use_h2o_sat)) then
       use_h2o_sat_local = use_h2o_sat
+    end if
+
+    this%rrtm_pass_temppres_fl = .false.
+    if (present(rrtm_pass_temppres_fl)) then
+      this%rrtm_pass_temppres_fl = rrtm_pass_temppres_fl
+    end if
+
+    if (this%rrtm_pass_temppres_fl) then
+      allocate(this%pressure_fl(ncol,nlev))
+      allocate(this%temperature_fl(ncol,nlev))
     end if
     
     if (use_h2o_sat_local) then
@@ -108,7 +132,13 @@ contains
       deallocate(this%pressure_hl)
     end if
     if (allocated(this%temperature_hl)) then
-      deallocate(this%temperature_hl)
+       deallocate(this%temperature_hl)
+    end if
+    if (allocated(this%pressure_fl)) then
+       deallocate(this%pressure_fl)
+    end if
+    if (allocated(this%temperature_fl)) then
+       deallocate(this%temperature_fl)
     end if
     if (allocated(this%h2o_sat_liq)) then
       deallocate(this%h2o_sat_liq)
