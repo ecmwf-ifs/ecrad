@@ -89,6 +89,10 @@ module radiation_cloud
     procedure :: param_cloud_effective_separation_eta
     procedure :: crop_cloud_fraction
     procedure :: out_of_physical_bounds
+#ifdef _OPENACC
+    procedure :: update_host
+    procedure :: update_device
+#endif
 
   end type cloud_type
 
@@ -98,8 +102,7 @@ contains
   ! Allocate arrays for describing clouds and precipitation, although
   ! in the offline code these are allocated when they are read from
   ! the NetCDF file
-  subroutine allocate_cloud_arrays(this, ncol, nlev, ntype, use_inhom_effective_size, &
-    & use_acc)
+  subroutine allocate_cloud_arrays(this, ncol, nlev, ntype, use_inhom_effective_size)
 
     use yomhook,     only : lhook, dr_hook
 
@@ -112,9 +115,6 @@ contains
     ! re_liq and re_ice.
     integer, intent(in), optional    :: ntype
     logical, intent(in), optional    :: use_inhom_effective_size
-    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
-    ! synchronized interfaces with GPU-port
-    logical, intent(in), optional    :: use_acc
 
     real(jprb)                       :: hook_handle
 
@@ -125,8 +125,11 @@ contains
     else
       this%ntype = 2
     end if
+    !$ACC UPDATE DEVICE(this%ntype)
     allocate(this%mixing_ratio(ncol,nlev,this%ntype))
     allocate(this%effective_radius(ncol,nlev,this%ntype))
+    !$ACC ENTER DATA CREATE(this%mixing_ratio) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%effective_radius) ASYNC(1)
     nullify(this%q_liq)
     nullify(this%q_ice)
     nullify(this%re_liq)
@@ -143,10 +146,15 @@ contains
     allocate(this%overlap_param(ncol,nlev-1))
     allocate(this%fractional_std(ncol,nlev))
     allocate(this%inv_cloud_effective_size(ncol,nlev))
+    !$ACC ENTER DATA CREATE(this%fraction) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%fractional_std) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%inv_cloud_effective_size) ASYNC(1)
 
     if (present(use_inhom_effective_size)) then
       if (use_inhom_effective_size) then
         allocate(this%inv_inhom_effective_size(ncol,nlev))
+        !$ACC ENTER DATA CREATE(this%inv_inhom_effective_size) ASYNC(1)
       end if
     end if
 
@@ -157,14 +165,11 @@ contains
 
   !---------------------------------------------------------------------
   ! Deallocate arrays
-  subroutine deallocate_cloud_arrays(this, use_acc)
+  subroutine deallocate_cloud_arrays(this)
 
     use yomhook,     only : lhook, dr_hook
 
     class(cloud_type), intent(inout) :: this
-    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
-    ! synchronized interfaces with GPU-port
-    logical, optional, intent(in)    :: use_acc
 
     real(jprb)                       :: hook_handle
 
@@ -175,6 +180,14 @@ contains
     nullify(this%re_liq)
     nullify(this%re_ice)
 
+    !$ACC EXIT DATA DELETE(this%mixing_ratio) ASYNC(1) IF(allocated(this%mixing_ratio))
+    !$ACC EXIT DATA DELETE(this%effective_radius) ASYNC(1) IF(allocated(this%effective_radius))
+    !$ACC EXIT DATA DELETE(this%fraction) ASYNC(1) IF(allocated(this%fraction))
+    !$ACC EXIT DATA DELETE(this%overlap_param) ASYNC(1) IF(allocated(this%overlap_param))
+    !$ACC EXIT DATA DELETE(this%fractional_std) ASYNC(1) IF(allocated(this%fractional_std))
+    !$ACC EXIT DATA DELETE(this%inv_cloud_effective_size) ASYNC(1) IF(allocated(this%inv_cloud_effective_size))
+    !$ACC EXIT DATA DELETE(this%inv_inhom_effective_size) ASYNC(1) IF(allocated(this%inv_inhom_effective_size))
+    !$ACC WAIT
     if (allocated(this%mixing_ratio))     deallocate(this%mixing_ratio)
     if (allocated(this%effective_radius)) deallocate(this%effective_radius)
     if (allocated(this%fraction))         deallocate(this%fraction)
@@ -198,7 +211,7 @@ contains
   ! allocated to be of the correct size relative to the pressure
   ! field. 
   subroutine set_overlap_param(this, thermodynamics, decorrelation_length, &
-       &  istartcol, iendcol, use_acc)
+       &  istartcol, iendcol)
 
     use yomhook,                  only : lhook, dr_hook
     use radiation_thermodynamics, only : thermodynamics_type
@@ -208,9 +221,6 @@ contains
     type(thermodynamics_type), intent(in)    :: thermodynamics
     real(jprb),                intent(in)    :: decorrelation_length ! m
     integer,         optional, intent(in)    :: istartcol, iendcol
-    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
-    ! synchronized interfaces with GPU-port
-    logical,         optional, intent(in)    :: use_acc
 
     ! Ratio of gas constant for dry air to acceleration due to gravity
     real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
@@ -250,12 +260,18 @@ contains
       ! for interfaces between model layers, not for the interface to
       ! space or the surface
       allocate(this%overlap_param(ncol, nlev-1))
+      !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1)
     end if
 
+    !$ACC DATA PRESENT(this, thermodynamics)
+
+    !$ACC UPDATE HOST(thermodynamics%pressure_hl(i1,1:2)) WAIT(1)
     if (thermodynamics%pressure_hl(i1,2) > thermodynamics%pressure_hl(i1,1)) then
       ! Pressure is increasing with index (order of layers is
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
       ! don't take the logarithm of the first pressure in each column.
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = i1,i2
         this%overlap_param(jcol,1) = exp(-(R_over_g/decorrelation_length) &
              &                            * thermodynamics%temperature_hl(jcol,2) &
@@ -263,7 +279,9 @@ contains
              &                                /thermodynamics%pressure_hl(jcol,2)))
       end do
 
+      !$ACC LOOP SEQ
       do jlev = 2,nlev-1
+        !$ACC LOOP GANG(STATIC:1) VECTOR
         do jcol = i1,i2
           this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length) &
               &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
@@ -271,12 +289,16 @@ contains
               &                                /thermodynamics%pressure_hl(jcol,jlev)))
         end do
       end do
+      !$ACC END PARALLEL
 
     else
        ! Pressure is decreasing with index (order of layers is surface
        ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
        ! don't take the logarithm of the last pressure in each column.
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP SEQ
       do jlev = 1,nlev-2
+        !$ACC LOOP GANG(STATIC:1) VECTOR
         do jcol = i1,i2
           this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length) &
               &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
@@ -285,13 +307,17 @@ contains
         end do
       end do
 
+      !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = i1,i2
         this%overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length) &
             &                            * thermodynamics%temperature_hl(jcol,nlev) &
             &                            *log(thermodynamics%pressure_hl(jcol,nlev-1) &
             &                                /thermodynamics%pressure_hl(jcol,nlev)))
       end do
+      !$ACC END PARALLEL
     end if
+
+    !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param',1,hook_handle)
 
@@ -385,28 +411,36 @@ contains
   !---------------------------------------------------------------------
   ! Create a matrix of constant fractional standard deviations
   ! (dimensionless)
-  subroutine create_fractional_std(this, ncol, nlev, frac_std, use_acc)
+  subroutine create_fractional_std(this, ncol, nlev, frac_std)
 
     use yomhook,                  only : lhook, dr_hook
 
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     real(jprb),        intent(in)    :: frac_std
-    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
-    ! synchronized interfaces with GPU-port
-    logical, optional, intent(in)    :: use_acc
+
+    integer :: jcol, jlev
 
     real(jprb)             :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',0,hook_handle)
 
     if (allocated(this%fractional_std)) then
+      !$ACC EXIT DATA DELETE(this%fractional_std) WAIT(1)
        deallocate(this%fractional_std)
     end if
     
     allocate(this%fractional_std(ncol, nlev))
+    !$ACC ENTER DATA CREATE(this%fractional_std) ASYNC(1)
 
-    this%fractional_std = frac_std
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
+    do jlev = 1, nlev
+      do jcol = 1, ncol
+      this%fractional_std(jcol, jlev) = frac_std
+      end do
+    end do
+    !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',1,hook_handle)
 
@@ -627,7 +661,7 @@ contains
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: istartcol, iendcol
 
-    integer :: nlev, ntype
+    integer :: nlev
     integer :: jcol, jlev, jh
 
     real(jprb) :: cloud_fraction_threshold, cloud_mixing_ratio_threshold
@@ -637,18 +671,23 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',0,hook_handle)
 
-    nlev  = size(this%fraction,2)
-    ntype = size(this%mixing_ratio,3)
-    
+    nlev = size(this%fraction,2)
+
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) CREATE(sum_mixing_ratio) ASYNC(1)
+    !$ACC LOOP SEQ
     do jlev = 1,nlev
+      !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
         sum_mixing_ratio(jcol) = 0.0_jprb
       end do
-      do jh = 1, ntype
+      !$ACC LOOP SEQ
+      do jh = 1, this%ntype
+        !$ACC LOOP GANG(STATIC:1) VECTOR
         do jcol = istartcol,iendcol
           sum_mixing_ratio(jcol) = sum_mixing_ratio(jcol) + this%mixing_ratio(jcol,jlev,jh)
         end do
       end do
+      !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
         if (this%fraction(jcol,jlev)        < cloud_fraction_threshold &
              &  .or. sum_mixing_ratio(jcol) < cloud_mixing_ratio_threshold) then
@@ -656,6 +695,7 @@ contains
         end if
       end do
     end do
+    !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',1,hook_handle)
 
@@ -705,5 +745,43 @@ contains
     if (lhook) call dr_hook('radiation_cloud:out_of_physical_bounds',1,hook_handle)
 
   end function out_of_physical_bounds
-  
+
+#ifdef _OPENACC
+  !---------------------------------------------------------------------
+  ! updates fields on host
+  subroutine update_host(this)
+
+    class(cloud_type), intent(inout) :: this
+
+    !$ACC UPDATE HOST(this%q_liq) IF(allocated(this%q_liq))
+    !$ACC UPDATE HOST(this%re_liq) IF(allocated(this%re_liq))
+    !$ACC UPDATE HOST(this%q_ice) IF(allocated(this%q_ice))
+    !$ACC UPDATE HOST(this%re_ice) IF(allocated(this%re_ice))
+    !$ACC UPDATE HOST(this%fraction) IF(allocated(this%fraction))
+    !$ACC UPDATE HOST(this%overlap_param) IF(allocated(this%overlap_param))
+    !$ACC UPDATE HOST(this%fractional_std) IF(allocated(this%fractional_std))
+    !$ACC UPDATE HOST(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size))
+    !$ACC UPDATE HOST(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size))
+
+  end subroutine update_host
+
+  !---------------------------------------------------------------------
+  ! updates fields on device
+  subroutine update_device(this)
+
+    class(cloud_type), intent(inout) :: this
+
+    !$ACC UPDATE DEVICE(this%q_liq) IF(allocated(this%q_liq))
+    !$ACC UPDATE DEVICE(this%re_liq) IF(allocated(this%re_liq))
+    !$ACC UPDATE DEVICE(this%q_ice) IF(allocated(this%q_ice))
+    !$ACC UPDATE DEVICE(this%re_ice) IF(allocated(this%re_ice))
+    !$ACC UPDATE DEVICE(this%fraction) IF(allocated(this%fraction))
+    !$ACC UPDATE DEVICE(this%overlap_param) IF(allocated(this%overlap_param))
+    !$ACC UPDATE DEVICE(this%fractional_std) IF(allocated(this%fractional_std))
+    !$ACC UPDATE DEVICE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size))
+    !$ACC UPDATE DEVICE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size))
+
+  end subroutine update_device
+#endif 
+
 end module radiation_cloud

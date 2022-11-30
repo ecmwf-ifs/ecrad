@@ -42,7 +42,8 @@ module radiation_random_numbers
 
   implicit none
 
-  public :: rng_type, IRngMinstdVector, IRngNative
+  public :: rng_type, IRngMinstdVector, IRngNative, initialize_acc, &
+    &  uniform_distribution_acc, IMinstdA0, IMinstdA, IMinstdM
 
   enum, bind(c) 
     enumerator IRngNative, &      ! Built-in Fortran-90 RNG
@@ -252,6 +253,49 @@ contains
     end if
 
   end subroutine uniform_distribution_2d_masked
+
+  !---------------------------------------------------------------------
+  ! Initialize a random number generator, using the MINSTD
+  ! linear congruential generator (LCG). The generator is
+  ! seeded with "iseed" and "jseed".
+  ! Note that this function is not used but manually inlined as the compiler didnot succed.
+  ! The seperate function stays in the code, so that hopefully, when the
+  ! compiler issue is fixed, it can be used instead of the manual inline.
+  pure function initialize_acc(iseed, jseed) result(istate)
+
+    integer(kind=jpim), intent(in)      :: iseed
+    integer,            intent(in)      :: jseed
+
+    real(kind=jprb) :: istate
+
+    !$ACC ROUTINE SEQ
+    
+    istate = REAL(ABS(iseed),jprb)
+    ! Use a modified (and vectorized) C++ minstd_rand0 algorithm to populate the state
+    istate = nint(mod( istate*jseed*(1._jprb-0.05_jprb*jseed+0.005_jprb*jseed**2)*IMinstdA0, IMinstdM))
+    
+    ! One warmup of the C++ minstd_rand algorithm
+    istate = mod(IMinstdA * istate, IMinstdM)
+
+  end function initialize_acc
+
+  !---------------------------------------------------------------------
+  ! Populate vector "randnum" with pseudo-random numbers; if rannum is
+  ! of length greater than nmaxstreams (specified when the generator
+  ! was initialized) then only the first nmaxstreams elements will be
+  ! assigned.
+  function uniform_distribution_acc(istate) result(randnum)
+
+    real(kind=jprb), intent(inout) :: istate
+    real(kind=jprb)   :: randnum
+
+    !$ACC ROUTINE SEQ
+
+    ! C++ minstd_rand algorithm
+    istate = mod(IMinstdA * istate, IMinstdM)
+    randnum = IMinstdScale * istate
+
+  end function uniform_distribution_acc
 
 
 end module radiation_random_numbers

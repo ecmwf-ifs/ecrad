@@ -194,6 +194,9 @@ contains
        &  incoming_sw)
 
     use parkind1,                 only : jprb, jpim
+#ifdef _OPENACC
+    use radiation_io,             only : nulerr, radiation_abort
+#endif
 
     USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX 
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
@@ -346,6 +349,46 @@ contains
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:gas_optics',0,hook_handle)
 
+#ifdef _OPENACC
+    if (.not. single_level%is_simple_surface) then
+      write(nulerr,'(a)') '*** Error: radiation_ifs_rrtm:gas_optics single_level%is_simple_surface==.false not ported to GPU'
+      call radiation_abort()
+    endif
+    if (present(lw_albedo) == .FALSE.) then
+      write(nulerr,'(a)') '*** Error: radiation_ifs_rrtm:gas_optics present(lw_albedo) == .FALSE. not ported to GPU'
+      call radiation_abort()
+    endif
+#endif
+
+    !$ACC DATA CREATE(incoming_sw_scale, &
+    !$ACC             ZOD_LW, ZOD_SW, ZSSA_SW, ZINCSOL, &
+    !$ACC             ZCOLMOL, ZCOLDRY, ZWBRODL, ZCOLBRD, ZWKL, &
+    !$ACC             ZWX, &
+    !$ACC             ZTAUAERL, &
+    !$ACC             ZFAC00, ZFAC01, ZFAC10, ZFAC11, &
+    !$ACC             ZFORFAC, ZFORFRAC, INDFOR, &
+    !$ACC             INDMINOR, ZSCALEMINOR, ZSCALEMINORN2, ZMINORFRAC, &
+    !$ACC             ZRAT_H2OCO2,ZRAT_H2OCO2_1, &
+    !$ACC             ZRAT_H2OO3 ,ZRAT_H2OO3_1, & 
+    !$ACC             ZRAT_H2ON2O,ZRAT_H2ON2O_1, &
+    !$ACC             ZRAT_H2OCH4,ZRAT_H2OCH4_1, &
+    !$ACC             ZRAT_N2OCO2,ZRAT_N2OCO2_1, &
+    !$ACC             ZRAT_O3CO2 ,ZRAT_O3CO2_1, &
+    !$ACC             JP, JT, JT1, &
+    !$ACC             ZONEMINUS_ARRAY, &
+    !$ACC             ZCOLH2O, ZCOLCO2, ZCOLO3, ZCOLN2O, ZCOLCH4, ZCOLO2, &
+    !$ACC             ZCO2MULT, &
+    !$ACC             ILAYTROP, ILAYSWTCH, ILAYLOW, &
+    !$ACC             ZPAVEL, ZTAVEL, ZPZ, ZTZ, &
+    !$ACC             ZSELFFAC, ZSELFFRAC, &
+    !$ACC             INDSELF, &
+    !$ACC             ZPFRAC, &
+    !$ACC             IREFLECT, &
+    !$ACC             pressure_fl, temperature_fl) &
+    !$ACC     PRESENT(config, single_level, thermodynamics, gas, & 
+    !$ACC             od_lw, od_sw, ssa_sw, lw_albedo, planck_hl, lw_emission, &
+    !$ACC             incoming_sw)
+
     ! Compute start and end levels for indexing the gas mixing ratio
     ! and thermodynamics arrays
     iendlev   = ubound(gas%mixing_ratio,2)
@@ -354,7 +397,12 @@ contains
     ZPI = 2.0_jprb*ASIN(1.0_jprb)
     ZFLUXFAC = ZPI * 1.E+4
     ZONEMINUS = 1.0_jprb - 1.0e-6_jprb
-    ZONEMINUS_ARRAY = ZONEMINUS
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR
+    do jcol= istartcol,iendcol
+      ZONEMINUS_ARRAY(jcol) = ZONEMINUS
+    end do
+    !$ACC END PARALLEL
 
 !    if (.not. associated(YRDIMV)) then
 !      allocate(YRDIMV)
@@ -363,13 +411,18 @@ contains
 
     ! Are full level temperature and pressure available in thermodynmics? If not, interpolate.
     if (thermodynamics%rrtm_pass_temppres_fl) then
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jlev=1,nlev
         do jcol= istartcol,iendcol
           pressure_fl   (jcol,jlev) = thermodynamics%pressure_fl   (jcol,jlev)
           temperature_fl(jcol,jlev) = thermodynamics%temperature_fl(jcol,jlev)
         end do
       end do
+      !$ACC END PARALLEL
     else
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jlev=1,nlev
         do jcol= istartcol,iendcol
           pressure_fl(jcol,jlev) &
@@ -380,6 +433,7 @@ contains
               &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
         end do
       end do
+      !$ACC END PARALLEL
     end if
     
     ! Check we have gas mixing ratios in the right units
@@ -417,7 +471,16 @@ contains
          &  ZRAT_H2ON2O, ZRAT_H2ON2O_1, ZRAT_H2OCH4, ZRAT_H2OCH4_1, &
          &  ZRAT_N2OCO2, ZRAT_N2OCO2_1, ZRAT_O3CO2, ZRAT_O3CO2_1)   
 
-    ZTAUAERL(istartcol:iendcol,:,:) = 0.0_jprb
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(3)
+    do jg = 1,JPBAND
+      do jlev = 1,nlev
+        do jcol = istartcol,iendcol
+          ZTAUAERL(jcol,jlev,jg) = 0.0_jprb
+        end do
+      end do
+    end do
+    !$ACC END PARALLEL
 
     CALL RRTM_GAS_OPTICAL_DEPTH &
          &( istartcol, iendcol, nlev, ZOD_LW, ZPAVEL, ZCOLDRY, ZCOLBRD, ZWX ,&
@@ -447,7 +510,14 @@ contains
         
         ! lw_emission at this point is actually the planck function of
         ! the surface
-        lw_emission = lw_emission * (1.0_jprb - lw_albedo)
+        !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol,iendcol
+          do jg= 1,config%n_g_lw
+            lw_emission(jg,jcol) = lw_emission(jg,jcol) * (1.0_jprb - lw_albedo(jg,jcol))
+          end do
+        end do
+        !$ACC END PARALLEL
       else
         ! Longwave emission has already been computed
         if (config%use_canopy_full_spectrum_lw) then
@@ -488,12 +558,17 @@ contains
       end do
     else
       ! G points have not been reordered 
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG COLLAPSE(3)
       do jcol = istartcol,iendcol
         do jlev = 1,nlev
-          ! Check for negative optical depth
-          od_lw(:,jlev,jcol) = max(config%min_gas_od_lw, ZOD_LW(:,nlev+1-jlev,jcol))
+          do jg= 1,config%n_g_lw
+            ! Check for negative optical depth
+            od_lw(jg,jlev,jcol) = max(config%min_gas_od_lw, ZOD_LW(jg,nlev+1-jlev,jcol))
+          end do
         end do
       end do
+      !$ACC END PARALLEL
     end if
     
     CALL SRTM_SETCOEF &
@@ -509,9 +584,25 @@ contains
     
     ! SRTM_GAS_OPTICAL_DEPTH will not initialize profiles when the sun
     ! is below the horizon, so we do it here
-    ZOD_SW(istartcol:iendcol,:,:)  = 0.0_jprb
-    ZSSA_SW(istartcol:iendcol,:,:) = 0.0_jprb
-    ZINCSOL(istartcol:iendcol,:)   = 0.0_jprb
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(3)
+    do jg = 1, JPGPT_SW
+      do jlev = 1,nlev
+        do jcol = istartcol,iendcol
+          ZOD_SW(jcol,jlev,jg)  = 0.0_jprb
+          ZSSA_SW(jcol,jlev,jg) = 0.0_jprb
+        end do
+      end do
+    end do
+    !$ACC END PARALLEL
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
+    do jg = 1, JPGPT_SW
+      do jcol = istartcol,iendcol
+        ZINCSOL(jcol,jg)   = 0.0_jprb
+      end do
+    end do
+    !$ACC END PARALLEL
 
     CALL SRTM_GAS_OPTICAL_DEPTH &
          &( istartcol, iendcol , nlev  , ZONEMINUS_ARRAY,&
@@ -524,18 +615,23 @@ contains
     
     ! Scale the incoming solar per band, if requested
     if (config%use_spectral_solar_scaling) then
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jg = 1,JPGPT_SW
         do jcol = istartcol,iendcol 
           ZINCSOL(jcol,jg) = ZINCSOL(jcol,jg) * &
             &   single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw(jg))
         end do
       end do
+      !$ACC END PARALLEL
     end if
 
     ! Scaling factor to ensure that the total solar irradiance is as
     ! requested.  Note that if the sun is below the horizon then
     ! ZINCSOL will be zero.
     if (present(incoming_sw)) then
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR
       do jcol = istartcol,iendcol
         if (single_level%cos_sza(jcol) > 0.0_jprb) then
 ! Added for DWD (2020)
@@ -545,6 +641,7 @@ contains
           incoming_sw_scale(jcol) = 1.0_jprb
         end if
       end do
+      !$ACC END PARALLEL
     end if
 
     if (config%i_solver_sw == ISolverSpartacus) then
@@ -567,8 +664,13 @@ contains
       end do
     else
       ! G points have not been reordered
+      !$ACC PARALLEL DEFAULT(NONE) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS((config%n_g_sw-1)/32+1) &
+      !$ACC   VECTOR_LENGTH(32) ASYNC(1)
+      !$ACC LOOP GANG
       do jcol = istartcol,iendcol
+        !$ACC LOOP SEQ
         do jlev = 1,nlev
+          !$ACC LOOP WORKER VECTOR
           do jg = 1,config%n_g_sw
             ! Check for negative optical depth
             od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
@@ -576,12 +678,17 @@ contains
           end do
         end do
         if (present(incoming_sw)) then
+          !$ACC LOOP WORKER VECTOR
           do jg = 1,config%n_g_sw
             incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
           end do
         end if
       end do
+      !$ACC END PARALLEL
     end if
+
+    !$ACC WAIT
+    !$ACC END DATA
     
     if (lhook) call dr_hook('radiation_ifs_rrtm:gas_optics',1,hook_handle)
     
@@ -645,7 +752,11 @@ contains
     ! Work out interpolations: for each half level, the index of the
     ! lowest interpolation bound, and the fraction into interpolation
     ! interval
+    !$ACC PARALLEL DEFAULT(NONE) CREATE(planck_store, frac, ind, planck_tmp) PRESENT(config, thermodynamics, PFRAC, &
+    !$ACC   planck_hl) ASYNC(1)
+    !$ACC LOOP SEQ
     do jlev = 1,nlev+1
+      !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(temperature)
       do jcol = istartcol,iendcol
         temperature = thermodynamics%temperature_hl(jcol,jlev+ilevoffset)
         if (temperature < 339.0_jprb .and. temperature >= 160.0_jprb) then
@@ -665,8 +776,10 @@ contains
       end do
 
       ! Calculate Planck functions per band
+      !$ACC LOOP SEQ PRIVATE(factor)
       do jband = 1,config%n_bands_lw
         factor = zfluxfac * delwave(jband)
+        !$ACC LOOP GANG(STATIC:1) VECTOR 
         do jcol = istartcol,iendcol
           planck_store(jcol,jband) = factor &
                &  * (totplnk(ind(jcol),jband) &
@@ -674,6 +787,7 @@ contains
         end do
       end do
 
+#ifndef _OPENACC
       if (config%i_solver_lw == ISolverSpartacus) then
         ! We need to rearrange the gas optics info in memory:
         ! reordering the g points in order of approximately increasing
@@ -700,25 +814,42 @@ contains
           end do
         end if
       else
+#endif
         ! G points have not been reordered 
         if (jlev == 1) then
           ! Top-of-atmosphere half level - note that PFRAC is on model
           ! levels not half levels
+          !$ACC LOOP SEQ PRIVATE(iband)
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_hl(jg,1,:) = planck_store(:,iband) * PFRAC(:,jg,nlev)
+            !$ACC LOOP GANG(STATIC:1) VECTOR
+            do jcol = istartcol,iendcol
+              planck_hl(jg,1,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg,nlev)
+            end do
           end do
         else
+          !$ACC LOOP SEQ PRIVATE(iband)
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_tmp(:,jg) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
+            !$ACC LOOP GANG(STATIC:1) VECTOR
+            do jcol = istartcol,iendcol
+              planck_tmp(jcol,jg) = planck_store(jcol,iband) * PFRAC(jcol,jg,nlev+2-jlev)
+            end do
           end do
+          !$ACC LOOP GANG(STATIC:1) VECTOR
           do jcol = istartcol,iendcol
-            planck_hl(:,jlev,jcol) = planck_tmp(jcol,:)
+            do jg = 1,config%n_g_lw
+              planck_hl(jg,jlev,jcol) = planck_tmp(jcol,jg)
+            end do
           end do
         end if
+#ifndef _OPENACC
       end if
+#endif
     end do
+    !$ACC END PARALLEL
+
+    !$ACC WAIT
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_atmos',1,hook_handle)
 
@@ -772,6 +903,9 @@ contains
     ZFLUXFAC = 2.0_jprb*ASIN(1.0_jprb) * 1.0e4_jprb
 
     ! Work out surface interpolations
+    !$ACC PARALLEL DEFAULT(NONE) CREATE(planck_store, frac, ind) PRESENT(config, temperature, PFRAC, planck_surf) &
+    !$ACC   ASYNC(1)
+    !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(Tsurf)
     do jcol = istartcol,iendcol
       Tsurf = temperature(jcol)
       if (Tsurf < 339.0_jprb .and. Tsurf >= 160.0_jprb) then
@@ -791,8 +925,10 @@ contains
     end do
 
     ! Calculate Planck functions per band
+    !$ACC LOOP SEQ PRIVATE(factor)
     do jband = 1,config%n_bands_lw
       factor = zfluxfac * delwave(jband)
+      !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
         planck_store(jcol,jband) = factor &
              &  * (totplnk(ind(jcol),jband) &
@@ -807,18 +943,29 @@ contains
       ! the spectrum that are optically thin for gases) and reorder
       ! in pressure since the the functions above treat pressure
       ! decreasing with increasing index.
+      !$ACC LOOP SEQ PRIVATE(iband, ig)
       do jgreorder = 1,config%n_g_lw
         iband = config%i_band_from_reordered_g_lw(jgreorder)
         ig = config%i_g_from_reordered_g_lw(jgreorder)
-        planck_surf(jgreorder,:) = planck_store(:,iband) * PFRAC(:,ig)
+        !$ACC LOOP GANG(STATIC:1) VECTOR
+        do jcol = istartcol,iendcol
+          planck_surf(jgreorder,jcol) = planck_store(jcol,iband) * PFRAC(jcol,ig)
+        end do
       end do
     else
       ! G points have not been reordered 
+      !$ACC LOOP SEQ PRIVATE(iband)
       do jg = 1,config%n_g_lw
         iband = config%i_band_from_g_lw(jg)
-        planck_surf(jg,:) = planck_store(:,iband) * PFRAC(:,jg)
+        !$ACC LOOP GANG(STATIC:1) VECTOR
+        do jcol = istartcol,iendcol
+          planck_surf(jg,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg)
+        end do
       end do
     end if
+    !$ACC END PARALLEL
+
+    !$ACC WAIT
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_surf',1,hook_handle)
     

@@ -25,6 +25,8 @@ REAL(KIND=JPRB) :: STRRAT
 
 EQUIVALENCE (KA(1,1,1,1),ABSA(1,1))
 
+!$ACC DECLARE CREATE(FRACREFA, KA, ABSA, SELFREF, FORREF)
+
 !     -----------------------------------------------------------------
 !        * E.C.M.W.F. PHYSICS PACKAGE ** RRTM LW RADIATION **
 

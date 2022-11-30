@@ -168,6 +168,7 @@ TREF( :) = (/&
      &  0.2090_JPRB,  0.2090_JPRB,  0.2090_JPRB,  0.2090_JPRB,  0.2090_JPRB, &
      &  0.2090_JPRB,  0.2090_JPRB/)
 
+  !$ACC UPDATE DEVICE(PREF, PREFLOG, TREF, CHI_MLS)
 
 !     -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SURRTRF',1,ZHOOK_HANDLE)

@@ -56,13 +56,14 @@ module radiation_config
   ! for both
   enum, bind(c) 
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
-          &     ISolverSpartacus, ISolverTripleclouds 
+          &     ISolverSpartacus, ISolverTripleclouds, ISolverMcICAACC
   end enum
-  character(len=*), parameter :: SolverName(0:4) = (/ 'Cloudless   ', &
+  character(len=*), parameter :: SolverName(0:5) = (/ 'Cloudless   ', &
        &                                              'Homogeneous ', &
        &                                              'McICA       ', &
        &                                              'SPARTACUS   ', &
-       &                                              'Tripleclouds' /)
+       &                                              'Tripleclouds', &
+       &                                              'McICA ACC   ' /)
 
   ! SPARTACUS shortwave solver can treat the reflection of radiation
   ! back up into different regions in various ways
@@ -1227,7 +1228,7 @@ contains
     end if
 
     ! McICA solver currently can't store full profiles of spectral fluxes
-    if (this%i_solver_sw == ISolverMcICA) then
+    if (this%i_solver_sw == ISolverMcICA .or. this%i_solver_sw == ISolverMcICAACC) then
       this%do_save_spectral_flux = .false.
     end if
 
@@ -1490,7 +1491,9 @@ contains
         end if
 
       else if (this%i_solver_sw == ISolverMcICA &
-           &  .or. this%i_solver_lw == ISolverMcICA) then
+           &  .or. this%i_solver_lw == ISolverMcICA &
+           &  .or. this%i_solver_sw == ISolverMcICAACC &
+           &  .or. this%i_solver_lw == ISolverMcICAACC ) then
         call print_logical('  Use vectorizable McICA cloud generator', &
              &   'use_vectorizable_generator', this%use_vectorizable_generator)
       end if

@@ -1,6 +1,7 @@
 SUBROUTINE RRTM_TAUMOL1 (KIDIA,KFDIA,KLEV,taug,PAVEL,&
  & P_TAUAERL,FAC00,FAC01,FAC10,FAC11,FORFAC,FORFRAC,INDFOR,JP,JT,jt1,&
- & COLH2O,LAYTROP,SELFFAC,SELFFRAC,INDSELF,fracs,MINORFRAC,INDMINOR,SCALEMINORN2,COLBRD)  
+ & COLH2O,LAYTROP,SELFFAC,SELFFRAC,INDSELF,fracs,MINORFRAC,INDMINOR,&
+ & SCALEMINORN2,COLBRD)  
 
 !******************************************************************************
 !                                                                             *
@@ -187,6 +188,12 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 
+    !$ACC DATA PRESENT(PAVEL, taug, P_TAUAERL, FAC00, FAC01, FAC10, FAC11, &
+    !$ACC             FORFAC, FORFRAC, JP, JT, jt1, COLH2O, LAYTROP, SELFFAC, &
+    !$ACC             SELFFRAC, MINORFRAC, INDSELF, fracs, &
+    !$ACC             INDFOR, INDMINOR, SCALEMINORN2, COLBRD)
+
+#ifndef _OPENACC
     laytrop_min = MINVAL(laytrop)
     laytrop_max = MAXVAL(laytrop)
 
@@ -209,6 +216,17 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
       enddo
       ixc(lay) = icl
     enddo
+#else
+    laytrop_min = HUGE(laytrop_min) 
+    laytrop_max = -HUGE(laytrop_max)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
+    do jc = KIDIA,KFDIA
+      laytrop_min = MIN(laytrop_min, laytrop(jc))
+      laytrop_max = MAX(laytrop_max, laytrop(jc))
+    end do
+    !$ACC END PARALLEL
+#endif
 
 
 ! Minor gas mapping levels:
@@ -220,6 +238,9 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
 !     foreign continuum is interpolated (in temperature) separately.
 
       ! Lower atmosphere loop
+      !$ACC WAIT
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, pp, corradj)
       do lay = 1, laytrop_min
         do jl = KIDIA, KFDIA
 
@@ -235,6 +256,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
           endif
 
           scalen2 = colbrd(jl,lay) * scaleminorn2(jl,lay)
+          !$ACC LOOP SEQ PRIVATE(tauself, taufor, taun2)
 !$NEC unroll(NG1)
           do ig = 1, ng1
             tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
@@ -253,8 +275,11 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
           enddo
         enddo
       enddo
+      !$ACC END PARALLEL
 
       ! Upper atmosphere loop
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indf, indm, pp, corradj, scalen2)
       do lay = laytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
 
@@ -266,6 +291,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
           corradj =  1._JPRB - 0.15_JPRB * (pp / 95.6_JPRB)
 
           scalen2 = colbrd(jl,lay) * scaleminorn2(jl,lay)
+          !$ACC LOOP SEQ PRIVATE(taufor, taun2)
 !$NEC unroll(NG1)
           do ig = 1, ng1
             taufor = forfac(jl,lay) * (forref(indf,ig) + &
@@ -282,76 +308,100 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
           enddo
         enddo
       enddo
+      !$ACC END PARALLEL
 
-      IF (laytrop_max == laytrop_min) RETURN
-      ! Mixed loop
-      ! Lower atmosphere part
-      do lay = laytrop_min+1, laytrop_max
-        ixc0 = ixc(lay)
+      IF (laytrop_max /= laytrop_min) THEN
+        ! Mixed loop
+        ! Lower atmosphere part
+        !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, pp, corradj, scalen2)
+        do lay = laytrop_min+1, laytrop_max
+#ifdef _OPENACC
+          do jl = KIDIA, KFDIA
+            if ( lay <= laytrop(jl) ) then
+#else
+          ixc0 = ixc(lay)
 !$NEC ivdep
-        do ixp = 1, ixc0
-          jl = ixlow(ixp,lay)
+          do ixp = 1, ixc0
+            jl = ixlow(ixp,lay)
+#endif
 
-          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(1) + 1
-          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(1) + 1
-          inds = indself(jl,lay)
-          indf = indfor(jl,lay)
-          indm = indminor(jl,lay)
-          pp = pavel(jl,lay)
-          corradj =  1.0_JPRB
-          if (pp .lt. 250._JPRB) then
-            corradj = 1._JPRB - 0.15_JPRB * (250._JPRB-pp) / 154.4_JPRB
-          endif
+            ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(1) + 1
+            ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(1) + 1
+            inds = indself(jl,lay)
+            indf = indfor(jl,lay)
+            indm = indminor(jl,lay)
+            pp = pavel(jl,lay)
+            corradj =  1.0_JPRB
+            if (pp .lt. 250._JPRB) then
+              corradj = 1._JPRB - 0.15_JPRB * (250._JPRB-pp) / 154.4_JPRB
+            endif
 
-          scalen2 = colbrd(jl,lay) * scaleminorn2(jl,lay)
+            scalen2 = colbrd(jl,lay) * scaleminorn2(jl,lay)
 !$NEC unroll(NG1)
-          do ig = 1, ng1
-            tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
-                 (selfref(inds+1,ig) - selfref(inds,ig)))
-            taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
-                 (forref(indf+1,ig) -  forref(indf,ig)))
-            taun2 = scalen2*(ka_mn2(indm,ig) + &
-                 minorfrac(jl,lay) * (ka_mn2(indm+1,ig) - ka_mn2(indm,ig)))
-            taug(jl,ig,lay) = corradj * (colh2o(jl,lay) * &
-                 (fac00(jl,lay) * absa(ind0,ig) + &
-                 fac10(jl,lay) * absa(ind0+1,ig) + &
-                 fac01(jl,lay) * absa(ind1,ig) + &
-                 fac11(jl,lay) * absa(ind1+1,ig)) &
-                 + tauself + taufor + taun2)
-            fracs(jl,ig,lay) = fracrefa(ig)
+            !$ACC LOOP SEQ PRIVATE(tauself, taufor, taun2)
+            do ig = 1, ng1
+              tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                  (selfref(inds+1,ig) - selfref(inds,ig)))
+              taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                  (forref(indf+1,ig) -  forref(indf,ig)))
+              taun2 = scalen2*(ka_mn2(indm,ig) + &
+                  minorfrac(jl,lay) * (ka_mn2(indm+1,ig) - ka_mn2(indm,ig)))
+              taug(jl,ig,lay) = corradj * (colh2o(jl,lay) * &
+                  (fac00(jl,lay) * absa(ind0,ig) + &
+                  fac10(jl,lay) * absa(ind0+1,ig) + &
+                  fac01(jl,lay) * absa(ind1,ig) + &
+                  fac11(jl,lay) * absa(ind1+1,ig)) &
+                  + tauself + taufor + taun2)
+              fracs(jl,ig,lay) = fracrefa(ig)
+            enddo
+#ifdef _OPENACC
+         else
+#else
           enddo
-        enddo
 
-        ! Upper atmosphere part
-        ixc0 = KFDIA - KIDIA + 1 - ixc0
+
+
+          ! Upper atmosphere part
+          ixc0 = KFDIA - KIDIA + 1 - ixc0
 !$NEC ivdep
-        do ixp = 1, ixc0
-          jl = ixhigh(ixp,lay)
+          do ixp = 1, ixc0
+            jl = ixhigh(ixp,lay)
+#endif
 
-          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(1) + 1
-          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(1) + 1
-          indf = indfor(jl,lay)
-          indm = indminor(jl,lay)
-          pp = pavel(jl,lay)
-          corradj =  1._JPRB - 0.15_JPRB * (pp / 95.6_JPRB)
+            ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(1) + 1
+            ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(1) + 1
+            indf = indfor(jl,lay)
+            indm = indminor(jl,lay)
+            pp = pavel(jl,lay)
+            corradj =  1._JPRB - 0.15_JPRB * (pp / 95.6_JPRB)
 
-          scalen2 = colbrd(jl,lay) * scaleminorn2(jl,lay)
+            scalen2 = colbrd(jl,lay) * scaleminorn2(jl,lay)
 !$NEC unroll(NG1)
-          do ig = 1, ng1
-            taufor = forfac(jl,lay) * (forref(indf,ig) + &
-                 forfrac(jl,lay) * (forref(indf+1,ig) - forref(indf,ig)))
-            taun2 = scalen2*(kb_mn2(indm,ig) + &
-                 minorfrac(jl,lay) * (kb_mn2(indm+1,ig) - kb_mn2(indm,ig)))
-            taug(jl,ig,lay) = corradj * (colh2o(jl,lay) * &
-                 (fac00(jl,lay) * absb(ind0,ig) + &
-                 fac10(jl,lay) * absb(ind0+1,ig) + &
-                 fac01(jl,lay) * absb(ind1,ig) + &
-                 fac11(jl,lay) * absb(ind1+1,ig)) &
-                 + taufor + taun2)
-            fracs(jl,ig,lay) = fracrefb(ig)
+            !$ACC LOOP SEQ PRIVATE(taufor, taun2)
+            do ig = 1, ng1
+              taufor = forfac(jl,lay) * (forref(indf,ig) + &
+                  forfrac(jl,lay) * (forref(indf+1,ig) - forref(indf,ig)))
+              taun2 = scalen2*(kb_mn2(indm,ig) + &
+                  minorfrac(jl,lay) * (kb_mn2(indm+1,ig) - kb_mn2(indm,ig)))
+              taug(jl,ig,lay) = corradj * (colh2o(jl,lay) * &
+                  (fac00(jl,lay) * absb(ind0,ig) + &
+                  fac10(jl,lay) * absb(ind0+1,ig) + &
+                  fac01(jl,lay) * absb(ind1,ig) + &
+                  fac11(jl,lay) * absb(ind1+1,ig)) &
+                  + taufor + taun2)
+              fracs(jl,ig,lay) = fracrefb(ig)
+            enddo
+#ifdef _OPENACC
+           endif
+#endif
           enddo
-        enddo
 
-      enddo
+        enddo
+        !$ACC END PARALLEL
+
+      ENDIF
+
+      !$ACC END DATA
 
 END SUBROUTINE RRTM_TAUMOL1

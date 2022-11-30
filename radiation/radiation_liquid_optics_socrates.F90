@@ -57,6 +57,8 @@ contains
 
     !real(jprb) :: hook_handle
 
+    !$ACC ROUTINE SEQ
+
     !if (lhook) call dr_hook('radiation_liquid_optics_socrates:calc_liq_optics_socrates',0,hook_handle)
 
     ! Apply the bounds of validity to effective radius

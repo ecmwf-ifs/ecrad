@@ -45,12 +45,35 @@ INTEGER(KIND=JPIM) :: IG, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
 INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
+    !$ACC DATA CREATE(i_laysolfr) &
+    !$ACC     PRESENT(p_colmol, k_laytrop, p_sfluxzen, p_taug, p_taur, prmu0)
+
+#ifndef _OPENACC
     laytrop_min = MINVAL(k_laytrop(KIDIA:KFDIA))
     laytrop_max = MAXVAL(k_laytrop(KIDIA:KFDIA))
+#else
+    laytrop_min = HUGE(laytrop_min) 
+    laytrop_max = -HUGE(laytrop_max)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
+    do iplon = KIDIA,KFDIA
+      laytrop_min = MIN(laytrop_min, k_laytrop(iplon))
+      laytrop_max = MAX(laytrop_max, k_laytrop(iplon))
+    end do
+    !$ACC END PARALLEL
+#endif
 
     i_nlayers = klev
-    i_laysolfr(KIDIA:KFDIA) = k_laytrop(KIDIA:KFDIA)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR
+    DO iplon = KIDIA, KFDIA
+      i_laysolfr(iplon) = k_laytrop(iplon)
+    ENDDO
+    !$ACC END PARALLEL
 
+    !$ACC WAIT
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(3)
     DO i_lay = 1, laytrop_min
        DO iplon = KIDIA, KFDIA
 !$NEC unroll(NG26)
@@ -61,11 +84,15 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
          ENDDO
        ENDDO
     ENDDO
+    !$ACC END PARALLEL
 
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
     DO i_lay = laytrop_min+1, laytrop_max
        DO iplon = KIDIA, KFDIA
           IF (i_lay <= k_laytrop(iplon)) THEN
 !$NEC unroll(NG26)
+            !$ACC LOOP SEQ
             DO ig = 1 , ng26
               IF(i_lay == i_laysolfr(iplon)) p_sfluxzen(iplon,ig)=sfluxrefc(ig)
               p_taug(iplon,i_lay,ig) = 0.0_JPRB
@@ -73,6 +100,7 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
             ENDDO
           ELSE
 !$NEC unroll(NG26)
+            !$ACC LOOP SEQ
             DO ig = 1 , ng26
               p_taug(iplon,i_lay,ig) = 0.0_JPRB
               p_taur(iplon,i_lay,ig) = p_colmol(iplon,i_lay) * raylc(ig)
@@ -80,7 +108,10 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
           ENDIF
        ENDDO
     ENDDO
+    !$ACC END PARALLEL
 
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(3)
     DO ig = 1 , ng26
        DO i_lay = laytrop_max+1, i_nlayers
          DO iplon = KIDIA, KFDIA
@@ -89,5 +120,9 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
          ENDDO
        ENDDO
     ENDDO
+    !$ACC END PARALLEL
+
+    !$ACC WAIT
+    !$ACC END DATA
 
 END SUBROUTINE SRTM_TAUMOL26

@@ -56,16 +56,42 @@ REAL(KIND=JPRB) ::  &
  & Z_TAURAY  
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
+    !$ACC DATA CREATE(i_laysolfr) &
+    !$ACC   PRESENT(P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
+    !$ACC           P_COLMOL, P_COLO3, K_LAYTROP, P_SFLUXZEN, P_TAUG, P_TAUR, &
+    !$ACC           PRMU0)
+
+#ifndef _OPENACC
     laytrop_min = MINVAL(k_laytrop(KIDIA:KFDIA))
     laytrop_max = MAXVAL(k_laytrop(KIDIA:KFDIA))
+#else
+    laytrop_min = HUGE(laytrop_min) 
+    laytrop_max = -HUGE(laytrop_max)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
+    do iplon = KIDIA,KFDIA
+      laytrop_min = MIN(laytrop_min, k_laytrop(iplon))
+      laytrop_max = MAX(laytrop_max, k_laytrop(iplon))
+    end do
+    !$ACC END PARALLEL
+#endif
 
     i_nlayers = klev
-    i_laysolfr(:) = i_nlayers
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG(STATIC:1) VECTOR
+    DO iplon = KIDIA,KFDIA
+      i_laysolfr(iplon) = i_nlayers
+    ENDDO
+    !$ACC END PARALLEL
 
+    !$ACC WAIT
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1)
     DO i_lay = 1, laytrop_min
        DO iplon = KIDIA, KFDIA
          ind0 = ((k_jp(iplon,i_lay)-1)*5+(k_jt(iplon,i_lay)-1))*nspa(27) + 1
          ind1 = (k_jp(iplon,i_lay)*5+(k_jt1(iplon,i_lay)-1))*nspa(27) + 1
+         !$ACC LOOP SEQ PRIVATE(z_tauray)
 !$NEC unroll(NG27)
          DO ig = 1 , ng27
            z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
@@ -78,13 +104,17 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
          ENDDO
        ENDDO
     ENDDO
+    !$ACC END PARALLEL
 
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1)
     DO i_lay = laytrop_min+1, laytrop_max
        DO iplon = KIDIA, KFDIA
           IF (i_lay <= k_laytrop(iplon)) THEN
             ind0 = ((k_jp(iplon,i_lay)-1)*5+(k_jt(iplon,i_lay)-1))*nspa(27) + 1
             ind1 = (k_jp(iplon,i_lay)*5+(k_jt1(iplon,i_lay)-1))*nspa(27) + 1
 !$NEC unroll(NG27)
+            !$ACC LOOP SEQ PRIVATE(z_tauray)
             DO ig = 1 , ng27
               z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
               p_taug(iplon,i_lay,ig) = p_colo3(iplon,i_lay) * &
@@ -100,6 +130,7 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
             ind0 = ((k_jp(iplon,i_lay)-13)*5+(k_jt(iplon,i_lay)-1))*nspb(27) + 1
             ind1 = ((k_jp(iplon,i_lay)-12)*5+(k_jt1(iplon,i_lay)-1))*nspb(27)+ 1
 !$NEC unroll(NG27)
+            !$ACC LOOP SEQ PRIVATE(z_tauray)
             DO ig = 1 , ng27
               z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
               p_taug(iplon,i_lay,ig) = p_colo3(iplon,i_lay) * &
@@ -114,13 +145,17 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
           ENDIF
        ENDDO
     ENDDO
+    !$ACC END PARALLEL
 
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1)
     DO i_lay = laytrop_max+1, i_nlayers
        DO iplon = KIDIA, KFDIA
          IF (k_jp(iplon,i_lay-1) < layreffr &
               &    .AND. k_jp(iplon,i_lay) >= layreffr) i_laysolfr(iplon) = i_lay
          ind0 = ((k_jp(iplon,i_lay)-13)*5+(k_jt(iplon,i_lay)-1))*nspb(27) + 1
          ind1 = ((k_jp(iplon,i_lay)-12)*5+(k_jt1(iplon,i_lay)-1))*nspb(27)+ 1
+         !$ACC LOOP SEQ PRIVATE(z_tauray)
 !$NEC unroll(NG27)
          DO ig = 1 , ng27
            z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
@@ -135,5 +170,9 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
          ENDDO
        ENDDO
     ENDDO
+    !$ACC END PARALLEL
+
+    !$ACC WAIT
+    !$ACC END DATA
 
 END SUBROUTINE SRTM_TAUMOL27

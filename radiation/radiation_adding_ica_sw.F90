@@ -79,11 +79,16 @@ contains
 
     real(jprb) :: hook_handle
 
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_adding_ica_sw:adding_ica_sw',0,hook_handle)
+#endif
+
+    !$ACC ROUTINE WORKER
 
     ! Compute profile of direct (unscattered) solar fluxes at each
     ! half-level by working down through the atmosphere
     flux_dn_direct(:,1) = incoming_toa
+    !$ACC LOOP SEQ
     do jlev = 1,nlev
       flux_dn_direct(:,jlev+1) = flux_dn_direct(:,jlev)*trans_dir_dir(:,jlev)
     end do
@@ -98,6 +103,7 @@ contains
     ! the entire earth/atmosphere system below that half-level, and
     ! also the "source", which is the upwelling flux due to direct
     ! radiation that is scattered below that level
+!$ACC LOOP SEQ
 ! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = nlev,1,-1
@@ -107,6 +113,7 @@ contains
       ! and similarly for subsequent lines, but this slows down the
       ! routine by a factor of 2!  Rather, we do it with an explicit
       ! loop.
+      !$ACC LOOP WORKER VECTOR
       do jcol = 1,ncol
         ! Lacis and Hansen (1974) Eq 33, Shonk & Hogan (2008) Eq 10:
         inv_denominator(jcol,jlev) = 1.0_jprb / (1.0_jprb-albedo(jcol,jlev+1)*reflectance(jcol,jlev))
@@ -130,9 +137,11 @@ contains
 
     ! Work back down through the atmosphere computing the fluxes at
     ! each half-level
+!$ACC LOOP SEQ
 ! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = 1,nlev
+      !$ACC LOOP WORKER VECTOR
       do jcol = 1,ncol
         ! Shonk & Hogan (2008) Eq 14 (after simplification):
         flux_dn_diffuse(jcol,jlev+1) &
@@ -147,7 +156,9 @@ contains
     end do
     flux_dn_direct(:,nlev+1) = flux_dn_direct(:,nlev+1)*cos_sza
 
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_adding_ica_sw:adding_ica_sw',1,hook_handle)
+#endif
 
   end subroutine adding_ica_sw
 

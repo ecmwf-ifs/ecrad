@@ -38,7 +38,7 @@ contains
 
     use parkind1,         only : jprb
     use yomhook,          only : lhook, dr_hook
-    use radiation_config, only : config_type, ISolverMcICA, &
+    use radiation_config, only : config_type, ISolverMcICA, ISolverMcICAACC, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
     use radiation_spectral_definition, only &
          &  : SolarReferenceTemperature, TerrestrialReferenceTemperature
@@ -99,7 +99,7 @@ contains
     ! g factor arrays are allocated before the call to
     ! solver_lw as they will be needed.
     if (config%do_lw_cloud_scattering &
-         &  .and. config%i_solver_lw == ISolverMcICA) then
+         &  .and. (config%i_solver_lw == ISolverMcICA .or. config%i_solver_lw == ISolverMcICAACC) ) then
       config%n_g_lw_if_scattering = config%n_g_lw
     end if
 
@@ -132,7 +132,9 @@ contains
 
     ! Load cloud water PDF look-up table for McICA
     if (         config%i_solver_sw == ISolverMcICA &
-         &  .or. config%i_solver_lw == ISolverMcICA) then
+         &  .or. config%i_solver_lw == ISolverMcICA &
+         &  .or. config%i_solver_sw == ISolverMcICAACC &
+         &  .or. config%i_solver_lw == ISolverMcICAACC ) then
       call config%pdf_sampler%setup(config%cloud_pdf_file_name, &
            &                        iverbose=config%iverbosesetup)
     end if
@@ -147,7 +149,7 @@ contains
   ! possibly scale factors) required by the specific gas absorption
   ! model.  This subroutine simply passes the gas object on to the
   ! module of the currently active gas model.
-  subroutine set_gas_units(config, gas, use_acc)
+  subroutine set_gas_units(config, gas)
     
     use radiation_config
     use radiation_gas,             only : gas_type
@@ -157,9 +159,6 @@ contains
 
     type(config_type), intent(in)    :: config
     type(gas_type),    intent(inout) :: gas
-    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
-    ! synchronized interfaces with GPU-port
-    logical, optional, intent(in)    :: use_acc
 
     if (config%i_gas_model == IGasModelMonochromatic) then
       call set_gas_units_mono(gas)
@@ -183,17 +182,16 @@ contains
   ! to reverse the order for the computation and then reverse the
   ! order of the output fluxes to match the inputs.
   subroutine radiation(ncol, nlev, istartcol, iendcol, config, &
-       &  single_level, thermodynamics, gas, cloud, aerosol, flux, &
-       &  use_acc)
+       &  single_level, thermodynamics, gas, cloud, aerosol, flux)
 
     use parkind1,                 only : jprb
     use yomhook,                  only : lhook, dr_hook
 
-    use radiation_io,             only : nulout
+    use radiation_io,             only : nulout, nulerr, radiation_abort
     use radiation_config,         only : config_type, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, &
          &   ISolverMcICA, ISolverSpartacus, ISolverHomogeneous, &
-         &   ISolverTripleclouds
+         &   ISolverTripleclouds, ISolverMcICAACC
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_gas,            only : gas_type
@@ -206,6 +204,8 @@ contains
     use radiation_tripleclouds_lw,only : solver_tripleclouds_lw
     use radiation_mcica_sw,       only : solver_mcica_sw
     use radiation_mcica_lw,       only : solver_mcica_lw
+    use radiation_mcica_acc_sw,   only : solver_mcica_acc_sw
+    use radiation_mcica_acc_lw,   only : solver_mcica_acc_lw
     use radiation_cloudless_sw,   only : solver_cloudless_sw
     use radiation_cloudless_lw,   only : solver_cloudless_lw
     use radiation_homogeneous_sw, only : solver_homogeneous_sw
@@ -235,9 +235,6 @@ contains
     type(aerosol_type),       intent(in)   :: aerosol
     ! Output
     type(flux_type),          intent(inout):: flux
-    ! MeteoSwiss/DWD: Optional argument use_acc necessary for
-    ! synchronized interfaces with GPU-port
-    logical, intent(in), optional :: use_acc
 
 
     ! Local variables
@@ -296,6 +293,11 @@ contains
 
     if (lhook) call dr_hook('radiation_interface:radiation',0,hook_handle)
 
+    !$ACC DATA CREATE(od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+    !$ACC             od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
+    !$ACC             planck_hl, lw_emission, lw_albedo, sw_albedo_direct, &
+    !$ACC             sw_albedo_diffuse, incoming_sw)
+
     if (thermodynamics%pressure_hl(istartcol,2) &
          &  < thermodynamics%pressure_hl(istartcol,1)) then
       ! Input arrays are arranged in order of decreasing pressure /
@@ -342,6 +344,7 @@ contains
         ! Crop the cloud fraction to remove clouds that have too small
         ! a fraction or water content; after this, we can safely
         ! assume that a cloud is present if cloud%fraction > 0.0.
+        ! WARNING: not 100% tested on GPU as it has no effect on result
         call cloud%crop_cloud_fraction(istartcol, iendcol, &
              &            config%cloud_fraction_threshold, &
              &            config%cloud_mixing_ratio_threshold)
@@ -408,9 +411,16 @@ contains
           write(nulout,'(a)') 'Computing longwave fluxes'
         end if
 
+        !$ACC WAIT
         if (config%i_solver_lw == ISolverMcICA) then
           ! Compute fluxes using the McICA longwave solver
           call solver_mcica_lw(nlev,istartcol,iendcol, &
+               &  config, single_level, cloud, & 
+               &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
+               &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
+        else if (config%i_solver_lw == ISolverMcICAACC) then
+          ! Compute fluxes using the McICA ACC longwave solver
+          call solver_mcica_acc_lw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
                &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
@@ -445,9 +455,17 @@ contains
           write(nulout,'(a)') 'Computing shortwave fluxes'
         end if
 
+        !$ACC WAIT
         if (config%i_solver_sw == ISolverMcICA) then
           ! Compute fluxes using the McICA shortwave solver
           call solver_mcica_sw(nlev,istartcol,iendcol, &
+               &  config, single_level, cloud, & 
+               &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
+               &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
+               &  incoming_sw, flux)
+        else if (config%i_solver_sw == ISolverMcICAACC) then
+          ! Compute fluxes using the McICA ACC shortwave solver
+          call solver_mcica_acc_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
@@ -488,6 +506,9 @@ contains
 
     end if
     
+    !$ACC WAIT
+    !$ACC END DATA
+
     if (lhook) call dr_hook('radiation_interface:radiation',1,hook_handle)
 
   end subroutine radiation
@@ -504,7 +525,7 @@ contains
  
     use parkind1, only : jprb
 
-    use radiation_io,             only : nulout
+    use radiation_io,             only : nulout, nulerr, radiation_abort
     use radiation_config,         only : config_type
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
@@ -539,6 +560,11 @@ contains
     if (config%iverbose >= 2) then
       write(nulout,'(a)') 'Reversing arrays to be in order of increasing pressure'
     end if
+
+#ifdef _OPENACC
+    write(nulerr,'(a)') '*** Error: radiation_interface:radiation_reverse not ported to GPU'
+    call radiation_abort()
+#endif
 
     ! Allocate reversed arrays
     call thermodynamics_rev%allocate(ncol, nlev)

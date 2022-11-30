@@ -92,6 +92,12 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
 
 #define MOD1(x) ((x) - AINT((x)))
 
+    !$ACC DATA PRESENT(taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
+    !$ACC             colh2o, colo3, colco2, coldry, laytrop, selffac, selffrac, indself, fracs, &
+    !$ACC             rat_h2oo3, rat_h2oo3_1, indfor, forfrac, forfac, &
+    !$ACC             minorfrac, indminor)
+
+#ifndef _OPENACC
     laytrop_min = MINVAL(laytrop)
     laytrop_max = MAXVAL(laytrop)
 
@@ -114,6 +120,17 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
       enddo
       ixc(lay) = icl
     enddo
+#else
+    laytrop_min = HUGE(laytrop_min) 
+    laytrop_max = -HUGE(laytrop_max)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
+    do jc = KIDIA,KFDIA
+      laytrop_min = MIN(laytrop_min, laytrop(jc))
+      laytrop_max = MAX(laytrop_max, laytrop(jc))
+    end do
+    !$ACC END PARALLEL
+#endif
 
 
       ! P = 706.2620 mb
@@ -128,6 +145,13 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
       ! (in temperature) separately.
 
       ! Lower atmosphere loop
+      !$ACC WAIT
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, speccomb1, speccomb_mco2, speccomb_planck, ind0, ind1, &
+      !$ACC   inds, indf, indm, js, js1, jpl, jmco2, chi_co2, ratco2, adjfac, adjcolco2, fac000, fac100, fac200, &
+      !$ACC   fac010, fac110, fac210, fac001, fac101, fac201, fac011, fac111, fac211, p, p4, fk0, fk1, fk2, fs, &
+      !$ACC   specmult, specparm, fs1, specmult1, specparm1, fpl, specmult_PLANCK, specparm_PLANCK, fmco2, &
+      !$ACC   specmult_mco2, specparm_mco2, tau_major, tau_major1)
       do lay = 1, laytrop_min
         do jl = KIDIA, KFDIA
 
@@ -294,6 +318,7 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
               fac111 * absa(ind1+10,1:ng7))
           endif
 
+          !$ACC LOOP SEQ PRIVATE(taufor, tauself, co2m1, co2m2, absco2)
 !$NEC unroll(NG7)
           do ig = 1, ng7
             tauself = selffac(jl,lay)* (selfref(inds,ig) + selffrac(jl,lay) * &
@@ -315,8 +340,11 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
         enddo
 
       enddo
+      !$ACC END PARALLEL
 
       ! Upper atmosphere loop
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indm, chi_co2, ratco2, adjfac, adjcolco2)
       do lay = laytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
 
@@ -335,6 +363,7 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
           ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(7) + 1
           ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(7) + 1
           indm = indminor(jl,lay)
+          !$ACC LOOP SEQ PRIVATE(absco2)
 !$NEC unroll(NG7)
           do ig = 1, ng7
             absco2 = kb_mco2(indm,ig) + minorfrac(jl,lay) * &
@@ -349,9 +378,13 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
           enddo
         enddo
       enddo
+      !$ACC END PARALLEL
+      !$ACC WAIT
 
       ! Empirical modification to code to improve stratospheric cooling rates
       ! for o3.  Revised to apply weighting for g-point reduction in this band.
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do lay = laytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
           taug(jl,ngs6+6,lay)=taug(jl,ngs6+6,lay)*0.92_JPRB
@@ -362,249 +395,277 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
           taug(jl,ngs6+11,lay)=taug(jl,ngs6+11,lay)*0.855_JPRB
         enddo
       enddo
+      !$ACC END PARALLEL
 
-      IF (laytrop_max == laytrop_min) RETURN
-      ! Mixed loop
-      ! Lower atmosphere part
-      do lay = laytrop_min+1, laytrop_max
-        ixc0 = ixc(lay)
+      IF (laytrop_max /= laytrop_min) THEN
+        ! Mixed loop
+        ! Lower atmosphere part
+        !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
+        !$ACC   specmult1, js1, fs1, speccomb_mco2, specparm_mco2, specmult_mco2, jmco2, fmco2, adjfac, chi_co2, &
+        !$ACC   ratco2, adjcolco2, speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, &
+        !$ACC   indf, indm, p, p4, fk0, fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, &
+        !$ACC   fac201, fac011, fac111, fac211, tau_major, tau_major1)
+        do lay = laytrop_min+1, laytrop_max
+#ifdef _OPENACC
+          do jl = KIDIA, KFDIA
+            if ( lay <= laytrop(jl) ) then
+#else
+          ixc0 = ixc(lay)
 
 !$NEC ivdep
-        do ixp = 1, ixc0
-          jl = ixlow(ixp,lay)
+          do ixp = 1, ixc0
+            jl = ixlow(ixp,lay)
+#endif
 
-          speccomb = colh2o(jl,lay) + rat_h2oo3(jl,lay)*colo3(jl,lay)
-          specparm = MIN(colh2o(jl,lay)/speccomb,oneminus)
-          specmult = 8._JPRB*(specparm)
-          js = 1 + int(specmult)
-          fs = MOD1(specmult)
+            speccomb = colh2o(jl,lay) + rat_h2oo3(jl,lay)*colo3(jl,lay)
+            specparm = MIN(colh2o(jl,lay)/speccomb,oneminus)
+            specmult = 8._JPRB*(specparm)
+            js = 1 + int(specmult)
+            fs = MOD1(specmult)
 
-          speccomb1 = colh2o(jl,lay) + rat_h2oo3_1(jl,lay)*colo3(jl,lay)
-          specparm1 = MIN(colh2o(jl,lay)/speccomb1,oneminus)
-          specmult1 = 8._JPRB*(specparm1)
-          js1 = 1 + int(specmult1)
-          fs1 = MOD1(specmult1)
+            speccomb1 = colh2o(jl,lay) + rat_h2oo3_1(jl,lay)*colo3(jl,lay)
+            specparm1 = MIN(colh2o(jl,lay)/speccomb1,oneminus)
+            specmult1 = 8._JPRB*(specparm1)
+            js1 = 1 + int(specmult1)
+            fs1 = MOD1(specmult1)
 
-          speccomb_mco2 = colh2o(jl,lay) + refrat_m_a*colo3(jl,lay)
-          specparm_mco2 = MIN(colh2o(jl,lay)/speccomb_mco2,oneminus)
-          specmult_mco2 = 8._JPRB*specparm_mco2
+            speccomb_mco2 = colh2o(jl,lay) + refrat_m_a*colo3(jl,lay)
+            specparm_mco2 = MIN(colh2o(jl,lay)/speccomb_mco2,oneminus)
+            specmult_mco2 = 8._JPRB*specparm_mco2
 
-          jmco2 = 1 + int(specmult_mco2)
-          fmco2 = MOD1(specmult_mco2)
+            jmco2 = 1 + int(specmult_mco2)
+            fmco2 = MOD1(specmult_mco2)
 
-          !  In atmospheres where the amount of CO2 is too great to be considered
-          !  a minor species, adjust the column amount of CO2 by an empirical factor
-          !  to obtain the proper contribution.
-          chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
-          ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
-          if (ratco2 .gt. 3.0_JPRB) then
-            adjfac = 3.0_JPRB+(ratco2-3.0_JPRB)**0.79_JPRB
-            adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
-          else
-            adjcolco2 = colco2(jl,lay)
-          endif
+            !  In atmospheres where the amount of CO2 is too great to be considered
+            !  a minor species, adjust the column amount of CO2 by an empirical factor
+            !  to obtain the proper contribution.
+            chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
+            ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+            if (ratco2 .gt. 3.0_JPRB) then
+              adjfac = 3.0_JPRB+(ratco2-3.0_JPRB)**0.79_JPRB
+              adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
+            else
+              adjcolco2 = colco2(jl,lay)
+            endif
 
-          speccomb_planck = colh2o(jl,lay)+refrat_planck_a*colo3(jl,lay)
-          specparm_planck = MIN(colh2o(jl,lay)/speccomb_planck,oneminus)
-          specmult_planck = 8._JPRB*specparm_planck
-          jpl = 1 + int(specmult_planck)
-          fpl = MOD1(specmult_planck)
+            speccomb_planck = colh2o(jl,lay)+refrat_planck_a*colo3(jl,lay)
+            specparm_planck = MIN(colh2o(jl,lay)/speccomb_planck,oneminus)
+            specmult_planck = 8._JPRB*specparm_planck
+            jpl = 1 + int(specmult_planck)
+            fpl = MOD1(specmult_planck)
 
-          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(7) + js
-          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(7) + js1
-          inds = indself(jl,lay)
-          indf = indfor(jl,lay)
-          indm = indminor(jl,lay)
+            ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(7) + js
+            ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(7) + js1
+            inds = indself(jl,lay)
+            indf = indfor(jl,lay)
+            indm = indminor(jl,lay)
 
-          if (specparm .lt. 0.125_JPRB) then
-            p = fs - 1._JPRB
-            p4 = p**4
-            fk0 = p4
-            fk1 = 1._JPRB - p - 2.0_JPRB*p4
-            fk2 = p + p4
-            fac000 = fk0*fac00(jl,lay)
-            fac100 = fk1*fac00(jl,lay)
-            fac200 = fk2*fac00(jl,lay)
-            fac010 = fk0*fac10(jl,lay)
-            fac110 = fk1*fac10(jl,lay)
-            fac210 = fk2*fac10(jl,lay)
-          else if (specparm .gt. 0.875_JPRB) then
-            p = -fs
-            p4 = p**4
-            fk0 = p4
-            fk1 = 1._JPRB - p - 2.0_JPRB*p4
-            fk2 = p + p4
-            fac000 = fk0*fac00(jl,lay)
-            fac100 = fk1*fac00(jl,lay)
-            fac200 = fk2*fac00(jl,lay)
-            fac010 = fk0*fac10(jl,lay)
-            fac110 = fk1*fac10(jl,lay)
-            fac210 = fk2*fac10(jl,lay)
-          else
-            fac000 = (1._JPRB - fs) * fac00(jl,lay)
-            fac010 = (1._JPRB - fs) * fac10(jl,lay)
-            fac100 = fs * fac00(jl,lay)
-            fac110 = fs * fac10(jl,lay)
-            fac200 = 0._JPRB
-            fac210 = 0._JPRB
-          endif
+            if (specparm .lt. 0.125_JPRB) then
+              p = fs - 1._JPRB
+              p4 = p**4
+              fk0 = p4
+              fk1 = 1._JPRB - p - 2.0_JPRB*p4
+              fk2 = p + p4
+              fac000 = fk0*fac00(jl,lay)
+              fac100 = fk1*fac00(jl,lay)
+              fac200 = fk2*fac00(jl,lay)
+              fac010 = fk0*fac10(jl,lay)
+              fac110 = fk1*fac10(jl,lay)
+              fac210 = fk2*fac10(jl,lay)
+            else if (specparm .gt. 0.875_JPRB) then
+              p = -fs
+              p4 = p**4
+              fk0 = p4
+              fk1 = 1._JPRB - p - 2.0_JPRB*p4
+              fk2 = p + p4
+              fac000 = fk0*fac00(jl,lay)
+              fac100 = fk1*fac00(jl,lay)
+              fac200 = fk2*fac00(jl,lay)
+              fac010 = fk0*fac10(jl,lay)
+              fac110 = fk1*fac10(jl,lay)
+              fac210 = fk2*fac10(jl,lay)
+            else
+              fac000 = (1._JPRB - fs) * fac00(jl,lay)
+              fac010 = (1._JPRB - fs) * fac10(jl,lay)
+              fac100 = fs * fac00(jl,lay)
+              fac110 = fs * fac10(jl,lay)
+              fac200 = 0._JPRB
+              fac210 = 0._JPRB
+            endif
 
-          if (specparm1 .lt. 0.125_JPRB) then
-            p = fs1 - 1._JPRB
-            p4 = p**4
-            fk0 = p4
-            fk1 = 1._JPRB - p - 2.0_JPRB*p4
-            fk2 = p + p4
-            fac001 = fk0*fac01(jl,lay)
-            fac101 = fk1*fac01(jl,lay)
-            fac201 = fk2*fac01(jl,lay)
-            fac011 = fk0*fac11(jl,lay)
-            fac111 = fk1*fac11(jl,lay)
-            fac211 = fk2*fac11(jl,lay)
-          else if (specparm1 .gt. 0.875_JPRB) then
-            p = -fs1
-            p4 = p**4
-            fk0 = p4
-            fk1 = 1._JPRB - p - 2.0_JPRB*p4
-            fk2 = p + p4
-            fac001 = fk0*fac01(jl,lay)
-            fac101 = fk1*fac01(jl,lay)
-            fac201 = fk2*fac01(jl,lay)
-            fac011 = fk0*fac11(jl,lay)
-            fac111 = fk1*fac11(jl,lay)
-            fac211 = fk2*fac11(jl,lay)
-          else
-            fac001 = (1._JPRB - fs1) * fac01(jl,lay)
-            fac011 = (1._JPRB - fs1) * fac11(jl,lay)
-            fac101 = fs1 * fac01(jl,lay)
-            fac111 = fs1 * fac11(jl,lay)
-            fac201 = 0._JPRB
-            fac211 = 0._JPRB
-          endif
+            if (specparm1 .lt. 0.125_JPRB) then
+              p = fs1 - 1._JPRB
+              p4 = p**4
+              fk0 = p4
+              fk1 = 1._JPRB - p - 2.0_JPRB*p4
+              fk2 = p + p4
+              fac001 = fk0*fac01(jl,lay)
+              fac101 = fk1*fac01(jl,lay)
+              fac201 = fk2*fac01(jl,lay)
+              fac011 = fk0*fac11(jl,lay)
+              fac111 = fk1*fac11(jl,lay)
+              fac211 = fk2*fac11(jl,lay)
+            else if (specparm1 .gt. 0.875_JPRB) then
+              p = -fs1
+              p4 = p**4
+              fk0 = p4
+              fk1 = 1._JPRB - p - 2.0_JPRB*p4
+              fk2 = p + p4
+              fac001 = fk0*fac01(jl,lay)
+              fac101 = fk1*fac01(jl,lay)
+              fac201 = fk2*fac01(jl,lay)
+              fac011 = fk0*fac11(jl,lay)
+              fac111 = fk1*fac11(jl,lay)
+              fac211 = fk2*fac11(jl,lay)
+            else
+              fac001 = (1._JPRB - fs1) * fac01(jl,lay)
+              fac011 = (1._JPRB - fs1) * fac11(jl,lay)
+              fac101 = fs1 * fac01(jl,lay)
+              fac111 = fs1 * fac11(jl,lay)
+              fac201 = 0._JPRB
+              fac211 = 0._JPRB
+            endif
 
-          if (specparm .lt. 0.125_JPRB) then
+            if (specparm .lt. 0.125_JPRB) then
 !$NEC unroll(NG7)
-            tau_major(1:ng7) = speccomb *    &
-             (fac000 * absa(ind0,1:ng7)    + &
-              fac100 * absa(ind0+1,1:ng7)  + &
-              fac200 * absa(ind0+2,1:ng7)  + &
-              fac010 * absa(ind0+9,1:ng7)  + &
-              fac110 * absa(ind0+10,1:ng7) + &
-              fac210 * absa(ind0+11,1:ng7))
-          else if (specparm .gt. 0.875_JPRB) then
+              tau_major(1:ng7) = speccomb *    &
+              (fac000 * absa(ind0,1:ng7)    + &
+                fac100 * absa(ind0+1,1:ng7)  + &
+                fac200 * absa(ind0+2,1:ng7)  + &
+                fac010 * absa(ind0+9,1:ng7)  + &
+                fac110 * absa(ind0+10,1:ng7) + &
+                fac210 * absa(ind0+11,1:ng7))
+            else if (specparm .gt. 0.875_JPRB) then
 !$NEC unroll(NG7)
-            tau_major(1:ng7) = speccomb *   &
-             (fac200 * absa(ind0-1,1:ng7) + &
-              fac100 * absa(ind0,1:ng7)   + &
-              fac000 * absa(ind0+1,1:ng7) + &
-              fac210 * absa(ind0+8,1:ng7) + &
-              fac110 * absa(ind0+9,1:ng7) + &
-              fac010 * absa(ind0+10,1:ng7))
-          else
+              tau_major(1:ng7) = speccomb *   &
+              (fac200 * absa(ind0-1,1:ng7) + &
+                fac100 * absa(ind0,1:ng7)   + &
+                fac000 * absa(ind0+1,1:ng7) + &
+                fac210 * absa(ind0+8,1:ng7) + &
+                fac110 * absa(ind0+9,1:ng7) + &
+                fac010 * absa(ind0+10,1:ng7))
+            else
 !$NEC unroll(NG7)
-            tau_major(1:ng7) = speccomb *   &
-             (fac000 * absa(ind0,1:ng7)   + &
-              fac100 * absa(ind0+1,1:ng7) + &
-              fac010 * absa(ind0+9,1:ng7) + &
-              fac110 * absa(ind0+10,1:ng7))
-          endif
+              tau_major(1:ng7) = speccomb *   &
+              (fac000 * absa(ind0,1:ng7)   + &
+                fac100 * absa(ind0+1,1:ng7) + &
+                fac010 * absa(ind0+9,1:ng7) + &
+                fac110 * absa(ind0+10,1:ng7))
+            endif
 
-          if (specparm1 .lt. 0.125_JPRB) then
+            if (specparm1 .lt. 0.125_JPRB) then
 !$NEC unroll(NG7)
-            tau_major1(1:ng7) = speccomb1 *  &
-             (fac001 * absa(ind1,1:ng7)    + &
-              fac101 * absa(ind1+1,1:ng7)  + &
-              fac201 * absa(ind1+2,1:ng7)  + &
-              fac011 * absa(ind1+9,1:ng7)  + &
-              fac111 * absa(ind1+10,1:ng7) + &
-              fac211 * absa(ind1+11,1:ng7))
-          else if (specparm1 .gt. 0.875_JPRB) then
+              tau_major1(1:ng7) = speccomb1 *  &
+              (fac001 * absa(ind1,1:ng7)    + &
+                fac101 * absa(ind1+1,1:ng7)  + &
+                fac201 * absa(ind1+2,1:ng7)  + &
+                fac011 * absa(ind1+9,1:ng7)  + &
+                fac111 * absa(ind1+10,1:ng7) + &
+                fac211 * absa(ind1+11,1:ng7))
+            else if (specparm1 .gt. 0.875_JPRB) then
 !$NEC unroll(NG7)
-            tau_major1(1:ng7) = speccomb1 * &
-             (fac201 * absa(ind1-1,1:ng7) + &
-              fac101 * absa(ind1,1:ng7)   + &
-              fac001 * absa(ind1+1,1:ng7) + &
-              fac211 * absa(ind1+8,1:ng7) + &
-              fac111 * absa(ind1+9,1:ng7) + &
-              fac011 * absa(ind1+10,1:ng7))
-          else
+              tau_major1(1:ng7) = speccomb1 * &
+              (fac201 * absa(ind1-1,1:ng7) + &
+                fac101 * absa(ind1,1:ng7)   + &
+                fac001 * absa(ind1+1,1:ng7) + &
+                fac211 * absa(ind1+8,1:ng7) + &
+                fac111 * absa(ind1+9,1:ng7) + &
+                fac011 * absa(ind1+10,1:ng7))
+            else
 !$NEC unroll(NG7)
-            tau_major1(1:ng7) = speccomb1 * &
-             (fac001 * absa(ind1,1:ng7)   + &
-              fac101 * absa(ind1+1,1:ng7) + &
-              fac011 * absa(ind1+9,1:ng7) + &
-              fac111 * absa(ind1+10,1:ng7))
-          endif
+              tau_major1(1:ng7) = speccomb1 * &
+              (fac001 * absa(ind1,1:ng7)   + &
+                fac101 * absa(ind1+1,1:ng7) + &
+                fac011 * absa(ind1+9,1:ng7) + &
+                fac111 * absa(ind1+10,1:ng7))
+            endif
 
 !$NEC unroll(NG7)
-          do ig = 1, ng7
-            tauself = selffac(jl,lay)* (selfref(inds,ig) + selffrac(jl,lay) * &
-                 (selfref(inds+1,ig) - selfref(inds,ig)))
-            taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
-                 (forref(indf+1,ig) - forref(indf,ig)))
-            co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
-                 (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
-            co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
-                 (ka_mco2(jmco2+1,indm+1,ig) - ka_mco2(jmco2,indm+1,ig))
-            absco2 = co2m1 + minorfrac(jl,lay) * (co2m2 - co2m1)
+            !$ACC LOOP SEQ PRIVATE(tauself, taufor, co2m1, co2m2, absco2)
+            do ig = 1, ng7
+              tauself = selffac(jl,lay)* (selfref(inds,ig) + selffrac(jl,lay) * &
+                  (selfref(inds+1,ig) - selfref(inds,ig)))
+              taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                  (forref(indf+1,ig) - forref(indf,ig)))
+              co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
+                  (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
+              co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
+                  (ka_mco2(jmco2+1,indm+1,ig) - ka_mco2(jmco2,indm+1,ig))
+              absco2 = co2m1 + minorfrac(jl,lay) * (co2m2 - co2m1)
 
-            taug(jl,ngs6+ig,lay) = tau_major(ig) + tau_major1(ig) &
-                 + tauself + taufor &
-                 + adjcolco2*absco2
-            fracs(jl,ngs6+ig,lay) = fracrefa(ig,jpl) + fpl * &
-                 (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
+              taug(jl,ngs6+ig,lay) = tau_major(ig) + tau_major1(ig) &
+                  + tauself + taufor &
+                  + adjcolco2*absco2
+              fracs(jl,ngs6+ig,lay) = fracrefa(ig,jpl) + fpl * &
+                  (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
+            enddo
+#ifdef _OPENACC
+         else
+#else
           enddo
-        enddo
 
-        ! Upper atmosphere part
-        ixc0 = KFDIA - KIDIA + 1 - ixc0
+          ! Upper atmosphere part
+          ixc0 = KFDIA - KIDIA + 1 - ixc0
 !$NEC ivdep
-        do ixp = 1, ixc0
-          jl = ixhigh(ixp,lay)
+          do ixp = 1, ixc0
+            jl = ixhigh(ixp,lay)
+#endif
 
-          !  In atmospheres where the amount of CO2 is too great to be considered
-          !  a minor species, adjust the column amount of CO2 by an empirical factor
-          !  to obtain the proper contribution.
-          chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
-          ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
-          if (ratco2 .gt. 3.0_JPRB) then
-            adjfac = 2.0_JPRB+(ratco2-2.0_JPRB)**0.79_JPRB
-            adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
-          else
-            adjcolco2 = colco2(jl,lay)
-          endif
+            !  In atmospheres where the amount of CO2 is too great to be considered
+            !  a minor species, adjust the column amount of CO2 by an empirical factor
+            !  to obtain the proper contribution.
+            chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
+            ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+            if (ratco2 .gt. 3.0_JPRB) then
+              adjfac = 2.0_JPRB+(ratco2-2.0_JPRB)**0.79_JPRB
+              adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
+            else
+              adjcolco2 = colco2(jl,lay)
+            endif
 
-          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(7) + 1
-          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(7) + 1
-          indm = indminor(jl,lay)
+            ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(7) + 1
+            ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(7) + 1
+            indm = indminor(jl,lay)
 !$NEC unroll(NG7)
-          do ig = 1, ng7
-            absco2 = kb_mco2(indm,ig) + minorfrac(jl,lay) * &
-                 (kb_mco2(indm+1,ig) - kb_mco2(indm,ig))
-            taug(jl,ngs6+ig,lay) = colo3(jl,lay) * &
-                 (fac00(jl,lay) * absb(ind0,ig) + &
-                 fac10(jl,lay) * absb(ind0+1,ig) + &
-                 fac01(jl,lay) * absb(ind1,ig) + &
-                 fac11(jl,lay) * absb(ind1+1,ig)) &
-                 + adjcolco2 * absco2
-            fracs(jl,ngs6+ig,lay) = fracrefb(ig)
+            !$ACC LOOP SEQ PRIVATE (absco2)
+            do ig = 1, ng7
+              absco2 = kb_mco2(indm,ig) + minorfrac(jl,lay) * &
+                  (kb_mco2(indm+1,ig) - kb_mco2(indm,ig))
+              taug(jl,ngs6+ig,lay) = colo3(jl,lay) * &
+                  (fac00(jl,lay) * absb(ind0,ig) + &
+                  fac10(jl,lay) * absb(ind0+1,ig) + &
+                  fac01(jl,lay) * absb(ind1,ig) + &
+                  fac11(jl,lay) * absb(ind1+1,ig)) &
+                  + adjcolco2 * absco2
+              fracs(jl,ngs6+ig,lay) = fracrefb(ig)
+            enddo
+#ifndef _OPENACC
           enddo
-        enddo
 
-        ! Empirical modification to code to improve stratospheric cooling rates
-        ! for o3.  Revised to apply weighting for g-point reduction in this band.
+          ! Empirical modification to code to improve stratospheric cooling rates
+          ! for o3.  Revised to apply weighting for g-point reduction in this band.
 
 !$NEC ivdep
-        do ixp = 1, ixc0
-          jl = ixhigh(ixp,lay)
-          taug(jl,ngs6+6,lay)=taug(jl,ngs6+6,lay)*0.92_JPRB
-          taug(jl,ngs6+7,lay)=taug(jl,ngs6+7,lay)*0.88_JPRB
-          taug(jl,ngs6+8,lay)=taug(jl,ngs6+8,lay)*1.07_JPRB
-          taug(jl,ngs6+9,lay)=taug(jl,ngs6+9,lay)*1.1_JPRB
-          taug(jl,ngs6+10,lay)=taug(jl,ngs6+10,lay)*0.99_JPRB
-          taug(jl,ngs6+11,lay)=taug(jl,ngs6+11,lay)*0.855_JPRB
-        enddo
+          do ixp = 1, ixc0
+            jl = ixhigh(ixp,lay)
+#endif
+            taug(jl,ngs6+6,lay)=taug(jl,ngs6+6,lay)*0.92_JPRB
+            taug(jl,ngs6+7,lay)=taug(jl,ngs6+7,lay)*0.88_JPRB
+            taug(jl,ngs6+8,lay)=taug(jl,ngs6+8,lay)*1.07_JPRB
+            taug(jl,ngs6+9,lay)=taug(jl,ngs6+9,lay)*1.1_JPRB
+            taug(jl,ngs6+10,lay)=taug(jl,ngs6+10,lay)*0.99_JPRB
+            taug(jl,ngs6+11,lay)=taug(jl,ngs6+11,lay)*0.855_JPRB
+#ifdef _OPENACC
+           endif
+#endif
+          enddo
 
-      enddo
+        enddo
+        !$ACC END PARALLEL
+        
+      ENDIF
+
+      !$ACC END DATA
 
 END SUBROUTINE RRTM_TAUMOL7

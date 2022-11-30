@@ -59,6 +59,8 @@ contains
     ! Absolute difference in cloud fraction
     real(jprb)             :: frac_diff
 
+    !$ACC ROUTINE SEQ
+
     if (beta < 1.0_jprb) then
       frac_diff = abs(frac1-frac2)
       beta2alpha = beta &

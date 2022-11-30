@@ -186,7 +186,11 @@ contains
 
     real(jprb) :: hook_handle
 
+    !$ACC ROUTINE WORKER 
+
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_adding_ica_lw:fast_adding_ica_lw',0,hook_handle)
+#endif
 
     ! Copy over downwelling fluxes above cloud from clear sky
     flux_dn(:,1:i_cloud_top) = flux_dn_clear(:,1:i_cloud_top)
@@ -200,9 +204,11 @@ contains
     ! the entire earth/atmosphere system below that half-level, and
     ! also the "source", which is the upwelling flux due to emission
     ! below that level
+    !$ACC LOOP SEQ
     do jlev = nlev,i_cloud_top,-1
       if (is_clear_sky_layer(jlev)) then
         ! Reflectance of this layer is zero, simplifying the expression
+        !$ACC LOOP WORKER VECTOR
         do jcol = 1,ncol
           albedo(jcol,jlev) = transmittance(jcol,jlev)*transmittance(jcol,jlev)*albedo(jcol,jlev+1)
           source(jcol,jlev) = source_up(jcol,jlev) &
@@ -211,6 +217,7 @@ contains
         end do
       else
         ! Loop over columns; explicit loop seems to be faster
+        !$ACC LOOP WORKER VECTOR
         do jcol = 1,ncol
           ! Lacis and Hansen (1974) Eq 33, Shonk & Hogan (2008) Eq 10:
           inv_denominator(jcol,jlev) = 1.0_jprb &
@@ -230,14 +237,17 @@ contains
     ! Compute the fluxes above the highest cloud
     flux_up(:,i_cloud_top) = source(:,i_cloud_top) &
          &                 + albedo(:,i_cloud_top)*flux_dn(:,i_cloud_top)
+    !$ACC LOOP SEQ
     do jlev = i_cloud_top-1,1,-1
       flux_up(:,jlev) = transmittance(:,jlev)*flux_up(:,jlev+1) + source_up(:,jlev)
     end do
 
     ! Work back down through the atmosphere from cloud top computing
     ! the fluxes at each half-level
+    !$ACC LOOP SEQ
     do jlev = i_cloud_top,nlev
       if (is_clear_sky_layer(jlev)) then
+        !$ACC LOOP WORKER VECTOR
         do jcol = 1,ncol
           flux_dn(jcol,jlev+1) = transmittance(jcol,jlev)*flux_dn(jcol,jlev) &
                &               + source_dn(jcol,jlev)
@@ -245,6 +255,7 @@ contains
                &               + source(jcol,jlev+1)
         end do
       else
+        !$ACC LOOP WORKER VECTOR
         do jcol = 1,ncol
           ! Shonk & Hogan (2008) Eq 14 (after simplification):
           flux_dn(jcol,jlev+1) &
@@ -258,7 +269,9 @@ contains
       end if
     end do
 
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_adding_ica_lw:fast_adding_ica_lw',1,hook_handle)
+#endif
 
   end subroutine fast_adding_ica_lw
 
@@ -273,7 +286,9 @@ contains
        &  transmittance, source_up, source_dn, emission_surf, albedo_surf, flux_up, flux_dn)
 
     use parkind1, only           : jprb
+#ifndef _OPENACC
     use yomhook,  only           : lhook, dr_hook
+#endif
 
     implicit none
 
@@ -299,16 +314,22 @@ contains
 
     real(jprb) :: hook_handle
 
+    !$ACC ROUTINE WORKER
+
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_adding_ica_lw:calc_fluxes_no_scattering_lw',0,hook_handle)
+#endif
 
     ! At top-of-atmosphere there is no diffuse downwelling radiation
     flux_dn(:,1) = 0.0_jprb
 
     ! Work down through the atmosphere computing the downward fluxes
     ! at each half-level
+!$ACC LOOP SEQ
 ! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = 1,nlev
+      !$ACC LOOP WORKER VECTOR
       do jcol = 1,ncol
         flux_dn(jcol,jlev+1) = transmittance(jcol,jlev)*flux_dn(jcol,jlev) + source_dn(jcol,jlev)
       end do
@@ -319,15 +340,19 @@ contains
 
     ! Work back up through the atmosphere computing the upward fluxes
     ! at each half-level
+!$ACC LOOP SEQ
 ! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = nlev,1,-1
+      !$ACC LOOP WORKER VECTOR
       do jcol = 1,ncol
         flux_up(jcol,jlev) = transmittance(jcol,jlev)*flux_up(jcol,jlev+1) + source_up(jcol,jlev)
       end do
     end do
     
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_adding_ica_lw:calc_fluxes_no_scattering_lw',1,hook_handle)
+#endif
 
   end subroutine calc_fluxes_no_scattering_lw
 
