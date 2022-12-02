@@ -952,13 +952,18 @@ contains
 
     if (lhook) call dr_hook('radiation_matrix:fast_expm_exchange_3',0,hook_handle)
 
-    ! Eigenvalues
+    ! Eigenvalues lambda1 and lambda2
     tmp1 = 0.5_jprb * (a(1:iend)+b(1:iend)+c(1:iend)+d(1:iend))
-    tmp2 = sqrt(tmp1*tmp1 - (a(1:iend)*c(1:iend) + a(1:iend)*d(1:iend) + b(1:iend)*d(1:iend)))
+    tmp2 = sqrt(max(0.0_jprb, tmp1*tmp1 - (a(1:iend)*c(1:iend) &
+         &                    + a(1:iend)*d(1:iend) + b(1:iend)*d(1:iend))))
+    ! The eigenvalues must not be the same or the LU decomposition
+    ! fails; this can occur occasionally in single precision, which we
+    ! avoid by limiting the minimum value of tmp2
+    tmp2 = max(tmp2, epsilon(1.0_jprb) * tmp1)
     lambda1 = -tmp1 + tmp2
     lambda2 = -tmp1 - tmp2
 
-    ! Eigenvectors, with securities such taht if a--d are all zero
+    ! Eigenvectors, with securities such that if a--d are all zero
     ! then V is non-singular and the identity matrix is returned in R;
     ! note that lambdaX is typically negative so we need a
     ! sign-preserving security
