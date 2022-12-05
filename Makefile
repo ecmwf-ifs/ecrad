@@ -99,9 +99,10 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifndef FIATDIR
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver symlinks
+build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver ifsdriver ifsdriver_blocked symlinks
+libradiation libutilities: libdummydrhook
 else
-build: directories libifsaux libutilities libifsrrtm libradiation driver symlinks
+build: directories libifsaux libutilities libifsrrtm libradiation driver ifsdriver ifsdriver_blocked symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -114,26 +115,36 @@ lib:
 deps: clean-deps
 	cd ifsaux && $(MAKE) deps
 	cd ifsrrtm && $(MAKE) deps
+	cd ifs && $(MAKE) deps
 
 clean-deps:
 	rm -f include/*.intfb.h
 
+ifsdriver: libifsaux libdummydrhook libifsrrtm libutilities libradiation libifs
+	cd driver && $(MAKE) ecrad_ifs_driver
+
+ifsdriver_blocked: libifsaux libdummydrhook libifsrrtm libutilities libradiation libifs
+	cd driver && $(MAKE) ecrad_ifs_driver_blocked
+
+libifs: libradiation
+	cd ifs && $(MAKE)
+
 libifsaux:
 	cd ifsaux && $(MAKE)
 
-libdummydrhook:
+libdummydrhook: libifsaux
 	cd drhook && $(MAKE) dummy
 
-libutilities:
+libutilities: libifsaux
 	cd utilities && $(MAKE)
 
-libifsrrtm:
+libifsrrtm: libifsaux
 	cd ifsrrtm && $(MAKE)
 
-libradiation:
+libradiation: libutilities libifsaux
 	cd radiation && $(MAKE)
 
-driver:
+driver: libifsaux libdummydrhook libifsrrtm libutilities libradiation
 	cd driver && $(MAKE)
 
 symlinks: clean-symlinks
@@ -142,10 +153,10 @@ symlinks: clean-symlinks
 
 test: test_ifs test_i3rc test_ckdmip
 
-test_ifs:
+test_ifs: driver
 	cd test/ifs && $(MAKE) test
 
-test_i3rc:
+test_i3rc: driver
 	cd test/i3rc && $(MAKE) test
 
 test_ckdmip:
@@ -167,6 +178,7 @@ clean-utilities:
 	cd utilities && $(MAKE) clean
 	cd ifsrrtm && $(MAKE) clean
 	cd drhook && $(MAKE) clean
+	cd ifs && $(MAKE) clean
 
 clean-mods:
 	rm -f mod/*.mod
@@ -178,5 +190,5 @@ clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: all build help deps clean-deps libifsaux libdummydrhook libutilities libifsrrtm \
-	libradiation driver symlinks clean clean-toplevel test test_ifs \
-	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
+	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver \
+	ifsdriver_blocked test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
