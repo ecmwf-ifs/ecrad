@@ -35,7 +35,7 @@ contains
        &                 iverbose, is_hdf5_file, experiment_name, &
        &                 is_double_precision)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     use easy_netcdf
 
@@ -59,7 +59,7 @@ contains
     character(5)                           :: lw_units_str
     integer                                :: i_local_verbose
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_save:save_fluxes',0,hook_handle)
     
@@ -725,7 +725,7 @@ contains
   ! Save inputs to the radiation scheme
   subroutine save_inputs(file_name, config, single_level, thermodynamics, &
        &                 gas, cloud, aerosol, lat, lon, iverbose)
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type
     use radiation_single_level,   only : single_level_type
@@ -758,7 +758,7 @@ contains
 
     logical :: do_aerosol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_save:save_inputs',0,hook_handle)
 

@@ -30,7 +30,7 @@ contains
        &  flux)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     use radiation_config, only         : config_type
     use radiation_single_level, only   : single_level_type
@@ -95,7 +95,7 @@ contains
     ! Loop indices for level and column
     integer :: jlev, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloudless_sw:solver_cloudless_sw',0,hook_handle)
 

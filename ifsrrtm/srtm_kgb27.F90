@@ -9,7 +9,7 @@ SUBROUTINE SRTM_KGB27
 !     ------------------------------------------------------------------
 
 USE PARKIND1  , ONLY : JPRB
-USE YOMHOOK   , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    , ONLY : NULRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 USE MPL_MODULE, ONLY : MPL_BROADCAST
@@ -26,7 +26,7 @@ IMPLICIT NONE
 !     the total irradiance in this band differs from the corresponding
 !     total in the "high-resolution" version of the Kurucz function.
 !     Therefore, below these values are scaled by the factor SCALEKUR.
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 

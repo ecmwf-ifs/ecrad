@@ -37,7 +37,7 @@ contains
   subroutine setup_radiation(config)
 
     use parkind1,         only : jprb
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_config, only : config_type, ISolverMcICA, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
     use radiation_spectral_definition, only &
@@ -57,7 +57,7 @@ contains
 
     type(config_type), intent(inout) :: config
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_interface:setup_radiation',0,hook_handle)
 
@@ -183,7 +183,7 @@ contains
        &  single_level, thermodynamics, gas, cloud, aerosol, flux)
 
     use parkind1,                 only : jprb
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     use radiation_io,             only : nulout
     use radiation_config,         only : config_type, &
@@ -285,7 +285,7 @@ contains
     character(len=100) :: rad_prop_file_name
     character(*), parameter :: rad_prop_base_file_name = "radiative_properties"
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_interface:radiation',0,hook_handle)
 

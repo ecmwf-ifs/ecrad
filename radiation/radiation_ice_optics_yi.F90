@@ -39,7 +39,7 @@ contains
        &  re, od, scat_od, g)
 
     use parkind1, only : jprb, jpim
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -61,7 +61,7 @@ contains
     integer(jpim) :: lu_idx
     real(kind=jprb), parameter    :: lu_scale  = 0.2_jprb
     real(kind=jprb), parameter    :: lu_offset = 1.0_jprb
-    !real(jprb)  :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_yi_sw',0,hook_handle)
 
@@ -96,7 +96,7 @@ contains
        &  re, od, scat_od, g)
 
     use parkind1, only : jprb, jpim
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -118,7 +118,7 @@ contains
     integer(jpim) :: lu_idx
     real(kind=jprb), parameter    :: lu_scale  = 0.2_jprb
     real(kind=jprb), parameter    :: lu_offset = 1.0_jprb
-    !real(jprb)  :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_yi_sw',0,hook_handle)
 

@@ -98,14 +98,14 @@ contains
   subroutine allocate_single_level(this, ncol, nalbedobands, nemisbands, &
        &                           use_sw_albedo_direct, is_simple_surface)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(single_level_type), intent(inout) :: this
     integer,                  intent(in)    :: ncol, nalbedobands, nemisbands
     logical,        optional, intent(in)    :: use_sw_albedo_direct
     logical,        optional, intent(in)    :: is_simple_surface
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:allocate',0,hook_handle)
 
@@ -145,11 +145,11 @@ contains
   ! Deallocate the arrays of a single-level type
   subroutine deallocate_single_level(this)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(single_level_type), intent(inout) :: this
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:deallocate',0,hook_handle)
 
@@ -208,7 +208,7 @@ contains
 
     use radiation_config, only : config_type
     use radiation_io,     only : nulerr, radiation_abort
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
 
     class(single_level_type), intent(in) :: this
     type(config_type),        intent(in) :: config
@@ -236,7 +236,7 @@ contains
     ! Loop indices for ecRad bands and albedo bands
     integer :: jband, jalbedoband, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:get_albedos',0,hook_handle)
 
@@ -358,7 +358,7 @@ contains
   ! columns between istartcol and iendcol
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_check,  only : out_of_bounds_1d, out_of_bounds_2d
 
     class(single_level_type), intent(inout) :: this
@@ -368,7 +368,7 @@ contains
 
     logical    :: do_fix_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:out_of_physical_bounds',0,hook_handle)
 

@@ -70,7 +70,7 @@ contains
        &                                weighting_temperature, &
        &                                iverbose)
 
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use easy_netcdf,                   only : netcdf_file
     use radiation_spectral_definition, only : spectral_definition_type
     use radiation_io,                  only : nulout, nulerr, radiation_abort
@@ -111,7 +111,7 @@ contains
 
     logical    :: use_bands_local, use_thick_averaging_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup',0,hook_handle)
 
@@ -243,7 +243,7 @@ contains
        &                            water_path, effective_radius, &
        &                            od, scat_od, scat_asymmetry)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(general_cloud_optics_type), intent(in) :: this
 
@@ -270,7 +270,7 @@ contains
 
     integer :: jcol, jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',0,hook_handle)
 

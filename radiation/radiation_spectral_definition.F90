@@ -77,12 +77,12 @@ contains
   subroutine read_spectral_definition(this, file)
 
     use easy_netcdf, only : netcdf_file
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(inout) :: this
     type(netcdf_file),               intent(inout) :: file
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:read',0,hook_handle)
 
@@ -113,12 +113,12 @@ contains
   ! upper wavenumbers of each band
   subroutine allocate_bands_only(this, wavenumber1, wavenumber2)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(inout) :: this
     real(jprb),        dimension(:), intent(in)    :: wavenumber1, wavenumber2
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:allocate_bands_only',0,hook_handle)
 
@@ -186,7 +186,7 @@ contains
   ! function to weight each wavenumber appropriately.
   subroutine calc_mapping(this, temperature, wavenumber, mapping, use_bands)
 
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
@@ -215,7 +215,7 @@ contains
 
     logical    :: use_bands_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping',0,hook_handle)
 
@@ -468,7 +468,7 @@ contains
   subroutine calc_mapping_from_bands(this, temperature, &
        &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
 
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
@@ -521,7 +521,7 @@ contains
     ! Loop indices
     integer    :: jg, jband, jin, jint
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_bands',0,hook_handle)
 
@@ -690,7 +690,7 @@ contains
   subroutine calc_mapping_from_wavenumber_bands(this, temperature, &
        &  wavenumber1, wavenumber2, mapping, use_bands, use_fluxes)
 
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
@@ -726,7 +726,7 @@ contains
     ! Loop indices
     integer :: jint
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_wavenumber_bands',0,hook_handle)
 

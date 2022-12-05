@@ -30,7 +30,7 @@ SUBROUTINE RRTM_RRTM_140GP_MCICA &
 !-----------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB
-USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX 
 USE YOERRTM  , ONLY : JPGPT  
 USE YOMCST   , ONLY : RG  ! , RDAYI, RCPD
@@ -185,7 +185,7 @@ REAL(KIND=JPRB) :: ZLwDerivative(KIDIA:KFDIA,KLEV+1)
 
 LOGICAL            :: LLPRINT
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "rrtm_ecrt_140gp_mcica.intfb.h"
 #include "rrtm_gasabs1a_140gp.intfb.h"

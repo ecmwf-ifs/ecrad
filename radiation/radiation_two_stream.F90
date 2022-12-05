@@ -41,8 +41,8 @@ module radiation_two_stream
   real(jprb), parameter :: SwDiffusivity = 2.00_jprb
 
   ! The routines in this module can be called millions of times, so
-  !calling Dr Hook for each one may be a significant overhead.
-  !Uncomment the following to turn Dr Hook on.
+  ! calling Dr Hook for each one may be a significant overhead.
+  ! Uncomment the following to turn Dr Hook on.
 !#define DO_DR_HOOK_TWO_STREAM
 
 contains
@@ -71,7 +71,7 @@ contains
        &                               gamma1, gamma2)
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 #endif
 
     integer, intent(in) :: ng
@@ -84,7 +84,7 @@ contains
     integer    :: jg
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_two_stream_gammas_lw',0,hook_handle)
 #endif
@@ -116,7 +116,7 @@ contains
        &                               gamma1, gamma2, gamma3)
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 #endif
 
     integer, intent(in) :: ng
@@ -131,7 +131,7 @@ contains
     integer    :: jg
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_two_stream_gammas_sw',0,hook_handle)
 #endif
@@ -169,7 +169,7 @@ contains
        &    reflectance, transmittance, source_up, source_dn)
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 #endif
 
     implicit none
@@ -206,7 +206,7 @@ contains
     integer :: jg
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_lw',0,hook_handle)
 #endif
@@ -267,7 +267,7 @@ contains
        &    reflectance, transmittance, source_up, source_dn)
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 #endif
 
     integer, intent(in) :: ng
@@ -304,7 +304,7 @@ contains
     integer :: jg
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_ref_trans_lw',0,hook_handle)
 #endif
@@ -364,7 +364,7 @@ contains
        &    od, planck_top, planck_bot, transmittance, source_up, source_dn)
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 #endif
 
     integer, intent(in) :: ng
@@ -390,7 +390,7 @@ contains
     integer :: jg
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',0,hook_handle)
 #endif
@@ -452,7 +452,7 @@ contains
        &      ref_dir, trans_dir_diff, trans_dir_dir)
     
 #ifdef DO_DR_HOOK_TWO_STREAM
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 #endif
 
     integer, intent(in) :: ng
@@ -495,7 +495,7 @@ contains
     real(jprb) :: mu0_local
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_sw',0,hook_handle)
 #endif
@@ -594,7 +594,7 @@ contains
        &      ref_dir, trans_dir_diff, trans_dir_dir)
     
 #ifdef DO_DR_HOOK_TWO_STREAM
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 #endif
 
     implicit none
@@ -634,7 +634,7 @@ contains
     integer    :: jg
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_ref_trans_sw',0,hook_handle)
 #endif
@@ -726,7 +726,7 @@ contains
        &      gamma1, gamma2, frac_scat_diffuse)
     
 #ifdef DO_DR_HOOK_TWO_STREAM
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 #endif
 
     integer, intent(in) :: ng
@@ -749,7 +749,7 @@ contains
     integer    :: jg
 
 #ifdef DO_DR_HOOK_TWO_STREAM
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_frac_scattered_diffuse_sw',0,hook_handle)
 #endif

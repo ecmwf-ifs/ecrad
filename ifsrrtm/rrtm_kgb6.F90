@@ -10,7 +10,7 @@ SUBROUTINE RRTM_KGB6
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
@@ -22,7 +22,7 @@ USE YOMMP0    , ONLY : NPROC, MYPROC
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 

@@ -5,6 +5,9 @@ version 1.5.1
 	- Fix occasional crash in single-precision fast_expm_exchange_3
 	  for shortwave SPARTACUS entrapment
 	- Fixed radiation_random_numbers.F90 in single precision
+	- Removed Dr Hook implementation for profiling; instead optionally
+	  call make with FIATDIR to specify the location of ECMWF's fiat
+	  library which contains Dr Hook
 
 version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description

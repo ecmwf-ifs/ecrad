@@ -144,17 +144,20 @@ test_ecckd_tc_noaer:
 # Profiling
 TAG = default
 profile:
+	mkdir -p profiling_$(TAG)
 	$(CHANGENAM) $(CONFIG) config_profile.nam \
 		nrepeat=100 do_save_spectral_flux=false
-	$(DRIVER) config_profile.nam $(INPUT).nc $(INPUT)_default_prof_out.nc \
+	DR_HOOK=1 DR_HOOK_OPT=prof DR_HOOK_PROFILE=profiling_$(TAG)/$(INPUT)_default_prof_out.drhook \
+		$(DRIVER) config_profile.nam $(INPUT).nc $(INPUT)_default_prof_out.nc \
 		| tee $(INPUT)_default_prof_out.log
-	if [[ -f gmon.out ]]; then gprof $(DRIVER) gmon.out > $(INPUT)_default_prof_out.gprof; fi
+	if [[ -f gmon.out ]]; then gprof $(DRIVER) gmon.out > profiling_$(TAG)/$(INPUT)_default_prof_out.gprof; fi
 	$(CHANGENAM) $(CONFIG_ECCKD) config_profile.nam \
 		nrepeat=100 do_save_spectral_flux=false do_save_radiative_properties=false
-	$(DRIVER) config_profile.nam $(INPUT).nc $(INPUT)_ecckd_tc_prof_out.nc \
+	DR_HOOK=1 DR_HOOK_OPT=prof DR_HOOK_PROFILE=profiling_$(TAG)/$(INPUT)_ecckd_tc_prof_out.drhook \
+		$(DRIVER) config_profile.nam $(INPUT).nc $(INPUT)_ecckd_tc_prof_out.nc \
 		| tee $(INPUT)_ecckd_tc_prof_out.log
 	if [[ -f gmon.out ]]; then gprof $(DRIVER) gmon.out > $(INPUT)_ecckd_tc_prof_out.gprof; fi
-	mkdir -p profiling_$(TAG)
+
 	mv $(INPUT)_*_prof_out.* profiling_$(TAG)
 
 # Clean data files

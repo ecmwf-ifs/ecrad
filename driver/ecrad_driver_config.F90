@@ -120,7 +120,6 @@ contains
   ! argument is missing then on error the program will be aborted.
   subroutine read_config_from_namelist(this, file_name, is_success)
 
-    use yomhook,      only : lhook, dr_hook
     use radiation_io, only : nulerr, radiation_abort
 
     class(driver_config_type), intent(inout) :: this
@@ -202,10 +201,6 @@ contains
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling, &
          &  vmr_suffix_str, experiment_name, do_write_double_precision
 
-    real(jprb) :: hook_handle
-
-    if (lhook) call dr_hook('ecrad_driver_config:read',0,hook_handle)
-    
     ! Default values
     do_parallel = .true.
     do_save_inputs = .false.
@@ -358,8 +353,6 @@ contains
     this%no2_scaling    = no2_scaling
     this%vmr_suffix_str = trim(vmr_suffix_str)
     this%experiment_name= trim(experiment_name)
-
-    if (lhook) call dr_hook('ecrad_driver_config:read',1,hook_handle)
 
   end subroutine read_config_from_namelist
 

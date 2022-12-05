@@ -43,7 +43,7 @@ contains
   subroutine calc_lw_derivatives_ica(ng, nlev, icol, transmittance, flux_up_surf, lw_derivatives)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -63,7 +63,7 @@ contains
 
     integer    :: jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_lw_derivatives:calc_lw_derivatives_ica',0,hook_handle)
 
@@ -89,7 +89,7 @@ contains
        &                               flux_up_surf, weight, lw_derivatives)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -110,7 +110,7 @@ contains
 
     integer    :: jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_lw_derivatives:modify_lw_derivatives_ica',0,hook_handle)
 
@@ -139,7 +139,7 @@ contains
        &                                u_matrix, flux_up_surf, lw_derivatives)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     use radiation_matrix
 
@@ -163,7 +163,7 @@ contains
 
     integer    :: jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_lw_derivatives:calc_lw_derivatives_matrix',0,hook_handle)
 
@@ -201,7 +201,7 @@ contains
        &                                u_matrix, flux_up_surf, lw_derivatives)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     use radiation_matrix
 
@@ -226,7 +226,7 @@ contains
 
     integer    :: jlev, jg
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_lw_derivatives:calc_lw_derivatives_region',0,hook_handle)
 

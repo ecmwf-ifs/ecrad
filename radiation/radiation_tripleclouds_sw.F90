@@ -46,7 +46,7 @@ contains
        &  flux)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
 !    use radiation_io, only             : nulout
     use radiation_config, only         : config_type, IPdfShapeGamma
@@ -171,7 +171,7 @@ contains
 
     integer :: jcol, jlev, jg, jreg, iband, jreg2, ng
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_tripleclouds_sw:solver_tripleclouds_sw',0,hook_handle)
 

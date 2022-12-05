@@ -66,10 +66,18 @@ export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
-	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
-ifdef DR_HOOK
-LIBS += -ldl -lrt
-export CFLAGS = -g -O2
+	-lifsrrtm -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+
+# Do we include Dr Hook from ECMWF's fiat library?
+ifdef FIATDIR
+# Prepend location of yomhook.mod module file from fiat library, so
+# that it is found in preference to the dummy one in ecRad
+FCFLAGS := -I$(FIATDIR)/module/fiat $(FCFLAGS)
+# Append fiat library (usually shared: libfiat.so)
+LIBS += -L$(FIATDIR)/lib -Wl,-rpath,$(FIATDIR)/lib -lfiat
+else
+# Dummy Dr Hook library
+LIBS += -ldrhook
 endif
 
 
@@ -83,17 +91,17 @@ help:
 	@echo "Usage:"
 	@echo "  make PROFILE=<prof>"
 	@echo "where <prof> is one of gfortran, pgi, intel or cray (see Makefile_include.<prof>)"
-	@echo "Other arguments to make are:"
+	@echo "Other possible arguments are:"
 	@echo "  DEBUG=1              Compile with debug settings on and optimizations off"
 	@echo "  SINGLE_PRECISION=1   Compile with single precision"
-	@echo "  DR_HOOK=1            Compile with the Dr Hook profiling system"
+	@echo "  FIATDIR=/my/path     Compile with Dr Hook, specifying the directory containing lib/libfiat.so and module/fiat/yomhook.mod"
 	@echo "  test                 Run test cases in test directory"
 	@echo "  clean                Remove all compiled files"
 
-ifdef DR_HOOK
-build: directories libifsaux libdrhook libutilities libifsrrtm libradiation driver symlinks
-else
+ifndef FIATDIR
 build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver symlinks
+else
+build: directories libifsaux libutilities libifsrrtm libradiation driver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -112,9 +120,6 @@ clean-deps:
 
 libifsaux:
 	cd ifsaux && $(MAKE)
-
-libdrhook:
-	cd drhook && $(MAKE)
 
 libdummydrhook:
 	cd drhook && $(MAKE) dummy
@@ -172,6 +177,6 @@ clean-symlinks:
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
-.PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
+.PHONY: all build help deps clean-deps libifsaux libdummydrhook libutilities libifsrrtm \
 	libradiation driver symlinks clean clean-toplevel test test_ifs \
 	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks

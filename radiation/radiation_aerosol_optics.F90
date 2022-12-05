@@ -34,14 +34,14 @@ contains
   subroutine setup_aerosol_optics(config)
 
     use parkind1,                      only : jprb
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type
     use radiation_io,                  only : nulerr, radiation_abort
 
     type(config_type), intent(inout) :: config
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_aerosol_optics',0,hook_handle)
 
@@ -94,7 +94,7 @@ contains
   subroutine setup_general_aerosol_optics(config)
 
     use parkind1,                      only : jprb
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use easy_netcdf,                   only : netcdf_file
     use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type
@@ -145,7 +145,7 @@ contains
     ! Weight of first point in interpolation
     real(jprb) :: weight1
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_general_aerosol_optics',0,hook_handle)
 
@@ -339,7 +339,7 @@ contains
   subroutine setup_general_aerosol_optics_legacy(config, file_name)
 
     use parkind1,                      only : jprb
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use easy_netcdf,                   only : netcdf_file
     use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type
@@ -365,7 +365,7 @@ contains
 
     integer :: jtype
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_general_aerosol_optics_legacy',0,hook_handle)
     ao => config%aerosol_optics
@@ -478,7 +478,7 @@ contains
 
     use parkind1,                      only : jprb
     use radiation_io,                  only : nulout, nulerr, radiation_abort
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use radiation_config,              only : config_type
     use radiation_thermodynamics,      only : thermodynamics_type
     use radiation_gas,                 only : gas_type, IH2O, IMassMixingRatio
@@ -553,7 +553,7 @@ contains
     ! Pointer to the aerosol optics coefficients for brevity of access
     type(aerosol_optics_type), pointer :: ao
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics:add_aerosol_optics',0,hook_handle)
 
@@ -824,7 +824,7 @@ contains
 
     use parkind1,                      only : jprb
     use radiation_io,                  only : nulerr, radiation_abort
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use radiation_config,              only : config_type
     use radiation_aerosol,             only : aerosol_type
 
@@ -869,7 +869,7 @@ contains
     ! Indices to spectral band
     integer :: iband
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics:add_aerosol_optics_direct',0,hook_handle)
 
@@ -1074,7 +1074,7 @@ contains
        &  config, wavelength, mixing_ratio, relative_humidity, extinction)
 
     use parkind1,                      only : jprb
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use radiation_io,                  only : nulerr, radiation_abort
     use radiation_config,              only : config_type
     use radiation_aerosol_optics_data, only : aerosol_optics_type, &
@@ -1104,7 +1104,7 @@ contains
     ! Relative humidity index
     integer :: irh
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics:aerosol_extinction',0,hook_handle)
 

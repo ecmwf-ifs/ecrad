@@ -10,7 +10,7 @@ SUBROUTINE RRTM_KGB13
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 USE MPL_MODULE,ONLY : MPL_BROADCAST
@@ -22,7 +22,7 @@ USE YOERRTO13, ONLY : KAO     ,KAO_D,SELFREFO, FORREFO ,FRACREFAO, FRACREFBO, KA
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 

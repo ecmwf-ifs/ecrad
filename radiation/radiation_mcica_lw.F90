@@ -41,7 +41,7 @@ contains
        &  flux)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     use radiation_io,   only           : nulerr, radiation_abort
     use radiation_config, only         : config_type
@@ -137,7 +137,7 @@ contains
     ! Loop indices for level, column and g point
     integer :: jlev, jcol, jg
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_mcica_lw:solver_mcica_lw',0,hook_handle)
 

@@ -629,7 +629,7 @@ contains
   ! read, but not both.
   subroutine read_config_from_namelist(this, file_name, unit, is_success)
 
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulout, nulerr, nulrad, radiation_abort
 
     class(config_type), intent(inout)         :: this
@@ -723,7 +723,7 @@ contains
          &  do_cloud_aerosol_per_lw_g_point, &
          &  do_cloud_aerosol_per_sw_g_point, do_weighted_surface_mapping
          
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_config:read',0,hook_handle)
 
@@ -1044,12 +1044,12 @@ contains
   subroutine consolidate_config(this)
 
     use parkind1,     only : jprd
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulout, nulerr, radiation_abort
 
     class(config_type), intent(inout)         :: this
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_config:consolidate',0,hook_handle)
 

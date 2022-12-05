@@ -21,7 +21,7 @@ SUBROUTINE RRTM_TAUMOL15 (KIDIA,KFDIA,KLEV,P_TAU,&
 ! ---------------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE PARRRTM  , ONLY : JPBAND
 USE YOERRTM  , ONLY : JPGPT  ,NGS14  ,NG15
@@ -78,7 +78,7 @@ REAL(KIND=JPRB) :: Z_FS, Z_SPECMULT, Z_SPECPARM,Z_SPECCOMB,  &
 & Z_FS1, Z_SPECMULT1, Z_SPECPARM1,Z_SPECCOMB1, &
 & Z_FMN2, Z_SPECMULT_MN2, Z_SPECPARM_MN2,Z_SPECCOMB_MN2, &
 & Z_FPL, Z_SPECMULT_PLANCK, Z_SPECPARM_PLANCK,Z_SPECCOMB_PLANCK
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 ! ---------------------------------------------------------------------------
 ! Minor gas mapping level : 
 !     Lower - Nitrogen Continuum, P = 1053., T = 294.

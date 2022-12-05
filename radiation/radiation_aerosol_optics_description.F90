@@ -73,7 +73,7 @@ contains
   ! aerosol_optics_description_type object
   subroutine read(this, file_name, iverbose)
 
-    use yomhook,              only : lhook, dr_hook
+    use yomhook,              only : lhook, dr_hook, jphook
     use easy_netcdf,          only : netcdf_file
 
     class(aerosol_optics_description_type), intent(inout) :: this
@@ -83,7 +83,7 @@ contains
     ! The NetCDF file containing the aerosol optics data
     type(netcdf_file)  :: file
 
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_description:load',0,hook_handle)
 
@@ -122,7 +122,7 @@ contains
   ! "Woodward2001" would both match the Woodward2001 model.
   subroutine preferred_optical_model(this, code_str, optical_model_str)
 
-    use yomhook,              only : lhook, dr_hook
+    use yomhook,              only : lhook, dr_hook, jphook
 
     class(aerosol_optics_description_type), intent(inout) :: this
     character(len=2), intent(in) :: code_str
@@ -131,7 +131,7 @@ contains
     ! Aerosol loop counter
     integer :: ja
 
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_description:preferred_optical_model',0,hook_handle)
 
@@ -172,7 +172,7 @@ contains
   ! on the closeness of the match.
   function get_index(this, code_str, lhydrophilic, ibin, optical_model_str)
     
-    use yomhook,              only : lhook, dr_hook
+    use yomhook,              only : lhook, dr_hook, jphook
     use easy_netcdf,          only : netcdf_file
     use radiation_io,         only : nulout
 
@@ -195,7 +195,7 @@ contains
     ! Issue a warning if there is more than one equal match
     logical :: is_ambiguous
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_description:get_index',0,hook_handle)
 

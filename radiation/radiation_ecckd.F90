@@ -107,7 +107,7 @@ contains
 
     use easy_netcdf,  only : netcdf_file
     !use radiation_io, only : nulerr, radiation_abort
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
 
     class(ckd_model_type), intent(inout) :: this
     character(len=*),      intent(in)    :: filename
@@ -128,7 +128,7 @@ contains
 
     integer :: istart, inext, nchar, i_gas_code
 
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ecckd:read_ckd_model',0,hook_handle)
 
@@ -269,7 +269,7 @@ contains
        &  pressure_hl, temperature_fl, mole_fraction_fl, &
        &  optical_depth_fl, rayleigh_od_fl)
 
-    use yomhook,             only : lhook, dr_hook
+    use yomhook,             only : lhook, dr_hook, jphook
     use radiation_constants, only : AccelDueToGravity
 
     ! Input variables
@@ -317,7 +317,7 @@ contains
 
     integer :: jcol, jlev, jgas, igascode
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ecckd:calc_optical_depth',0,hook_handle)
 

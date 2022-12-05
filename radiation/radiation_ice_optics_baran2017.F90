@@ -33,7 +33,7 @@ contains
        &  qi, temperature, od, scat_od, g)
 
     use parkind1, only : jprb
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -51,7 +51,7 @@ contains
     ! Modified ice mixing ratio, and the same raised to an appropriate power
     real(jprb) :: qi_mod, qi_mod_od, qi_mod_ssa, qi_mod_g
     
-    !real(jprb) :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_baran2017',0,hook_handle)
 

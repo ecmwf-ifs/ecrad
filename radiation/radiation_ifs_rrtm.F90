@@ -37,7 +37,7 @@ contains
     use yoesrtm,   only : jpgsw
     use yoerrtftr, only : ngb_lw => ngb
     use yoesrtm,   only : ngb_sw => ngbsw
-    use yomhook,   only : lhook, dr_hook
+    use yomhook,   only : lhook, dr_hook, jphook
 
     use radiation_config
 
@@ -65,7 +65,7 @@ contains
           &   44, 107, 94, 14, 108, 15, 16, 109, 17, 18, 110, 111, 112 &
           & /)
     
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
 !#include "surdi.intfb.h"
 #include "surrtab.intfb.h"
@@ -199,7 +199,7 @@ contains
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
     USE YOESRTM  , ONLY : JPGPT_SW => JPGPT  
     !USE YOMDIMV  , ONLY : YRDIMV
-    use yomhook  , only : lhook, dr_hook
+    use yomhook  , only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type, ISolverSpartacus
     use radiation_thermodynamics, only : thermodynamics_type
@@ -336,7 +336,7 @@ contains
 
     integer :: jlev, jgreorder, jg, ig, iband, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
 #include "rrtm_prepare_gases.intfb.h"
 #include "rrtm_setcoef_140gp.intfb.h"
@@ -589,7 +589,7 @@ contains
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
     use yoerrtwn, only : totplnk, delwave
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type, ISolverSpartacus
     use radiation_thermodynamics, only : thermodynamics_type
@@ -621,7 +621,7 @@ contains
 
     integer :: jlev, jgreorder, jg, ig, iband, jband, jcol, ilevoffset
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_atmos',0,hook_handle)
 
@@ -725,7 +725,7 @@ contains
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
     use yoerrtwn, only : totplnk, delwave
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type, ISolverSpartacus
     !    use radiation_gas
@@ -755,7 +755,7 @@ contains
 
     integer :: jgreorder, jg, ig, iband, jband, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_surf',0,hook_handle)
 

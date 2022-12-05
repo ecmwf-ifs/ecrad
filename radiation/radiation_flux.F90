@@ -114,7 +114,7 @@ contains
   ! istartcol, iendcol and levels from 1 to nlev+1
   subroutine allocate_flux_type(this, config, istartcol, iendcol, nlev)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_io,     only : nulerr, radiation_abort
     use radiation_config, only : config_type
 
@@ -122,7 +122,7 @@ contains
     class(flux_type), intent(inout) :: this
     type(config_type), intent(in)   :: config
 
-    real(jprb)                      :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:allocate',0,hook_handle)
 
@@ -262,10 +262,10 @@ contains
   ! Deallocate flux arrays
   subroutine deallocate_flux_type(this)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
 
     class(flux_type), intent(inout) :: this
-    real(jprb)                      :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:deallocate',0,hook_handle)
 
@@ -343,7 +343,7 @@ contains
   ! downwelling surface fluxes at each g point
   subroutine calc_surface_spectral(this, config, istartcol, iendcol)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_config, only : config_type
 
     class(flux_type),  intent(inout) :: this
@@ -356,7 +356,7 @@ contains
     ! canopy fluxes
     real(jprb) :: lw_dn_surf_band(config%n_bands_lw,istartcol:iendcol)
 
-    real(jprb)                       :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',0,hook_handle)
 
@@ -526,14 +526,14 @@ contains
   ! between istartcol and iendcol
   function out_of_physical_bounds(this, istartcol, iendcol) result(is_bad)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_check,  only : out_of_bounds_2d
 
     class(flux_type), intent(inout) :: this
     integer, optional,intent(in) :: istartcol, iendcol
     logical                      :: is_bad
 
-    real(jprb)                   :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:out_of_physical_bounds',0,hook_handle)
 
