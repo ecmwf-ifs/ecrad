@@ -168,17 +168,11 @@ contains
     this%effective_radius_0 = effective_radius(1)
     this%d_effective_radius = effective_radius(2) - effective_radius(1)
 
-    ! Set up weighting
-    if (.not. present(weighting_temperature)) then
-      write(nulerr, '(a)') '*** Error: weighting_temperature not provided'
-      call radiation_abort('Radiation configuration error')
-    end if
-
     nwav = size(wavenumber)
 
     ! Define the mapping matrix
-    call specdef%calc_mapping(weighting_temperature, &
-         &                    wavenumber, mapping, use_bands=use_bands)
+    call specdef%calc_mapping(wavenumber, mapping, &
+         weighting_temperature=weighting_temperature, use_bands=use_bands)
 
     ! Thick averaging should be performed on delta-Eddington scaled
     ! quantities (it makes no difference to thin averaging)
@@ -213,7 +207,11 @@ contains
 
     if (iverb >= 2) then
       write(nulout,'(a,a)') '  File: ', trim(file_name)
-      write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', weighting_temperature, ' K'
+      if (present(weighting_temperature)) then
+        write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', weighting_temperature, ' K'
+      else
+        write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', specdef%reference_temperature, ' K'
+      end if
       if (use_thick_averaging_local) then
         write(nulout,'(a)') '  SSA averaging: optically thick limit'
       else

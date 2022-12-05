@@ -70,6 +70,12 @@ contains
         call config%gas_optics_sw%print()
       end if
 
+      ! Override solar spectral irradiance, if filename provided
+      if (config%use_spectral_solar_cycle) then
+        call config%gas_optics_sw%read_spectral_solar_cycle(config%ssi_file_name, &
+             &           config%iverbosesetup, config%use_updated_solar_spectrum)
+      end if
+
     end if
 
     if (config%do_lw) then
@@ -229,7 +235,13 @@ contains
       ssa_sw = ssa_sw / od_sw
 
       if (present(incoming_sw)) then
-        call config%gas_optics_sw%calc_incoming_sw(single_level%solar_irradiance, incoming_sw)
+        if (single_level%spectral_solar_cycle_multiplier == 0.0_jprb) then
+          call config%gas_optics_sw%calc_incoming_sw(single_level%solar_irradiance, &
+               &        incoming_sw)
+        else
+          call config%gas_optics_sw%calc_incoming_sw(single_level%solar_irradiance, &
+               &        incoming_sw, single_level%spectral_solar_cycle_multiplier)
+        end if
       end if
 
     end if

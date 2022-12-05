@@ -23,6 +23,9 @@ module ecrad_driver_config
   ! Max length of "experiment" global attribute
   integer, parameter :: NMaxStringLength = 2000
 
+  ! Maximum number of spectral diagnostics
+  integer, parameter :: NMaxSpectralDiag = 256
+  
   type driver_config_type
 
      ! Parallel settings
@@ -45,6 +48,7 @@ module ecrad_driver_config
      real(jprb) :: overlap_decorr_length_scaling
      real(jprb) :: skin_temperature_override ! K
      real(jprb) :: solar_irradiance_override ! W m-2
+     real(jprb) :: solar_cycle_multiplier_override
      real(jprb) :: cos_sza_override
      real(jprb) :: cloud_inhom_separation_factor  = 1.0_jprb
      real(jprb) :: cloud_separation_scale_surface = -1.0_jprb
@@ -62,6 +66,20 @@ module ecrad_driver_config
      real(jprb) :: hcfc22_scaling = 1.0_jprb
      real(jprb) :: ccl4_scaling   = 1.0_jprb
      real(jprb) :: no2_scaling    = 1.0_jprb
+
+     ! Optional monotonically increasing wavelength bounds (m) for
+     ! shortwave spectral flux diagnostics, to be written to
+     ! sw_diagnostic_file_name
+     real(jprb) :: sw_diag_wavelength_bound(NMaxSpectralDiag+1) = -1.0_jprb
+
+     ! Name of file to write shortwave spectral diagnostics to, but
+     ! only if sw_diag_wavelength_bound is populated via the namelist
+     character(len=NMaxStringLength) :: sw_diag_file_name = 'sw_diagnostics.nc'
+
+     ! Number of shortwave diagnostics, worked out from first
+     ! unassigned value in sw_diag_wavelength_bound after reading
+     ! namelist
+     integer :: n_sw_diag
      
      ! Volume mixing ratios (m3 m-3) in model layers (or equivalently
      ! mole fractions (mol mol-1)) are typically stored in the input
@@ -147,6 +165,7 @@ contains
     real(jprb) :: skin_temperature
     real(jprb) :: cos_solar_zenith_angle
     real(jprb) :: solar_irradiance_override
+    real(jprb) :: solar_cycle_multiplier_override
     real(jprb) :: cloud_inhom_separation_factor
     real(jprb) :: cloud_separation_scale_surface
     real(jprb) :: cloud_separation_scale_toa
@@ -163,6 +182,8 @@ contains
     real(jprb) :: hcfc22_scaling
     real(jprb) :: ccl4_scaling  
     real(jprb) :: no2_scaling   
+    real(jprb) :: sw_diag_wavelength_bound(NMaxSpectralDiag+1)
+    character(len=NMaxStringLength) :: sw_diag_file_name
     character(len=32) :: vmr_suffix_str
     character(len=NMaxStringLength) :: experiment_name
 
@@ -186,6 +207,9 @@ contains
     ! Are we going to override the effective size?
     logical :: do_override_eff_size
 
+    ! Loop index
+    integer :: jdiag
+    
     namelist /radiation_driver/ fractional_std, &
          &  overlap_decorr_length, inv_effective_size, sw_albedo, &
          &  high_inv_effective_size, middle_inv_effective_size, &
@@ -193,6 +217,7 @@ contains
          &  effective_size_scaling, cos_solar_zenith_angle, &
          &  lw_emissivity, q_liquid_scaling, q_ice_scaling, &
          &  istartcol, iendcol, solar_irradiance_override, &
+         &  solar_cycle_multiplier_override, &
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
@@ -202,7 +227,8 @@ contains
          &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
          &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling, &
-         &  vmr_suffix_str, experiment_name, do_write_double_precision
+         &  vmr_suffix_str, experiment_name, do_write_double_precision, &
+         &  sw_diag_wavelength_bound, sw_diag_file_name
 
     ! Default values
     do_parallel = .true.
@@ -229,6 +255,7 @@ contains
     skin_temperature = -1.0_jprb
     cos_solar_zenith_angle = -1.0_jprb
     solar_irradiance_override = -1.0_jprb
+    solar_cycle_multiplier_override = -2.0e6_jprb
     cloud_inhom_separation_factor = 1.0_jprb
     cloud_separation_scale_toa = -1.0_jprb
     cloud_separation_scale_surface = -1.0_jprb
@@ -254,7 +281,9 @@ contains
     do_write_hdf5 = .false.
     do_write_double_precision = .false.
     experiment_name = ''
-
+    sw_diag_wavelength_bound = this%sw_diag_wavelength_bound
+    sw_diag_file_name = this%sw_diag_file_name
+    
     ! Open the namelist file and read the radiation_driver namelist
     open(unit=10, iostat=iosopen, file=trim(file_name))
     if (iosopen /= 0) then
@@ -337,6 +366,7 @@ contains
     this%skin_temperature_override = skin_temperature
     this%cos_sza_override = cos_solar_zenith_angle
     this%solar_irradiance_override = solar_irradiance_override
+    this%solar_cycle_multiplier_override = solar_cycle_multiplier_override
     this%cloud_inhom_separation_factor = cloud_inhom_separation_factor
     this%cloud_separation_scale_toa = cloud_separation_scale_toa
     this%cloud_separation_scale_surface = cloud_separation_scale_surface
@@ -358,7 +388,19 @@ contains
     this%no2_scaling    = no2_scaling
     this%vmr_suffix_str = trim(vmr_suffix_str)
     this%experiment_name= trim(experiment_name)
-
+    
+    this%sw_diag_file_name = trim(sw_diag_file_name)
+    this%sw_diag_wavelength_bound = sw_diag_wavelength_bound
+    ! Work out number of shortwave diagnostics from first negative
+    ! wavelength bound, noting that the number of diagnostics is one
+    ! fewer than the number of valid bounds
+    do jdiag = 0,NMaxSpectralDiag
+      if (this%sw_diag_wavelength_bound(jdiag+1) < 0.0_jprb) then
+        this%n_sw_diag = max(0,jdiag-1)
+        exit
+      end if
+    end do
+    
   end subroutine read_config_from_namelist
 
 end module ecrad_driver_config

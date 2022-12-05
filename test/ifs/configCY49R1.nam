@@ -22,6 +22,8 @@ cloud_separation_scale_surface = 2500.0,
 cloud_separation_scale_power = 3.5,
 cloud_inhom_separation_factor = 0.75,
 !do_save_aerosol_optics = false,
+!sw_diag_wavelength_bound = .4e-6,.5e-6,.6e-6,.7e-6, ! Example for red-green-blue diagnostics
+!sw_diag_file_name = 'sw_diag.nc',
 /
 !
 ! The following namelist controls the behaviour of the SPARTACUS
@@ -65,6 +67,7 @@ do_canopy_fluxes_lw     = true,
 do_canopy_fluxes_sw     = true,
 do_cloud_aerosol_per_sw_g_point=true,
 do_cloud_aerosol_per_lw_g_point=true, 
+!gas_optics_sw_override_file_name = "ecckd-1.4_sw_climate_vfine-96b_ckd-definition.nc",
 !
 ! SURFACE ALBEDO AND EMISSIVITY
 do_nearest_spectral_sw_albedo = false,

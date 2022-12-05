@@ -64,7 +64,7 @@ module radiation_flux
           &  sw_dn_diffuse_surf_clear_g, sw_dn_direct_surf_clear_g
      ! Shortwave downwelling spectral fluxes in W m-2 at the surface,
      ! from which quantities such as photosynthetically active and UV
-     ! radiation can be computed. Only allocated in
+     ! radiation can be computed. Only allocated if
      ! config%do_surface_sw_spectral_flux==.true.  Note that the
      ! clear-sky quantities are only computed if
      ! config%do_clear==.true., but direct fluxes are computed whether
