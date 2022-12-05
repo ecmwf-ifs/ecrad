@@ -108,7 +108,7 @@ contains
   ! multiplications on first iend pairs
   function singlemat_x_vec(n,iend,m,A,b)
 
-    use yomhook, only : lhook, dr_hook, jphook
+!    use yomhook, only : lhook, dr_hook, jphook
 
     integer,    intent(in)                    :: n, m, iend
     real(jprb), intent(in), dimension(m,m)    :: A
@@ -116,7 +116,7 @@ contains
     real(jprb),             dimension(iend,m) :: singlemat_x_vec
 
     integer    :: j1, j2
-    real(jphook) :: hook_handle
+!    real(jphook) :: hook_handle
 
 !    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',0,hook_handle)
 

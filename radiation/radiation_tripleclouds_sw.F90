@@ -146,11 +146,9 @@ contains
 
     ! Direct downwelling flux below and above an interface between
     ! layers into a plane perpendicular to the direction of the sun
-    real(jprb), dimension(config%n_g_sw, nregions) &
-         &  :: direct_dn, direct_dn_below
+    real(jprb), dimension(config%n_g_sw, nregions) :: direct_dn
     ! Diffuse equivalents
-    real(jprb), dimension(config%n_g_sw, nregions) &
-         &  :: flux_dn, flux_dn_below, flux_up
+    real(jprb), dimension(config%n_g_sw, nregions) :: flux_dn, flux_up
 
     ! ...clear-sky equivalent (no distinction between "above/below")
     real(jprb), dimension(config%n_g_sw) &

@@ -83,8 +83,7 @@ contains
          &                               indexed_sum, add_indexed_sum
     use radiation_matrix
     use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
-         &  calc_reflectance_transmittance_sw, calc_frac_scattered_diffuse_sw, &
-         &  SwDiffusivity
+         &  calc_reflectance_transmittance_sw, calc_frac_scattered_diffuse_sw
     use radiation_constants, only      : Pi, GasConstantDryAir, &
          &                               AccelDueToGravity
 

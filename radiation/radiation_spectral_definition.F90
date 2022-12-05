@@ -691,7 +691,6 @@ contains
        &  wavenumber1, wavenumber2, mapping, use_bands, use_fluxes)
 
     use yomhook,      only : lhook, dr_hook, jphook
-    use radiation_io, only : nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
     real(jprb),                      intent(in)    :: temperature   ! K

@@ -18,6 +18,7 @@
 !   2017-07-26  R Hogan  Added calc_frac_scattered_diffuse_sw routine
 !   2017-10-23  R Hogan  Renamed single-character variables
 !   2021-02-19  R Hogan  Security for shortwave singularity
+!   2022-11-22  P Ukkonen/R Hogan  Single precision uses no double precision
 
 module radiation_two_stream
 
@@ -33,12 +34,6 @@ module radiation_two_stream
   ! of longwave radiation.
   real(jprd), parameter :: LwDiffusivity   = 1.66_jprd
   real(jprb), parameter :: LwDiffusivityWP = 1.66_jprb ! Working precision version
-
-  ! Shortwave diffusivity factor assumes hemispheric isotropy, assumed
-  ! by Zdunkowski's scheme and most others; note that for efficiency
-  ! this parameter is not used in the calculation of the gamma values,
-  ! but is used in the SPARTACUS solver.
-  real(jprb), parameter :: SwDiffusivity = 2.00_jprb
 
   ! The routines in this module can be called millions of times, so
   ! calling Dr Hook for each one may be a significant overhead.
@@ -394,6 +389,7 @@ contains
 
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',0,hook_handle)
 #endif
+
     transmittance = exp_fast(-LwDiffusivityWP*od)
 
 ! Added for DWD (2020)
@@ -402,10 +398,9 @@ contains
       ! Compute upward and downward emission assuming the Planck
       ! function to vary linearly with optical depth within the layer
       ! (e.g. Wiscombe , JQSRT 1976).
+      coeff = LwDiffusivityWP*od(jg)
       if (od(jg) > 1.0e-3_jprb) then
         ! Simplified from calc_reflectance_transmittance_lw above
-        coeff = LwDiffusivityWP*od(jg)
-!        transmittance(jg) = exp_fast(-coeff)
         coeff = (planck_bot(jg)-planck_top(jg)) / coeff
         coeff_up_top  =  coeff + planck_top(jg)
         coeff_up_bot  =  coeff + planck_bot(jg)
@@ -415,21 +410,10 @@ contains
         source_dn(jg) =  coeff_dn_bot - transmittance(jg) * coeff_dn_top
       else
         ! Linear limit at low optical depth
-        coeff = LwDiffusivityWP*od(jg)
-!        transmittance(jg) = 1.0_jprb - coeff
         source_up(jg) = coeff * 0.5_jprb * (planck_top(jg)+planck_bot(jg))
         source_dn(jg) = source_up(jg)
       end if
     end do
-
-    ! Method in the older IFS radiation scheme
-    !    do j = 1, n
-    !      coeff = od(jg) / (3.59712_jprd + od(jg))
-    !      planck_mean = 0.5_jprd * (planck_top(jg) + planck_bot(jg))
-    !      
-    !      source_up(jg) = (1.0_jprd-transmittance(jg)) * (planck_mean + (planck_top(jg)    - planck_mean) * coeff)
-    !      source_dn(jg) = (1.0_jprd-transmittance(jg)) * (planck_mean + (planck_bot(jg) - planck_mean) * coeff)
-    !    end do
 
 #ifdef DO_DR_HOOK_TWO_STREAM
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',1,hook_handle)
