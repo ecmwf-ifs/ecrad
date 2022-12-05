@@ -75,7 +75,7 @@ The subdirectories are as follows:
 - `utilities` - source code for useful utilities, such as reading netCDF
        files
 
-- `drhook` - source code for the Dr Hook profiling system
+- `drhook` - dummy version of the Dr Hook profiling system
 
 - `driver` - the source code for the offline driver program
 
@@ -131,10 +131,14 @@ Fortran compiler.
    
        make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"
    
-   To compile in single precision add `SINGLE_PRECISION=1` to the `make`
-   command line.  To compile with the Dr Hook profiling system, add
-   `DR_HOOK=1` to the `make` command line.
-
+   To compile in single precision add `SINGLE_PRECISION=1` to the
+   `make` command line.  To compile with the Dr Hook profiling system,
+   first install ECMWF's [fiat library]([ecRad web
+   site](https://github.com/ecmwf-ifs/fiat), then add
+   `FIATDIR=/path/to/fiat` to the `make` command line, such that the
+   files `$FIATDIR/lib/libfiat.so` and
+   `$FIATDIR/module/fiat/yomhook.mod` can be found at build time.
+   
 
 ## TO TEST
 
