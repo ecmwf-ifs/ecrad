@@ -18,6 +18,7 @@
 !   2019-01-08  R. Hogan  Added "indexed_sum_profile"
 !   2019-01-14  R. Hogan  out_of_physical_bounds calls routine in radiation_config
 !   2021-01-20  R. Hogan  Added heating_rate_out_of_physical_bounds function
+!   2022-12-07  R. Hogan  Added top-of-atmosphere spectral output
 
 module radiation_flux
 
@@ -54,7 +55,7 @@ module radiation_flux
           &  lw_up_clear_band, lw_dn_clear_band, & ! Clear-sky quantities...
           &  sw_up_clear_band, sw_dn_clear_band, &
           &  sw_dn_direct_clear_band
-     ! Surface downwelling quantaties at each g point, dimensioned
+     ! Surface downwelling quantities at each g point, dimensioned
      ! (ng,ncol), that are always saved by the solver, except for the
      ! clear-sky ones that are only produced if
      ! config%do_clear==.true.
@@ -62,6 +63,13 @@ module radiation_flux
           &  lw_dn_surf_g, lw_dn_surf_clear_g, &
           &  sw_dn_diffuse_surf_g, sw_dn_direct_surf_g, &
           &  sw_dn_diffuse_surf_clear_g, sw_dn_direct_surf_clear_g
+     ! Top-of-atmosphere quantities at each g point, dimensioned
+     ! (ng,ncol), that are always saved by the solver, except for the
+     ! clear-sky ones that are only produced if
+     ! config%do_clear==.true.
+     real(jprb), allocatable, dimension(:,:) :: &
+          &  lw_up_toa_g, lw_up_toa_clear_g, &
+          &  sw_dn_toa_g, sw_up_toa_g, sw_up_toa_clear_g
      ! Shortwave downwelling spectral fluxes in W m-2 at the surface,
      ! from which quantities such as photosynthetically active and UV
      ! radiation can be computed. Only allocated if
@@ -72,6 +80,13 @@ module radiation_flux
      real(jprb), allocatable, dimension(:,:) :: &
           &  sw_dn_surf_band, sw_dn_direct_surf_band, &
           &  sw_dn_surf_clear_band, sw_dn_direct_surf_clear_band
+     ! Top-of-atmosphere spectral fluxes in W m-2. Only allocated if
+     ! config%do_toa_spectral_flux=.true.. Note that the clear-sky
+     ! quantities are only computed if config%do_clear==.true.. The
+     ! dimensions are (nband,ncol).
+     real(jprb), allocatable, dimension(:,:) :: &
+          &  lw_up_toa_band, lw_up_toa_clear_band, &
+          &  sw_dn_toa_band, sw_up_toa_band, sw_up_toa_clear_band
      ! Surface downwelling fluxes in W m-2 at the spectral resolution
      ! needed by any subsequent canopy radiative transfer.  If
      ! config%use_canopy_full_spectrum_[sw|lw] then these will be at
@@ -95,6 +110,7 @@ module radiation_flux
      procedure :: allocate   => allocate_flux_type
      procedure :: deallocate => deallocate_flux_type
      procedure :: calc_surface_spectral
+     procedure :: calc_toa_spectral
      procedure :: out_of_physical_bounds
      procedure :: heating_rate_out_of_physical_bounds
   end type flux_type
@@ -156,11 +172,24 @@ contains
         allocate(this%lw_derivatives(istartcol:iendcol,nlev+1))
       end if
 
-      ! Allocate g-point downwelling fluxes at surface passed from
-      ! solver to surface_intermediate%partition
+      if (config%do_toa_spectral_flux) then
+        if (config%n_bands_lw == 0) then
+          write(nulerr,'(a)') '*** Error: number of LW bands not yet defined ' &
+               & // 'so cannot allocate TOA spectral flux arrays'
+          call radiation_abort()
+        end if
+        allocate(this%lw_up_toa_band(config%n_bands_lw, istartcol:iendcol))
+        if (config%do_clear) then
+          allocate(this%lw_up_toa_clear_band(config%n_bands_lw, istartcol:iendcol))
+        end if
+      end if
+ 
+      ! Allocate g-point downwelling fluxes at surface, and TOA fluxes
       allocate(this%lw_dn_surf_g(config%n_g_lw,istartcol:iendcol))
+      allocate(this%lw_up_toa_g (config%n_g_lw,istartcol:iendcol))
       if (config%do_clear) then
         allocate(this%lw_dn_surf_clear_g(config%n_g_lw,istartcol:iendcol))
+        allocate(this%lw_up_toa_clear_g (config%n_g_lw,istartcol:iendcol))
       end if
 
       if (config%do_canopy_fluxes_lw) then
@@ -214,7 +243,7 @@ contains
       if (config%do_surface_sw_spectral_flux) then
         if (config%n_bands_sw == 0) then
           write(nulerr,'(a)') '*** Error: number of SW bands not yet defined ' &
-               & // 'so cannot allocate surface spectral flux arrays'
+               & // 'so cannot allocate TOA spectral flux arrays'
           call radiation_abort()
         end if
         allocate(this%sw_dn_surf_band(config%n_bands_sw,istartcol:iendcol))
@@ -227,13 +256,28 @@ contains
         end if
       end if
 
-      ! Allocate g-point downwelling fluxes at surface passed from
-      ! solver to surface_intermediate%partition
+      if (config%do_toa_spectral_flux) then
+        if (config%n_bands_sw == 0) then
+          write(nulerr,'(a)') '*** Error: number of SW bands not yet defined ' &
+               & // 'so cannot allocate surface spectral flux arrays'
+          call radiation_abort()
+        end if
+        allocate(this%sw_dn_toa_band(config%n_bands_sw, istartcol:iendcol))
+        allocate(this%sw_up_toa_band(config%n_bands_sw, istartcol:iendcol))
+        if (config%do_clear) then
+          allocate(this%sw_up_toa_clear_band(config%n_bands_sw, istartcol:iendcol))
+        end if
+      end if
+      
+      ! Allocate g-point downwelling fluxes at surface, and TOA fluxes
       allocate(this%sw_dn_diffuse_surf_g(config%n_g_sw,istartcol:iendcol))
       allocate(this%sw_dn_direct_surf_g (config%n_g_sw,istartcol:iendcol))
+      allocate(this%sw_dn_toa_g         (config%n_g_sw,istartcol:iendcol))
+      allocate(this%sw_up_toa_g         (config%n_g_sw,istartcol:iendcol))
       if (config%do_clear) then
         allocate(this%sw_dn_diffuse_surf_clear_g(config%n_g_sw,istartcol:iendcol))
         allocate(this%sw_dn_direct_surf_clear_g (config%n_g_sw,istartcol:iendcol))
+        allocate(this%sw_up_toa_clear_g         (config%n_g_sw,istartcol:iendcol))
       end if
 
       if (config%do_canopy_fluxes_sw) then
@@ -334,9 +378,16 @@ contains
     if (allocated(this%sw_dn_diffuse_surf_clear_g)) deallocate(this%sw_dn_diffuse_surf_clear_g)
     if (allocated(this%sw_dn_direct_surf_clear_g))  deallocate(this%sw_dn_direct_surf_clear_g)
 
+    if (allocated(this%lw_up_toa_g))                deallocate(this%lw_up_toa_g)
+    if (allocated(this%sw_up_toa_g))                deallocate(this%sw_up_toa_g)
+    if (allocated(this%sw_dn_toa_g))                deallocate(this%sw_dn_toa_g)
+    if (allocated(this%lw_up_toa_clear_g))          deallocate(this%lw_up_toa_clear_g)
+    if (allocated(this%sw_up_toa_clear_g))          deallocate(this%sw_up_toa_clear_g)
+
     if (lhook) call dr_hook('radiation_flux:deallocate',1,hook_handle)
 
   end subroutine deallocate_flux_type
+  
 
   !---------------------------------------------------------------------
   ! Calculate surface downwelling fluxes in each band using the
@@ -520,6 +571,93 @@ contains
   end subroutine calc_surface_spectral
 
 
+  !---------------------------------------------------------------------
+  ! Calculate top-of-atmosphere fluxes in each band using the fluxes
+  ! at each g point
+  subroutine calc_toa_spectral(this, config, istartcol, iendcol)
+
+    use yomhook,          only : lhook, dr_hook, jphook
+    use radiation_config, only : config_type
+
+    class(flux_type),  intent(inout) :: this
+    type(config_type), intent(in)    :: config
+    integer,           intent(in)    :: istartcol, iendcol
+
+    integer :: jcol, jband
+
+    real(jphook) :: hook_handle
+    
+    if (lhook) call dr_hook('radiation_flux:calc_toa_spectral',0,hook_handle)
+
+    if (config%do_sw .and. config%do_toa_spectral_flux) then
+
+      if (use_indexed_sum_vec) then
+        call indexed_sum_vec(this%sw_dn_toa_g, &
+             &               config%i_band_from_reordered_g_sw, &
+             &               this%sw_dn_toa_band, istartcol, iendcol)
+        call indexed_sum_vec(this%sw_up_toa_g, &
+             &               config%i_band_from_reordered_g_sw, &
+             &               this%sw_up_toa_band, istartcol, iendcol)
+      else
+        do jcol = istartcol,iendcol
+          call indexed_sum(this%sw_dn_toa_g(:,jcol), &
+               &           config%i_band_from_reordered_g_sw, &
+               &           this%sw_dn_toa_band(:,jcol))
+          call indexed_sum(this%sw_up_toa_g(:,jcol), &
+               &           config%i_band_from_reordered_g_sw, &
+               &           this%sw_up_toa_band(:,jcol))
+        end do
+      end if
+      
+      if (config%do_clear) then
+        if (use_indexed_sum_vec) then
+          call indexed_sum_vec(this%sw_up_toa_clear_g, &
+               &               config%i_band_from_reordered_g_sw, &
+               &               this%sw_up_toa_clear_band, istartcol, iendcol)
+        else
+          do jcol = istartcol,iendcol
+            call indexed_sum(this%sw_up_toa_clear_g(:,jcol), &
+                 &               config%i_band_from_reordered_g_sw, &
+                 &               this%sw_up_toa_clear_band(:,jcol))
+          end do
+        end if
+      end if
+    end if
+
+    if (config%do_lw .and. config%do_toa_spectral_flux) then
+
+      if (use_indexed_sum_vec) then
+        call indexed_sum_vec(this%lw_up_toa_g, &
+             &               config%i_band_from_reordered_g_lw, &
+             &               this%lw_up_toa_band, istartcol, iendcol)
+      else
+        do jcol = istartcol,iendcol
+          call indexed_sum(this%lw_up_toa_g(:,jcol), &
+               &           config%i_band_from_reordered_g_lw, &
+               &           this%lw_up_toa_band(:,jcol))
+        end do
+      end if
+      
+      if (config%do_clear) then
+        if (use_indexed_sum_vec) then
+          call indexed_sum_vec(this%lw_up_toa_clear_g, &
+               &               config%i_band_from_reordered_g_lw, &
+               &               this%lw_up_toa_clear_band, istartcol, iendcol)
+        else
+          do jcol = istartcol,iendcol
+            call indexed_sum(this%lw_up_toa_clear_g(:,jcol), &
+                 &               config%i_band_from_reordered_g_lw, &
+                 &               this%lw_up_toa_clear_band(:,jcol))
+          end do
+        end if
+      end if
+    end if
+    
+    if (lhook) call dr_hook('radiation_flux:calc_toa_spectral',1,hook_handle)
+
+  end subroutine calc_toa_spectral
+  
+    
   !---------------------------------------------------------------------
   ! Return .true. if the most important flux variables are out of a
   ! physically sensible range, optionally only considering columns

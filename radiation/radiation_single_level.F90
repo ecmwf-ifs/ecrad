@@ -308,6 +308,11 @@ contains
         end if
       else
         ! Albedos mapped less accurately to ecRad spectral bands
+        if (maxval(config%i_albedo_from_band_sw) > size(this%sw_albedo,2)) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%sw_albedo has fewer than required ', &
+               &  maxval(config%i_albedo_from_band_sw), ' bands'
+          call radiation_abort()
+        end if      
         sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol, &
              &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw)))
         if (allocated(this%sw_albedo_direct)) then
@@ -352,6 +357,11 @@ contains
         lw_albedo = transpose(lw_albedo_band(istartcol:iendcol, &
              &                config%i_band_from_reordered_g_lw))
       else
+        if (maxval(config%i_emiss_from_band_lw) > size(this%lw_emissivity,2)) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%lw_emissivity has fewer than required ', &
+               &  maxval(config%i_emiss_from_band_lw), ' bands'
+          call radiation_abort()
+        end if
         lw_albedo = 1.0_jprb - transpose(this%lw_emissivity(istartcol:iendcol, &
              &  config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw)))
       end if

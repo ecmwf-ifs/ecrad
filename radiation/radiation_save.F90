@@ -113,7 +113,7 @@ contains
     call out_file%define_dimension("column", ncol)
     call out_file%define_dimension("half_level", n_lev_plus1)
 
-    if (config%do_save_spectral_flux) then
+    if (config%do_save_spectral_flux .or. config%do_toa_spectral_flux) then
       if (config%do_lw) then
         call out_file%define_dimension("band_lw", config%n_spec_lw)
       end if
@@ -200,6 +200,17 @@ contains
                &   dim3_name="column", dim2_name="half_level", &
                &   dim1_name="band_lw", units_str=lw_units_str, &
                &   long_name="Spectral downwelling clear-sky longwave flux")
+        end if
+      end if
+   
+      if (config%do_toa_spectral_flux) then
+        call out_file%define_variable("spectral_flux_up_lw_toa", &
+             &   dim2_name="column", dim1_name="band_lw", units_str="W m-2", &
+             &   long_name="Spectral upwelling longwave flux at top-of-atmosphere")
+        if (config%do_clear) then
+          call out_file%define_variable("spectral_flux_up_lw_toa_clear", &
+               &   dim2_name="column", dim1_name="band_lw", units_str="W m-2", &
+               &   long_name="Spectral upwelling clear-sky longwave flux at top-of-atmosphere")
         end if
       end if
    
@@ -290,6 +301,20 @@ contains
                &   long_name="Spectral downwelling clear-sky direct shortwave flux at surface")
         end if
       end if
+
+      if (config%do_toa_spectral_flux) then
+        call out_file%define_variable("spectral_flux_dn_sw_toa", &
+             &   dim2_name="column", dim1_name="band_sw", units_str="W m-2", &
+             &   long_name="Spectral downwelling shortwave flux at top-of-atmosphere")
+        call out_file%define_variable("spectral_flux_up_sw_toa", &
+             &   dim2_name="column", dim1_name="band_sw", units_str="W m-2", &
+             &   long_name="Spectral upwelling shortwave flux at top-of-atmosphere")
+        if (config%do_clear) then
+          call out_file%define_variable("spectral_flux_up_sw_toa_clear", &
+               &   dim2_name="column", dim1_name="band_sw", units_str="W m-2", &
+               &   long_name="Spectral upwelling clear-sky shortwave flux at top-of-atmosphere")
+        end if
+      end if
    
       if (config%do_canopy_fluxes_sw) then
         call out_file%define_variable("canopy_flux_dn_diffuse_sw_surf", &
@@ -340,6 +365,15 @@ contains
         end if
       end if
 
+      if (config%do_toa_spectral_flux) then
+        call out_file%put("spectral_flux_up_lw_toa", flux%lw_up_toa_band, &
+               &   do_transp=.false.)
+        if (config%do_clear) then
+          call out_file%put("spectral_flux_up_lw_toa_clear", flux%lw_up_toa_clear_band, &
+               &   do_transp=.false.)
+        end if
+      end if
+      
       if (config%do_canopy_fluxes_lw) then
         call out_file%put("canopy_flux_dn_lw_surf", flux%lw_dn_surf_canopy, &
              &            do_transp = .false.)
@@ -389,6 +423,17 @@ contains
         end if
       end if
 
+      if (config%do_toa_spectral_flux) then
+        call out_file%put("spectral_flux_dn_sw_toa", flux%sw_dn_toa_band, &
+               &   do_transp=.false.)
+        call out_file%put("spectral_flux_up_sw_toa", flux%sw_up_toa_band, &
+               &   do_transp=.false.)
+        if (config%do_clear) then
+          call out_file%put("spectral_flux_up_sw_toa_clear", flux%sw_up_toa_clear_band, &
+               &   do_transp=.false.)
+        end if
+      end if
+      
       if (config%do_canopy_fluxes_sw) then
         call out_file%put("canopy_flux_dn_diffuse_sw_surf", flux%sw_dn_diffuse_surf_canopy, &
              &            do_transp = .false.)
@@ -420,7 +465,7 @@ contains
        &                     iverbose, is_hdf5_file, experiment_name, &
        &                     is_double_precision)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     use easy_netcdf
 
@@ -444,7 +489,7 @@ contains
     character(5)                           :: lw_units_str
     integer                                :: i_local_verbose
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_save:save_net_fluxes',0,hook_handle)
     
@@ -1268,7 +1313,7 @@ contains
        &                         iverbose, is_hdf5_file, experiment_name, &
        &                         is_double_precision)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     use easy_netcdf
 
@@ -1293,7 +1338,7 @@ contains
     integer                                :: ncol, n_lev_plus1
     integer                                :: i_local_verbose
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_save:save_sw_diagnostics',0,hook_handle)
     

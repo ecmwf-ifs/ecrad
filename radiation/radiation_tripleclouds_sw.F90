@@ -429,13 +429,20 @@ contains
         direct_dn(:,jreg) = incoming_sw(:,jcol)*region_fracs(jreg,1,jcol)
       end do
       flux_up = direct_dn*total_albedo_direct(:,:,1)
-
+      
       if (config%do_clear) then
         flux_dn_clear = 0.0_jprb
         direct_dn_clear(:) = incoming_sw(:,jcol)
         flux_up_clear = direct_dn_clear*total_albedo_clear_direct(:,1)
       end if
 
+      ! Store TOA spectral fluxes
+      flux%sw_up_toa_g(:,jcol) = sum(flux_up,2)
+      flux%sw_dn_toa_g(:,jcol) = incoming_sw(:,jcol)*mu0
+      if (config%do_clear) then
+        flux%sw_up_toa_clear_g(:,jcol) = flux_up_clear
+      end if
+      
       ! Store the TOA broadband fluxes
       flux%sw_up(jcol,1) = sum(sum(flux_up,1))
       flux%sw_dn(jcol,1) = mu0 * sum(sum(direct_dn,1))

@@ -390,7 +390,6 @@ contains
   end subroutine generate_column_exp_ran
 
 
-
   !---------------------------------------------------------------------
   ! Generate a column of optical depth scalings using
   ! exponential-exponential overlap

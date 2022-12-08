@@ -475,9 +475,10 @@ contains
         end if
       end if
 
-      ! Store surface downwelling fluxes in bands from fluxes in g
-      ! points
+      ! Store surface downwelling, and TOA, fluxes in bands from
+      ! fluxes in g points
       call flux%calc_surface_spectral(config, istartcol, iendcol)
+      call flux%calc_toa_spectral    (config, istartcol, iendcol)
 
     end if
     

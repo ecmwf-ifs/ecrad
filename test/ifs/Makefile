@@ -180,7 +180,7 @@ profile:
 # written to a separate file; do this both with the 32- and 96-gpoint
 # models (which have 100nm and 25nm resolution in the visible,
 # respectively).
-DIAGBOUNDS="sw_diag_wavelength_bound=.4e-6,.425e-6,.45e-6,.475e-6,.5e-6,.525e-6,.55e-6,.575e-6,.6e-6,.625e-6,.65e-6,.675e-6,.7e-6"
+DIAGBOUNDS="sw_diag_wavelength_bound=.2e-6,.225e-6,.25e-6,.275e-6,.3e-6,.325e-6,.35e-6,.375e-6,.4e-6,.425e-6,.45e-6,.475e-6,.5e-6,.525e-6,.55e-6,.575e-6,.6e-6,.625e-6,.65e-6,.675e-6,.7e-6"
 test_diag:
 	$(CHANGENAM) $(CONFIG_ECCKD) config_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_rrtmg.nc"' gas_model_name='"RRTMG-IFS"'
 	$(DRIVER) config_diag.nam $(INPUT).nc $(INPUT)_diag_rrtmg_out.nc

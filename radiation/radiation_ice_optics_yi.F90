@@ -16,7 +16,7 @@
 ! P. Yang, B.A. Baum, T. L'Ecuyer, L. Oreopoulos, E.J. Mlawer,
 ! A.J. Heymsfield, and K. Liou, 2013: Influence of Ice Particle
 ! Surface Roughening on the Global Cloud Radiative
-! Effect. J. Atmos. Sci., 70, 2794–2807,
+! Effect. J. Atmos. Sci., 70, 2794-2807,
 ! https://doi.org/10.1175/JAS-D-13-020.1
 
 module radiation_ice_optics_yi

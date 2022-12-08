@@ -420,6 +420,9 @@ module radiation_config
     ! Save the surface downwelling shortwave fluxes in each band?
     logical :: do_surface_sw_spectral_flux = .true.
 
+    ! Save the TOA fluxes in each band?
+    logical :: do_toa_spectral_flux = .false.
+
     ! Compute the longwave derivatives needed to apply the approximate
     ! radiation updates of Hogan and Bozzo (2015)
     logical :: do_lw_derivatives = .false.
@@ -670,7 +673,7 @@ contains
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
     logical :: do_save_radiative_properties, do_save_spectral_flux
-    logical :: do_save_gpoint_flux, do_surface_sw_spectral_flux
+    logical :: do_save_gpoint_flux, do_surface_sw_spectral_flux, do_toa_spectral_flux
     logical :: use_beta_overlap, do_lw_derivatives, use_vectorizable_generator
     logical :: do_sw_delta_scaling_with_gases
     logical :: do_canopy_fluxes_sw, do_canopy_fluxes_lw
@@ -716,7 +719,7 @@ contains
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
-         &  do_surface_sw_spectral_flux, do_lw_derivatives, &
+         &  do_surface_sw_spectral_flux, do_lw_derivatives, do_toa_spectral_flux, &
          &  do_lw_aerosol_scattering, do_lw_cloud_scattering, &
          &  n_regions, directory_name, gas_model_name, &
          &  ice_optics_override_file_name, liq_optics_override_file_name, &
@@ -785,6 +788,7 @@ contains
     do_save_gpoint_flux = this%do_save_gpoint_flux
     do_lw_derivatives = this%do_lw_derivatives
     do_surface_sw_spectral_flux = this%do_surface_sw_spectral_flux
+    do_toa_spectral_flux = this%do_toa_spectral_flux
     iverbose = this%iverbose
     iverbosesetup = this%iverbosesetup
     use_general_cloud_optics = this%use_general_cloud_optics
@@ -924,6 +928,7 @@ contains
     this%do_lw_aerosol_scattering = do_lw_aerosol_scattering
     this%nregions = n_regions
     this%do_surface_sw_spectral_flux = do_surface_sw_spectral_flux
+    this%do_toa_spectral_flux = do_toa_spectral_flux
     this%do_sw_delta_scaling_with_gases = do_sw_delta_scaling_with_gases
     this%do_fu_lw_ice_optics_bug = do_fu_lw_ice_optics_bug
     this%do_canopy_fluxes_sw = do_canopy_fluxes_sw
@@ -1411,7 +1416,9 @@ contains
       end if
       
       !---------------------------------------------------------------------
-      write(nulout, '(a)') 'Surface settings:'
+      write(nulout, '(a)') 'Surface and top-of-atmosphere settings:'
+      call print_logical('  Saving top-of-atmosphere spectral fluxes', &
+           &   'do_toa_spectral_flux', this%do_toa_spectral_flux)
       if (this%do_sw) then
         call print_logical('  Saving surface shortwave spectral fluxes', &
              &   'do_surface_sw_spectral_flux', this%do_surface_sw_spectral_flux)

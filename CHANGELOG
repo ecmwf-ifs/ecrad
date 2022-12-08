@@ -38,6 +38,8 @@ version 1.5.1
 	  wavenumber bounds for shortwave diagnostics. These are written to
 	  radiation_driver: sw_diag_file_name, or sw_diagnostics.nc by
 	  default. Test with "make test_ecckd_diag" in test/ifs.
+	- do_toa_spectral_flux namelist option stores top-of-atmosphere
+	  spectral flux diagnostics per band
 
 version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description

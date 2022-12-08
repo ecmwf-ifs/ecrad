@@ -284,7 +284,7 @@ contains
 
     use easy_netcdf,  only : netcdf_file
     use radiation_io, only : nulout, nulerr, radiation_abort
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
 
     ! Reference total solar irradiance (W m-2)
     real(jprb), parameter :: ReferenceTSI = 1361.0_jprb
@@ -325,7 +325,7 @@ contains
     
     integer :: iverbose_local
 
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
     
     if (lhook) call dr_hook('radiation_ecckd:read_spectral_solar_cycle',0,hook_handle)
 
