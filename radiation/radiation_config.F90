@@ -1176,7 +1176,7 @@ contains
             this%ssi_file_name = trim(this%ssi_override_file_name)
           end if
         else
-          this%ssi_file_name = 'ssi_mrl2.nc'
+          this%ssi_file_name = 'ssi_nrl2.nc'
         end if
       end if
     end if
