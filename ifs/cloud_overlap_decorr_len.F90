@@ -33,7 +33,7 @@ SUBROUTINE CLOUD_OVERLAP_DECORR_LEN &
 ! -------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB
-USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCST   , ONLY : RPI
 USE YOECLD   , ONLY : RDECORR_CF, RDECORR_CW
 
@@ -70,7 +70,7 @@ REAL(KIND=JPRB) :: ZRADIANS_TO_DEGREES, ZABS_LAT_DEG, ZCOS_LAT
 
 INTEGER(KIND=JPIM) :: JL
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 ! -------------------------------------------------------------------
 

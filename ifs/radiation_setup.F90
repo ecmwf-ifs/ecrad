@@ -108,7 +108,7 @@ CONTAINS
   ! stage (default is no).
   SUBROUTINE SETUP_RADIATION_SCHEME(PRADIATION,LDOUTPUT,FILE_NAME)
 
-    USE YOMHOOK,  ONLY : LHOOK, DR_HOOK
+    USE YOMHOOK,  ONLY : LHOOK, DR_HOOK, JPHOOK
     USE YOMLUN,   ONLY : NULOUT, NULERR
     !USE YOESRTWN, ONLY : NMPSRTM
     USE YOERAD,   ONLY : TERAD
@@ -143,7 +143,7 @@ CONTAINS
     ! intervals, or a more intelligent weighting?
     LOGICAL :: LL_DO_NEAREST_SW_ALBEDO, LL_DO_NEAREST_LW_EMISS
 
-    REAL(KIND=JPRB) :: ZHOOK_HANDLE
+    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !#include "posname.intfb.h"
 #include "abor1.intfb.h"
