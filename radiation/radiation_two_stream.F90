@@ -644,7 +644,8 @@ contains
 
       alpha1(jg) = gamma1(jg)*gamma4(jg) + gamma2(jg)*gamma3(jg) ! Eq. 16
       alpha2(jg) = gamma1(jg)*gamma3(jg) + gamma2(jg)*gamma4(jg) ! Eq. 17
-
+      ! The following line crashes inexplicably with gfortran 8.5.0 in
+      ! single precision - try a later version
       k_exponent(jg) = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
            &       1.0e-12_jprb)) ! Eq 18
     end do
