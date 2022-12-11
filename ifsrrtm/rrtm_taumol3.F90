@@ -300,7 +300,7 @@ DO JLAY = 1, KLEV
                & + ZADJCOLN2O(JLON,JLAY)*ZABSN2O &
                & + P_TAUAERL(JLON,JLAY,3)  
 
-        if (JPL < 1) call abort
+        !if (JPL < 1) call abort
 
         PFRAC(JLON,NGS2+IG,JLAY) = FRACREFA(IG,JPL) + Z_FPL *&
          & (FRACREFA(IG,JPL+1) - FRACREFA(IG,JPL))  

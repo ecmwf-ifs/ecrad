@@ -108,12 +108,6 @@ REAL(KIND=JPRB) :: ZTAUG(KIDIA:KFDIA,KLEV,16) ! Absorption optical depth
 REAL(KIND=JPRB) :: ZTAUR(KIDIA:KFDIA,KLEV,16) ! Rayleigh optical depth
 REAL(KIND=JPRB) :: ZSFLXZEN(KIDIA:KFDIA,16) ! Incoming solar flux
 
-
-REAL(KIND=JPRB) :: ZTAU, ZPAO, ZPTO
-REAL(KIND=JPRB) :: ZPAOJ(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB) :: ZPTOJ(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB) :: ZRMU0D(KIDIA:KFDIA) 
- 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 
@@ -133,7 +127,7 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "srtm_taumol29.intfb.h"
 
 !     ------------------------------------------------------------------
-ASSOCIATE(NFLEVG=>KLEV)
+
 IF (LHOOK) CALL DR_HOOK('SRTM_GAS_OPTICAL_DEPTH',0,ZHOOK_HANDLE)
 
 IB1=JPB1
@@ -331,6 +325,7 @@ DO JB = IB1, IB2
 ENDDO     !-- end loop on JB (band)
 
 !     ------------------------------------------------------------------
+
 IF (LHOOK) CALL DR_HOOK('SRTM_GAS_OPTICAL_DEPTH',1,ZHOOK_HANDLE)
-END ASSOCIATE
+
 END SUBROUTINE SRTM_GAS_OPTICAL_DEPTH

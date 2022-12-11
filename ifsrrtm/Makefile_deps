@@ -1,5 +1,5 @@
 rrtm_prepare_gases.o: parrrtm.o 
-rrtm_gas_optical_depth.o: parrrtm.o yoerrtm.o yoerrtab.o 
+rrtm_gas_optical_depth.o: parrrtm.o yoerrtm.o 
 rrtm_setcoef_140gp.o: parrrtm.o yoerrtrf.o 
 rrtm_taumol1.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta1.o 
 rrtm_taumol10.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta10.o 

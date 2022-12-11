@@ -83,14 +83,13 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !  ----------------------------------------------------------
 
-ASSOCIATE(NFLEVG=>KLEV)
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL12',0,ZHOOK_HANDLE)
 
 ! Calculate reference ratio to be used in calculation of Planck
 ! fraction in lower/upper atmosphere.
 
 ! P =   174.164 mb 
-      Zrefrat_planck_a = chi_mls(1,10)/chi_mls(2,10)
+      ZREFRAT_PLANCK_A = CHI_MLS(1,10)/CHI_MLS(2,10)
 
 ! Compute the optical depth by interpolating in ln(pressure), 
 ! temperature, and appropriate species.  Below laytrop, the water
@@ -268,5 +267,4 @@ ENDDO
 
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL12',1,ZHOOK_HANDLE)
 
-END ASSOCIATE
 END SUBROUTINE RRTM_TAUMOL12

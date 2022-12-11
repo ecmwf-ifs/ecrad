@@ -75,21 +75,18 @@ REAL(KIND=JPRB) :: Z_FS, Z_SPECMULT, Z_SPECPARM,Z_SPECCOMB,  &
 & Z_FPL, Z_SPECMULT_PLANCK, Z_SPECPARM_PLANCK,Z_SPECCOMB_PLANCK
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
- 
-ASSOCIATE(NFLEVG=>KLEV)
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL16',0,ZHOOK_HANDLE)
 
 ! Calculate reference ratio to be used in calculation of Planck
 ! fraction in lower atmosphere.
 
 ! P = 387. mb (Level 6)
-      Zrefrat_planck_a = chi_mls(1,6)/chi_mls(6,6)
+      ZREFRAT_PLANCK_A = CHI_MLS(1,6)/CHI_MLS(6,6)
 
 ! Compute the optical depth by interpolating in ln(pressure), 
 ! temperature,and appropriate species.  Below laytrop, the water
 ! vapor self-continuum and foreign continuum is interpolated 
 ! (in temperature) separately.  
-
 
 DO JLAY = 1, KLEV
   DO JLON = KIDIA, KFDIA
@@ -269,5 +266,4 @@ ENDDO
 
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL16',1,ZHOOK_HANDLE)
 
-END ASSOCIATE
 END SUBROUTINE RRTM_TAUMOL16

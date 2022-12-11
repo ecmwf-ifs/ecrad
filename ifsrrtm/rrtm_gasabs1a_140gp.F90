@@ -23,7 +23,6 @@ USE PARRRTM  , ONLY : JPBAND   ,JPXSEC
 USE YOERRTM  , ONLY : JPGPT
 USE YOERRTAB , ONLY : TRANS    ,BPADE
 
-
 IMPLICIT NONE
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
@@ -108,9 +107,9 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !CDIR DUPLICATE(TRANS,256)
 
-!- SECANG is equal to the secant of the diffusivity angle.
-ASSOCIATE(NFLEVG=>KLEV)
 IF (LHOOK) CALL DR_HOOK('RRTM_GASABS1A_140GP',0,ZHOOK_HANDLE)
+
+!- SECANG is equal to the secant of the diffusivity angle.
 ZSECANG = 1.66_JPRB
 
 CALL RRTM_TAUMOL1  (KIDIA,KFDIA,KLEV,ZTAU,PAVEL,&
@@ -173,36 +172,6 @@ CALL RRTM_TAUMOL16 (KIDIA,KFDIA,KLEV,ZTAU,&
  & PCOLH2O,PCOLCH4,KLAYTROP,PSELFFAC,PSELFFRAC,KINDSELF,PFRAC, &
  & PRAT_H2OCH4,PRAT_H2OCH4_1)   
 
-!TO CHECK TOTAL OD FOR EACH BAND
-    ! print*,'ZTAU2= ',sum(ZTAU(:,11:22,:),2)
-    ! print*,'ZTAU3= ',sum(ZTAU(:,23:38,:),2)
-    ! print*,'ZTAU4= ',sum(ZTAU(:,39:52,:),2)
-    ! print*,'ZTAU5= ',sum(ZTAU(:,53:68,:),2)
-    ! print*,'ZTAU6= ',sum(ZTAU(:,69:76,:),2)
-    ! print*,'ZTAU7= ',sum(ZTAU(:,77:88,:),2)
-    ! print*,'ZTAU8= ',sum(ZTAU(:,89:96,:),2)
-    ! print*,'ZTAU9= ',sum(ZTAU(:,97:108,:),2)
-    ! print*,'ZTAU10= ',sum(ZTAU(:,109:114,:),2)
-    ! print*,'ZTAU11= ',sum(ZTAU(:,115:122,:),2)
-    ! print*,'ZTAU12= ',sum(ZTAU(:,123:130,:),2)
-    ! print*,'ZTAU13= ',sum(ZTAU(:,131:134,:),2)
-    ! print*,'ZTAU14= ',sum(ZTAU(:,135:136,:),2)
-    ! print*,'ZTAU15= ',sum(ZTAU(:,137:138,:),2)
-    ! print*,'ZTAU16= ',sum(ZTAU(:,139:140,:),2)
-
-
-DO JLEV = 1, KLEV
-!cdir unroll=4
-  DO JI = 1, JPGPT
-    DO JLON = KIDIA, KFDIA
-      IF (ZTAU(JLON,JI,JLEV) < 0._JPRB) THEN
-9101    FORMAT(1X,'GASABS JLEV,JI,JLON=',I3,I5,I9,' SECANG=',F9.6,' ZTAU=',E12.6)
-      ENDIF
-    ENDDO
-  ENDDO
-ENDDO
-
-
 !- Loop over g-channels.
 DO JLEV = 1, KLEV
 !cdir unroll=4
@@ -211,25 +180,15 @@ DO JLEV = 1, KLEV
       ZODEPTH = ZSECANG * ZTAU(JLON,JI,JLEV)
       POD(JLON,JI,JLEV) = ZODEPTH
       ZODEPTH=0.5D0*(ABS(ZODEPTH)+ZODEPTH)
-
-!-- revised code to get the pre-computed transmission
-!          IF (ODEPTH.LE.0.) PRINT*, 'ODEPTH = ',ODEPTH
-!!  IF (ODEPTH <= _ZERO_)THEN
-!!    ATR1(JI,LAY) = _ONE_ - TRANS(0)
-!!    TF1(JI,LAY) = _ZERO_
-!!  ELSE
-
       ZTF = ZODEPTH/(BPADE+ZODEPTH)
-
       ITR=INT(5.E+03_JPRB*ZTF+0.5_JPRB)
       PATR1(JLON,JI,JLEV) = 1.0_JPRB - TRANS(ITR)
       PTF1(JLON,JI,JLEV) = ZTF
-!!  ENDIF
     ENDDO
   ENDDO
 ENDDO
 !     -----------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('RRTM_GASABS1A_140GP',1,ZHOOK_HANDLE)
-END ASSOCIATE
+
 END SUBROUTINE RRTM_GASABS1A_140GP

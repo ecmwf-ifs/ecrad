@@ -80,20 +80,18 @@ REAL(KIND=JPRB) :: Z_FS, Z_SPECMULT, Z_SPECPARM,  &
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
+IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL4',0,ZHOOK_HANDLE)
+
 ! P =   142.5940 mb
       ZREFRAT_PLANCK_A = CHI_MLS(1,11)/CHI_MLS(2,11)
 
 ! P = 95.58350 mb
       ZREFRAT_PLANCK_B = CHI_MLS(3,13)/CHI_MLS(2,13)
 
-
 !     Compute the optical depth by interpolating in ln(pressure), 
 !     temperature, and appropriate species.  Below LAYTROP, the water
 !     vapor self-continuum is interpolated (in temperature) separately. 
  
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL4',0,ZHOOK_HANDLE)
-
 DO JLAY = 1, KLEV
   DO JLON = KIDIA, KFDIA
     IF (JLAY <= K_LAYTROP(JLON)) THEN
@@ -322,5 +320,4 @@ ENDDO
 
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL4',1,ZHOOK_HANDLE)
 
-END ASSOCIATE
 END SUBROUTINE RRTM_TAUMOL4

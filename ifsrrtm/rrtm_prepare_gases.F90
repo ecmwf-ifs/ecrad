@@ -21,7 +21,7 @@ SUBROUTINE RRTM_PREPARE_GASES &
 USE PARKIND1 , ONLY : JPIM, JPRB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCST   , ONLY : RG
-USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX  
+USE PARRRTM  , ONLY : JPXSEC, JPINPX  
 USE YOMDYNCORE,ONLY : RPLRG
 
 !------------------------------Arguments--------------------------------
@@ -126,7 +126,6 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !      IREFLECT=KREFLECT
 !      NXMOL=KXMOL
 
-ASSOCIATE(NFLEVG=>KLEV)
 IF (LHOOK) CALL DR_HOOK('RRTM_PREPARE_GASES',0,ZHOOK_HANDLE)
 
 ZGRAVIT=(RG/RPLRG)*1.E2_JPRB
@@ -213,6 +212,7 @@ DO JL = KIDIA, KFDIA
 !- Here, all molecules in WKL and WX are in volume mixing ratio; convert to
 !  molec/cm2 based on COLDRY for use in RRTM
 
+!CDIR UNROLL=6
 ZSUMMOL = 0.0_JPRB
 !AB broadening gases
     DO JMOL = 2, ITMOL
@@ -227,5 +227,5 @@ ENDDO
 
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('RRTM_PREPARE_GASES',1,ZHOOK_HANDLE)
-END ASSOCIATE
+
 END SUBROUTINE RRTM_PREPARE_GASES

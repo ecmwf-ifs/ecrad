@@ -6,6 +6,7 @@ SUBROUTINE SRTM_KGB27
 !     Reformatted for F90 by JJMorcrette, ECMWF
 !     G.Mozdzynski March 2011 read constants from files
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  , ONLY : JPRB
@@ -14,7 +15,8 @@ USE YOMLUN    , ONLY : NULRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 USE MPL_MODULE, ONLY : MPL_BROADCAST
 USE YOMTAG    , ONLY : MTAGRAD
-USE YOESRTA27 , ONLY : KA, KB, KA_D, KB_D, SFLUXREF, RAYL, SCALEKUR, LAYREFFR  
+USE YOESRTA27 , ONLY : KA, KB, SFLUXREF, RAYL, SCALEKUR, LAYREFFR, &
+  &  KA_D, KB_D
 
 !     ------------------------------------------------------------------
 
@@ -33,9 +35,9 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('SRTM_KGB27',0,ZHOOK_HANDLE)
 
 IF( MYPROC==1 )THEN
- READ(NULRAD,ERR=1001) KA_D,KB_D
+  READ(NULRAD,ERR=1001) KA_D,KB_D
   KA = REAL(KA_D,JPRB)
-  KB = REAL(KB_D,JPRB) 
+  KB = REAL(KB_D,JPRB)
 ENDIF
 IF( NPROC>1 )THEN
   CALL MPL_BROADCAST (KA,MTAGRAD,1,CDSTRING='SRTM_KGB27:')
