@@ -489,7 +489,7 @@ contains
         ! to make this entire routine secure in single precision.
         mu0_local = mu0
         if (abs(1.0_jprd - k_exponent*mu0) < 1000.0_jprd * epsilon(1.0_jprd)) then
-          mu0_local = mu0 * (1.0_jprb - 10.0_jprb*epsilon(1.0_jprb))
+          mu0_local = mu0 * (1.0_jprb + SIGN(1._jprd,k_exponent*mu0-1._jprd)*10.0_jprb*epsilon(1.0_jprb))
         end if
 
         od_over_mu0 = max(od(jg) / mu0_local, 0.0_jprd)
