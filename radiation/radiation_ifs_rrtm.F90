@@ -198,7 +198,6 @@ contains
     USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX 
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
     USE YOESRTM  , ONLY : JPGPT_SW => JPGPT  
-    !USE YOMDIMV  , ONLY : YRDIMV
     use yomhook  , only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type, ISolverSpartacus
@@ -356,11 +355,6 @@ contains
     ZONEMINUS = 1.0_jprb - 1.0e-6_jprb
     ZONEMINUS_ARRAY = ZONEMINUS
 
-!    if (.not. associated(YRDIMV)) then
-!      allocate(YRDIMV)
-!      YRDIMV%NFLEVG = nlev
-!    end if
-
     do jlev=1,nlev
       do jcol= istartcol,iendcol
         pressure_fl(jcol,jlev) &
@@ -451,7 +445,6 @@ contains
     end if
 
     if (config%i_solver_lw == ISolverSpartacus) then
-      !    if (.true.) then
       ! We need to rearrange the gas optics info in memory: reordering
       ! the g points in order of approximately increasing optical
       ! depth (for efficient 3D processing on only the regions of the

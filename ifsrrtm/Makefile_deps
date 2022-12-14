@@ -104,3 +104,4 @@ srtm_kgb27.o: yoesrta27.o
 srtm_kgb28.o: yoesrta28.o 
 srtm_kgb29.o: yoesrta29.o 
 susrtm.o: yoesrtm.o yoesrtwn.o 
+modify_wv_continuum.o: yoesrta16.o yoesrta17.o yoesrta18.o yoesrta19.o yoesrta20.o yoesrta21.o yoesrta22.o yoesrta23.o yoesrta29.o 

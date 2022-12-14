@@ -135,6 +135,11 @@ contains
 
     if (lhook) call dr_hook('radiation_aerosol_optics_description:preferred_optical_model',0,hook_handle)
 
+    ! Check for empty string
+    if (optical_model_str == ' ') then
+      return
+    end if
+    
     ! Loop over hydrophilic types
     do ja = 1,size(this%bin_philic)
       ! Check if we have a match

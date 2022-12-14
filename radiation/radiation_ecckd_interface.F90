@@ -28,11 +28,16 @@ contains
 
     use parkind1, only : jprb
     use radiation_config
+    use yomhook,  only : lhook, dr_hook, jphook
 
     type(config_type), intent(inout), target :: config
 
     integer :: jj
     
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_ecckd_interface:setup_gas_optics',0,hook_handle)
+
     if (config%do_sw) then
 
       ! Read shortwave ecCKD gas optics NetCDF file
@@ -138,6 +143,8 @@ contains
       nullify(config%i_spec_from_reordered_g_lw)
     end if
 
+    if (lhook) call dr_hook('radiation_ecckd_interface:setup_gas_optics',1,hook_handle)
+    
   end subroutine setup_gas_optics
 
 
@@ -145,10 +152,18 @@ contains
   ! Scale gas mixing ratios according to required units
   subroutine set_gas_units(gas)
 
-    use radiation_gas,           only : gas_type, IVolumeMixingRatio
+    use radiation_gas, only : gas_type, IVolumeMixingRatio
+    use yomhook,       only : lhook, dr_hook, jphook
+    
     type(gas_type),    intent(inout) :: gas
 
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_ecckd_interface:set_gas_units',0,hook_handle)
+
     call gas%set_units(IVolumeMixingRatio)
+
+    if (lhook) call dr_hook('radiation_ecckd_interface:set_gas_units',1,hook_handle)
 
   end subroutine set_gas_units
 
@@ -162,6 +177,8 @@ contains
        &  incoming_sw)
 
     use parkind1, only : jprb
+    use yomhook,  only : lhook, dr_hook, jphook
+
     use radiation_config,         only : config_type
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_single_level,   only : single_level_type
@@ -206,6 +223,10 @@ contains
     real(jprb) :: temperature_fl(istartcol:iendcol,nlev)
 
     integer :: jcol
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_ecckd_interface:gas_optics',0,hook_handle)
 
     !temperature_fl(istartcol:iendcol,:) &
     !     &  = 0.5_jprb * (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
@@ -268,6 +289,8 @@ contains
 
     end if
 
+    if (lhook) call dr_hook('radiation_ecckd_interface:gas_optics',1,hook_handle)
+    
   end subroutine gas_optics
 
   ! !---------------------------------------------------------------------
