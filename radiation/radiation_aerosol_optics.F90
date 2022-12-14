@@ -733,7 +733,6 @@ contains
               od_sw(jg,jlev,jcol) = od_sw(jg,jlev,jcol) + od_sw_aerosol(jg,jlev)
               g_sw(jg,jlev,jcol) = scat_g_sw_aerosol(jg,jlev) / max(local_scat, 1.0e-24_jprb)
               ssa_sw(jg,jlev,jcol) = min(local_scat / max(od_sw(jg,jlev,jcol), 1.0e-24_jprb), 1.0_jprb)
-              od_sw(jg,jlev,jcol) = 0.0_jprb
             end do
           end do
 
