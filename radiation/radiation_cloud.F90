@@ -140,6 +140,10 @@ contains
       this%q_ice  => this%mixing_ratio(:,:,2)
       this%re_liq => this%effective_radius(:,:,1)
       this%re_ice => this%effective_radius(:,:,2)
+      !$ACC ENTER DATA ATTACH(this%q_liq) ASYNC(1)
+      !$ACC ENTER DATA ATTACH(this%q_ice) ASYNC(1)
+      !$ACC ENTER DATA ATTACH(this%re_liq) ASYNC(1)
+      !$ACC ENTER DATA ATTACH(this%re_ice) ASYNC(1)
     end if
 
     allocate(this%fraction(ncol,nlev))
