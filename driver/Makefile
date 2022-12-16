@@ -1,7 +1,8 @@
 #TEST = test_solver
 #TEST = test_cloud_generator
-TEST = test_spartacus_math
-TEST = test_aerosol_optics_description
+#TEST = test_spartacus_math
+#TEST = test_aerosol_optics_description
+TEST = test_random_number_generator
 
 # In dependency order:
 SOURCES = ecrad_driver_read_input.F90 \
