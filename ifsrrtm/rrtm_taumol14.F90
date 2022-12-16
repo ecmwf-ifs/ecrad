@@ -1,7 +1,7 @@
 !******************************************************************************
-SUBROUTINE RRTM_TAUMOL14 (KIDIA,KFDIA,KLEV,P_TAU,&
- & P_TAUAERL,P_FAC00,P_FAC01,P_FAC10,P_FAC11,P_FORFAC,P_FORFRAC,K_INDFOR,K_JP,K_JT,K_JT1,&
- & P_COLCO2,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC)  
+SUBROUTINE RRTM_TAUMOL14 (KIDIA,KFDIA,KLEV,taug,&
+ & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,&
+ & colco2,laytrop,selffac,selffrac,indself,fracs)  
 
 !     BAND 14:  2250-2380 cm-1 (low - CO2; high - CO2)
 
@@ -30,92 +30,201 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLCO2(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colco2(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: fracs(KIDIA:KFDIA,JPGPT,KLEV) 
 
-INTEGER(KIND=JPIM),INTENT(IN)   :: K_INDFOR(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV) 
 ! ---------------------------------------------------------------------------
 
-INTEGER(KIND=JPIM) :: IG, IND0, IND1, INDS, INDF, JLAY
-INTEGER(KIND=JPIM) :: JLON
-REAL(KIND=JPRB) :: ZTAUFOR,ZTAUSELF
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+INTEGER(KIND=JPIM) :: IG, IND0, IND1, INDS, INDF, lay
+REAL(KIND=JPRB) :: taufor,tauself
+    !     local integer arrays
+    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
+    integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
+    INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
+
+    !$ACC DATA PRESENT(taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
+    !$ACC             colco2, laytrop, selffac, selffrac, indself, fracs, &
+    !$ACC             indfor, forfac, forfrac)
+
+#ifndef _OPENACC
+    laytrop_min = MINVAL(laytrop)
+    laytrop_max = MAXVAL(laytrop)
+
+    ixlow  = 0
+    ixhigh = 0
+    ixc    = 0
+
+    ! create index lists for mixed layers
+    do lay = laytrop_min+1, laytrop_max
+      icl = 0
+      ich = 0
+      do jc = KIDIA, KFDIA
+        if ( lay <= laytrop(jc) ) then
+          icl = icl + 1
+          ixlow(icl,lay) = jc
+        else
+          ich = ich + 1
+          ixhigh(ich,lay) = jc
+        endif
+      enddo
+      ixc(lay) = icl
+    enddo
+#else
+    laytrop_min = HUGE(laytrop_min) 
+    laytrop_max = -HUGE(laytrop_max)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
+    do jc = KIDIA,KFDIA
+      laytrop_min = MIN(laytrop_min, laytrop(jc))
+      laytrop_max = MAX(laytrop_max, laytrop(jc))
+    end do
+    !$ACC END PARALLEL
+#endif
 
 ! Compute the optical depth by interpolating in ln(pressure) and 
 ! temperature.  Below laytrop, the water vapor self-continuum 
 ! and foreign continuum is interpolated (in temperature) separately.  
 
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL14',0,ZHOOK_HANDLE)
+      ! Lower atmosphere loop
+      !$ACC WAIT
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf)
+      do lay = 1, laytrop_min
+        do jl = KIDIA, KFDIA
 
-DO JLAY = 1, KLEV
-  DO JLON = KIDIA, KFDIA
-    IF (JLAY <= K_LAYTROP(JLON)) THEN
-      IND0 = ((K_JP(JLON,JLAY)-1)*5+(K_JT(JLON,JLAY)-1))*NSPA(14) + 1
-      IND1 = (K_JP(JLON,JLAY)*5+(K_JT1(JLON,JLAY)-1))*NSPA(14) + 1
-      INDS = K_INDSELF(JLON,JLAY)
-      INDF = K_INDFOR(JLON,JLAY)
+          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(14) + 1
+          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(14) + 1
+          inds = indself(jl,lay)
+          indf = indfor(jl,lay)
+          !$ACC LOOP SEQ PRIVATE(taufor, tauself)
+!$NEC unroll(NG14)
+          do ig = 1, ng14
+            tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                 (selfref(inds+1,ig) - selfref(inds,ig)))
+            taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            taug(jl,ngs13+ig,lay) = colco2(jl,lay) * &
+                 (fac00(jl,lay) * absa(ind0,ig) + &
+                 fac10(jl,lay) * absa(ind0+1,ig) + &
+                 fac01(jl,lay) * absa(ind1,ig) + &
+                 fac11(jl,lay) * absa(ind1+1,ig)) &
+                 + tauself + taufor
+            fracs(jl,ngs13+ig,lay) = fracrefa(ig)
+          enddo
+        enddo
 
-!-- DS_990714  
-!-- jjm20110728 re-establishing the loop instead of specified IG to allow a flexible number of NG14
-      DO IG = 1, NG14
-!      IG=1
-        ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(INDS,IG) + P_SELFFRAC(JLON,JLAY) * &
-          &       (SELFREF(INDS+1,IG) - SELFREF(INDS,IG)))
-        ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF,IG) + P_FORFRAC(JLON,JLAY) * &
-          &       (FORREF(INDF+1,IG) - FORREF(INDF,IG))) 
+      enddo
+      !$ACC END PARALLEL
 
-        P_TAU(JLON,NGS13+IG,JLAY) = P_COLCO2(JLON,JLAY) *&
-         & (P_FAC00(JLON,JLAY) * ABSA(IND0  ,IG) +&
-         & P_FAC10(JLON,JLAY) * ABSA(IND0+1,IG) +&
-         & P_FAC01(JLON,JLAY) * ABSA(IND1  ,IG) +&
-         & P_FAC11(JLON,JLAY) * ABSA(IND1+1,IG)) &
-         & + ZTAUSELF + ZTAUFOR &
-         & + P_TAUAERL(JLON,JLAY,14)  
-        PFRAC(JLON,NGS13+IG,JLAY) = FRACREFA(IG)
-      ENDDO
-!-- jjm20110728
-!-- DS_990714  
-    ENDIF
+      ! Upper atmosphere loop
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1)
+      do lay = laytrop_max+1, KLEV
+        do jl = KIDIA, KFDIA
 
-    IF (JLAY > K_LAYTROP(JLON)) THEN
-      IND0 = ((K_JP(JLON,JLAY)-13)*5+(K_JT(JLON,JLAY)-1))*NSPB(14) + 1
-      IND1 = ((K_JP(JLON,JLAY)-12)*5+(K_JT1(JLON,JLAY)-1))*NSPB(14) + 1
-!-- DS_990714  
-!-- jjm20110728 re-establishing the loop instead of specified IG to allow a flexible number of NG14
-      DO IG = 1, NG14
-!      IG=1
-        P_TAU(JLON,NGS13+IG,JLAY) = P_COLCO2(JLON,JLAY) *&
-         & (P_FAC00(JLON,JLAY) * ABSB(IND0  ,IG) +&
-         & P_FAC10(JLON,JLAY) * ABSB(IND0+1,IG) +&
-         & P_FAC01(JLON,JLAY) * ABSB(IND1  ,IG) +&
-         & P_FAC11(JLON,JLAY) * ABSB(IND1+1,IG)) &
-         & + P_TAUAERL(JLON,JLAY,14)  
-        PFRAC(JLON,NGS13+IG,JLAY) = FRACREFB(IG)
-      ENDDO
-!-- jjm20110728
-!-- DS_990714  
-    ENDIF
-  ENDDO
-ENDDO
+          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(14) + 1
+          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(14) + 1
+          !$ACC LOOP SEQ
+!$NEC unroll(NG14)
+          do ig = 1, ng14
+            taug(jl,ngs13+ig,lay) = colco2(jl,lay) * &
+                 (fac00(jl,lay) * absb(ind0,ig) + &
+                 fac10(jl,lay) * absb(ind0+1,ig) + &
+                 fac01(jl,lay) * absb(ind1,ig) + &
+                 fac11(jl,lay) * absb(ind1+1,ig))
+            fracs(jl,ngs13+ig,lay) = fracrefb(ig)
+          enddo
+        enddo
 
+      enddo
+      !$ACC END PARALLEL
 
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL14',1,ZHOOK_HANDLE)
+      IF (laytrop_max /= laytrop_min) THEN
+        ! Mixed loop
+        ! Lower atmosphere part
+        !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf)
+        do lay = laytrop_min+1, laytrop_max
+#ifdef _OPENACC
+          do jl = KIDIA, KFDIA
+            if ( lay <= laytrop(jl) ) then
+#else
+          ixc0 = ixc(lay)
+!$NEC ivdep
+          do ixp = 1, ixc0
+            jl = ixlow(ixp,lay)
+#endif
 
-END ASSOCIATE
+            ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(14) + 1
+            ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(14) + 1
+            inds = indself(jl,lay)
+            indf = indfor(jl,lay)
+!$NEC unroll(NG14)
+            !$ACC LOOP SEQ PRIVATE(tauself, taufor)
+            do ig = 1, ng14
+              tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                  (selfref(inds+1,ig) - selfref(inds,ig)))
+              taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                  (forref(indf+1,ig) - forref(indf,ig)))
+              taug(jl,ngs13+ig,lay) = colco2(jl,lay) * &
+                  (fac00(jl,lay) * absa(ind0,ig) + &
+                  fac10(jl,lay) * absa(ind0+1,ig) + &
+                  fac01(jl,lay) * absa(ind1,ig) + &
+                  fac11(jl,lay) * absa(ind1+1,ig)) &
+                  + tauself + taufor
+              fracs(jl,ngs13+ig,lay) = fracrefa(ig)
+            enddo
+#ifdef _OPENACC
+         else
+#else
+          enddo
+
+          ! Upper atmosphere part
+          ixc0 = KFDIA - KIDIA + 1 - ixc0
+!$NEC ivdep
+          do ixp = 1, ixc0
+            jl = ixhigh(ixp,lay)
+#endif
+
+            ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(14) + 1
+            ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(14) + 1
+!$NEC unroll(NG14)
+            !$ACC LOOP SEQ
+            do ig = 1, ng14
+              taug(jl,ngs13+ig,lay) = colco2(jl,lay) * &
+                  (fac00(jl,lay) * absb(ind0,ig) + &
+                  fac10(jl,lay) * absb(ind0+1,ig) + &
+                  fac01(jl,lay) * absb(ind1,ig) + &
+                  fac11(jl,lay) * absb(ind1+1,ig))
+              fracs(jl,ngs13+ig,lay) = fracrefb(ig)
+            enddo
+#ifdef _OPENACC
+           endif
+#endif
+          enddo
+
+        enddo
+
+        !$ACC END PARALLEL
+
+      ENDIF
+
+      !$ACC END DATA
+
 END SUBROUTINE RRTM_TAUMOL14

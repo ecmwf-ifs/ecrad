@@ -29,6 +29,9 @@ REAL(KIND=JPRB) :: SFLUXREFC(NG23)  ,RAYLC(NG23)
 !EQUIVALENCE (KA(1,1,1),ABSA(1,1))
 EQUIVALENCE (KAC(1,1,1),ABSA(1,1))
 
+!$ACC DECLARE CREATE(KAC, ABSA, SELFREFC, FORREFC, SFLUXREFC, RAYLC)
+
+
 !     -----------------------------------------------------------------
 !        * E.C.M.W.F. PHYSICS PACKAGE ** RRTM SW RADIATION **
 

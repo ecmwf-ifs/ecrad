@@ -61,6 +61,8 @@ DO IGC = 1,NGC(12)
   RAYLC(IGC) = ZSUMF2
 ENDDO
 
+!$ACC UPDATE DEVICE(KAC, KBC, SFLUXREFC, RAYLC)
+
 !     -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRTM_CMBGB27',1,ZHOOK_HANDLE)
 END SUBROUTINE SRTM_CMBGB27

@@ -1,8 +1,8 @@
 !*******************************************************************************
-SUBROUTINE RRTM_TAUMOL8 (KIDIA,KFDIA,KLEV,P_TAU,P_WX,&
- & P_TAUAERL,P_FAC00,P_FAC01,P_FAC10,P_FAC11,P_FORFAC,P_FORFRAC,K_INDFOR,K_JP,K_JT,K_JT1,&
- & P_COLH2O,P_COLO3,P_COLN2O,P_COLCO2,P_COLDRY,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC, &
- & PMINORFRAC,KINDMINOR)  
+SUBROUTINE RRTM_TAUMOL8 (KIDIA,KFDIA,KLEV,taug,wx,&
+ & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,&
+ & colh2o,colo3,coln2o,colco2,coldry,laytrop,selffac,selffrac,indself,fracs, &
+ & minorfrac,indminor)  
 
 !     BAND 8:  1080-1180 cm-1 (low (i.e.>~300mb) - H2O; high - O3)
 
@@ -35,43 +35,85 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_WX(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: wx(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO3(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLN2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLCO2(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLDRY(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colh2o(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colo3(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: coln2o(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colco2(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: coldry(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: fracs(KIDIA:KFDIA,JPGPT,KLEV) 
 
-INTEGER(KIND=JPIM),INTENT(IN)   :: K_INDFOR(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: PMINORFRAC(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: KINDMINOR(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
 
 ! ---------------------------------------------------------------------------
 
-INTEGER(KIND=JPIM) :: IND0(KLEV),IND1(KLEV),INDS(KLEV),INDF(KLEV),INDM(KLEV)
+INTEGER(KIND=JPIM) :: ind0,ind1,inds,indf,indm
 
-INTEGER(KIND=JPIM) :: IG, JLAY
-INTEGER(KIND=JPIM) :: JLON
+INTEGER(KIND=JPIM) :: IG, lay
 
-REAL(KIND=JPRB) :: ZCHI_CO2, ZRATCO2, ZADJFAC, ZADJCOLCO2(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB) :: ZTAUFOR,ZTAUSELF, ZABSO3, ZABSCO2, ZABSN2O
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPRB) :: chi_co2, ratco2, adjfac, adjcolco2
+REAL(KIND=JPRB) :: taufor,tauself, abso3, absco2, absn2o
+    !     local integer arrays
+    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
+    integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
+    INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
+
+    !$ACC DATA PRESENT(taug, wx, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, &
+    !$ACC             jt1, colh2o, colo3, coln2o, colco2, coldry, laytrop, &
+    !$ACC             selffac, selffrac, indself, fracs, indfor, forfrac, forfac, &
+    !$ACC             minorfrac, indminor)
+
+#ifndef _OPENACC
+    laytrop_min = MINVAL(laytrop)
+    laytrop_max = MAXVAL(laytrop)
+
+    ixlow  = 0
+    ixhigh = 0
+    ixc    = 0
+
+    ! create index lists for mixed layers
+    do lay = laytrop_min+1, laytrop_max
+      icl = 0
+      ich = 0
+      do jc = KIDIA, KFDIA
+        if ( lay <= laytrop(jc) ) then
+          icl = icl + 1
+          ixlow(icl,lay) = jc
+        else
+          ich = ich + 1
+          ixhigh(ich,lay) = jc
+        endif
+      enddo
+      ixc(lay) = icl
+    enddo
+#else
+    laytrop_min = HUGE(laytrop_min) 
+    laytrop_max = -HUGE(laytrop_max)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
+    do jc = KIDIA,KFDIA
+      laytrop_min = MIN(laytrop_min, laytrop(jc))
+      laytrop_max = MAX(laytrop_max, laytrop(jc))
+    end do
+    !$ACC END PARALLEL
+#endif
 
 ! Minor gas mapping level:
 !     lower - co2, p = 1053.63 mb, t = 294.2 k
@@ -86,105 +128,219 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 ! self-continuum and foreign continuum is interpolated (in temperature) 
 ! separately.
 
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL8',0,ZHOOK_HANDLE)
+      ! Lower atmosphere loop
+      !$ACC WAIT
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, chi_co2, ratco2, adjfac, adjcolco2)
+      do lay = 1, laytrop_min
+        do jl = KIDIA, KFDIA
 
-DO JLAY = 1, KLEV
-  DO JLON = KIDIA, KFDIA
-    IF (JLAY <= K_LAYTROP(JLON)) THEN
-! In atmospheres where the amount of CO2 is too great to be considered
-! a minor species, adjust the column amount of CO2 by an empirical factor 
-! to obtain the proper contribution.
-      ZCHI_CO2 = P_COLCO2(JLON,JLAY)/P_COLDRY(JLON,JLAY)
-      ZRATCO2 = 1.E20_JPRB*ZCHI_CO2/CHI_MLS(2,K_JP(JLON,JLAY)+1)
-      IF (ZRATCO2 > 3.0_JPRB) THEN
-         ZADJFAC = 2.0_JPRB+(ZRATCO2-2.0_JPRB)**0.65_JPRB
-         ZADJCOLCO2(JLON,JLAY) = ZADJFAC*CHI_MLS(2,K_JP(JLON,JLAY)+1)*P_COLDRY(JLON,JLAY)*1.E-20_JPRB
-      ELSE
-         ZADJCOLCO2(JLON,JLAY) = P_COLCO2(JLON,JLAY)
+          !  In atmospheres where the amount of CO2 is too great to be considered
+          !  a minor species, adjust the column amount of CO2 by an empirical factor
+          !  to obtain the proper contribution.
+          chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
+          ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+          if (ratco2 .gt. 3.0_JPRB) then
+            adjfac = 2.0_JPRB+(ratco2-2.0_JPRB)**0.65_JPRB
+            adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
+          else
+            adjcolco2 = colco2(jl,lay)
+          endif
+
+          ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(8) + 1
+          ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(8) + 1
+          inds = indself(jl,lay)
+          indf = indfor(jl,lay)
+          indm = indminor(jl,lay)
+          !$ACC LOOP SEQ PRIVATE(taufor, tauself, abso3, absco2, absn2o)
+!$NEC unroll(NG8)
+          do ig = 1, ng8
+            tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                 (selfref(inds+1,ig) - selfref(inds,ig)))
+            taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                 (forref(indf+1,ig) - forref(indf,ig)))
+            absco2 =  (ka_mco2(indm,ig) + minorfrac(jl,lay) * &
+                 (ka_mco2(indm+1,ig) - ka_mco2(indm,ig)))
+            abso3 =  (ka_mo3(indm,ig) + minorfrac(jl,lay) * &
+                 (ka_mo3(indm+1,ig) - ka_mo3(indm,ig)))
+            absn2o =  (ka_mn2o(indm,ig) + minorfrac(jl,lay) * &
+                 (ka_mn2o(indm+1,ig) - ka_mn2o(indm,ig)))
+            taug(jl,ngs7+ig,lay) = colh2o(jl,lay) * &
+                 (fac00(jl,lay) * absa(ind0,ig) + &
+                 fac10(jl,lay) * absa(ind0+1,ig) + &
+                 fac01(jl,lay) * absa(ind1,ig) +  &
+                 fac11(jl,lay) * absa(ind1+1,ig)) &
+                 + tauself + taufor &
+                 + adjcolco2*absco2 &
+                 + colo3(jl,lay) * abso3 &
+                 + coln2o(jl,lay) * absn2o &
+                 + wx(jl,3,lay) * cfc12(ig) &
+                 + wx(jl,4,lay) * cfc22adj(ig)
+            fracs(jl,ngs7+ig,lay) = fracrefa(ig)
+          enddo
+        enddo
+
+      enddo
+      !$ACC END PARALLEL
+
+      ! Upper atmosphere loop
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indm, chi_co2, ratco2, adjfac, adjcolco2)
+      do lay = laytrop_max+1, KLEV
+        do jl = KIDIA, KFDIA
+
+          !  In atmospheres where the amount of CO2 is too great to be considered
+          !  a minor species, adjust the column amount of CO2 by an empirical factor
+          !  to obtain the proper contribution.
+          chi_co2 = colco2(jl,lay)/coldry(jl,lay)
+          ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+          if (ratco2 .gt. 3.0_JPRB) then
+            adjfac = 2.0_JPRB+(ratco2-2.0_JPRB)**0.65_JPRB
+            adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1) * coldry(jl,lay)*1.e-20_JPRB
+          else
+            adjcolco2 = colco2(jl,lay)
+          endif
+
+          ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(8) + 1
+          ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(8) + 1
+          indm = indminor(jl,lay)
+          !$ACC LOOP SEQ PRIVATE(absco2, absn2o)
+!$NEC unroll(NG8)
+          do ig = 1, ng8
+            absco2 =  (kb_mco2(indm,ig) + minorfrac(jl,lay) * &
+                 (kb_mco2(indm+1,ig) - kb_mco2(indm,ig)))
+            absn2o =  (kb_mn2o(indm,ig) + minorfrac(jl,lay) * &
+                 (kb_mn2o(indm+1,ig) - kb_mn2o(indm,ig)))
+            taug(jl,ngs7+ig,lay) = colo3(jl,lay) * &
+                 (fac00(jl,lay) * absb(ind0,ig) + &
+                 fac10(jl,lay) * absb(ind0+1,ig) + &
+                 fac01(jl,lay) * absb(ind1,ig) + &
+                 fac11(jl,lay) * absb(ind1+1,ig)) &
+                 + adjcolco2*absco2 &
+                 + coln2o(jl,lay)*absn2o &
+                 + wx(jl,3,lay) * cfc12(ig) &
+                 + wx(jl,4,lay) * cfc22adj(ig)
+            fracs(jl,ngs7+ig,lay) = fracrefb(ig)
+          enddo
+        enddo
+
+      enddo
+      !$ACC END PARALLEL
+
+      IF (laytrop_max /= laytrop_min) THEN
+        ! Mixed loop
+        ! Lower atmosphere part
+        !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(chi_co2, ratco2, adjfac, adjcolco2, ind0, ind1, inds, indf, indm)
+        do lay = laytrop_min+1, laytrop_max
+#ifdef _OPENACC
+          do jl = KIDIA, KFDIA
+            if ( lay <= laytrop(jl) ) then
+#else
+          ixc0 = ixc(lay)
+!$NEC ivdep
+          do ixp = 1, ixc0
+            jl = ixlow(ixp,lay)
+#endif
+
+            !  In atmospheres where the amount of CO2 is too great to be considered
+            !  a minor species, adjust the column amount of CO2 by an empirical factor
+            !  to obtain the proper contribution.
+            chi_co2 = colco2(jl,lay)/(coldry(jl,lay))
+            ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+            if (ratco2 .gt. 3.0_JPRB) then
+              adjfac = 2.0_JPRB+(ratco2-2.0_JPRB)**0.65_JPRB
+              adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1)*coldry(jl,lay)*1.e-20_JPRB
+            else
+              adjcolco2 = colco2(jl,lay)
+            endif
+
+            ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(8) + 1
+            ind1 = (jp(jl,lay)*5+(jt1(jl,lay)-1))*nspa(8) + 1
+            inds = indself(jl,lay)
+            indf = indfor(jl,lay)
+            indm = indminor(jl,lay)
+!$NEC unroll(NG8)
+            !$ACC LOOP SEQ PRIVATE(tauself, taufor, absco2, abso3, absn2o)
+            do ig = 1, ng8
+              tauself = selffac(jl,lay) * (selfref(inds,ig) + selffrac(jl,lay) * &
+                  (selfref(inds+1,ig) - selfref(inds,ig)))
+              taufor = forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
+                  (forref(indf+1,ig) - forref(indf,ig)))
+              absco2 =  (ka_mco2(indm,ig) + minorfrac(jl,lay) * &
+                  (ka_mco2(indm+1,ig) - ka_mco2(indm,ig)))
+              abso3 =  (ka_mo3(indm,ig) + minorfrac(jl,lay) * &
+                  (ka_mo3(indm+1,ig) - ka_mo3(indm,ig)))
+              absn2o =  (ka_mn2o(indm,ig) + minorfrac(jl,lay) * &
+                  (ka_mn2o(indm+1,ig) - ka_mn2o(indm,ig)))
+              taug(jl,ngs7+ig,lay) = colh2o(jl,lay) * &
+                  (fac00(jl,lay) * absa(ind0,ig) + &
+                  fac10(jl,lay) * absa(ind0+1,ig) + &
+                  fac01(jl,lay) * absa(ind1,ig) +  &
+                  fac11(jl,lay) * absa(ind1+1,ig)) &
+                  + tauself + taufor &
+                  + adjcolco2*absco2 &
+                  + colo3(jl,lay) * abso3 &
+                  + coln2o(jl,lay) * absn2o &
+                  + wx(jl,3,lay) * cfc12(ig) &
+                  + wx(jl,4,lay) * cfc22adj(ig)
+              fracs(jl,ngs7+ig,lay) = fracrefa(ig)
+            enddo
+#ifdef _OPENACC
+         else
+#else
+          enddo
+
+          ! Upper atmosphere loop
+          ixc0 = KFDIA - KIDIA + 1 - ixc0
+!$NEC ivdep
+          do ixp = 1, ixc0
+            jl = ixhigh(ixp,lay)
+#endif
+
+            !  In atmospheres where the amount of CO2 is too great to be considered
+            !  a minor species, adjust the column amount of CO2 by an empirical factor
+            !  to obtain the proper contribution.
+            chi_co2 = colco2(jl,lay)/coldry(jl,lay)
+            ratco2 = 1.e20_JPRB*chi_co2/chi_mls(2,jp(jl,lay)+1)
+            if (ratco2 .gt. 3.0_JPRB) then
+              adjfac = 2.0_JPRB+(ratco2-2.0_JPRB)**0.65_JPRB
+              adjcolco2 = adjfac*chi_mls(2,jp(jl,lay)+1) * coldry(jl,lay)*1.e-20_JPRB
+            else
+              adjcolco2 = colco2(jl,lay)
+            endif
+
+            ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(8) + 1
+            ind1 = ((jp(jl,lay)-12)*5+(jt1(jl,lay)-1))*nspb(8) + 1
+            indm = indminor(jl,lay)
+!$NEC unroll(NG8)
+            !$ACC LOOP SEQ PRIVATE(absco2, absn2o)
+            do ig = 1, ng8
+              absco2 =  (kb_mco2(indm,ig) + minorfrac(jl,lay) * &
+                  (kb_mco2(indm+1,ig) - kb_mco2(indm,ig)))
+              absn2o =  (kb_mn2o(indm,ig) + minorfrac(jl,lay) * &
+                  (kb_mn2o(indm+1,ig) - kb_mn2o(indm,ig)))
+              taug(jl,ngs7+ig,lay) = colo3(jl,lay) * &
+                  (fac00(jl,lay) * absb(ind0,ig) + &
+                  fac10(jl,lay) * absb(ind0+1,ig) + &
+                  fac01(jl,lay) * absb(ind1,ig) + &
+                  fac11(jl,lay) * absb(ind1+1,ig)) &
+                  + adjcolco2*absco2 &
+                  + coln2o(jl,lay)*absn2o &
+                  + wx(jl,3,lay) * cfc12(ig) &
+                  + wx(jl,4,lay) * cfc22adj(ig)
+              fracs(jl,ngs7+ig,lay) = fracrefb(ig)
+            enddo
+#ifdef _OPENACC
+           endif
+#endif
+          enddo
+
+        enddo
+        !$ACC END PARALLEL
+
       ENDIF
 
-    
-      IND0(JLAY) = ((K_JP(JLON,JLAY)-1)*5+(K_JT(JLON,JLAY)-1))*NSPA(8) + 1
-      IND1(JLAY) = (K_JP(JLON,JLAY)*5+(K_JT1(JLON,JLAY)-1))*NSPA(8) + 1
-      INDS(JLAY) = K_INDSELF(JLON,JLAY)
-      INDF(JLAY) = K_INDFOR(JLON,JLAY)
-      INDM(JLAY) = KINDMINOR(JLON,JLAY)
-      
-!-- DS_000515
-!CDIR UNROLL=NG8
-      DO IG = 1, NG8
-!-- DS_000515
-         ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(INDS(JLAY),IG) + P_SELFFRAC(JLON,JLAY) * &
-           &      (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG)))
-         ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + P_FORFRAC(JLON,JLAY) * &
-           &      (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
-         ZABSCO2 =  (KA_MCO2(INDM(JLAY),IG) + PMINORFRAC(JLON,JLAY) * &
-           &      (KA_MCO2(INDM(JLAY)+1,IG) - KA_MCO2(INDM(JLAY),IG)))
-         ZABSO3 =  (KA_MO3(INDM(JLAY),IG) + PMINORFRAC(JLON,JLAY) * &
-           &      (KA_MO3(INDM(JLAY)+1,IG) - KA_MO3(INDM(JLAY),IG)))
-         ZABSN2O =  (KA_MN2O(INDM(JLAY),IG) + PMINORFRAC(JLON,JLAY) * &
-           &      (KA_MN2O(INDM(JLAY)+1,IG) - KA_MN2O(INDM(JLAY),IG)))
+      !$ACC END DATA
 
-        P_TAU(JLON,NGS7+IG,JLAY) = P_COLH2O(JLON,JLAY) *&
-         & (P_FAC00(JLON,JLAY) * ABSA(IND0(JLAY)  ,IG) +&
-         & P_FAC10(JLON,JLAY) * ABSA(IND0(JLAY)+1,IG) +&
-         & P_FAC01(JLON,JLAY) * ABSA(IND1(JLAY)  ,IG) +&
-         & P_FAC11(JLON,JLAY) * ABSA(IND1(JLAY)+1,IG)) &
-         & + ZTAUSELF + ZTAUFOR &
-         & + ZADJCOLCO2(JLON,JLAY)*ZABSCO2 &
-         & + P_COLO3(JLON,JLAY)*ZABSO3 &
-         & + P_COLN2O(JLON,JLAY)*ZABSN2O &
-         & + P_WX(JLON,3,JLAY) * CFC12(IG)&
-         & + P_WX(JLON,4,JLAY) * CFC22ADJ(IG)&
-         & + P_TAUAERL(JLON,JLAY,8)  
-        PFRAC(JLON,NGS7+IG,JLAY) = FRACREFA(IG)
-      ENDDO
-    ENDIF
-
-    IF (JLAY > K_LAYTROP(JLON)) THEN
-
-! In atmospheres where the amount of CO2 is too great to be considered
-! a minor species, adjust the column amount of CO2 by an empirical factor 
-! to obtain the proper contribution.
-      ZCHI_CO2 = P_COLCO2(JLON,JLAY)/P_COLDRY(JLON,JLAY)
-      ZRATCO2 = 1.E20_JPRB*ZCHI_CO2/CHI_MLS(2,K_JP(JLON,JLAY)+1)
-      IF (ZRATCO2 > 3.0_JPRB) THEN
-         ZADJFAC = 2.0_JPRB+(ZRATCO2-2.0_JPRB)**0.65_JPRB
-         ZADJCOLCO2(JLON,JLAY) = ZADJFAC*CHI_MLS(2,K_JP(JLON,JLAY)+1)*P_COLDRY(JLON,JLAY)*1.E-20_JPRB
-      ELSE
-         ZADJCOLCO2(JLON,JLAY) = P_COLCO2(JLON,JLAY)
-      ENDIF
-
-
-      IND0(JLAY) = ((K_JP(JLON,JLAY)-13)*5+(K_JT(JLON,JLAY)-1))*NSPB(8) + 1
-      IND1(JLAY) = ((K_JP(JLON,JLAY)-12)*5+(K_JT1(JLON,JLAY)-1))*NSPB(8) + 1
-      INDM(JLAY) = KINDMINOR(JLON,JLAY)
-!-- JJM_000517
-!CDIR UNROLL=NG8
-      DO IG = 1, NG8
-!-- JJM_000517
-        ZABSCO2 =  (KB_MCO2(INDM(JLAY),IG) + PMINORFRAC(JLON,JLAY) * &
-         &        (KB_MCO2(INDM(JLAY)+1,IG) - KB_MCO2(INDM(JLAY),IG)))
-        ZABSN2O =  (KB_MN2O(INDM(JLAY),IG) + PMINORFRAC(JLON,JLAY) * &
-         &        (KB_MN2O(INDM(JLAY)+1,IG) - KB_MN2O(INDM(JLAY),IG)))
-        P_TAU(JLON,NGS7+IG,JLAY) = P_COLO3(JLON,JLAY) *&
-         & (P_FAC00(JLON,JLAY) * ABSB(IND0(JLAY)  ,IG) +&
-         & P_FAC10(JLON,JLAY) * ABSB(IND0(JLAY)+1,IG) +&
-         & P_FAC01(JLON,JLAY) * ABSB(IND1(JLAY)  ,IG) +&
-         & P_FAC11(JLON,JLAY) * ABSB(IND1(JLAY)+1,IG)) &
-         & + ZADJCOLCO2(JLON,JLAY)*ZABSCO2 &
-         & + P_COLN2O(JLON,JLAY)*ZABSN2O &
-         & + P_WX(JLON,3,JLAY) * CFC12(IG)&
-         & + P_WX(JLON,4,JLAY) * CFC22ADJ(IG)&
-         & + P_TAUAERL(JLON,JLAY,8)  
-        PFRAC(JLON,NGS7+IG,JLAY) = FRACREFB(IG)
-      ENDDO
-    ENDIF
-  ENDDO
-ENDDO
-
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL8',1,ZHOOK_HANDLE)
-
-END ASSOCIATE
 END SUBROUTINE RRTM_TAUMOL8

@@ -31,9 +31,9 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLMOL(KIDIA:KFDIA,KLEV) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_SFLUXZEN(KIDIA:KFDIA,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUG(KIDIA:KFDIA,KLEV,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUR(KIDIA:KFDIA,KLEV,JPG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_SFLUXZEN(KIDIA:KFDIA,JPG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUG(KIDIA:KFDIA,KLEV,JPG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUR(KIDIA:KFDIA,KLEV,JPG) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
 !- from AER
 !- from INTFAC      
@@ -42,56 +42,87 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
 !- from PROFDATA             
 !- from SELF             
 INTEGER(KIND=JPIM) :: IG, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
-
+INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('SRTM_TAUMOL26',0,ZHOOK_HANDLE)
+    !$ACC DATA CREATE(i_laysolfr) &
+    !$ACC     PRESENT(p_colmol, k_laytrop, p_sfluxzen, p_taug, p_taur, prmu0)
 
-I_NLAYERS = KLEV
+#ifndef _OPENACC
+    laytrop_min = MINVAL(k_laytrop(KIDIA:KFDIA))
+    laytrop_max = MAXVAL(k_laytrop(KIDIA:KFDIA))
+#else
+    laytrop_min = HUGE(laytrop_min) 
+    laytrop_max = -HUGE(laytrop_max)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
+    do iplon = KIDIA,KFDIA
+      laytrop_min = MIN(laytrop_min, k_laytrop(iplon))
+      laytrop_max = MAX(laytrop_max, k_laytrop(iplon))
+    end do
+    !$ACC END PARALLEL
+#endif
 
-!     Compute the optical depth by interpolating in ln(pressure), 
-!     temperature, and appropriate species.  Below LAYTROP, the water
-!     vapor self-continuum is interpolated (in temperature) separately.  
+    i_nlayers = klev
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR
+    DO iplon = KIDIA, KFDIA
+      i_laysolfr(iplon) = k_laytrop(iplon)
+    ENDDO
+    !$ACC END PARALLEL
 
-I_LAYSOLFR(KIDIA:KFDIA) = K_LAYTROP(KIDIA:KFDIA)
+    !$ACC WAIT
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(3)
+    DO i_lay = 1, laytrop_min
+       DO iplon = KIDIA, KFDIA
+!$NEC unroll(NG26)
+         DO ig = 1 , ng26
+           IF(i_lay == i_laysolfr(iplon)) p_sfluxzen(iplon,ig)=sfluxrefc(ig)
+           p_taug(iplon,i_lay,ig) = 0.0_JPRB
+           p_taur(iplon,i_lay,ig) = p_colmol(iplon,i_lay) * raylc(ig)
+         ENDDO
+       ENDDO
+    ENDDO
+    !$ACC END PARALLEL
 
-DO I_LAY = 1, I_NLAYERS
-  DO IPLON = KIDIA, KFDIA
-    IF (PRMU0(IPLON) > 0.0_JPRB) THEN
-      IF (I_LAY <= K_LAYTROP(IPLON)) THEN
-        !  DO IG = 1, NG(26)
-!CDIR UNROLL=NG26
-        DO IG = 1 , NG26 
-          !    TAUG(LAY,IG) = COLMOL(LAY) * RAYLC(IG)
-          !    SSA(LAY,IG) = 1.0
-          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG) 
-          P_TAUG(IPLON,I_LAY,IG) = 0.0_JPRB
-          P_TAUR(IPLON,I_LAY,IG) = P_COLMOL(IPLON,I_LAY) * RAYLC(IG) 
-        ENDDO
-      ENDIF
-    ENDIF
-  ENDDO
-ENDDO
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
+    DO i_lay = laytrop_min+1, laytrop_max
+       DO iplon = KIDIA, KFDIA
+          IF (i_lay <= k_laytrop(iplon)) THEN
+!$NEC unroll(NG26)
+            !$ACC LOOP SEQ
+            DO ig = 1 , ng26
+              IF(i_lay == i_laysolfr(iplon)) p_sfluxzen(iplon,ig)=sfluxrefc(ig)
+              p_taug(iplon,i_lay,ig) = 0.0_JPRB
+              p_taur(iplon,i_lay,ig) = p_colmol(iplon,i_lay) * raylc(ig)
+            ENDDO
+          ELSE
+!$NEC unroll(NG26)
+            !$ACC LOOP SEQ
+            DO ig = 1 , ng26
+              p_taug(iplon,i_lay,ig) = 0.0_JPRB
+              p_taur(iplon,i_lay,ig) = p_colmol(iplon,i_lay) * raylc(ig)
+            ENDDO
+          ENDIF
+       ENDDO
+    ENDDO
+    !$ACC END PARALLEL
 
-DO I_LAY = 1, I_NLAYERS
-  DO IPLON = KIDIA, KFDIA
-    IF (PRMU0(IPLON) > 0.0_JPRB) THEN
-      IF (I_LAY >= K_LAYTROP(IPLON)+1) THEN
-        !  DO IG = 1, NG(26)
-!CDIR UNROLL=NG26
-        DO IG = 1 , NG26
-          !    TAUG(LAY,IG) = COLMOL(LAY) * RAYLC(IG)
-          !    SSA(LAY,IG) = 1.0
-          P_TAUG(IPLON,I_LAY,IG) = 0.0_JPRB
-          P_TAUR(IPLON,I_LAY,IG) = P_COLMOL(IPLON,I_LAY) * RAYLC(IG) 
-        ENDDO
-      ENDIF
-    ENDIF
-  ENDDO
-ENDDO
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(3)
+    DO ig = 1 , ng26
+       DO i_lay = laytrop_max+1, i_nlayers
+         DO iplon = KIDIA, KFDIA
+           p_taug(iplon,i_lay,ig) = 0.0_JPRB
+           p_taur(iplon,i_lay,ig) = p_colmol(iplon,i_lay) * raylc(ig)
+         ENDDO
+       ENDDO
+    ENDDO
+    !$ACC END PARALLEL
 
-!-----------------------------------------------------------------------
-IF (LHOOK) CALL DR_HOOK('SRTM_TAUMOL26',1,ZHOOK_HANDLE)
-END ASSOCIATE
+    !$ACC WAIT
+    !$ACC END DATA
+
 END SUBROUTINE SRTM_TAUMOL26

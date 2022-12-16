@@ -25,11 +25,13 @@ module radiation_thermodynamics
   public
 
   !---------------------------------------------------------------------
-  ! Derived type for storing pressure and temperature at half levels
+  ! Derived type for storing pressure and temperature at half and full levels
   type thermodynamics_type
      real(jprb), allocatable, dimension(:,:) :: &
-          &  pressure_hl, &   ! (ncol,nlev+1) pressure (Pa)
-          &  temperature_hl   ! (ncol,nlev+1) temperature (K)
+          &  pressure_hl,    & ! (ncol,nlev+1) pressure (Pa)
+          &  temperature_hl, & ! (ncol,nlev+1) temperature (K)
+          &  pressure_fl,    & ! (ncol,nlev) pressure (Pa)
+          &  temperature_fl    ! (ncol,nlev) temperature (K)
 
      ! The following is a function of pressure and temperature: you
      ! can calculate it according to your favourite formula, or the
@@ -38,6 +40,16 @@ module radiation_thermodynamics
      real(jprb), allocatable, dimension(:,:) :: &
           &  h2o_sat_liq ! (ncol,nlev) specific humidity at liquid
                          ! saturation (kg/kg)
+
+     ! Using the interpolation method for temperature and pressure from half levels
+     ! to full levels that is used in the subroutine gas_optics in radiation_ifs_rrtm
+     ! can result in values for ind1 that exceed the bounds of absa within 
+     ! srtm_taumol16 for ecRad inside ICON. This can be avoided by directly
+     ! passing pressure_fl and temperature_fl from ICON to ecRad. With 
+     ! rrtm_pass_temppres_fl = .TRUE., the fields pressure_fl and temperature_fl
+     ! are allocated and used within gas_optics in radiation_ifs_rrtm.
+     logical :: &
+          &  rrtm_pass_temppres_fl 
    contains
      procedure :: allocate   => allocate_thermodynamics_arrays
      procedure :: deallocate => deallocate_thermodynamics_arrays
@@ -45,6 +57,10 @@ module radiation_thermodynamics
      procedure :: get_layer_mass
      procedure :: get_layer_mass_column
      procedure :: out_of_physical_bounds
+#ifdef _OPENACC
+    procedure :: update_host
+    procedure :: update_device
+#endif
 
   end type thermodynamics_type
 
@@ -54,7 +70,7 @@ contains
   !---------------------------------------------------------------------
   ! Allocate variables with specified dimensions
   subroutine allocate_thermodynamics_arrays(this, ncol, nlev, &
-       &                                    use_h2o_sat)
+       &                                    use_h2o_sat, rrtm_pass_temppres_fl)
 
     use yomhook,  only : lhook, dr_hook
 
@@ -62,6 +78,8 @@ contains
     integer, intent(in)           :: ncol  ! Number of columns
     integer, intent(in)           :: nlev  ! Number of levels
     logical, intent(in), optional :: use_h2o_sat ! Allocate h2o_sat_liq?
+    logical, intent(in), optional :: rrtm_pass_temppres_fl ! Directly pass temperature
+                                                           ! and pressure on full levels
 
     logical :: use_h2o_sat_local
 
@@ -71,14 +89,27 @@ contains
 
     allocate(this%pressure_hl(ncol,nlev+1))
     allocate(this%temperature_hl(ncol,nlev+1))
+    !$ACC ENTER DATA CREATE(this%pressure_hl, this%temperature_hl) ASYNC(1)
 
     use_h2o_sat_local = .false.
     if (present(use_h2o_sat)) then
       use_h2o_sat_local = use_h2o_sat
     end if
+
+    this%rrtm_pass_temppres_fl = .false.
+    if (present(rrtm_pass_temppres_fl)) then
+      this%rrtm_pass_temppres_fl = rrtm_pass_temppres_fl
+    end if
+
+    if (this%rrtm_pass_temppres_fl) then
+      allocate(this%pressure_fl(ncol,nlev))
+      allocate(this%temperature_fl(ncol,nlev))
+      !$ACC ENTER DATA CREATE(this%pressure_fl, this%temperature_fl) ASYNC(1)
+    end if
     
     if (use_h2o_sat_local) then
       allocate(this%h2o_sat_liq(ncol,nlev))
+      !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1)
     end if    
 
     if (lhook) call dr_hook('radiation_thermodynamics:allocate',1,hook_handle)
@@ -99,12 +130,23 @@ contains
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',0,hook_handle)
 
     if (allocated(this%pressure_hl)) then
+      !$ACC EXIT DATA DELETE(this%pressure_hl) WAIT(1)
       deallocate(this%pressure_hl)
     end if
     if (allocated(this%temperature_hl)) then
+      !$ACC EXIT DATA DELETE(this%temperature_hl) WAIT(1)
       deallocate(this%temperature_hl)
     end if
+    if (allocated(this%pressure_fl)) then
+      !$ACC EXIT DATA DELETE(this%pressure_fl) WAIT(1)
+      deallocate(this%pressure_fl)
+    end if
+    if (allocated(this%temperature_fl)) then
+      !$ACC EXIT DATA DELETE(this%temperature_fl) WAIT(1)
+      deallocate(this%temperature_fl)
+    end if
     if (allocated(this%h2o_sat_liq)) then
+      !$ACC EXIT DATA DELETE(this%h2o_sat_liq) WAIT(1)
       deallocate(this%h2o_sat_liq)
     end if
 
@@ -140,8 +182,11 @@ contains
 
     if (.not. allocated(this%h2o_sat_liq)) then
       allocate(this%h2o_sat_liq(ncol,nlev))
+      !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1)
     end if
 
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(pressure, temperature, e_sat)
     do jlev = 1,nlev
        do jcol = istartcol,iendcol
           pressure = 0.5 * (this%pressure_hl(jcol,jlev)+this%pressure_hl(jcol,jlev+1))
@@ -152,6 +197,7 @@ contains
           this%h2o_sat_liq(jcol,jlev) = min(1.0_jprb, 0.622_jprb * e_sat / pressure)
        end do
     end do
+    !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',1,hook_handle)
 
@@ -326,5 +372,53 @@ contains
     if (lhook) call dr_hook('radiation_thermodynamics:out_of_physical_bounds',1,hook_handle)
 
   end function out_of_physical_bounds
+
+#ifdef _OPENACC
+  !---------------------------------------------------------------------
+  ! updates fields on host
+  subroutine update_host(this)
+
+    class(thermodynamics_type), intent(inout) :: this
+
+    !$ACC UPDATE HOST(this%pressure_hl) &
+    !$ACC   IF(allocated(this%pressure_hl))
+
+    !$ACC UPDATE HOST(this%temperature_hl) &
+    !$ACC   IF(allocated(this%temperature_hl))
+
+    !$ACC UPDATE HOST(this%pressure_fl) &
+    !$ACC   IF(allocated(this%pressure_fl))
+
+    !$ACC UPDATE HOST(this%temperature_fl) &
+    !$ACC   IF(allocated(this%temperature_fl))
+
+    !$ACC UPDATE HOST(this%h2o_sat_liq) &
+    !$ACC   IF(allocated(this%h2o_sat_liq))
+
+  end subroutine update_host
+
+  !---------------------------------------------------------------------
+  ! updates fields on device
+  subroutine update_device(this)
+
+    class(thermodynamics_type), intent(inout) :: this
+
+    !$ACC UPDATE DEVICE(this%pressure_hl) &
+    !$ACC   IF(allocated(this%pressure_hl))
+
+    !$ACC UPDATE DEVICE(this%temperature_hl) &
+    !$ACC   IF(allocated(this%temperature_hl))
+
+    !$ACC UPDATE DEVICE(this%pressure_fl) &
+    !$ACC   IF(allocated(this%pressure_fl))
+
+    !$ACC UPDATE DEVICE(this%temperature_fl) &
+    !$ACC   IF(allocated(this%temperature_fl))
+
+    !$ACC UPDATE DEVICE(this%h2o_sat_liq) &
+    !$ACC   IF(allocated(this%h2o_sat_liq))
+
+  end subroutine update_device
+#endif 
   
 end module radiation_thermodynamics

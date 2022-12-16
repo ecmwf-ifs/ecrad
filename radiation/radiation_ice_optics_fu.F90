@@ -63,6 +63,8 @@ contains
     integer :: jb
     !real(jprb)  :: hook_handle
 
+    !$ACC ROUTINE SEQ
+
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_sw',0,hook_handle)
 
     ! Convert to effective diameter using the relationship in the IFS
@@ -112,6 +114,8 @@ contains
 
     integer :: jb
     !real(jprb)  :: hook_handle
+
+    !$ACC ROUTINE SEQ
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_lw',0,hook_handle)
 

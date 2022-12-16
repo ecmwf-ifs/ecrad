@@ -95,7 +95,7 @@ data ZAMCL4 / 153.8230_JPRB   /
 data ZAVGDRO/ 6.02214E23_JPRB /
 
 INTEGER(KIND=JPIM) :: IATM, JMOL, IXMAX, J1, J2, JK, JL
-INTEGER(KIND=JPIM) :: ITMOL, INXMOL
+INTEGER(KIND=JPIM), PARAMETER :: ITMOL = 7
 
 REAL(KIND=JPRB) :: ZAMM
 
@@ -129,15 +129,25 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 ASSOCIATE(NFLEVG=>KLEV)
 IF (LHOOK) CALL DR_HOOK('RRTM_PREPARE_GASES',0,ZHOOK_HANDLE)
 
+!$ACC DATA PRESENT(PAPH, PAP, &
+!$ACC              PTH, PT, &
+!$ACC              PQ, PCO2, PCH4, PN2O, PNO2, PC11, PC12, PC22, PCL4, POZN, &
+!$ACC              PCOLDRY, PWBRODL, PWKL, PWX , &
+!$ACC              PAVEL, PTAVEL, PZ, PTZ , KREFLECT)
+
 ZGRAVIT=(RG/RPLRG)*1.E2_JPRB
 
+!$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+!$ACC LOOP GANG VECTOR
 DO JL = KIDIA, KFDIA
   KREFLECT(JL)=0
-  INXMOL=2
 ENDDO
+!$ACC END PARALLEL
 
+!$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
 !DO J1=1,35
 ! IXINDX(J1)=0
+!$ACC LOOP GANG VECTOR COLLAPSE(3)
 DO J2=1,KLEV
   DO J1=1,35
     DO JL = KIDIA, KFDIA
@@ -147,6 +157,7 @@ DO J2=1,KLEV
 ENDDO
 !IXINDX(2)=2
 !IXINDX(3)=3
+!$ACC END PARALLEL
 
 !     Set parameters needed for RRTM execution:
 IATM    = 0
@@ -155,6 +166,8 @@ IATM    = 0
 !      IOUT    = -1
 IXMAX   = 4
 
+!$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+!$ACC LOOP GANG(STATIC:1) VECTOR
 DO JL = KIDIA, KFDIA
 !     Install ECRT arrays into RRTM arrays for pressure, temperature,
 !     and molecular amounts.  Pressures are converted from Pascals
@@ -168,12 +181,13 @@ DO JL = KIDIA, KFDIA
 !     molecular weight of moist air (amm) is calculated for each layer.
 !     Note: RRTM levels count from bottom to top, while the ECRT input
 !     variables count from the top down and must be reversed 
-  ITMOL = 7
   PZ(JL,0) = PAPH(JL,KLEV+1)/100._JPRB
   PTZ(JL,0) = PTH(JL,KLEV+1)
 ENDDO
 
+  !$ACC LOOP SEQ
   DO JK = 1, KLEV
+    !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ZAMM)
     DO JL = KIDIA, KFDIA
     PAVEL(JL,JK) = PAP(JL,KLEV-JK+1)/100._JPRB
     PTAVEL(JL,JK) = PT(JL,KLEV-JK+1)
@@ -189,7 +203,10 @@ ENDDO
     PCOLDRY(JL,JK) = (PZ(JL,JK-1)-PZ(JL,JK))*1.E3_JPRB*ZAVGDRO/(ZGRAVIT*ZAMM*(1.0_JPRB+PWKL(JL,1,JK)))
   ENDDO
   ENDDO
+  !$ACC END PARALLEL
 
+  !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+  !$ACC LOOP GANG VECTOR COLLAPSE(3)
   DO J2=1,KLEV
     DO J1=1,JPXSEC
       DO JL = KIDIA, KFDIA
@@ -197,8 +214,13 @@ ENDDO
       ENDDO
     ENDDO
   ENDDO
+  !$ACC END PARALLEL
 
+
+  !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+  !$ACC LOOP SEQ
   DO JK = 1, KLEV
+!$ACC LOOP GANG VECTOR PRIVATE (ZSUMMOL) 
 DO JL = KIDIA, KFDIA
 !- Set cross section molecule amounts from ECRT; convert to vmr
     PWX(JL,1,JK) = PCL4(JL,KLEV-JK+1) * ZAMD/ZAMCL4
@@ -215,15 +237,20 @@ DO JL = KIDIA, KFDIA
 
 ZSUMMOL = 0.0_JPRB
 !AB broadening gases
+    !$ACC LOOP SEQ
     DO JMOL = 2, ITMOL
       ZSUMMOL = ZSUMMOL + PWKL(JL,JMOL,JK)
     ENDDO
     PWBRODL(JL,JK) = PCOLDRY(JL,JK) * (1._JPRB - ZSUMMOL)
+    !$ACC LOOP SEQ
     DO JMOL = 1, ITMOL
       PWKL(JL,JMOL,JK) = PCOLDRY(JL,JK) * PWKL(JL,JMOL,JK)
     ENDDO    
   ENDDO
 ENDDO
+!$ACC END PARALLEL
+!$ACC WAIT
+!$ACC END DATA
 
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('RRTM_PREPARE_GASES',1,ZHOOK_HANDLE)

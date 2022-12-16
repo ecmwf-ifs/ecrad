@@ -45,6 +45,8 @@ end subroutine delta_eddington
 ! rather than the asymmetry factor.
 elemental subroutine delta_eddington_extensive(od, scat_od, scat_od_g)
 
+  !$ACC ROUTINE SEQ
+
   use parkind1, only : jprb
 
   ! Total optical depth, scattering optical depth and asymmetry factor
@@ -83,6 +85,8 @@ elemental subroutine delta_eddington_scat_od(od, scat_od, g)
   ! Fraction of the phase function deemed to be in the forward lobe
   ! and therefore treated as if it is not scattered at all
   real(jprb) :: f
+
+  !$ACC ROUTINE SEQ
 
   f       = g*g
   od      = od - scat_od * f

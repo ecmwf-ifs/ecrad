@@ -28,6 +28,9 @@ REAL(KIND=JPRB) :: FORREF(4,NG5)
 
 EQUIVALENCE (KA(1,1,1,1),ABSA(1,1)),(KB(1,1,13,1),ABSB(1,1))
 
+!$ACC DECLARE CREATE(FRACREFA, FRACREFB, CCL4, KA, ABSA, KB, ABSB, KA_MO3, &
+!$ACC                SELFREF, FORREF)
+
 !     -----------------------------------------------------------------
 !        * E.C.M.W.F. PHYSICS PACKAGE ** RRTM LW RADIATION **
 

@@ -89,6 +89,10 @@ contains
     ! Two-stream coefficients
     real(jprb), dimension(config%n_g_sw) :: gamma1, gamma2, gamma3
 
+    ! Temporary working array
+    real(jprb), dimension(config%n_g_sw,nlev+1) :: tmp_work_albedo, tmp_work_source
+    real(jprb), dimension(config%n_g_sw,nlev) :: tmp_work_inv_denominator
+
     ! Number of g points
     integer :: ng
 
@@ -147,8 +151,11 @@ contains
         ! Use adding method to compute fluxes
         call adding_ica_sw(ng, nlev, incoming_sw(:,jcol), &
              &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), &
-             &  spread(cos_sza,1,ng), reflectance, transmittance, ref_dir, trans_dir_diff, &
-             &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct)
+             &  cos_sza, reflectance, transmittance, ref_dir, trans_dir_diff, &
+             &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct, &
+             &  albedo=tmp_work_albedo, &
+             &  source=tmp_work_source, &
+             &  inv_denominator=tmp_work_inv_denominator)
         
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes

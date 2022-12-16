@@ -73,6 +73,11 @@ module radiation_gas
      procedure :: get        => get_gas
      procedure :: reverse    => reverse_gas
      procedure :: out_of_physical_bounds
+#ifdef _OPENACC
+    procedure :: update_host
+    procedure :: update_device
+#endif
+
   end type gas_type
 
 contains
@@ -88,6 +93,7 @@ contains
     class(gas_type), intent(inout) :: this
     integer,         intent(in)    :: ncol, nlev
 
+    integer             :: jcol, jlev, jgas
     real(jprb)          :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:allocate',0,hook_handle)
@@ -95,10 +101,22 @@ contains
     call this%deallocate()
 
     allocate(this%mixing_ratio(ncol, nlev, NMaxGases))
-    this%mixing_ratio = 0.0_jprb
+    !$ACC ENTER DATA CREATE(this%mixing_ratio) ASYNC(1)
+
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(3)
+    do jgas = 1,NMaxGases
+      do jlev = 1, nlev
+        do jcol = 1,ncol
+          this%mixing_ratio(jcol,jlev,jgas) = 0.0_jprb
+        end do
+      end do
+    end do
+    !$ACC END PARALLEL
 
     this%ncol = ncol
     this%nlev = nlev
+    !$ACC UPDATE DEVICE(this%ncol, this%nlev) ASYNC(1)
 
     if (lhook) call dr_hook('radiation_gas:allocate',1,hook_handle)
 
@@ -118,6 +136,7 @@ contains
     if (lhook) call dr_hook('radiation_gas:deallocate',0,hook_handle)
 
     if (allocated(this%mixing_ratio)) then
+       !$ACC EXIT DATA DELETE(this%mixing_ratio) WAIT(1)
        deallocate(this%mixing_ratio)
     end if
     
@@ -202,16 +221,20 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
+      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1)
     end if
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
 
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, mixing_ratio) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
       do jc = i1,i2
         this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
       end do
     end do
+    !$ACC END PARALLEL
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -286,17 +309,22 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
+      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1)
+
     end if
     ! Map uses a negative value to indicate a well-mixed value
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
 
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) 
     do jk = 1,this%nlev
       do jc = i1,i2
         this%mixing_ratio(jc,jk,igas) = mixing_ratio
       end do
     end do
+    !$ACC END PARALLEL
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -353,8 +381,7 @@ contains
     integer,              intent(in)    :: iunits
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor    
-
-    integer :: ig
+    integer :: ig, jcol, jlev
 
     ! Scaling factor to convert from old to new
     real(jprb) :: sf
@@ -387,7 +414,14 @@ contains
         sf = sf * this%scale_factor(igas)
         
         if (sf /= 1.0_jprb) then
-          this%mixing_ratio(:,:,igas) = this%mixing_ratio(:,:,igas) * sf
+          !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, this%mixing_ratio, igas) ASYNC(1)
+          !$ACC LOOP GANG VECTOR COLLAPSE(2)
+          do jlev = 1,this%nlev
+            do jcol = 1,this%ncol
+              this%mixing_ratio(jcol,jlev,igas) = this%mixing_ratio(jcol,jlev,igas) * sf
+            enddo
+          enddo
+          !$ACC END PARALLEL
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
@@ -473,6 +507,11 @@ contains
     real(jprb)                        :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
+
+#ifdef _OPENACC
+    write(nulerr,'(a)') '*** Error: radiation_gas:get not ported to GPU'
+    call radiation_abort()
+#endif
 
     if (present(scale_factor)) then
       sf = scale_factor
@@ -585,4 +624,28 @@ contains
 
   end function out_of_physical_bounds
   
+#ifdef _OPENACC
+  !---------------------------------------------------------------------
+  ! updates fields on host
+  subroutine update_host(this)
+
+    class(gas_type), intent(inout) :: this
+
+    !$ACC UPDATE HOST(this%mixing_ratio) &
+    !$ACC   IF(allocated(this%mixing_ratio))
+
+  end subroutine update_host
+
+  !---------------------------------------------------------------------
+  ! updates fields on device
+  subroutine update_device(this)
+
+    class(gas_type), intent(inout) :: this
+
+    !$ACC UPDATE DEVICE(this%mixing_ratio) &
+    !$ACC   IF(allocated(this%mixing_ratio))
+
+  end subroutine update_device
+#endif 
+
 end module radiation_gas

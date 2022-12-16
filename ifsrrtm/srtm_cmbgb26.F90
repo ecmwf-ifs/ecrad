@@ -35,6 +35,8 @@ DO IGC = 1,NGC(11)
   SFLUXREFC(IGC) = ZSUMF2
 ENDDO
 
+!$ACC UPDATE DEVICE(SFLUXREFC, RAYLC)
+
 !     -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRTM_CMBGB26',1,ZHOOK_HANDLE)
 END SUBROUTINE SRTM_CMBGB26

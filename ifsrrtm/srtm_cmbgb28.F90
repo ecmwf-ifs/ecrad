@@ -66,6 +66,9 @@ DO JP = 1,5
   ENDDO
 ENDDO
 
+!$ACC UPDATE DEVICE(KAC, KBC, SFLUXREFC)
+
+
 !     -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRTM_CMBGB28',1,ZHOOK_HANDLE)
 END SUBROUTINE SRTM_CMBGB28

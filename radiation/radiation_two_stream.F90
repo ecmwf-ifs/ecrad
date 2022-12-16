@@ -83,11 +83,15 @@ contains
 
     integer    :: jg
 
+    !$ACC ROUTINE WORKER
+
 #ifdef DO_DR_HOOK_TWO_STREAM
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_two_stream_gammas_lw',0,hook_handle)
 #endif
+
+!$ACC LOOP WORKER VECTOR 
 ! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
@@ -136,8 +140,11 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_two_stream_gammas_sw',0,hook_handle)
 #endif
 
+    !$ACC ROUTINE WORKER
+
     ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
     ! Atmospheric Physics 53, 147-66)
+!$ACC LOOP WORKER VECTOR PRIVATE(factor)
 ! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
@@ -209,6 +216,10 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_lw',0,hook_handle)
 #endif
 
+    !$ACC ROUTINE WORKER
+
+
+!$ACC LOOP WORKER VECTOR
 ! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
@@ -361,12 +372,15 @@ contains
 
     integer :: jg
 
+    !$ACC ROUTINE WORKER
+
 #ifdef DO_DR_HOOK_TWO_STREAM
     real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',0,hook_handle)
 #endif
 
+!$ACC LOOP WORKER VECTOR
 ! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng
@@ -471,6 +485,11 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_reflectance_transmittance_sw',0,hook_handle)
 #endif
 
+    !$ACC ROUTINE WORKER
+
+!$ACC LOOP WORKER VECTOR PRIVATE(gamma4, alpha1, alpha2, k_exponent, &
+!$ACC   reftrans_factor, exponential0, exponential, exponential2, k_mu0, &
+!$ACC   k_gamma3, k_gamma4, k_2_exponential, od_over_mu0)
 ! Added for DWD (2020)
 !NEC$ shortloop
     do jg = 1, ng

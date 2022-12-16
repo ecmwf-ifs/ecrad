@@ -18,6 +18,8 @@ REAL(KIND=JPRB) , DIMENSION(16) :: DELWAVE
 
 REAL(KIND=JPRB) , DIMENSION(181,16) :: TOTPLNK
 
+!$ACC DECLARE CREATE(NSPA, NSPB, DELWAVE, TOTPLNK)
+
 !     -----------------------------------------------------------------
 !        * E.C.M.W.F. PHYSICS PACKAGE ** RRTM LW RADIATION **
 

@@ -41,9 +41,9 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLMOL(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO3(KIDIA:KFDIA,KLEV) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_SFLUXZEN(KIDIA:KFDIA,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUG(KIDIA:KFDIA,KLEV,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUR(KIDIA:KFDIA,KLEV,JPG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_SFLUXZEN(KIDIA:KFDIA,JPG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUG(KIDIA:KFDIA,KLEV,JPG) 
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUR(KIDIA:KFDIA,KLEV,JPG) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
 !- from INTFAC      
 !- from INTIND
@@ -51,75 +51,128 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
 !- from PROFDATA             
 !- from SELF             
 INTEGER(KIND=JPIM) :: IG, IND0, IND1, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
-
+INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
 REAL(KIND=JPRB) ::  &
  & Z_TAURAY  
 REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('SRTM_TAUMOL27',0,ZHOOK_HANDLE)
+    !$ACC DATA CREATE(i_laysolfr) &
+    !$ACC   PRESENT(P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
+    !$ACC           P_COLMOL, P_COLO3, K_LAYTROP, P_SFLUXZEN, P_TAUG, P_TAUR, &
+    !$ACC           PRMU0)
 
-I_NLAYERS = KLEV
+#ifndef _OPENACC
+    laytrop_min = MINVAL(k_laytrop(KIDIA:KFDIA))
+    laytrop_max = MAXVAL(k_laytrop(KIDIA:KFDIA))
+#else
+    laytrop_min = HUGE(laytrop_min) 
+    laytrop_max = -HUGE(laytrop_max)
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
+    do iplon = KIDIA,KFDIA
+      laytrop_min = MIN(laytrop_min, k_laytrop(iplon))
+      laytrop_max = MAX(laytrop_max, k_laytrop(iplon))
+    end do
+    !$ACC END PARALLEL
+#endif
 
-!     Compute the optical depth by interpolating in ln(pressure), 
-!     temperature, and appropriate species.  Below LAYTROP, the water
-!     vapor self-continuum is interpolated (in temperature) separately.  
-DO I_LAY = 1, I_NLAYERS
-  DO IPLON = KIDIA, KFDIA
-    IF (PRMU0(IPLON) > 0.0_JPRB) THEN
-      IF (I_LAY <= K_LAYTROP(IPLON)) THEN
-        IND0 = ((K_JP(IPLON,I_LAY)-1)*5+(K_JT(IPLON,I_LAY)-1))*NSPA(27) + 1
-        IND1 = (K_JP(IPLON,I_LAY)*5+(K_JT1(IPLON,I_LAY)-1))*NSPA(27) + 1
+    i_nlayers = klev
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG(STATIC:1) VECTOR
+    DO iplon = KIDIA,KFDIA
+      i_laysolfr(iplon) = i_nlayers
+    ENDDO
+    !$ACC END PARALLEL
 
-        !  DO IG = 1, NG(27)
-!CDIR UNROLL=NG27
-        DO IG = 1 , NG27
-          Z_TAURAY = P_COLMOL(IPLON,I_LAY) * RAYLC(IG)
-          P_TAUG(IPLON,I_LAY,IG) = P_COLO3(IPLON,I_LAY) * &
-           & (P_FAC00(IPLON,I_LAY) * ABSA(IND0,IG) + &
-           & P_FAC10(IPLON,I_LAY) * ABSA(IND0+1,IG) + &
-           & P_FAC01(IPLON,I_LAY) * ABSA(IND1,IG) + &
-           & P_FAC11(IPLON,I_LAY) * ABSA(IND1+1,IG))  
-          !     &          + TAURAY
-          !    SSA(LAY,IG) = TAURAY/TAUG(LAY,IG)
-          P_TAUR(IPLON,I_LAY,IG) = Z_TAURAY
-        ENDDO
-      ENDIF
-    ENDIF
-  ENDDO
-ENDDO
+    !$ACC WAIT
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1)
+    DO i_lay = 1, laytrop_min
+       DO iplon = KIDIA, KFDIA
+         ind0 = ((k_jp(iplon,i_lay)-1)*5+(k_jt(iplon,i_lay)-1))*nspa(27) + 1
+         ind1 = (k_jp(iplon,i_lay)*5+(k_jt1(iplon,i_lay)-1))*nspa(27) + 1
+         !$ACC LOOP SEQ PRIVATE(z_tauray)
+!$NEC unroll(NG27)
+         DO ig = 1 , ng27
+           z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
+           p_taug(iplon,i_lay,ig) = p_colo3(iplon,i_lay) * &
+                & (p_fac00(iplon,i_lay) * absa(ind0,ig)  + &
+                & p_fac10(iplon,i_lay) * absa(ind0+1,ig) + &
+                & p_fac01(iplon,i_lay) * absa(ind1,ig) +   &
+                & p_fac11(iplon,i_lay) * absa(ind1+1,ig))
+           p_taur(iplon,i_lay,ig) = z_tauray
+         ENDDO
+       ENDDO
+    ENDDO
+    !$ACC END PARALLEL
 
-I_LAYSOLFR(:) = I_NLAYERS
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1)
+    DO i_lay = laytrop_min+1, laytrop_max
+       DO iplon = KIDIA, KFDIA
+          IF (i_lay <= k_laytrop(iplon)) THEN
+            ind0 = ((k_jp(iplon,i_lay)-1)*5+(k_jt(iplon,i_lay)-1))*nspa(27) + 1
+            ind1 = (k_jp(iplon,i_lay)*5+(k_jt1(iplon,i_lay)-1))*nspa(27) + 1
+!$NEC unroll(NG27)
+            !$ACC LOOP SEQ PRIVATE(z_tauray)
+            DO ig = 1 , ng27
+              z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
+              p_taug(iplon,i_lay,ig) = p_colo3(iplon,i_lay) * &
+                   & (p_fac00(iplon,i_lay) * absa(ind0,ig)  + &
+                   & p_fac10(iplon,i_lay) * absa(ind0+1,ig) + &
+                   & p_fac01(iplon,i_lay) * absa(ind1,ig) +   &
+                   & p_fac11(iplon,i_lay) * absa(ind1+1,ig))
+              p_taur(iplon,i_lay,ig) = z_tauray
+            ENDDO
+          ELSE
+            IF (k_jp(iplon,i_lay-1) < layreffr &
+                 &    .AND. k_jp(iplon,i_lay) >= layreffr) i_laysolfr(iplon) = i_lay
+            ind0 = ((k_jp(iplon,i_lay)-13)*5+(k_jt(iplon,i_lay)-1))*nspb(27) + 1
+            ind1 = ((k_jp(iplon,i_lay)-12)*5+(k_jt1(iplon,i_lay)-1))*nspb(27)+ 1
+!$NEC unroll(NG27)
+            !$ACC LOOP SEQ PRIVATE(z_tauray)
+            DO ig = 1 , ng27
+              z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
+              p_taug(iplon,i_lay,ig) = p_colo3(iplon,i_lay) * &
+                   & (p_fac00(iplon,i_lay) * absb(ind0,ig)  + &
+                   & p_fac10(iplon,i_lay) * absb(ind0+1,ig) + &
+                   & p_fac01(iplon,i_lay) * absb(ind1,ig) +   &
+                   & p_fac11(iplon,i_lay) * absb(ind1+1,ig))
+              IF (i_lay == i_laysolfr(iplon)) &
+                   & p_sfluxzen(iplon,ig) = scalekur * sfluxrefc(ig)
+              p_taur(iplon,i_lay,ig) = z_tauray
+            ENDDO
+          ENDIF
+       ENDDO
+    ENDDO
+    !$ACC END PARALLEL
 
-DO I_LAY = 1, I_NLAYERS
-  DO IPLON = KIDIA, KFDIA
-    IF (PRMU0(IPLON) > 0.0_JPRB) THEN
-      IF (I_LAY >= K_LAYTROP(IPLON)+1) THEN
-        IF (K_JP(IPLON,I_LAY-1) < LAYREFFR .AND. K_JP(IPLON,I_LAY) >= LAYREFFR) &
-         & I_LAYSOLFR(IPLON) = I_LAY  
-        IND0 = ((K_JP(IPLON,I_LAY)-13)*5+(K_JT(IPLON,I_LAY)-1))*NSPB(27) + 1
-        IND1 = ((K_JP(IPLON,I_LAY)-12)*5+(K_JT1(IPLON,I_LAY)-1))*NSPB(27) + 1
+    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1)
+    DO i_lay = laytrop_max+1, i_nlayers
+       DO iplon = KIDIA, KFDIA
+         IF (k_jp(iplon,i_lay-1) < layreffr &
+              &    .AND. k_jp(iplon,i_lay) >= layreffr) i_laysolfr(iplon) = i_lay
+         ind0 = ((k_jp(iplon,i_lay)-13)*5+(k_jt(iplon,i_lay)-1))*nspb(27) + 1
+         ind1 = ((k_jp(iplon,i_lay)-12)*5+(k_jt1(iplon,i_lay)-1))*nspb(27)+ 1
+         !$ACC LOOP SEQ PRIVATE(z_tauray)
+!$NEC unroll(NG27)
+         DO ig = 1 , ng27
+           z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
+           p_taug(iplon,i_lay,ig) = p_colo3(iplon,i_lay) * &
+                & (p_fac00(iplon,i_lay) * absb(ind0,ig)  + &
+                & p_fac10(iplon,i_lay) * absb(ind0+1,ig) + &
+                & p_fac01(iplon,i_lay) * absb(ind1,ig) +   &
+                & p_fac11(iplon,i_lay) * absb(ind1+1,ig))
+           IF (i_lay == i_laysolfr(iplon)) &
+                & p_sfluxzen(iplon,ig) = scalekur * sfluxrefc(ig)
+           p_taur(iplon,i_lay,ig) = z_tauray
+         ENDDO
+       ENDDO
+    ENDDO
+    !$ACC END PARALLEL
 
-        !  DO IG = 1, NG(27)
-!CDIR UNROLL=NG27
-        DO IG = 1 , NG27
-          Z_TAURAY = P_COLMOL(IPLON,I_LAY) * RAYLC(IG)
-          P_TAUG(IPLON,I_LAY,IG) = P_COLO3(IPLON,I_LAY) * &
-           & (P_FAC00(IPLON,I_LAY) * ABSB(IND0,IG) + &
-           & P_FAC10(IPLON,I_LAY) * ABSB(IND0+1,IG) + &
-           & P_FAC01(IPLON,I_LAY) * ABSB(IND1,IG) +  &
-           & P_FAC11(IPLON,I_LAY) * ABSB(IND1+1,IG))  
-          !     &          + TAURAY
-          !    SSA(LAY,IG) = TAURAY/TAUG(LAY,IG)
-          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IPLON,IG) = SCALEKUR * SFLUXREFC(IG) 
-          P_TAUR(IPLON,I_LAY,IG) = Z_TAURAY
-        ENDDO
-      ENDIF
-    ENDIF
-  ENDDO
-ENDDO
+    !$ACC WAIT
+    !$ACC END DATA
 
-!-----------------------------------------------------------------------
-IF (LHOOK) CALL DR_HOOK('SRTM_TAUMOL27',1,ZHOOK_HANDLE)
-END ASSOCIATE
 END SUBROUTINE SRTM_TAUMOL27
