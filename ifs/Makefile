@@ -13,7 +13,7 @@ deps: includes
 $(LIBIFS): $(OBJECTS)
 	ar r $(LIBIFS) $(OBJECTS)
 
-%.o: %.F90 ../mod/*.mod
+%.o: %.F90 ../lib/libifsaux.a ../lib/libradiation.a
 	$(FC) $(FCFLAGS) -c $<
 
 includes:

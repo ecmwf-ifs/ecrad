@@ -1,4 +1,11 @@
-version 1.5.1
+version 1.6.0
+	- Removed compiler flag specifying to load unformated Fortran
+	  files as big endian: now the OPEN commands for the files RADRRTM
+	  and RADSRTM specify CONVERT='BIG_ENDIAN' in rrtm_kgb1.F90 and
+	  srtm_kgb16.F90
+	- make test_programs to make test programs in driver directory
+
+version 1.5.1 (8 December 2022)
 	- Added Makefile_include.intel_atos to match compiler options on
 	  ECMWF supercomputer, plus "-heap-arrays" which is necessary for
 	  the Intel compiler

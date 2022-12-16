@@ -27,7 +27,12 @@ endif
 
 LDFLAGS = -lrt
 WARNFLAGS = -warn all
-BASICFLAGS = -module ../mod -fpe0 -convert big_endian -assume byterecl -align array64byte \
+
+# We used to have the flag "-convert big_endian" here because the RRTM
+# input files are big endian Fortran unformatted files, but now the
+# file ordering has been specified at the OPEN command so no compiler
+# flags are needed.
+BASICFLAGS = -module ../mod -fpe0 -assume byterecl -align array64byte \
 	   -traceback -fpic -fp-model precise -heap-arrays \
 	   -fp-speculation=safe -fast-transcendentals -ftz \
 	   -finline-functions -finline-limit=1500 -Winline -assume realloc_lhs

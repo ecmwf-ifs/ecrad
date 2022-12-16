@@ -99,15 +99,15 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifndef FIATDIR
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation \
-	driver ifsdriver ifsdriver_blocked symlinks
+build: directories libifsaux libdummydrhook libutilities libifsrrtm \
+	libradiation driver ifsdriver symlinks
 libradiation libutilities: libdummydrhook
 else
 # Note that if we are using Dr Hook from the fiat library we don't
 # want to create mod/yomhook.mod as this can sometimes be found before
 # the one in the fiat directory leading to an error at link stage
-build: directories libifsaux libutilities libifsrrtm libradiation driver ifsdriver \
-	ifsdriver_blocked symlinks
+build: directories libifsaux libutilities libifsrrtm libradiation \
+	driver ifsdriver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -124,12 +124,6 @@ deps: clean-deps
 
 clean-deps:
 	rm -f include/*.intfb.h
-
-ifsdriver: libifsaux libifsrrtm libutilities libradiation libifs
-	cd driver && $(MAKE) ecrad_ifs_driver
-
-ifsdriver_blocked: libifsaux libifsrrtm libutilities libradiation libifs
-	cd driver && $(MAKE) ecrad_ifs_driver_blocked
 
 libifs: libradiation
 	cd ifs && $(MAKE)
@@ -150,7 +144,13 @@ libradiation: libutilities libifsaux
 	cd radiation && $(MAKE)
 
 driver: libifsaux libifsrrtm libutilities libradiation
-	cd driver && $(MAKE)
+	cd driver && $(MAKE) driver
+
+ifsdriver: libifsaux libifsrrtm libutilities libradiation libifs
+	cd driver && $(MAKE) ifs_driver
+
+test_programs: driver
+	cd driver && $(MAKE) test_programs
 
 symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
@@ -196,4 +196,4 @@ clean-autosaves:
 
 .PHONY: all build help deps clean-deps libifsaux libdummydrhook libutilities libifsrrtm \
 	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver \
-	ifsdriver_blocked test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
+	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks

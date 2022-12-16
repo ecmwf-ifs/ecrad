@@ -4,7 +4,9 @@ all: dummy
 
 # Dummy version of Dr Hook creates the YOMHOOK module but the DR_HOOK
 # routine does nothing
-dummy: yomhook_dummy.o
+dummy: $(LIBDRHOOK)
+
+$(LIBDRHOOK): yomhook_dummy.o
 	ar -r $(LIBDRHOOK) yomhook_dummy.o
 
 %.o: %.F90
