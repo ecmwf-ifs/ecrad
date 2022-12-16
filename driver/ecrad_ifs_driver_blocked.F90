@@ -130,9 +130,7 @@ program ecrad_ifs_driver
   integer :: jrepeat
 
   ! Loop index
-  integer :: jrl, ibeg, iend, il, ib, jlev
-
-
+  integer :: jrl, ibeg, iend, il, ib
 
   ! Are any variables out of bounds?
   logical :: is_out_of_bounds

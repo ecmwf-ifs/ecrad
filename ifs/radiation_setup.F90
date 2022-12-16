@@ -130,7 +130,7 @@ CONTAINS
     ! Verbosity of configuration information 0=none, 1=warning,
     ! 2=info, 3=progress, 4=detailed, 5=debug
     INTEGER(KIND=JPIM) :: IVERBOSESETUP
-    INTEGER(KIND=JPIM) :: ISTAT
+    !INTEGER(KIND=JPIM) :: ISTAT
 
     ! Data directory name
     CHARACTER(LEN=256) :: CL_DATA_DIR
