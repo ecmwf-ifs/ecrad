@@ -2,6 +2,7 @@
 #TEST = test_cloud_generator
 TEST = test_spartacus_math
 TEST = test_aerosol_optics_description
+TEST = test_gaussian_quadrature
 
 # In dependency order:
 SOURCES = ecrad_driver_read_input.F90 \
