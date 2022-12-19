@@ -106,6 +106,10 @@ contains
 
     use yomhook,     only : lhook, dr_hook
 
+#ifdef _OPENACC
+    use openacc,       only : acc_attach
+#endif
+
     class(cloud_type), intent(inout), target :: this
     integer, intent(in)              :: ncol   ! Number of columns
     integer, intent(in)              :: nlev   ! Number of levels
@@ -140,10 +144,12 @@ contains
       this%q_ice  => this%mixing_ratio(:,:,2)
       this%re_liq => this%effective_radius(:,:,1)
       this%re_ice => this%effective_radius(:,:,2)
-      !$ACC ENTER DATA ATTACH(this%q_liq) ASYNC(1)
-      !$ACC ENTER DATA ATTACH(this%q_ice) ASYNC(1)
-      !$ACC ENTER DATA ATTACH(this%re_liq) ASYNC(1)
-      !$ACC ENTER DATA ATTACH(this%re_ice) ASYNC(1)
+#ifdef _OPENACC
+      CALL acc_attach(this%q_liq)
+      CALL acc_attach(this%q_ice)
+      CALL acc_attach(this%re_liq)
+      CALL acc_attach(this%re_ice)
+#endif
     end if
 
     allocate(this%fraction(ncol,nlev))
