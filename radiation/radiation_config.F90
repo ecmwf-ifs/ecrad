@@ -1147,7 +1147,7 @@ contains
         ! In the IFS, the gas optics files should be specified in
         ! ifs/module/radiation_setup.F90, not here
         this%gas_optics_sw_file_name = trim(this%directory_name) &
-             &  // "/ecckd-1.0_sw_climate_rgb-32b_ckd-definition.nc"
+             &  // "/ecckd-1.4_sw_climate_rgb-32b_ckd-definition.nc"
       end if
 
       if (len_trim(this%gas_optics_lw_override_file_name) > 0) then
