@@ -627,7 +627,7 @@ contains
     ! FPE when vectorizing exp(), but not in non-vectorized loop, nor
     ! with larger negative values!
     trans_dir_dir = max(-max(od * (1.0_jprb/mu0), 0.0_jprb),-1000.0_jprb)
-    trans_dir_dir = exp(trans_dir_dir)
+    trans_dir_dir = exp_fast(trans_dir_dir)
 
 ! Added for DWD (2020)
 !NEC$ shortloop
@@ -650,7 +650,7 @@ contains
            &       1.0e-12_jprb)) ! Eq 18
     end do
 
-    exponential = exp(-k_exponent*od)
+    exponential = exp_fast(-k_exponent*od)
 
 !NEC$ shortloop
     do jg = 1, ng

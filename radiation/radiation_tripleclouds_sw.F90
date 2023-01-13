@@ -267,7 +267,7 @@ contains
           &  mu0, od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), &
           &  reflectance_clear, transmittance_clear, &
           &  ref_dir_clear, trans_dir_diff_clear, &
-          &  trans_dir_dir_clear )
+          &  trans_dir_dir_clear)
 
       ! Cloudy layers
       do jlev = 1,nlev ! Start at top-of-atmosphere
@@ -302,7 +302,7 @@ contains
                &  mu0, od_total, ssa_total, g_total, &
                &  reflectance(:,:,jlev), transmittance(:,:,jlev), &
                &  ref_dir(:,:,jlev), trans_dir_diff(:,:,jlev), &
-               &  trans_dir_dir(:,:,jlev) )
+               &  trans_dir_dir(:,:,jlev))
         end if
       end do
 

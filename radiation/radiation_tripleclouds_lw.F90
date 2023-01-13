@@ -51,8 +51,7 @@ contains
     use radiation_overlap, only        : calc_overlap_matrices
     use radiation_flux, only           : flux_type, indexed_sum
     use radiation_matrix, only         : singlemat_x_vec
-    use radiation_two_stream, only     : calc_two_stream_gammas_lw, &
-         &                               calc_ref_trans_lw, &
+    use radiation_two_stream, only     : calc_ref_trans_lw, &
          &                               calc_no_scattering_transmittance_lw
     use radiation_adding_ica_lw, only  : adding_ica_lw, calc_fluxes_no_scattering_lw
     use radiation_lw_derivatives, only : calc_lw_derivatives_region
@@ -237,6 +236,8 @@ contains
         call calc_no_scattering_transmittance_lw(ng*nlev, od(:,:,jcol), &
              &  planck_hl(:,1:nlev,jcol), planck_hl(:,2:nlev+1, jcol), &
              &  trans_clear, source_up_clear, source_dn_clear)
+        ! Ensure that clear-sky reflectance is zero since it may be
+        ! used in cloudy-sky case
         ref_clear = 0.0_jprb
         ! Simple down-then-up method to compute fluxes
         call calc_fluxes_no_scattering_lw(ng, nlev, &
