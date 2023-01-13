@@ -377,8 +377,10 @@ contains
     call ao%allocate(ao_legacy%n_type_phobic, ao_legacy%n_type_philic, ao_legacy%nrh, &
          &           config%n_bands_lw, config%n_bands_sw, ao_legacy%n_mono_wl)
     ao%description_phobic_str = ao_legacy%description_phobic_str
-    ao%description_philic_str = ao_legacy%description_philic_str
-    ao%rh_lower = ao_legacy%rh_lower
+    if (ao_legacy%use_hydrophilic) then
+      ao%description_philic_str = ao_legacy%description_philic_str
+      ao%rh_lower = ao_legacy%rh_lower
+    end if
 
     ! use_hydrophilic = ao_legacy%use_hydrophilic
     ! ao%iclass = ao_legacy%iclass
