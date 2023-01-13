@@ -55,7 +55,6 @@ version 1.4.2 (15 October 2021)
 
 version 1.4.1 (17 March 2021)
 	- Added Jupyter notebook to the practical directory
->>>>>>> ecckd
 
 version 1.4.0 (5 November 2020)
 	- Replaced OpenIFS license with Apache License (version 2.0) and

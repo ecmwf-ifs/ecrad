@@ -36,7 +36,7 @@ module tcrad_layer_solutions
 contains
 
   !---------------------------------------------------------------------
-  ! Return Gauss-Legendre quadrature points, or optimized values for
+  ! Return Gauss-Legendre quadrature points, or "optimized" values for
   ! radiation if npoint == -1 or -2
   subroutine gauss_legendre(npoint, xpoint, weight)
 
@@ -52,7 +52,8 @@ contains
       weight(1) = 1.0_jprb
     else if (npoint == -1) then
       ! Optimized values minimizing error in transmission over the
-      ! full range of optical depths
+      ! full range of optical depths; this is likely to be updated in
+      ! future
       xpoint(1) = 0.6158_jprb;
       weight(1) = 0.5_jprb / xpoint(1)
     else if (npoint == 2) then
@@ -60,8 +61,8 @@ contains
       weight(1:2) = [0.5_jprb, 0.5_jprb]
     else if (npoint == -2) then
       ! Optimized values minimizing error in transmission over the
-      ! full range of optical depths
-      !xpoint(1:2) = [0.24287187078898_jprb, 0.79712812921102_jprb];
+      ! full range of optical depths; this is likely to be updated in
+      ! future
       xpoint(1:2) = [0.2704_jprb, 0.8018_jprb];
       weight(1:2) = 1.0_jprb / sum(xpoint(1:2))
     else if (npoint == 3) then
