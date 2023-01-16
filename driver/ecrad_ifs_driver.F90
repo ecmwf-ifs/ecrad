@@ -412,7 +412,15 @@ program ecrad_ifs_driver
              &  flux%sw_dn_direct(:,nlev+1), flux%sw_dn_direct_clear(:,nlev+1), flux_sw_direct_normal, &
              &  flux_uv, flux_par, &
              &  flux_par_clear, flux%sw_dn(:,1), emissivity_out, flux%lw_derivatives, flux_diffuse_band, &
-             &  flux_direct_band)
+             &  flux_direct_band &
+#ifdef BITIDENTITY_TESTING
+            ! To validate results against standalone ecrad, we overwrite effective
+            ! radii, cloud overlap and seed with input values
+             &  ,pre_liq=cloud%re_liq, pre_ice=cloud%re_ice, &
+             &  pcloud_overlap=cloud%overlap_param, &
+             &  iseed=single_level%iseed &
+#endif
+             & )
       end do
       !$OMP END PARALLEL DO
 
