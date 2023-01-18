@@ -95,6 +95,7 @@ program ecrad_ifs_driver
   real(jprb), allocatable, dimension(:) :: flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
        &  flux_incoming, emissivity_out
   real(jprb), allocatable, dimension(:,:) :: flux_diffuse_band, flux_direct_band
+  real(jprb), allocatable, dimension(:,:) :: cloud_fraction, cloud_q_liq, cloud_q_ice
 
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: istartcol, iendcol ! Range of columns to process
@@ -340,6 +341,9 @@ program ecrad_ifs_driver
   allocate(emissivity_out(ncol))
   allocate(flux_diffuse_band(ncol,yradiation%yrerad%nsw))
   allocate(flux_direct_band(ncol,yradiation%yrerad%nsw))
+  allocate(cloud_fraction(ncol,nlev))
+  allocate(cloud_q_liq(ncol,nlev))
+  allocate(cloud_q_ice(ncol,nlev))
 
   ccn_land = yradiation%yrerad%rccnlnd
   ccn_sea = yradiation%yrerad%rccnsea
@@ -347,6 +351,16 @@ program ecrad_ifs_driver
   pressure_fl = 0.5_jprb * (thermodynamics%pressure_hl(:,1:nlev)+thermodynamics%pressure_hl(:,2:nlev+1))
   temperature_fl = 0.5_jprb * (thermodynamics%temperature_hl(:,1:nlev)+thermodynamics%temperature_hl(:,2:nlev+1))
   zeros = 0.0_jprb ! Dummy snow/rain water mixing ratios
+
+  if (yradiation%rad_config%do_clouds) then
+    cloud_fraction = cloud%fraction
+    cloud_q_liq = cloud%q_liq
+    cloud_q_ice = cloud%q_ice
+  else
+    cloud_fraction = 0.0_jprb
+    cloud_q_liq = 0.0_jprb
+    cloud_q_ice = 0.0_jprb
+  endif
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -394,8 +408,8 @@ program ecrad_ifs_driver
              &  gas%mixing_ratio(:,:,IH2O), gas%mixing_ratio(:,:,ICO2), &
              &  gas%mixing_ratio(:,:,ICH4), gas%mixing_ratio(:,:,IN2O), gas%mixing_ratio(:,:,INO2), &
              &  gas%mixing_ratio(:,:,ICFC11), gas%mixing_ratio(:,:,ICFC12), gas%mixing_ratio(:,:,IHCFC22), &
-             &  gas%mixing_ratio(:,:,ICCl4), gas%mixing_ratio(:,:,IO3), cloud%fraction, cloud%q_liq, &
-             &  cloud%q_ice, zeros, zeros, tegen_aerosol, aerosol%mixing_ratio, flux%sw_up, flux%lw_up, &
+             &  gas%mixing_ratio(:,:,ICCl4), gas%mixing_ratio(:,:,IO3), cloud_fraction, cloud_q_liq, &
+             &  cloud_q_ice, zeros, zeros, tegen_aerosol, aerosol%mixing_ratio, flux%sw_up, flux%lw_up, &
              &  flux%sw_up_clear, flux%lw_up_clear, flux%sw_dn(:,nlev+1), flux%lw_dn(:,nlev+1), &
              &  flux%sw_dn_clear(:,nlev+1), flux%lw_dn_clear(:,nlev+1), &
              &  flux%sw_dn_direct(:,nlev+1), flux%sw_dn_direct_clear(:,nlev+1), flux_sw_direct_normal, &
