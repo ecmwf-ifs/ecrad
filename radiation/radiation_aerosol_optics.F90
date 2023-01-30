@@ -161,6 +161,7 @@ contains
         write(nulout,'(a)') 'Legacy aerosol optics file: mapping between bands'
       end if
       call setup_general_aerosol_optics_legacy(config, trim(config%aerosol_optics_file_name))
+      if (lhook) call dr_hook('radiation_aerosol_optics:setup_general_aerosol_optics',1,hook_handle)
       return
     end if
 
