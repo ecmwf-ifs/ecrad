@@ -302,7 +302,7 @@ contains
 
     real(jprb) :: hook_handle
 
-    if (lhook) call dr_hook('tcrad:calc_ckear_sky_radiance_dn',0,hook_handle)
+    if (lhook) call dr_hook('tcrad:calc_clear_sky_radiance_dn',0,hook_handle)
 
     ! Start with zero at TOA
     radiance = 0.0_jprb
