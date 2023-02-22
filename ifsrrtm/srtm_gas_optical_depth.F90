@@ -309,7 +309,7 @@ IF (ICOUNT/=0) THEN
     DO JG=1,IGT
 ! Added for DWD (2020)
 !NEC$ ivdep
-      !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(JL)
+      !$ACC LOOP GANG(STATIC:1) VECTOR
       DO JL = KIDIA, KFDIA
         IF (PRMU0(JL) > 0.0_JPRB) THEN
           IW(JL)=IW(JL)+1
