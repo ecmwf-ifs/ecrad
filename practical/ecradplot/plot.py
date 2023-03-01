@@ -144,7 +144,7 @@ def plot_inputs_noncloud(IFS_srcfile, dstfile=None, line_ds='default'):
     #Specific humidity
     i+=1
     irregular_pcolor(axes[i], _ds.latitude, _ds.pressure_fl, _ds.q, 
-                     dict(vmin=1e-6, vmax=1e-2, norm=LogNorm(), cmap='Greens'),
+                     dict(norm=LogNorm(vmin=1e-6, vmax=1e-2), cmap='Greens'),
                      cbar_kwargs={'pad':0.01, 'label':'mass mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-5,1e-4,1e-3,1e-2]})
                      
     axes[i].set_title('Specific humidity')
@@ -157,7 +157,7 @@ def plot_inputs_noncloud(IFS_srcfile, dstfile=None, line_ds='default'):
     #Ozone
     i+=1
     irregular_pcolor(axes[i], _ds.latitude, _ds.pressure_fl, _ds.o3_mmr, 
-                     dict(vmin=1e-8, vmax=1e-5, norm=LogNorm(), cmap='Blues'),
+                     dict(norm=LogNorm(vmin=1e-8, vmax=1e-5), cmap='Blues'),
                      cbar_kwargs={'pad':0.01, 'label':'mass mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-8,1e-7,1e-6,1e-5]})
     
     axes[i].set_title('Ozone')
@@ -209,13 +209,13 @@ def plot_inputs_cloud(IFS_srcfile, include_effective_radius=False, dstfile=None)
     axes[0].set_xlabel('')
 
     irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_fl, _ds.q_ice.where(_ds.q_ice > 1e-10).fillna(1e-10), 
-                     dict(vmin=1e-8, vmax=0.5e-2, norm=LogNorm(), cmap='Blues'),
+                     dict(norm=LogNorm(vmin=1e-8, vmax=0.5e-2), cmap='Blues'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-7, 1e-5, 1e-3]})
     axes[1].set_title('Cloud ice water content')
     axes[1].set_xlabel('')
 
     irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_fl, _ds.q_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10), 
-                     dict(vmin=1e-8, vmax=0.5e-2, norm=LogNorm(), cmap='Reds'),
+                     dict(norm=LogNorm(vmin=1e-8, vmax=0.5e-2), cmap='Reds'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-7, 1e-5, 1e-3]})
     axes[2].set_title('Cloud liquid water content')
     format_latitude(axes[-1])
@@ -224,13 +224,13 @@ def plot_inputs_cloud(IFS_srcfile, include_effective_radius=False, dstfile=None)
         axes[2].set_xlabel('')
         
         irregular_pcolor(axes[3], _ds.latitude, _ds.pressure_fl, _ds.re_ice.where(_ds.q_ice > 1e-10).fillna(1e-10),
-                         dict(vmin=3e-6, vmax=1e-4, norm=LogNorm(), cmap='Blues'),
+                         dict(norm=LogNorm(vmin=3e-6, vmax=1e-4), cmap='Blues'),
                          cbar_kwargs={'pad':0.01, 'label':'$r_{\mathrm{eff}}$ [m]'})
         axes[3].set_title('Ice effective radius')
         axes[3].set_xlabel('')
 
         irregular_pcolor(axes[4], _ds.latitude, _ds.re_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10), 
-                         dict(vmin=3e-6, vmax=1e-4, norm=LogNorm(), cmap='Reds'),
+                         dict(norm=LogNorm(vmin=3e-6, vmax=1e-4), cmap='Reds'),
                          cbar_kwargs={'pad':0.01, 'label':'$r_{\mathrm{eff}}$ [m]'})
         axes[4].set_title('Liquid effective radius')
 
@@ -266,32 +266,32 @@ def plot_inputs_aerosols(IFS_srcfile, dstfile=None):
     fig, axes = plt.subplots(figsize=(25,4*nrows), nrows=nrows, sharex=True, sharey=True, )
 
     irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_fl, _ds.sea_salt.where(_ds.sea_salt > 1e-12).fillna(1e-12),
-                     dict(vmin=1e-12, vmax=1e-6, norm=LogNorm(), cmap='Blues'),
+                     dict(norm=LogNorm(vmin=1e-12, vmax=1e-6), cmap='Blues'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-9, 1e-6]})
     axes[0].set_title('Sea salt')
     axes[0].set_xlabel('')
 
     irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_fl, _ds.dust.where(_ds.dust > 1e-12).fillna(1e-12),
-                     dict(vmin=1e-12, vmax=1e-6, norm=LogNorm(), cmap='OrRd'),
+                     dict(norm=LogNorm(vmin=1e-12, vmax=1e-6), cmap='OrRd'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-9, 1e-6]})
     axes[1].set_title('Dust')
     axes[1].set_xlabel('')
 
     irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_fl, _ds.organics.where(_ds.organics > 1e-12).fillna(1e-12), 
-                     dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Greens'), 
+                     dict(norm=LogNorm(vmin=1e-12, vmax=1e-7), cmap='Greens'), 
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]})
     axes[2].set_title('Organics')
     format_latitude(axes[-1])
     axes[2].set_xlabel('')
         
     irregular_pcolor(axes[3], _ds.latitude, _ds.pressure_fl, _ds.black_carbon.where(_ds.black_carbon > 1e-12).fillna(1e-12), 
-                     dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Greys'),
+                     dict(norm=LogNorm(vmin=1e-12, vmax=1e-7), cmap='Greys'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]})
     axes[3].set_title('Black carbon')
     axes[3].set_xlabel('')
 
     irregular_pcolor(axes[4], _ds.latitude, _ds.pressure_fl, _ds.sulphate.where(_ds.sulphate > 1e-12).fillna(1e-12),
-                     dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Reds'),
+                     dict(norm=LogNorm(vmin=1e-12, vmax=1e-7), cmap='Reds'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]})
     axes[4].set_title('Sulphates')
 
@@ -379,7 +379,7 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
         #Specific humidity
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q, 
-                         dict(vmin=1e-6, vmax=1e-2, norm=LogNorm(), cmap='Greens'),
+                         dict(norm=LogNorm(vmin=1e-6, vmax=1e-2), cmap='Greens'),
                          cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-5,1e-4,1e-3,1e-2]}})
 
         axes[i,j].set_title('Specific humidity')
@@ -399,14 +399,14 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
 
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q_ice.where(_ds.q_ice > 1e-10).fillna(1e-10), 
-                             dict(vmin=1e-8, vmax=0.5e-2, norm=LogNorm(), cmap='Blues'),
+                             dict(norm=LogNorm(vmin=1e-8, vmax=0.5e-2), cmap='Blues'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-7, 1e-5, 1e-3]}})
         axes[i,j].set_title('Cloud ice water content')
         axes[i,j].set_xlabel('')
 
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10), 
-                             dict(vmin=1e-8, vmax=0.5e-2, norm=LogNorm(), cmap='Reds'),
+                             dict(norm=LogNorm(vmin=1e-8, vmax=0.5e-2), cmap='Reds'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-7, 1e-5, 1e-3]}})
         axes[i,j].set_title('Cloud liquid water content')
 
@@ -416,7 +416,7 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
         #Ozone
         i=0
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.o3_mmr, 
-                         dict(vmin=1e-8, vmax=1e-5, norm=LogNorm(), cmap='Blues'),
+                         dict(norm=LogNorm(vmin=1e-8, vmax=1e-5), cmap='Blues'),
                          cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-8,1e-7,1e-6,1e-5]}})
 
         axes[i,j].set_title('Ozone')
@@ -430,35 +430,35 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
         
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.sea_salt.where(_ds.sea_salt > 1e-12).fillna(1e-12),
-                             dict(vmin=1e-12, vmax=1e-6, norm=LogNorm(), cmap='Blues'),
+                             dict(norm=LogNorm(vmin=1e-12, vmax=1e-6), cmap='Blues'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-9, 1e-6]}})
         axes[i,j].set_title('Sea salt')
         axes[i,j].set_xlabel('')
 
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.dust.where(_ds.dust > 1e-12).fillna(1e-12),
-                             dict(vmin=1e-12, vmax=1e-6, norm=LogNorm(), cmap='OrRd'),
+                             dict(norm=LogNorm(vmin=1e-12, vmax=1e-6), cmap='OrRd'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-9, 1e-6]}})
         axes[i,j].set_title('Dust')
         axes[i,j].set_xlabel('')
 
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.organics.where(_ds.organics > 1e-12).fillna(1e-12), 
-                             dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Greens'), 
+                             dict(norm=LogNorm(vmin=1e-12, vmax=1e-7), cmap='Greens'), 
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]}})
         axes[i,j].set_title('Organics')
         axes[i,j].set_xlabel('')
 
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.black_carbon.where(_ds.black_carbon > 1e-12).fillna(1e-12), 
-                             dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Greys'),
+                             dict(norm=LogNorm(vmin=1e-12, vmax=1e-7), cmap='Greys'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]}})
         axes[i,j].set_title('Black carbon')
         axes[i,j].set_xlabel('')
 
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.sulphate.where(_ds.sulphate > 1e-12).fillna(1e-12),
-                             dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Reds'),
+                             dict(norm=LogNorm(vmin=1e-12, vmax=1e-7), cmap='Reds'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]}})
         axes[i,j].set_title('Sulphates')
 
