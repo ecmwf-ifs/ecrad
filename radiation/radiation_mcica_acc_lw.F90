@@ -349,14 +349,14 @@ contains
       end if
 #endif
 
+      ! Store total cloud cover
+      total_cloud_cover = flux%cloud_cover_lw(jcol)
+
       ! Store surface spectral downwelling fluxes
       !$ACC LOOP WORKER VECTOR
       do jg = 1,ng
         flux%lw_dn_surf_clear_g(jg,jcol) = flux_dn_clear(jg,nlev+1,jcol)
       end do
-
-      ! Store total cloud cover
-      total_cloud_cover = flux%cloud_cover_lw(jcol)
 
       ! Do cloudy-sky calculation; add a prime number to the seed in
       ! the longwave

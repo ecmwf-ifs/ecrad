@@ -362,15 +362,15 @@ contains
           end do
         end do
 
+        ! Store total cloud cover
+        total_cloud_cover = flux%cloud_cover_sw(jcol)
+
         ! Store spectral downwelling fluxes at surface
         !$ACC LOOP WORKER VECTOR
         do jg = 1,ng
           flux%sw_dn_diffuse_surf_clear_g(jg,jcol) = flux_dn_diffuse(jg,nlev+1,jcol)
           flux%sw_dn_direct_surf_clear_g(jg,jcol)  = flux_dn_direct(jg,nlev+1,jcol)
         end do
-
-        ! Store total cloud cover
-        total_cloud_cover = flux%cloud_cover_sw(jcol)
 
         ! Do cloudy-sky calculation
         call cloud_generator_acc(ng, nlev, &
