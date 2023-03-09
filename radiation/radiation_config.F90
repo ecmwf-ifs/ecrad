@@ -102,7 +102,7 @@ module radiation_config
        &                                                'RRTMG-IFS    ', &
        &                                                'ECCKD        '/)
 
-  ! Hydrometeor scattering models
+  ! Liquid cloud optics models for use with RRTMG gas optics
   enum, bind(c) 
      enumerator ILiquidModelMonochromatic, &
           &     ILiquidModelSOCRATES, ILiquidModelSlingo
@@ -111,17 +111,21 @@ module radiation_config
        &                                                   'SOCRATES     ', &
        &                                                   'Slingo       ' /)
 
+  ! Ice optics models for use with RRTMG gas optics. Note that of the
+  ! "Baran" parameterizations, only Baran2016 is published (Baran,
+  ! J. Climate, 2016) - the others are experimental and not
+  ! recommended.
   enum, bind(c) 
      enumerator IIceModelMonochromatic, IIceModelFu, &
           &  IIceModelBaran, IIceModelBaran2016, IIceModelBaran2017,   &
           &  IIceModelYi
   end enum
-  character(len=*), parameter :: IceModelName(0:5) = (/ 'Monochromatic', &
-       &                                                'Fu-IFS       ', &
-       &                                                'Baran        ', &
-       &                                                'Baran2016    ', &
-       &                                                'Baran2017    ', &
-       &                                                'Yi           ' /)
+  character(len=*), parameter :: IceModelName(0:5) = (/ 'Monochromatic         ', &
+       &                                                'Fu-IFS                ', &
+       &                                                'Baran-EXPERIMENTAL    ', &
+       &                                                'Baran2016             ', &
+       &                                                'Baran2017-EXPERIMENTAL', &
+       &                                                'Yi                    ' /)
 
   ! Cloud PDF distribution shapes
   enum, bind(c)

@@ -4,6 +4,11 @@ version 1.6.0
 	  and RADSRTM specify CONVERT='BIG_ENDIAN' in rrtm_kgb1.F90 and
 	  srtm_kgb16.F90
 	- make test_programs to make test programs in driver directory
+	- Unpublished "Baran" and "Baran2017" ice optics models are
+	  deprecated, only accessible with namelist entries
+	  "Baran-EXPERIMENTAL" and "Baran2017-EXPERIMENTAL"
+	- Wavelength tolerance for requesting monochromatic aerosol info
+	  increased from 1% to 2%
 
 version 1.5.1 (8 December 2022)
 	- Added Makefile_include.intel_atos to match compiler options on

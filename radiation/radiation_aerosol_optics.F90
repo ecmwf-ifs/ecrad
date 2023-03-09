@@ -1050,9 +1050,9 @@ contains
 
     imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
 
-    if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.01_jprb) then
-      write(nulerr,'(a,e8.4,a)') '*** Error: requested wavelength ', &
-           &  wavelength, ' not within 1% of stored wavelengths'
+    if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.02_jprb) then
+      write(nulerr,'(a,e11.4,a)') '*** Error: requested wavelength ', &
+           &  wavelength, ' not within 2% of stored wavelengths'
       call radiation_abort()
      end if
 
@@ -1121,9 +1121,9 @@ contains
 
     imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
 
-    if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.01_jprb) then
-      write(nulerr,'(a,e8.4,a)') '*** Error: requested wavelength ', &
-           &  wavelength, ' not within 1% of stored wavelengths'
+    if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.02_jprb) then
+      write(nulerr,'(a,e11.4,a)') '*** Error: requested wavelength ', &
+           &  wavelength, ' not within 2% of stored wavelengths'
       call radiation_abort()
      end if
 
