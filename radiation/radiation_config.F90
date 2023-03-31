@@ -85,7 +85,7 @@ module radiation_config
   ! solver
   integer, parameter :: SolverCloudScaling(0:7) &
        &  = [ ICloudScalingZero, ICloudScalingOne, ICloudScalingFraction, &
-       &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingOne, &
+       &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingCover, &
        &      ICloudScalingOne, ICloudScalingZero ]
 
   integer, parameter :: SolverPhaseFuncMode(0:7) &

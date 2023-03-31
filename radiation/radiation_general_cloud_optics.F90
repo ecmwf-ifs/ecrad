@@ -140,10 +140,11 @@ contains
     use yomhook,  only           : lhook, dr_hook
 
     use radiation_io,     only : nulout, nulerr, radiation_abort
-    use radiation_config, only : config_type, SolverPhaseFuncMode, &
+    use radiation_config, only : config_type, SolverPhaseFuncMode, ICloudScalingCover, &
          &                       ICloudScalingOne, ICloudScalingFraction, IPhaseFuncAsymmetry
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type
+    use radiation_cloud_cover, only       : cloud_cover
     use radiation_constants, only         : AccelDueToGravity
     !use radiation_general_cloud_optics_data, only : general_cloud_optics_type
 
@@ -175,6 +176,9 @@ contains
     ! In-cloud water path of one cloud type (kg m-2)
     real(jprb), dimension(istartcol:iendcol,nlev) :: water_path
 
+    ! Cloud cover
+    real(jprb) :: cld_cover
+    
     integer :: jtype, jcol, jlev, jcomp
 
     real(jprb) :: hook_handle
@@ -210,6 +214,16 @@ contains
              &  * (1.0_jprb / (AccelDueToGravity &
              &                 * max(config%cloud_fraction_threshold, &
              &                       cloud%fraction(istartcol:iendcol,:))))
+      else if (config%cloud_scaling_mode == ICloudScalingCover) then
+        do jcol = istartcol,iendcol
+          cld_cover = cloud_cover(nlev, config%i_overlap_scheme, &
+               &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), config%use_beta_overlap)
+          water_path(jcol,:) = cloud%mixing_ratio(jcol,:,jtype) &
+               &  *  (thermodynamics%pressure_hl(jcol, 2:nlev+1) &
+               &     -thermodynamics%pressure_hl(jcol, 1:nlev)) &
+               &  * (1.0_jprb / (AccelDueToGravity &
+               &                 * max(config%cloud_fraction_threshold, cld_cover)))
+        end do
       else
         write(nulerr,*) '*** Error: Unable to compute in-cloud water content for scaling mode ', &
              &          config%cloud_scaling_mode

@@ -175,9 +175,11 @@ contains
       end if
     else if (quadrature_type == IQuadratureOptimal) then
 !$OMP CRITICAL
-!      call load_quadrature('quadrature_optimized.nc', norder, nodes, weights)
+      !call load_quadrature('quadrature_optimized.nc', norder, nodes, weights)
+      call load_quadrature('quadrature_optimized-default.nc', norder, nodes, weights)
 !      call load_quadrature('quadrature_optimized-fw0.02-ratio3.nc', norder, nodes, weights)
-      call load_quadrature('quadrature_elsasser.nc', norder, nodes, weights)
+!      call load_quadrature('quadrature_elsasser.nc', norder, nodes, weights)
+!      call load_quadrature('quadrature_lacis.nc', norder, nodes, weights)
 !$OMP END CRITICAL
       ! if (norder == 1) then
       !   nodes(1:1) = [0.611628]
