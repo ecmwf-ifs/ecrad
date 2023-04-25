@@ -79,6 +79,9 @@ module ecrad_driver_config
      ! Save aerosol optical properties to "aerosol_optics.nc"
      logical :: do_save_aerosol_optics
 
+     ! Save only net and surface/TOA fluxes, rather than up and down
+     logical :: do_save_net_fluxes
+     
      ! Do we ignore the inv_inhom_effective_size variable and instead
      ! assume the scale of cloud inhomogeneities is the same as the
      ! scale of the clouds themselves?
@@ -168,7 +171,7 @@ contains
     logical :: do_parallel
     integer :: nblocksize
 
-    logical :: do_save_inputs, do_save_aerosol_optics, &
+    logical :: do_save_inputs, do_save_aerosol_optics, do_save_net_fluxes, &
          &  do_ignore_inhom_effective_size, &
          &  do_correct_unphysical_inputs, do_write_hdf5, &
          &  do_write_double_precision
@@ -194,7 +197,7 @@ contains
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
-         &  do_save_aerosol_optics, &
+         &  do_save_aerosol_optics, do_save_net_fluxes, &
          &  cloud_separation_scale_toa, cloud_separation_scale_surface, &
          &  cloud_separation_scale_power, do_correct_unphysical_inputs, &
          &  do_write_hdf5, h2o_scaling, co2_scaling, o3_scaling, co_scaling, &
@@ -210,6 +213,7 @@ contains
     do_parallel = .true.
     do_save_inputs = .false.
     do_save_aerosol_optics = .false.
+    do_save_net_fluxes = .false.
     do_ignore_inhom_effective_size = .false.
     nblocksize = 8
 
@@ -281,6 +285,7 @@ contains
     this%do_parallel = do_parallel
     this%do_save_inputs = do_save_inputs
     this%do_save_aerosol_optics = do_save_aerosol_optics
+    this%do_save_net_fluxes = do_save_net_fluxes
     this%do_ignore_inhom_effective_size = do_ignore_inhom_effective_size
     this%nblocksize = nblocksize
     this%iverbose = iverbose
