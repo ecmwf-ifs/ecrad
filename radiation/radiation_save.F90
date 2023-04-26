@@ -493,14 +493,14 @@ contains
 
     if (config%do_lw) then
 
-      if (.not. config%do_save_spectral_flux) then
-        call out_file%define_variable("wavenumber1_lw", &
-             &  dim1_name="band_lw", units_str="cm-1", &
-             &  long_name="Lower wavenumber of longwave band")
-        call out_file%define_variable("wavenumber2_lw", &
-             &  dim1_name="band_lw", units_str="cm-1", &
-             &  long_name="Upper wavenumber of longwave band")
-      end if
+      ! if (.not. config%do_save_spectral_flux) then
+      !   call out_file%define_variable("wavenumber1_lw", &
+      !        &  dim1_name="band_lw", units_str="cm-1", &
+      !        &  long_name="Lower wavenumber of longwave band")
+      !   call out_file%define_variable("wavenumber2_lw", &
+      !        &  dim1_name="band_lw", units_str="cm-1", &
+      !        &  long_name="Upper wavenumber of longwave band")
+      ! end if
 
       if (flux%is_brightness_temperature) then
         call out_file%define_variable("brightness_temperature_lw_band", &
@@ -545,10 +545,10 @@ contains
     call out_file%put("cos_sensor_zenith_angle", single_level%cos_sensor_zenith_angle)
     
     if (config%do_lw) then
-      if (.not. config%do_save_spectral_flux) then
-        call out_file%put("wavenumber1_lw", config%gas_optics_lw%spectral_def%wavenumber1_band)
-        call out_file%put("wavenumber2_lw", config%gas_optics_lw%spectral_def%wavenumber2_band)
-      end if
+      !if (.not. config%do_save_spectral_flux) then
+      !  call out_file%put("wavenumber1_lw", config%gas_optics_lw%spectral_def%wavenumber1_band)
+      !  call out_file%put("wavenumber2_lw", config%gas_optics_lw%spectral_def%wavenumber2_band)
+      !end if
 
       if (flux%is_brightness_temperature) then
         call out_file%put("brightness_temperature_lw_band", flux%lw_radiance_band)

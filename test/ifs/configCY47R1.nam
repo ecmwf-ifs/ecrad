@@ -39,6 +39,7 @@ liquid_model_name       = "SOCRATES",     ! Liquid droplet scattering model
 ice_model_name		= "Fu-IFS",       ! Ice particle scattering model
 sw_solver_name          = "McICA",
 lw_solver_name          = "McICA",
+use_tcrad_eddington     = false,
 overlap_scheme_name     = "Exp-Exp",      ! Exp-Ran, Max-Ran or Exp-Exp
 cloud_fraction_threshold = 0.001e-3,      ! 
 do_lw_aerosol_scattering= false,          ! Aerosols scatter in the longwave?

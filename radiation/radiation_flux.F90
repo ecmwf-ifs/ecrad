@@ -348,6 +348,7 @@ contains
     if (allocated(this%sw_radiance_clear_band)) then
       deallocate(this%sw_radiance_clear_band)
     end if
+
     if (allocated(this%lw_dn_surf_g))               deallocate(this%lw_dn_surf_g)
     if (allocated(this%lw_dn_surf_clear_g))         deallocate(this%lw_dn_surf_clear_g)
     if (allocated(this%sw_dn_diffuse_surf_g))       deallocate(this%sw_dn_diffuse_surf_g)

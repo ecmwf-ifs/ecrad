@@ -74,6 +74,7 @@ export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 export LIBS    = $(LDFLAGS) -L../lib -lradiation -ltcrad -lutilities \
 	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(FLOTSAM_LIB) $(NETCDF_LIB) \
 	$(OMPFLAG)
+
 ifdef DR_HOOK
 LIBS += -ldl -lrt
 export CFLAGS = -g -O2

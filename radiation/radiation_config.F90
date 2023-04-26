@@ -379,6 +379,11 @@ module radiation_config
     ! al. (1997).
     integer :: n_angles_per_hemisphere_lw = 2
 
+    ! Do we use the Eddington scheme for TCRAD radiances?  Otherwise
+    ! use the 2-stream scheme with the Elsasser factor (consistent
+    ! with ecRad's other longwave treatment)
+    logical :: use_tcrad_eddington = .false.
+
     ! Treat surface as specular reflector?  Only in microwave
     logical :: do_specular_surface = .false.
 
@@ -680,7 +685,7 @@ contains
     logical :: do_3d_effects, use_expm_everywhere, use_aerosols
     logical :: do_lw_side_emissivity, do_radiances
     integer :: n_angles_per_hemisphere_lw
-    logical :: do_specular_surface
+    logical :: do_specular_surface, use_tcrad_eddington
     logical :: use_general_cloud_optics, use_general_aerosol_optics
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
@@ -726,7 +731,7 @@ contains
 
     namelist /radiation/ do_sw, do_lw, do_sw_direct, &
          &  do_3d_effects, do_lw_side_emissivity, do_clear, do_radiances, &
-         &  n_angles_per_hemisphere_lw, do_specular_surface, &
+         &  n_angles_per_hemisphere_lw, do_specular_surface, use_tcrad_eddington, &
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
@@ -772,6 +777,7 @@ contains
     do_3d_lw_multilayer_effects = this%do_3d_lw_multilayer_effects
     do_lw_side_emissivity = this%do_lw_side_emissivity
     n_angles_per_hemisphere_lw = this%n_angles_per_hemisphere_lw
+    use_tcrad_eddington = this%use_tcrad_eddington
     do_specular_surface = this%do_specular_surface
     do_clear = this%do_clear
     do_lw_aerosol_scattering = this%do_lw_aerosol_scattering
@@ -932,6 +938,7 @@ contains
     this%do_3d_lw_multilayer_effects = do_3d_lw_multilayer_effects
     this%do_lw_side_emissivity = do_lw_side_emissivity
     this%n_angles_per_hemisphere_lw = n_angles_per_hemisphere_lw
+    this%use_tcrad_eddington = use_tcrad_eddington
     this%do_specular_surface = do_specular_surface
     this%use_expm_everywhere = use_expm_everywhere
     this%use_aerosols = use_aerosols
@@ -1090,7 +1097,9 @@ contains
     use parkind1,     only : jprd
     use yomhook,      only : lhook, dr_hook
     use radiation_io, only : nulout, nulerr, radiation_abort
-
+    use tcrad_layer_solutions, only : set_two_stream_scheme, &
+         &                            ITwoStreamEddington, ITwoStreamElsasser
+    
     class(config_type), intent(inout)         :: this
 
     real(jprb) :: hook_handle
@@ -1298,6 +1307,14 @@ contains
       this%is_homogeneous = .true.
     end if
 
+    if (this%i_solver_lw == ISolverTCRAD) then
+      if (this%use_tcrad_eddington) then
+        call set_two_stream_scheme(ITwoStreamEddington)
+      else
+        call set_two_stream_scheme(ITwoStreamElsasser)
+      end if
+    end if
+    
     this%is_consolidated = .true.
 
     if (lhook) call dr_hook('radiation_config:consolidate',1,hook_handle)
@@ -1383,11 +1400,7 @@ contains
         call print_logical('  General aerosol optics', &
              &             'use_general_aerosol_optics', this%use_general_aerosol_optics)
       end if
-      if (this%do_clouds) then
-        write(nulout,'(a)') '  Clouds are ON'
-      else
-        write(nulout,'(a)') '  Clouds are OFF'
-      end if
+      call print_logical('  Clouds are', 'do_clouds', this%do_clouds)
       call print_logical('  Compute radiances instead of fluxes','do_radiances', &
            &             this%do_radiances)
       if (this%do_sw) then
@@ -1535,11 +1548,13 @@ contains
           call print_real('    Overhang factor', &
                &   'overhang_factor', this%overhang_factor)
         end if
-      else if (this%i_solver_lw == ISolverTcrad) then
+      else if (this%i_solver_lw == ISolverTCRAD) then
         write(nulout, '(a)') '  TCRAD options:'
         call print_integer('    Number of regions', 'n_regions', this%nregions)
         call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &
              &  this%n_angles_per_hemisphere_lw)
+        call print_logical('    Use Eddington scheme', 'use_tcrad_eddington', &
+             this%use_tcrad_eddington)
         call print_logical('    Treat surface as specular reflector','do_specular_surface', &
              &             this%do_specular_surface)
         call print_logical('    3D effects are', 'do_3d_effects', &

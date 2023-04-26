@@ -350,9 +350,8 @@ contains
               call delta_eddington_scat_od(od_sw_liq, scat_od_sw_liq, g_sw_liq)
             end if
             ! Delta-Eddington scaling for liquid clouds in the
-            ! shortwave - low impact
-            call delta_eddington_scat_od(od_lw_liq, scat_od_lw_liq, g_lw_liq)
-
+            ! longwave - low impact
+            !call delta_eddington_scat_od(od_lw_liq, scat_od_lw_liq, g_lw_liq)
           else
             ! Liquid not present: set properties to zero
             od_lw_liq = 0.0_jprb

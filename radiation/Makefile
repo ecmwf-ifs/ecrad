@@ -18,7 +18,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_ice_optics_baran2017.F90 radiation_ice_optics_yi.F90 \
 	radiation_liquid_optics_socrates.F90 radiation_liquid_optics_slingo.F90 \
 	radiation_tripleclouds_sw.F90 radiation_tripleclouds_lw.F90 \
-	radiation_regions.F90 radiation_ecckd.F90 \
+	radiation_regions.F90 radiation_ecckd.F90 radiation_tcrad_lw.F90 \
 	radiation_cloudless_lw.F90 radiation_cloudless_sw.F90 \
 	radiation_check.F90   radiation_ecckd_interface.F90 \
 	radiation_gas_constants.F90 radiation_ecckd_gas.F90 \

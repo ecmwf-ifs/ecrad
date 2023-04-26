@@ -91,13 +91,19 @@ contains
     ! the layer thickness (m)
     real(jprb), dimension(nlev) :: inv_cloud_separation_scale, layer_thickness
 
+    ! If shadowing is enabled then the following is for upward
+    ! propagating radiation, the former is for downward
+    real(jprb), dimension(nlev) :: inv_cloud_separation_scale_up
+
     ! Spectral fluxes
     real(jprb), dimension(config%n_g_lw,nlev+1) :: flux_up, flux_dn
 
-    real(jprb) :: hook_handle
-
     ! Column loop index
     integer :: jcol
+
+    logical :: do_shadowing
+
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_tcrad_lw:solver_tcrad_lw',0,hook_handle)
 
@@ -108,6 +114,13 @@ contains
       ! FIX we have allocated memory that is not used
       ssa_cloud_regrid = 0.0_jprb
       g_cloud_regrid   = 0.0_jprb
+    end if
+
+    if (allocated(cloud%inv_cloud_effective_size_up_lw) &
+         &  .and. allocated(cloud%inv_cloud_effective_size_dn_lw)) then
+      do_shadowing = .true.
+    else
+      do_shadowing = .false.
     end if
 
     do jcol = istartcol,iendcol
@@ -138,8 +151,15 @@ contains
              &                                +thermodynamics%temperature_hl(jcol,2:nlev+1)) &
              &               * log(thermodynamics%pressure_hl(jcol,2:nlev+1) &
              &                     /max(thermodynamics%pressure_hl(jcol,1:nlev),1.0e-2_jprb))
-        inv_cloud_separation_scale = cloud%inv_cloud_effective_size(jcol,:) &
-             &  * sqrt(cloud%fraction(jcol,:)*(1.0_jprb-cloud%fraction(jcol,:)))
+        if (do_shadowing) then
+          inv_cloud_separation_scale = cloud%inv_cloud_effective_size_dn_lw(jcol,:) &
+               &  * sqrt(cloud%fraction(jcol,:)*(1.0_jprb-cloud%fraction(jcol,:)))
+          inv_cloud_separation_scale_up = cloud%inv_cloud_effective_size_up_lw(jcol,:) &
+               &  * sqrt(cloud%fraction(jcol,:)*(1.0_jprb-cloud%fraction(jcol,:)))
+        else
+          inv_cloud_separation_scale = cloud%inv_cloud_effective_size(jcol,:) &
+               &  * sqrt(cloud%fraction(jcol,:)*(1.0_jprb-cloud%fraction(jcol,:)))
+        end if
       end if
 
       od_cloud_regrid    = od_cloud(config%i_band_from_reordered_g_lw,:,jcol)
@@ -149,14 +169,26 @@ contains
         if (config%nregions == 2) then
           if (config%do_3d_effects) then
             ! Two regions with scattering and 3D effects
-            call calc_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
-                 &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
-                 &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
-                 &         cloud%overlap_param(jcol,:), &
-                 &         flux_up, flux_dn, &
-                 &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
-                 &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
-                 &         cloud_cover=flux%cloud_cover_lw(jcol))
+            if (do_shadowing) then
+              call calc_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                   &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
+                   &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                   &         cloud%overlap_param(jcol,:), &
+                   &         flux_up, flux_dn, &
+                   &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+                   &         layer_thickness=layer_thickness, inv_cloud_scale_up=inv_cloud_separation_scale_up, &
+                   &         inv_cloud_scale_dn=inv_cloud_separation_scale, &
+                   &         cloud_cover=flux%cloud_cover_lw(jcol))
+            else
+              call calc_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                   &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
+                   &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                   &         cloud%overlap_param(jcol,:), &
+                   &         flux_up, flux_dn, &
+                   &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+                   &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
+                   &         cloud_cover=flux%cloud_cover_lw(jcol))
+            end if
           else
             ! Two regions with scattering but without 3D effects
             call calc_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
@@ -170,14 +202,26 @@ contains
         else
           if (config%do_3d_effects) then
             ! Three regions with scattering and 3D effects
-            call calc_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
-                 &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
-                 &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
-                 &         cloud%overlap_param(jcol,:), &
-                 &         flux_up, flux_dn, &
-                 &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
-                 &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
-                 &         cloud_cover=flux%cloud_cover_lw(jcol))
+            if (do_shadowing) then
+              call calc_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                   &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+                   &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                   &         cloud%overlap_param(jcol,:), &
+                   &         flux_up, flux_dn, &
+                   &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+                   &         layer_thickness=layer_thickness, inv_cloud_scale_up=inv_cloud_separation_scale_up, &
+                   &         inv_cloud_scale_dn=inv_cloud_separation_scale, &
+                   &         cloud_cover=flux%cloud_cover_lw(jcol))
+            else
+              call calc_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                   &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+                   &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                   &         cloud%overlap_param(jcol,:), &
+                   &         flux_up, flux_dn, &
+                   &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
+                   &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
+                   &         cloud_cover=flux%cloud_cover_lw(jcol))
+            end if
           else
             ! Three regions with scattering but without 3D effects
             call calc_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
@@ -319,9 +363,9 @@ contains
 
     real(jprb), dimension(config%n_g_lw) :: spectral_radiance
 
-    real(jprb) :: hook_handle
-
     integer :: jcol
+
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_tcrad_lw:radiance_solver_tcrad_lw',0,hook_handle)
 

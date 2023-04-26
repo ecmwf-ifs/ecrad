@@ -17,7 +17,7 @@ test: test_orig test_ecckd test_radiance
 # Tests of CY47R1 configuration with RRTMG gas optics model and
 # various solvers
 test_orig: test_default test_noaer test_expran test_expran_vec test_tripleclouds test_spartacus \
-	test_spartacus_maxentr
+	test_spartacus_maxentr test_tcrad
 
 # Tests of ecCKD gas optics model and various solvers
 test_ecckd: test_ecckd_mcica test_ecckd_tc test_ecckd_tc_noaer test_ecckd_spartacus
@@ -72,7 +72,7 @@ test_spartacus_maxentr:
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
 
-# (d) Tripleclouds solver with exponential-random overlap 
+# Tripleclouds solver with exponential-random overlap 
 test_tcrad:
 	$(CHANGENAM) $(CONFIG) config_tcrad.nam \
 		sw_solver_name='"Tripleclouds"' lw_solver_name='"TCRAD"' \
