@@ -1,6 +1,7 @@
 version 1.5.1
 	- Added Tripleclouds Radiance (TCRAD) capability including both
-	  flux and radiance solvers
+	  flux and radiance solvers, including Eddington and two-stream
+	  modes
 
 version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description

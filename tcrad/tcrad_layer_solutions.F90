@@ -18,13 +18,25 @@ module tcrad_layer_solutions
   use parkind1, only : jpim, jprb
 
   implicit none
+  public
 
-  ! Elsasser's factor: the effective factor by which the zenith
-  ! optical depth needs to be multiplied to account for longwave
-  ! transmission at all angles through the atmosphere.  Alternatively
-  ! think of acos(1/LW_DIFFUSIVITY) to be the effective zenith angle
-  ! of longwave radiation.
-  real(jprb), parameter :: LW_DIFFUSIVITY = 1.66_jprb
+  ! Two-stream scheme can be Elsasser: radiance field assumed to be
+  ! two pencil beams travelling at cosine-zenith angles (mu) of
+  ! +/-1/1.66; or Eddington: radiance field assumed to be
+  ! L(mu)=L0+mu*L1.
+  enum, bind(c)
+    enumerator ITwoStreamElsasser, ITwoStreamEddington
+  end enum
+
+  ! Two stream scheme currently in use 
+  integer(jpim) :: i_two_stream_scheme = ITwoStreamElsasser
+  
+  ! The effective factor by which the zenith optical depth needs to be
+  ! multiplied to account for longwave transmission at all angles
+  ! through the atmosphere.  Alternatively think of
+  ! acos(1/lw_diffusivity) to be the effective zenith angle of
+  ! longwave radiation.
+  real(jprb) :: lw_diffusivity = 1.66_jprb ! Elsasser default
 
   ! To avoid division by near-zero values use simpler formulae in the
   ! low optical depth regime
@@ -35,6 +47,25 @@ module tcrad_layer_solutions
 
 contains
 
+  !---------------------------------------------------------------------
+  ! Set the two-stream scheme
+  subroutine set_two_stream_scheme(i_scheme)
+    
+    integer(jpim), intent(in) :: i_scheme
+    
+    if (i_scheme == ITwoStreamEddington) then
+      i_two_stream_scheme = ITwoStreamEddington
+      ! Toon et al. (1989), Table 1
+      lw_diffusivity = 2.0_jprb
+    else
+      i_two_stream_scheme = ITwoStreamElsasser
+      ! Elsasser (1942)
+      lw_diffusivity = 1.66_jprb
+    end if
+    
+  end subroutine set_two_stream_scheme
+  
+  
   !---------------------------------------------------------------------
   ! Return Gauss-Legendre quadrature points, or "optimized" values for
   ! radiation if npoint == -1 or -2
@@ -179,7 +210,7 @@ contains
       do jspec = 1,nspec
         reflectance(jspec,1,jlev) = 0.0_jprb
         if (od(jspec,1,jlev) > OD_THRESH_2STREAM) then
-          coeff = LW_DIFFUSIVITY*od(jspec,1,jlev)
+          coeff = lw_diffusivity*od(jspec,1,jlev)
           transmittance(jspec,1,jlev) = exp(-coeff)
           coeff = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) / coeff
           coeff_up_top  =  coeff + planck_hl(jspec,jlev)
@@ -192,7 +223,7 @@ contains
                &  - transmittance(jspec,1,jlev) * coeff_dn_top
         else
           ! Linear limit at low optical depth
-          coeff = LW_DIFFUSIVITY*od(jspec,1,jlev)
+          coeff = lw_diffusivity*od(jspec,1,jlev)
           transmittance(jspec,1,jlev) = 1.0_jprb - coeff
           source_up(jspec,1,jlev) = coeff * 0.5_jprb &
                &  * (planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1))
@@ -208,9 +239,16 @@ contains
         do jreg = 2,nreg
           ! Scattering solution
           do jspec = 1,nspec
-            factor = (LW_DIFFUSIVITY * 0.5_jprb) * ssa(jspec,jreg,jlev)
-            gamma1 = LW_DIFFUSIVITY - factor*(1.0_jprb + asymmetry(jspec,jlev))
-            gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
+            if (i_two_stream_scheme == ITwoStreamElsasser) then
+              ! See Fu et al. (1997), Eqs. 2.9 and 2.10
+              factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
+              gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))
+              gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
+            else
+              ! See Meador & Weaver (1980), Table 1; Toon et al. (1989), Table 1
+              gamma1 = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
+              gamma2 = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+            end if
 
             k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
                  1.E-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
@@ -341,7 +379,7 @@ contains
     secant = 1.0_jprb / mu
 
     ! 0.5: half the scattering goes up and half down
-    factor = 0.5_jprb * 3.0_jprb * mu / LW_DIFFUSIVITY
+    factor = 0.5_jprb * 3.0_jprb * mu / lw_diffusivity
 
     do jlev = 1,nlev
 
@@ -858,7 +896,7 @@ contains
     secant = 1.0_jprb / mu
 
     ! 0.5: half the scattering goes up and half down
-    factor = 0.5_jprb * 3.0_jprb * mu / LW_DIFFUSIVITY
+    factor = 0.5_jprb * 3.0_jprb * mu / lw_diffusivity
 
     do jlev = 1,nlev
 

@@ -32,7 +32,7 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
-       &  calc_radiance_rates, calc_radiance_trans_source, LW_DIFFUSIVITY
+       &  calc_radiance_rates, calc_radiance_trans_source, lw_diffusivity
 
   implicit none
 
@@ -383,7 +383,7 @@ subroutine calc_no_scattering_radiance(nspec, nlev, surf_emission, surf_albedo, 
 
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook
-  use tcrad_layer_solutions, only : calc_no_scattering_radiance_source, LW_DIFFUSIVITY
+  use tcrad_layer_solutions, only : calc_no_scattering_radiance_source, lw_diffusivity
 
   implicit none
 
@@ -539,7 +539,7 @@ subroutine calc_no_scattering_radiance(nspec, nlev, surf_emission, surf_albedo, 
 
     ! Compute transmittance and source towards sensor
     call calc_no_scattering_radiance_source(nspec, nlev, NREGION, &
-         &  LW_DIFFUSIVITY, region_fracs, planck_hl, od, &
+         &  lw_diffusivity, region_fracs, planck_hl, od, &
          &  transmittance, source_dn=source_dn)
 
     ! Downward radiances - in fact these are scaled to be fluxes

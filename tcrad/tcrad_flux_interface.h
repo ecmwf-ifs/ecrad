@@ -39,7 +39,7 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   use yomhook,  only           : lhook, dr_hook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
        &  calc_radiance_rates, calc_radiance_trans_source, gauss_legendre, &
-       &  LW_DIFFUSIVITY, MAX_GAUSS_LEGENDRE_POINTS
+       &  lw_diffusivity, MAX_GAUSS_LEGENDRE_POINTS
   use tcrad_tilted, only       : calc_tilted_overlap
 
   implicit none
@@ -288,7 +288,7 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     if (n_angles_per_hem_local == 1) then
       ! Two-stream special case
       weight_list(1) = 1;
-      mu_list = 1.0_jprb / LW_DIFFUSIVITY
+      mu_list = 1.0_jprb / lw_diffusivity
     else
       call gauss_legendre(n_angles_per_hem_local, mu_list, weight_list)
     end if
@@ -414,7 +414,7 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
   use yomhook,  only           : lhook, dr_hook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
        &  calc_no_scattering_radiance_source, &
-       &  gauss_legendre, LW_DIFFUSIVITY, MAX_GAUSS_LEGENDRE_POINTS
+       &  gauss_legendre, lw_diffusivity, MAX_GAUSS_LEGENDRE_POINTS
 
   implicit none
 
@@ -577,7 +577,7 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
   if (n_angles_per_hem_local <= 1) then
     ! Two-stream special case
     weight_list(1) = 1;
-    mu_list = 1.0_jprb / LW_DIFFUSIVITY
+    mu_list = 1.0_jprb / lw_diffusivity
   else if (present(n_angles_per_hem)) then
     ! Negative input values for n_angles_per_hem lead to alternative
     ! quadrature, but n_angles_per_hem_local has been forced to be
@@ -615,7 +615,7 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
     ! First estimate longwave downward flux at the surface from a
     ! single downward beam
     call calc_no_scattering_radiance_source(nspec, nlev, NREGION, &
-         &  1.0_jprb / LW_DIFFUSIVITY, &
+         &  1.0_jprb / lw_diffusivity, &
          &  region_fracs, planck_hl, od,  &
          &  transmittance, source_dn=source_dn)
     call calc_radiance_dn(nspec, nlev, &

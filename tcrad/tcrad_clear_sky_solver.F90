@@ -24,11 +24,11 @@ contains
     use parkind1, only           : jpim, jprb
     use yomhook,  only           : lhook, dr_hook
     use tcrad_layer_solutions, only : calc_clear_sky_trans_source, &
-         &  gauss_legendre, LW_DIFFUSIVITY, MAX_GAUSS_LEGENDRE_POINTS
+         &  gauss_legendre, lw_diffusivity, MAX_GAUSS_LEGENDRE_POINTS
 
     implicit none
 
-    real(jprb), parameter :: LW_MU = 1.0_jprb / LW_DIFFUSIVITY
+    real(jprb) :: lw_mu
 
     ! Inputs
 
@@ -98,6 +98,8 @@ contains
 
     if (lhook) call dr_hook('tcrad:calc_clear_sky_flux',0,hook_handle)
 
+    lw_mu = 1.0_jprb / lw_diffusivity
+    
     ! Store local value for number of angles per hemisphere. Note that
     ! values of 0 and 1 have the same effect.
     if (present(n_angles_per_hem)) then
@@ -108,13 +110,13 @@ contains
 
     if (n_angles_per_hem_local < 2) then
       ! We need source up and down
-      call calc_clear_sky_trans_source(nspec, nlev, LW_MU, &
+      call calc_clear_sky_trans_source(nspec, nlev, lw_mu, &
            &  planck_hl, od_clear, transmittance, &
            &  source_up=source_up, source_dn=source_dn)
     else
       ! We need only the source down, in order to do a single downward
       ! calculation to obtain the reflected flux at the surface
-      call calc_clear_sky_trans_source(nspec, nlev, LW_MU, &
+      call calc_clear_sky_trans_source(nspec, nlev, lw_mu, &
            &  planck_hl, od_clear, transmittance, &
            &  source_dn=source_dn)
     end if
