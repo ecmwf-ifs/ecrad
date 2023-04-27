@@ -4,8 +4,8 @@
 ! including parallelization options and overriding numbers read from
 ! the NetCDF input file
 !
-! This version matches the expected configuration of ECMWF IFS Cycle
-! 47R1: compared to 46R1, the surface shortwave albedo and longwave
+! This version matches the configuration of ECMWF IFS Cycle 47R1:
+! compared to 46R1, the surface shortwave albedo and longwave
 ! emissivity mappings are specified
 !
 &radiation_driver

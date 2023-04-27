@@ -6,10 +6,14 @@ IFS_DRIVER = ../../bin/ecrad_ifs
 IFS_DRIVER_BLOCKED = ../../bin/ecrad_ifs_blocked
 CHANGENAM = ../common/change_namelist.sh
 
+# Various configuration files corresponding to cycles of ECMWF's
+# Integrated Forecasting System (IFS)
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
-CONFIG = configCY47R1.nam
-CONFIG_ECCKD = configCY49R1.nam
+#CONFIG = configCY47R1.nam
+#CONFIG = configCY47R3.nam
+CONFIG = configCY49R1.nam
+CONFIG_ECCKD = configCY49R1_ecckd.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
@@ -18,7 +22,7 @@ test: test_orig test_ecckd
 
 # Tests of CY47R1 configuration with RRTMG gas optics model and
 # various solvers
-test_orig: test_default test_noaer test_expran test_expran_vec test_tripleclouds test_spartacus \
+test_orig: test_default test_noaer test_expexp test_vec test_tripleclouds test_spartacus \
 	test_spartacus_maxentr
 
 # Tests of ecCKD gas optics model and various solvers
@@ -31,15 +35,13 @@ test_default:
 
 test_ifsdriver:
 	$(CHANGENAM) $(CONFIG) config_net.nam do_save_net_fluxes=true do_write_double_precision=true \
-		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"' \
-		overlap_scheme_name='"Exp-Ran"'
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
 	$(IFS_DRIVER) config_net.nam $(INPUT).nc $(INPUT)_ifsdriver_out.nc | tee $(INPUT)_ifsdriver_out.log
 	$(DRIVER) config_net.nam $(INPUT).nc $(INPUT)_net_out.nc | tee $(INPUT)_net_out.log
 
 test_ifsdriver_blocked:
 	$(CHANGENAM) $(CONFIG) config_net.nam do_save_net_fluxes=true do_write_double_precision=true \
-		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"' \
-		overlap_scheme_name='"Exp-Ran"'
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
 	$(IFS_DRIVER_BLOCKED) config_net.nam $(INPUT).nc $(INPUT)_ifsdriver_blocked_out.nc | tee $(INPUT)_ifsdriver_blocked_out.log
 	$(DRIVER) config_net.nam $(INPUT).nc $(INPUT)_net_out.nc | tee $(INPUT)_net_out.log
 
@@ -49,17 +51,16 @@ test_noaer:
 		use_aerosols=false
 	$(DRIVER) config_noaer.nam $(INPUT).nc $(INPUT)_noaer_out.nc
 
-# Exponential-random overlap
-test_expran:
-	$(CHANGENAM) $(CONFIG) config_expran.nam \
-		overlap_scheme_name='"Exp-Ran"'
-	$(DRIVER) config_expran.nam $(INPUT).nc $(INPUT)_expran_out.nc
+# Older exponential-exponential overlap
+test_expexp:
+	$(CHANGENAM) $(CONFIG) config_expexp.nam \
+		overlap_scheme_name='"Exp-Exp"'
+	$(DRIVER) config_expexp.nam $(INPUT).nc $(INPUT)_expexp_out.nc
 
 # Tripleclouds solver with exponential-random overlap 
 test_tripleclouds:
 	$(CHANGENAM) $(CONFIG) config_tc.nam \
-		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"' \
-		overlap_scheme_name='"Exp-Ran"'
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
 	$(DRIVER) config_tc.nam $(INPUT).nc $(INPUT)_tc_out.nc
 
 # Longwave scattering; since 46R1 this is the default
@@ -72,7 +73,7 @@ test_lwscat:
 test_spartacus:
 	$(CHANGENAM) $(CONFIG) config_spartacus.nam \
 		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
-		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
+		do_3d_effects="true" \
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus.nam $(INPUT).nc $(INPUT)_spartacus_out.nc
 
@@ -80,7 +81,7 @@ test_spartacus:
 test_spartacus_maxentr:
 	$(CHANGENAM) $(CONFIG) config_spartacus_maxentr.nam \
 		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
-		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
+		do_3d_effects="true" \
 		sw_entrapment_name='"Maximum"' \
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
@@ -93,10 +94,9 @@ test_cloudless:
 	$(DRIVER) config_cloudless.nam $(INPUT).nc $(INPUT)_cloudless_out.nc
 
 # Exponential-random overlap with "vectorizable" cloud generator
-test_expran_vec:
-	$(CHANGENAM) $(CONFIG) config_expran_vec.nam \
-		overlap_scheme_name='"Exp-Ran"' use_vectorizable_generator=true
-	$(DRIVER) config_expran_vec.nam $(INPUT).nc $(INPUT)_expran_vec_out.nc
+test_vec:
+	$(CHANGENAM) $(CONFIG) config_vec.nam use_vectorizable_generator=true
+	$(DRIVER) config_vec.nam $(INPUT).nc $(INPUT)_vec_out.nc
 
 
 ### The following targets use the $CONFIG_ECCKD configuration file ###

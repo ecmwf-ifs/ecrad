@@ -1,4 +1,4 @@
-version 1.6.0 (25 April 2023)
+version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
 	  files as big endian: now the OPEN commands for the files RADRRTM
 	  and RADSRTM specify CONVERT='BIG_ENDIAN' in rrtm_kgb1.F90 and
@@ -9,6 +9,12 @@ version 1.6.0 (25 April 2023)
 	  "Baran-EXPERIMENTAL" and "Baran2017-EXPERIMENTAL"
 	- Wavelength tolerance for requesting monochromatic aerosol info
 	  increased from 1% to 2%
+	- test/ifs directory contains configCY*.nam files corresponding to
+	  more previous operational IFS cycles, and added
+	  ecrad_meridian_default_out_REFERENCE.log indicating how the
+	  reference file (now updated) was produced
+	- Default generalized aerosol optics file changed to
+	  aerosol_ifs_49R1_20230119.nc
 
 version 1.5.1 (8 December 2022)
 	- Added Makefile_include.intel_atos to match compiler options on
