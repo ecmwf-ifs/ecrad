@@ -42,7 +42,7 @@ contains
   subroutine calc_ice_optics_fu_sw(nb, coeff, ice_wp, &
        &  re, od, scat_od, g)
 
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -61,7 +61,7 @@ contains
     real (jprb) :: iwp_gm_2
 
     integer :: jb
-    !real(jprb)  :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_sw',0,hook_handle)
 
@@ -92,7 +92,7 @@ contains
   subroutine calc_ice_optics_fu_lw(nb, coeff, ice_wp, &
        &  re, od, scat_od, g)
 
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -111,7 +111,7 @@ contains
     real (jprb) :: iwp_gm_2
 
     integer :: jb
-    !real(jprb)  :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_fu_lw',0,hook_handle)
 

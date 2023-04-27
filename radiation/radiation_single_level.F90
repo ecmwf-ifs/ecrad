@@ -60,6 +60,16 @@ module radiation_single_level
     ! normalized fluxes out, simply set this to 1.0.
     real(jprb) :: solar_irradiance = 1366.0_jprb ! W m-2
 
+    ! In addition to the effect of the solar cycle on total solar
+    ! irradiance (which the user is expected to input via
+    ! solar_irradiance), it can change the balance between different
+    ! parts of the solar spectrum, e.g. more UV at solar maximum. This
+    ! variable provides the scaling to be applied to the spectral
+    ! amplitude of the solar cycle (assuming it has been provided),
+    ! e.g. 1.0 for solar maximum, -1.0 for solar maximum and 0.0 for
+    ! a mean solar spectrum.
+    real(jprb) :: spectral_solar_cycle_multiplier = 0.0_jprb
+    
     ! If config%use_spectral_solar_irradiance==true then this will be
     ! scaled by spectral_solar_scaling
     real(jprb), allocatable, dimension(:) :: &
@@ -98,14 +108,14 @@ contains
   subroutine allocate_single_level(this, ncol, nalbedobands, nemisbands, &
        &                           use_sw_albedo_direct, is_simple_surface)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(single_level_type), intent(inout) :: this
     integer,                  intent(in)    :: ncol, nalbedobands, nemisbands
     logical,        optional, intent(in)    :: use_sw_albedo_direct
     logical,        optional, intent(in)    :: is_simple_surface
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:allocate',0,hook_handle)
 
@@ -145,11 +155,11 @@ contains
   ! Deallocate the arrays of a single-level type
   subroutine deallocate_single_level(this)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(single_level_type), intent(inout) :: this
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:deallocate',0,hook_handle)
 
@@ -208,7 +218,7 @@ contains
 
     use radiation_config, only : config_type
     use radiation_io,     only : nulerr, radiation_abort
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
 
     class(single_level_type), intent(in) :: this
     type(config_type),        intent(in) :: config
@@ -236,7 +246,7 @@ contains
     ! Loop indices for ecRad bands and albedo bands
     integer :: jband, jalbedoband, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:get_albedos',0,hook_handle)
 
@@ -298,6 +308,11 @@ contains
         end if
       else
         ! Albedos mapped less accurately to ecRad spectral bands
+        if (maxval(config%i_albedo_from_band_sw) > size(this%sw_albedo,2)) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%sw_albedo has fewer than required ', &
+               &  maxval(config%i_albedo_from_band_sw), ' bands'
+          call radiation_abort()
+        end if      
         sw_albedo_diffuse = transpose(this%sw_albedo(istartcol:iendcol, &
              &  config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw)))
         if (allocated(this%sw_albedo_direct)) then
@@ -342,6 +357,11 @@ contains
         lw_albedo = transpose(lw_albedo_band(istartcol:iendcol, &
              &                config%i_band_from_reordered_g_lw))
       else
+        if (maxval(config%i_emiss_from_band_lw) > size(this%lw_emissivity,2)) then
+          write(nulerr,'(a,i0,a)') '*** Error: single_level%lw_emissivity has fewer than required ', &
+               &  maxval(config%i_emiss_from_band_lw), ' bands'
+          call radiation_abort()
+        end if
         lw_albedo = 1.0_jprb - transpose(this%lw_emissivity(istartcol:iendcol, &
              &  config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw)))
       end if
@@ -358,7 +378,7 @@ contains
   ! columns between istartcol and iendcol
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_check,  only : out_of_bounds_1d, out_of_bounds_2d
 
     class(single_level_type), intent(inout) :: this
@@ -368,7 +388,7 @@ contains
 
     logical    :: do_fix_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_single_level:out_of_physical_bounds',0,hook_handle)
 

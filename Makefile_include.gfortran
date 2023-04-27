@@ -4,9 +4,11 @@ FC = gfortran
 # Tell the compiler to accept C-preprocessor directives
 CPPFLAGS = -cpp
 
-# Basic flags such as where to write module files, and an instruction
-#  to read Fortran unformatted data files as big endian 
-BASICFLAGS = -J../mod -fconvert=big-endian -fno-range-check
+# Basic flags such as where to write module files. We used to have the
+# flag "-fconvert=big-endian" here because the RRTM input files are
+# big endian Fortran unformatted files, but now the file ordering has
+# been specified at the OPEN command so no compiler flags are needed.
+BASICFLAGS = -J../mod -fno-range-check
 
 # OpenMP flag; type "make OMPFLAG=-DNO_OPENMP" to compile with OpenMP
 # disabled

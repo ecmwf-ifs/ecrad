@@ -7,23 +7,24 @@ SUBROUTINE RRTM_KGB7
 !     G.Mozdzynski March 2011 read constants from files
 !     ABozzo 201306 updated rrtmg v4.85
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 
-USE YOERRTO7 , ONLY : KAO     ,KBO,KAO_D,KBO_D, KAO_MCO2     ,KBO_MCO2     ,SELFREFO   ,FORREFO, &
- & FRACREFAO  , FRACREFBO   
+USE YOERRTO7 , ONLY : KAO     ,KBO, KAO_MCO2     ,KBO_MCO2     ,SELFREFO   ,FORREFO, &
+ & FRACREFAO  , FRACREFBO   , KAO_D, KBO_D
 
 USE YOMMP0    , ONLY : NPROC, MYPROC
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
@@ -31,9 +32,8 @@ IF (LHOOK) CALL DR_HOOK('RRTM_KGB7',0,ZHOOK_HANDLE)
 
 IF( MYPROC==1 )THEN
   READ(NULRAD) KAO_D,KBO_D
- ! Convert the data into model actual precision.
   KAO = REAL(KAO_D,JPRB)
-  KBO = REAL(KBO_D,JPRB)   
+  KBO = REAL(KBO_D,JPRB)
 ENDIF
 IF( NPROC>1 )THEN
   CALL MPL_BROADCAST (KAO,MTAGRAD,1,CDSTRING='RRTM_KGB7:')
@@ -1018,7 +1018,6 @@ FRACREFBO(:) = (/ &
       SELFREFO(:,16) = (/ &
      & 3.51264E-02_JPRB, 3.05081E-02_JPRB, 2.64970E-02_JPRB, 2.30133E-02_JPRB, 1.99876E-02_JPRB, &
      & 1.73597E-02_JPRB, 1.50773E-02_JPRB, 1.30950E-02_JPRB, 1.13733E-02_JPRB, 9.87800E-03_JPRB/)
-
 
 
 IF (LHOOK) CALL DR_HOOK('RRTM_KGB7',1,ZHOOK_HANDLE)

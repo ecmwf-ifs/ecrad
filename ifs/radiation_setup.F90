@@ -108,7 +108,7 @@ CONTAINS
   ! stage (default is no).
   SUBROUTINE SETUP_RADIATION_SCHEME(PRADIATION,LDOUTPUT,FILE_NAME)
 
-    USE YOMHOOK,  ONLY : LHOOK, DR_HOOK
+    USE YOMHOOK,  ONLY : LHOOK, DR_HOOK, JPHOOK
     USE YOMLUN,   ONLY : NULOUT, NULERR
     !USE YOESRTWN, ONLY : NMPSRTM
     USE YOERAD,   ONLY : TERAD
@@ -130,7 +130,7 @@ CONTAINS
     ! Verbosity of configuration information 0=none, 1=warning,
     ! 2=info, 3=progress, 4=detailed, 5=debug
     INTEGER(KIND=JPIM) :: IVERBOSESETUP
-    INTEGER(KIND=JPIM) :: ISTAT
+    !INTEGER(KIND=JPIM) :: ISTAT
 
     ! Data directory name
     CHARACTER(LEN=256) :: CL_DATA_DIR
@@ -143,7 +143,7 @@ CONTAINS
     ! intervals, or a more intelligent weighting?
     LOGICAL :: LL_DO_NEAREST_SW_ALBEDO, LL_DO_NEAREST_LW_EMISS
 
-    REAL(KIND=JPRB) :: ZHOOK_HANDLE
+    REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !#include "posname.intfb.h"
 #include "abor1.intfb.h"

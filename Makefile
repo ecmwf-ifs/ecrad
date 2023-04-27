@@ -66,10 +66,18 @@ export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
-	-lifsrrtm -ldrhook -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
-ifdef DR_HOOK
-LIBS += -ldl -lrt
-export CFLAGS = -g -O2
+	-lifsrrtm -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+
+# Do we include Dr Hook from ECMWF's fiat library?
+ifdef FIATDIR
+# Prepend location of yomhook.mod module file from fiat library, so
+# that it is found in preference to the dummy one in ecRad
+FCFLAGS := -I$(FIATDIR)/module/fiat $(FCFLAGS)
+# Append fiat library (usually shared: libfiat.so)
+LIBS += -L$(FIATDIR)/lib -Wl,-rpath,$(FIATDIR)/lib -lfiat
+else
+# Dummy Dr Hook library
+LIBS += -ldrhook
 endif
 
 
@@ -83,19 +91,23 @@ help:
 	@echo "Usage:"
 	@echo "  make PROFILE=<prof>"
 	@echo "where <prof> is one of gfortran, pgi, intel or cray (see Makefile_include.<prof>)"
-	@echo "Other arguments to make are:"
+	@echo "Other possible arguments are:"
 	@echo "  DEBUG=1              Compile with debug settings on and optimizations off"
 	@echo "  SINGLE_PRECISION=1   Compile with single precision"
-	@echo "  DR_HOOK=1            Compile with the Dr Hook profiling system"
+	@echo "  FIATDIR=/my/path     Compile with Dr Hook, specifying the directory containing lib/libfiat.so and module/fiat/yomhook.mod"
 	@echo "  test                 Run test cases in test directory"
 	@echo "  clean                Remove all compiled files"
 
-ifdef DR_HOOK
-build: directories libifsaux libdrhook libutilities libifsrrtm libradiation driver ifsdriver ifsdriver_blocked symlinks
-libradiation libutilities: libdrhook
-else
-build: directories libifsaux libdummydrhook libutilities libifsrrtm libradiation driver ifsdriver ifsdriver_blocked symlinks
+ifndef FIATDIR
+build: directories libifsaux libdummydrhook libutilities libifsrrtm \
+	libradiation driver ifsdriver symlinks
 libradiation libutilities: libdummydrhook
+else
+# Note that if we are using Dr Hook from the fiat library we don't
+# want to create mod/yomhook.mod as this can sometimes be found before
+# the one in the fiat directory leading to an error at link stage
+build: directories libifsaux libutilities libifsrrtm libradiation \
+	driver ifsdriver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -113,20 +125,11 @@ deps: clean-deps
 clean-deps:
 	rm -f include/*.intfb.h
 
-ifsdriver: libifsaux libdummydrhook libifsrrtm libutilities libradiation libifs
-	cd driver && $(MAKE) ecrad_ifs_driver
-
-ifsdriver_blocked: libifsaux libdummydrhook libifsrrtm libutilities libradiation libifs
-	cd driver && $(MAKE) ecrad_ifs_driver_blocked
-
 libifs: libradiation
 	cd ifs && $(MAKE)
 
 libifsaux:
 	cd ifsaux && $(MAKE)
-
-libdrhook: libifsaux
-	cd drhook && $(MAKE)
 
 libdummydrhook: libifsaux
 	cd drhook && $(MAKE) dummy
@@ -140,8 +143,14 @@ libifsrrtm: libifsaux
 libradiation: libutilities libifsaux
 	cd radiation && $(MAKE)
 
-driver: libifsaux libdummydrhook libifsrrtm libutilities libradiation
-	cd driver && $(MAKE)
+driver: libifsaux libifsrrtm libutilities libradiation
+	cd driver && $(MAKE) driver
+
+ifsdriver: libifsaux libifsrrtm libutilities libradiation libifs
+	cd driver && $(MAKE) ifs_driver
+
+test_programs: driver
+	cd driver && $(MAKE) test_programs
 
 symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
@@ -185,6 +194,6 @@ clean-symlinks:
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
-.PHONY: all build help deps clean-deps libifsaux libdrhook libutilities libifsrrtm \
-	libradiation libifs driver symlinks clean clean-toplevel test test_ifs ifsdriver \
-	ifsdriver_blocked test_i3rc clean-tests clean-utilities clean-mods clean-symlinks
+.PHONY: all build help deps clean-deps libifsaux libdummydrhook libutilities libifsrrtm \
+	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver \
+	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks

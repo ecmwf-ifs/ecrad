@@ -6,22 +6,23 @@ SUBROUTINE SRTM_KGB25
 !     Reformatted for F90 by JJMorcrette, ECMWF
 !     G.Mozdzynski March 2011 read constants from files
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  , ONLY : JPRB
-USE YOMHOOK   , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    , ONLY : NULRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 USE MPL_MODULE, ONLY : MPL_BROADCAST
 USE YOMTAG    , ONLY : MTAGRAD
-USE YOESRTA25 , ONLY : KA, KA_D,SFLUXREF, RAYL, ABSO3A, ABSO3B, LAYREFFR  
+USE YOESRTA25 , ONLY : KA, SFLUXREF, RAYL, ABSO3A, ABSO3B, LAYREFFR, KA_D
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
 
 ! KURUCZ
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
@@ -29,7 +30,7 @@ IF (LHOOK) CALL DR_HOOK('SRTM_KGB25',0,ZHOOK_HANDLE)
 
 IF( MYPROC==1 )THEN
   READ(NULRAD,ERR=1001) KA_D
-    KA = REAL(KA_D,JPRB)
+  KA = REAL(KA_D,JPRB)
 ENDIF
 IF( NPROC>1 )THEN
   CALL MPL_BROADCAST (KA,MTAGRAD,1,CDSTRING='SRTM_KGB25:')

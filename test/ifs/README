@@ -23,7 +23,8 @@ to visualize the results. The file
 of the output file "ecrad_meridian_default_out.nc" (case "a" above),
 which you can compare to be sure your compilation is working as
 expected. Sometimes this file lags intermediate versions of ecRad,
-especially git snapshots.
+especially git snapshots. It is always generated using gfortran in
+double precision.
 
 Note that the shortwave diagnosed cloud cover will be set to -1 when
 the sun is below the horizon.

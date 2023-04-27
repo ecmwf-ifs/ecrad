@@ -282,7 +282,7 @@ contains
        &     cloud_fraction_threshold, cloud_cover, use_beta_overlap)
 
     use parkind1,     only : jprb
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
 
     ! Number of levels and regions
     integer,  intent(in) :: nlev, nreg
@@ -344,7 +344,7 @@ contains
 
     logical :: use_beta_overlap_param
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_overlap:calc_overlap_matrices',0,hook_handle)
 

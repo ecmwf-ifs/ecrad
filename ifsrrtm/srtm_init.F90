@@ -1,11 +1,11 @@
-SUBROUTINE SRTM_INIT(DIRECTORY)
+SUBROUTINE SRTM_INIT(CDIRECTORY, NWVCONTINUUM)
 
 !-- read in the basic coefficients to configure RRTM_SW
 !- creates module YOESRTWN with BG, NSPA, NSPB, WAVENUM1, WAVENUM2,
 !  DELWAVE, PREF, PREFLOG, TREF
 
 USE PARKIND1  ,ONLY : JPIM , JPRB
-USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE PARSRTM  , ONLY : JPG, JPSW
 USE YOESRTM  , ONLY : NGN
@@ -15,13 +15,16 @@ USE YOESRTWN , ONLY : NG, NGM, WT, NGC, RWGT, WTSM
 
 IMPLICIT NONE
 
-CHARACTER(LEN=*), INTENT(IN) :: DIRECTORY
+CHARACTER(LEN=*), INTENT(IN) :: CDIRECTORY
+
+! Water vapour continuum model (0=default MT_CKD2.5, 1=CAVIAR)
+INTEGER(KIND=JPIM), INTENT(IN), OPTIONAL :: NWVCONTINUUM
 
 ! Local variables
 INTEGER(KIND=JPIM) :: IGC, IGCSM, IBND, IG, IND, IPR, IPRSM
 REAL(KIND=JPRB)    :: ZWTSUM
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !#include "susrtmcf.intfb.h"
 #include "susrtm.intfb.h"
@@ -40,6 +43,8 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 #include "srtm_kgb28.intfb.h"
 #include "srtm_kgb29.intfb.h"
 !#include "susrtop.intfb.h"
+
+#include "modify_wv_continuum.intfb.h"
 
 #include "srtm_cmbgb16.intfb.h"
 #include "srtm_cmbgb17.intfb.h"
@@ -63,7 +68,7 @@ CALL SUSRTM
 
 !-- read in the molecular absorption coefficients
 
-CALL SRTM_KGB16(DIRECTORY)
+CALL SRTM_KGB16(CDIRECTORY)
 CALL SRTM_KGB17
 CALL SRTM_KGB18
 CALL SRTM_KGB19
@@ -77,6 +82,11 @@ CALL SRTM_KGB26
 CALL SRTM_KGB27
 CALL SRTM_KGB28
 CALL SRTM_KGB29
+
+IF (PRESENT(NWVCONTINUUM)) THEN
+  ! Modify the shortwave water vapour continuum, if requested
+  CALL MODIFY_WV_CONTINUUM(NWVCONTINUUM)
+END IF
 
 !-- read in the cloud optical properties
 !- creates module YOESRTOP with EXTLIQ1, SSALIQ1, ASYLIQ1, 
@@ -96,37 +106,22 @@ CALL SRTM_KGB29
 !-- Compute relative weighting for new g-point combinations.
 
 IGCSM = 0
-!WRITE(NULOUT,9001) JPSW,JPG
-9001 format(1x,'srtm_init JPSW=',I3,' JPG=',I3)
 DO IBND = 1,JPSW
   IPRSM = 0
-!  WRITE(NULOUT,9002) IBND,NGC(IBND)
-9002 format(1x,'srtm_init NGC(',I3,')=',I3)
   IF (NGC(IBND) < JPG) THEN
     DO IGC = 1,NGC(IBND)
       IGCSM = IGCSM + 1
       ZWTSUM = 0.
-!      WRITE(NULOUT,9003) IGC,IGCSM,NGN(IGCSM)
-9003  format(1x,'srtm_init IGC=',I3,' NGN(',I3,')=',I3)
       DO IPR = 1, NGN(IGCSM)
         IPRSM = IPRSM + 1
-!        WRITE(NULOUT,9004) IPR,IPRSM,WT(IPRSM)
-9004    format(1x,'srtm_init IPR=',I3,' WT(',I3,')=',E14.7)
         ZWTSUM = ZWTSUM + WT(IPRSM)
       ENDDO
-!      WRITE(NULOUT,9005) IGC,ZWTSUM
-9005  format(1x,'srtm_init WTSM(',I3,')=',E14.7)
       WTSM(IGC) = ZWTSUM
     ENDDO
 
-!    WRITE(NULOUT,9006) IBND+15,NG(IBND+15)
-9006 format(1x,'srtm_init NG(',I3,')=',I3)
     DO IG = 1,NG(IBND+15)
       IND = (IBND-1)*JPG + IG
-!!      WRITE(NULOUT,9007) IND,NGM(IND), IG,WT(IG), WTSM(NGM(IND)), IND,RWGT(IND)
-9007 format(1x,'srtm_init NGM(',I3,')=',I3,' WT(',I3,')=',E13.7,' WTSM=',E13.7,' RWGT(',I3,')=',E13.7)
       RWGT(IND) = WT(IG)/WTSM(NGM(IND))
-!      WRITE(NULOUT,9007) IND,NGM(IND),IG,WT(IG),WTSM(NGM(IND)),IND,RWGT(IND)
     ENDDO
   ELSE
     DO IG = 1,NG(IBND+15)

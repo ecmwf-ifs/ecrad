@@ -7,32 +7,32 @@ SUBROUTINE RRTM_KGB8
 !     G.Mozdzynski March 2011 read constants from files
 !     ABozzo updated to rrtmg v4.85
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 
-USE YOERRTO8 , ONLY : KAO     ,KBO       ,KAO_D,KBO_D,SELFREFO ,FORREFO,FRACREFAO ,&
+USE YOERRTO8 , ONLY : KAO     ,KBO       ,SELFREFO ,FORREFO,FRACREFAO ,&
  & FRACREFBO, CFC12O  ,CFC22ADJO ,KAO_MCO2,KBO_MCO2,&
- & KAO_MN2O,KBO_MN2O,KAO_MO3  
+ & KAO_MN2O,KBO_MN2O,KAO_MO3  , KAO_D, KBO_D
 
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
 IF (LHOOK) CALL DR_HOOK('RRTM_KGB8',0,ZHOOK_HANDLE)
 
 IF( MYPROC==1 )THEN
-  READ(NULRAD,ERR=1001) KAO_D,KBO_D
- ! Convert the data into model actual precision.
+  READ(NULRAD) KAO_D,KBO_D
   KAO = REAL(KAO_D,JPRB)
   KBO = REAL(KBO_D,JPRB)
 ENDIF
@@ -613,7 +613,6 @@ CFC22ADJO( :) = (/&
       SELFREFO(:,16) = (/ &
      & 2.80884E-02_JPRB, 2.46987E-02_JPRB, 2.17180E-02_JPRB, 1.90970E-02_JPRB, 1.67924E-02_JPRB, &
      & 1.47659E-02_JPRB, 1.29839E-02_JPRB, 1.14170E-02_JPRB, 1.00392E-02_JPRB, 8.82765E-03_JPRB/)
-
 
 
 IF (LHOOK) CALL DR_HOOK('RRTM_KGB8',1,ZHOOK_HANDLE)

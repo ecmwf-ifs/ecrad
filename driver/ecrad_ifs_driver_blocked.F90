@@ -130,9 +130,7 @@ program ecrad_ifs_driver
   integer :: jrepeat
 
   ! Loop index
-  integer :: jrl, ibeg, iend, il, ib, jlev
-
-
+  integer :: jrl, ibeg, iend, il, ib
 
   ! Are any variables out of bounds?
   logical :: is_out_of_bounds
@@ -440,7 +438,7 @@ program ecrad_ifs_driver
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
-  write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
 #endif
 
   ! --------------------------------------------------------

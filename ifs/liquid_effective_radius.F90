@@ -31,7 +31,7 @@ SUBROUTINE LIQUID_EFFECTIVE_RADIUS &
 ! -------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB
-USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOERAD   , ONLY : TERAD
 USE YOERDU   , ONLY : REPLOG, REPSCW
 USE YOMLUN   , ONLY : NULERR
@@ -86,7 +86,7 @@ REAL(KIND=JPRB) :: ZWOOD_FACTOR, ZRATIO
 
 INTEGER(KIND=JPIM) :: JL, JK
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 ! -------------------------------------------------------------------
 
