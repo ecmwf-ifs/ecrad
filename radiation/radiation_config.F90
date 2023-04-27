@@ -1203,7 +1203,7 @@ contains
       ! ifs/module/radiation_setup.F90, not here
       if (this%use_general_aerosol_optics) then
          this%aerosol_optics_file_name &
-             &   = trim(this%directory_name) // "/aerosol_ifs_48R1.nc"       
+             &   = trim(this%directory_name) // "/aerosol_ifs_48R1_20230119.nc"       
       else
         this%aerosol_optics_file_name &
              &   = trim(this%directory_name) // "/aerosol_ifs_rrtm_46R1_with_NI_AM.nc"
