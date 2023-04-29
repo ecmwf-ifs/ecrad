@@ -48,18 +48,21 @@ module tcrad_layer_solutions
 contains
 
   !---------------------------------------------------------------------
-  ! Set the two-stream scheme
+  ! Set the two-stream scheme; this overwrites global module variables
+  ! so should normally be called from outside a parallel block
   subroutine set_two_stream_scheme(i_scheme)
     
     integer(jpim), intent(in) :: i_scheme
-    
-    if (i_scheme == ITwoStreamEddington) then
-      i_two_stream_scheme = ITwoStreamEddington
+
+    ! Only overwrite global module variables if they need changing
+    if (i_scheme == ITwoStreamEddington &
+         .and. i_two_stream_scheme /= ITwoStreamEddington) then
       ! Toon et al. (1989), Table 1
+      i_two_stream_scheme = ITwoStreamEddington
       lw_diffusivity = 2.0_jprb
-    else
-      i_two_stream_scheme = ITwoStreamElsasser
+    else if (i_two_stream_scheme /= ITwoStreamElsasser) then
       ! Elsasser (1942)
+      i_two_stream_scheme = ITwoStreamElsasser
       lw_diffusivity = 1.66_jprb
     end if
     
@@ -792,7 +795,7 @@ contains
               source_up(jspec,jreg,jlev) = coeff + rate_up_top(jspec,jreg,jlev) &
                    - transmittance(jspec,jreg,jlev) * (coeff + rate_up_base(jspec,jreg,jlev))
             else
-              source_dn(jspec,jreg,jlev) = od(jspec,jreg,jlev) * 0.5_jprb &
+              source_up(jspec,jreg,jlev) = od(jspec,jreg,jlev) * 0.5_jprb &
                    &  * (rate_up_top(jspec,jreg,jlev) + rate_up_base(jspec,jreg,jlev)) / mu
             end if
           end do
