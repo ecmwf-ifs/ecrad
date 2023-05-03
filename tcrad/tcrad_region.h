@@ -22,7 +22,7 @@ subroutine calc_region_properties(nlev, &
      &  cloud_fraction, reg_fracs, od_scaling, cloud_fraction_threshold)
 
   use parkind1,     only : jprb
-  use yomhook,      only : lhook, dr_hook
+  use yomhook,      only : lhook, dr_hook, jphook
 
   ! Number of levels
   integer, intent(in) :: nlev
@@ -44,7 +44,7 @@ subroutine calc_region_properties(nlev, &
   ! a default value
   real(jprb) :: frac_threshold
   
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_region_properties',0,hook_handle)
 
@@ -77,7 +77,7 @@ subroutine calc_region_properties(nlev, &
      &  reg_fracs, od_scaling, cloud_fraction_threshold)
 
   use parkind1,     only : jprb
-  use yomhook,      only : lhook, dr_hook
+  use yomhook,      only : lhook, dr_hook, jphook
 
   ! Minimum od_scaling in the case of a Gamma distribution
   real(jprb), parameter :: MinGammaODScaling = 0.025_jprb
@@ -129,7 +129,7 @@ subroutine calc_region_properties(nlev, &
   ! Loop indices
   integer :: jlev
   
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_region_properties',0,hook_handle)
 
@@ -212,7 +212,7 @@ subroutine calc_region_edge_areas(nlev, region_fracs, layer_thickness, &
      &                            inv_cloud_scale, region_edge_area)
 
   use parkind1,     only : jprb
-  use yomhook,      only : lhook, dr_hook
+  use yomhook,      only : lhook, dr_hook, jphook
 
   ! Number of levels
   integer, intent(in) :: nlev
@@ -233,7 +233,7 @@ subroutine calc_region_edge_areas(nlev, region_fracs, layer_thickness, &
   ! (regions 1 and 3 are assumed not to touch).
   real(jprb), intent(out) :: region_edge_area(NREGION-1,nlev)
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_region_edge_areas',0,hook_handle)
 

@@ -125,7 +125,7 @@ subroutine calc_overlap_matrices(nlev, &
      &     cloud_fraction_threshold, cloud_cover)
 
   use parkind1,     only : jprb
-  use yomhook,      only : lhook, dr_hook
+  use yomhook,      only : lhook, dr_hook, jphook
 
   ! Number of levels and regions
   integer,  intent(in) :: nlev
@@ -176,7 +176,7 @@ subroutine calc_overlap_matrices(nlev, &
   ! was not provided
   real(jprb) :: used_decorrelation_scaling
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_overlap_matrices',0,hook_handle)
 

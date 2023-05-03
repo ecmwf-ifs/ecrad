@@ -26,7 +26,7 @@ contains
              &  overlap_param_tilted)
 
     use parkind1, only : jprb, jpim
-    use yomhook,  only : lhook, dr_hook
+    use yomhook,  only : lhook, dr_hook, jphook
 
     implicit none
 
@@ -73,7 +73,7 @@ contains
 
     integer(jpim) :: jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_tilted_overlap',0,hook_handle)
 

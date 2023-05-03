@@ -29,7 +29,7 @@ subroutine calc_two_stream_flux(nspec, nlev, surf_emission, surf_albedo, &
      &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top)
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   
   implicit none
   
@@ -95,7 +95,7 @@ subroutine calc_two_stream_flux(nspec, nlev, surf_emission, surf_albedo, &
   ! Loop indices for spectral interval, level and region
   integer(jpim) :: jspec, jlev, jreg, jreg2
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_two_stream_flux',0,hook_handle)
 
