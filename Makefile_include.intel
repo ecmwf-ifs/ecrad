@@ -1,6 +1,9 @@
 # This is a Makefile for the Intel compiler: run "make
-# PROFILE=intel". Need all arrays to be on the heap for it to work,
-# hence -heap-arrays.
+# PROFILE=intel". Note that by default the Intel compiler puts arrays
+# on the stack, which is likely to cause a stack overflow - hence the
+# use of "-heap-arrays" which puts them on the heap like most other
+# compilers.  If you remove this argument you will likely need to set
+# the environment variable OMP_STACKSIZE to 64MB.
 
 FC = ifort
 CC = icc
@@ -9,11 +12,17 @@ CPPFLAGS =
 ifndef DEBUG
 OPTFLAGS = -O3
 else
-OPTFLAGS = -O0
+OPTFLAGS = -O0 -check bounds -init=snan
 endif
 
 LDFLAGS = -lrt
 WARNFLAGS = -warn all
-BASICFLAGS = -module ../mod -convert big_endian -fpe0 -fp-model precise -ftz -fp-speculation safe
+
+# We used to have the flag "-convert big_endian" here because the RRTM
+# input files are big endian Fortran unformatted files, but now the
+# file ordering has been specified at the OPEN command so no compiler
+# flags are needed.
+BASICFLAGS = -module ../mod -fpe0 -fp-model precise -ftz -fp-speculation safe -heap-arrays
+
 DEBUGFLAGS = -g
 OMPFLAG = -qopenmp -qopenmp-lib=compat

@@ -37,7 +37,7 @@ contains
     use yoesrtm,   only : jpgsw
     use yoerrtftr, only : ngb_lw => ngb
     use yoesrtm,   only : ngb_sw => ngbsw
-    use yomhook,   only : lhook, dr_hook
+    use yomhook,   only : lhook, dr_hook, jphook
 
     use radiation_config
 
@@ -65,7 +65,7 @@ contains
           &   44, 107, 94, 14, 108, 15, 16, 109, 17, 18, 110, 111, 112 &
           & /)
     
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
 !#include "surdi.intfb.h"
 #include "surrtab.intfb.h"
@@ -149,7 +149,7 @@ contains
 
     ! The i_spec_* variables are used solely for storing spectral
     ! data, and this can either be by band or by g-point
-    if (config%do_save_spectral_flux) then
+    if (config%do_save_spectral_flux .or. config%do_toa_spectral_flux) then
       if (config%do_save_gpoint_flux) then
         config%n_spec_sw = config%n_g_sw
         config%n_spec_lw = config%n_g_lw
@@ -198,8 +198,7 @@ contains
     USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX 
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
     USE YOESRTM  , ONLY : JPGPT_SW => JPGPT  
-    !USE YOMDIMV  , ONLY : YRDIMV
-    use yomhook  , only : lhook, dr_hook
+    use yomhook  , only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type, ISolverSpartacus
     use radiation_thermodynamics, only : thermodynamics_type
@@ -336,7 +335,7 @@ contains
 
     integer :: jlev, jgreorder, jg, ig, iband, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
 #include "rrtm_prepare_gases.intfb.h"
 #include "rrtm_setcoef_140gp.intfb.h"
@@ -356,17 +355,16 @@ contains
     ZONEMINUS = 1.0_jprb - 1.0e-6_jprb
     ZONEMINUS_ARRAY = ZONEMINUS
 
-!    if (.not. associated(YRDIMV)) then
-!      allocate(YRDIMV)
-!      YRDIMV%NFLEVG = nlev
-!    end if
-
-    pressure_fl(istartcol:iendcol,:) &
-         &  = 0.5_jprb * (thermodynamics%pressure_hl(istartcol:iendcol,istartlev:iendlev) &
-         &               +thermodynamics%pressure_hl(istartcol:iendcol,istartlev+1:iendlev+1))
-    temperature_fl(istartcol:iendcol,:) &
-         &  = 0.5_jprb * (thermodynamics%temperature_hl(istartcol:iendcol,istartlev:iendlev) &
-         &               +thermodynamics%temperature_hl(istartcol:iendcol,istartlev+1:iendlev+1))
+    do jlev=1,nlev
+      do jcol= istartcol,iendcol
+        pressure_fl(jcol,jlev) &
+            &  = 0.5_jprb * (thermodynamics%pressure_hl(jcol,jlev+istartlev-1) &
+            &               +thermodynamics%pressure_hl(jcol,jlev+istartlev))
+        temperature_fl(jcol,jlev) &
+            &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev+istartlev-1) &
+            &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
+      end do
+    end do
     
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
@@ -447,7 +445,6 @@ contains
     end if
 
     if (config%i_solver_lw == ISolverSpartacus) then
-      !    if (.true.) then
       ! We need to rearrange the gas optics info in memory: reordering
       ! the g points in order of approximately increasing optical
       ! depth (for efficient 3D processing on only the regions of the
@@ -510,21 +507,25 @@ contains
     
     ! Scale the incoming solar per band, if requested
     if (config%use_spectral_solar_scaling) then
-      ZINCSOL(istartcol:iendcol,:) = ZINCSOL(istartcol:iendcol,:) &
-         & * spread(single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw), &
-         &                                              1,iendcol-istartcol+1)
+      do jg = 1,JPGPT_SW
+        do jcol = istartcol,iendcol 
+          ZINCSOL(jcol,jg) = ZINCSOL(jcol,jg) * &
+            &   single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw(jg))
+        end do
+      end do
     end if
 
     ! Scaling factor to ensure that the total solar irradiance is as
     ! requested.  Note that if the sun is below the horizon then
     ! ZINCSOL will be zero.
     if (present(incoming_sw)) then
-      incoming_sw_scale = 1.0_jprb
       do jcol = istartcol,iendcol
         if (single_level%cos_sza(jcol) > 0.0_jprb) then
 ! Added for DWD (2020)
 !NEC$ nounroll
           incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(jcol,:))
+        else
+          incoming_sw_scale(jcol) = 1.0_jprb
         end if
       end do
     end if
@@ -581,7 +582,7 @@ contains
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
     use yoerrtwn, only : totplnk, delwave
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type, ISolverSpartacus
     use radiation_thermodynamics, only : thermodynamics_type
@@ -613,7 +614,7 @@ contains
 
     integer :: jlev, jgreorder, jg, ig, iband, jband, jcol, ilevoffset
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_atmos',0,hook_handle)
 
@@ -717,7 +718,7 @@ contains
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
     use yoerrtwn, only : totplnk, delwave
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type, ISolverSpartacus
     !    use radiation_gas
@@ -747,7 +748,7 @@ contains
 
     integer :: jgreorder, jg, ig, iband, jband, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_surf',0,hook_handle)
 

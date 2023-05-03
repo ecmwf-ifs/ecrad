@@ -1,0 +1,93 @@
+! Configuration namelists for ECRAD radiation code
+!
+! The following namelist controls the behaviour of the driver routine,
+! including parallelization options and overriding numbers read from
+! the NetCDF input file
+!
+! This version is a test configuration of ECMWF IFS Cycle 49R1 but
+! with the ecCKD gas optics scheme turned on.
+!
+&radiation_driver
+do_parallel              = true,   ! Use OpenMP parallelization?
+nblocksize               = 80,      ! Number of columns to process per thread
+do_save_inputs           = false,   ! Save inputs in "inputs.nc"?
+! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+iverbose    	   	= 2,
+istartcol               = 0,      ! Use full range of columns by default
+iendcol                 = 0,
+nrepeat                 = 1,
+cloud_separation_scale_toa = 14000.0,
+cloud_separation_scale_surface = 2500.0,
+cloud_separation_scale_power = 3.5,
+cloud_inhom_separation_factor = 0.75,
+!do_save_aerosol_optics = false,
+!sw_diag_wavelength_bound = .4e-6,.5e-6,.6e-6,.7e-6, ! Example for red-green-blue diagnostics
+!sw_diag_file_name = 'sw_diag.nc',
+do_save_net_fluxes = false,
+do_write_double_precision = false,
+/
+!
+! The following namelist controls the behaviour of the SPARTACUS
+! radiation code
+!
+&radiation
+do_sw			= true,           ! Compute shortwave fluxes?
+do_lw			= true,           ! Compute longwave fluxes?
+do_sw_direct 		= true,           ! Compute direct downward shortwave fluxes?
+do_clear		= true,           ! Compute clear-sky fluxes?
+directory_name		= "../../data",      ! Location of configuration files
+use_general_cloud_optics = true,
+use_general_aerosol_optics = true,
+!liquid_model_name       = "SOCRATES",     ! Liquid droplet scattering model
+!ice_model_name		= "Fu-IFS",       ! Ice particle scattering model
+sw_solver_name          = "Tripleclouds",
+lw_solver_name          = "Tripleclouds",
+overlap_scheme_name     = "Exp-Ran",      ! Exp-Ran, Max-Ran or Exp-Exp
+cloud_fraction_threshold = 0.001e-3,      ! 
+do_lw_aerosol_scattering= false,          ! Aerosols scatter in the longwave?
+do_lw_cloud_scattering 	= true, 	  ! Clouds scatter in the longwave?
+cloud_inhom_decorr_scaling = 0.5,         ! Ratio of overlap decorr len of inhomogeneities to boundaries
+use_beta_overlap        = false,
+use_vectorizable_generator = false,
+do_save_radiative_properties = false,     ! Save raw radiation properties in radiative_properties.nc?
+do_3d_effects		= false,          ! Represent 3D effects?
+sw_entrapment_name      = "Explicit",     ! Zero, Edge-only, Explicit, Non-fractal, Maximum are possible
+! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+! Separate verbosity specified for setup and ordinary execution
+iverbose    	   	= 1, 
+iverbosesetup  	   	= 2, 
+use_aerosols		= true,           ! Include aerosols in radiation calculations?
+do_save_spectral_flux   = true,           ! Save spectral fluxes in output file?
+do_save_gpoint_flux     = false,           ! Save fluxes per g-point in output file?
+do_lw_derivatives       = true,            ! Hogan-Bozzo style derivatives for approx updates
+gas_model_name          = "ECCKD",     ! Gas model
+do_surface_sw_spectral_flux = false,
+do_fu_lw_ice_optics_bug = false,
+do_sw_delta_scaling_with_gases = false,
+do_canopy_fluxes_lw     = true,
+do_canopy_fluxes_sw     = true,
+do_cloud_aerosol_per_sw_g_point=true,
+do_cloud_aerosol_per_lw_g_point=true, 
+!gas_optics_sw_override_file_name = "ecckd-1.4_sw_climate_vfine-96b_ckd-definition.nc",
+!
+! SURFACE ALBEDO AND EMISSIVITY
+do_nearest_spectral_sw_albedo = false,
+sw_albedo_wavelength_bound(1:5) = 0.25e-6, 0.44e-6, 0.69e-6, 1.19e-6, 2.38e-6,
+i_sw_albedo_index(1:6) = 1,2,3,4,5,6,
+do_nearest_spectral_lw_emiss = false,
+lw_emiss_wavelength_bound(1:2) = 8.0e-6, 13.0e-6,
+i_lw_emiss_index(1:3) = 1,2,1,
+!
+! AEROSOL PROPERTIES
+!aerosol_optics_override_file_name = 'aerosol_ifs_48R1.nc'
+! 12 IFS aerosol classes stored in aerosol_ifs_rrtm.nc: 1-3 Sea salt,
+! 4-6 Boucher desert dust, 7 hydrophilic organics, 8 hydrophobic
+! organics, 9&10 hydrophobic black carbon, 11 ammonium sulphate, 12
+! inactive SO2
+n_aerosol_types       = 12,              ! Aerosols are deactivated if this is zero
+!
+! Indices to the aerosol optical properties in aerosol_ifs_rrtm.nc,
+! for each class, where negative numbers index hydrophilic aerosol
+! types and positive numbers index hydrophobic aerosol types
+i_aerosol_type_map = -1, -2, -3, 7, 8, 9, -4, 10, 11, 11, -5, 14,
+/

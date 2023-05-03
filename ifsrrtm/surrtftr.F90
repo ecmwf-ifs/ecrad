@@ -9,7 +9,7 @@ SUBROUTINE SURRTFTR
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM ,   JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 !USE PARRRTM   ,ONLY : JPBAND  ,JPG
 USE YOERRTFTR ,ONLY : NGC     ,NGS      ,NGN      ,NGB       ,NGM     , WT
@@ -36,7 +36,7 @@ INTEGER(KIND=JPIM) :: IGM70(256), IGM140(256), IGM256(256)
 INTEGER(KIND=JPIM) :: IGN70(70) , IGN140(140), IGN256(256)
 INTEGER(KIND=JPIM) :: IGB70(70) , IGB140(140), IGB256(256)
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('SURRTFTR',0,ZHOOK_HANDLE)
 
 !-------------------------------------------------------------------------------

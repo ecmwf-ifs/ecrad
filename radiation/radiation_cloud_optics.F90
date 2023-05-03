@@ -33,7 +33,7 @@ contains
   subroutine setup_cloud_optics(config)
 
     use parkind1,         only : jprb
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
 
     use radiation_io,     only : nulerr, radiation_abort
     use radiation_config, only : config_type, IIceModelFu, IIceModelBaran, &
@@ -55,7 +55,7 @@ contains
 
     type(config_type), intent(inout) :: config
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_optics:setup_cloud_optics',0,hook_handle)
 
@@ -204,7 +204,7 @@ contains
        &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     use radiation_io,     only : nulout, nulerr, radiation_abort
     use radiation_config, only : config_type, IIceModelFu, IIceModelBaran, &
@@ -273,7 +273,7 @@ contains
 
     integer    :: jcol, jlev, jb
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_optics:cloud_optics',0,hook_handle)
 
@@ -481,8 +481,10 @@ contains
             ! to the absorption optical depth
 ! Added for DWD (2020)
 !NEC$ shortloop
-            od_lw_cloud(:,jlev,jcol) = od_lw_liq - scat_od_lw_liq &
-                 &                   + od_lw_ice - scat_od_lw_ice
+            do jb = 1, config%n_bands_lw
+              od_lw_cloud(jb,jlev,jcol) = od_lw_liq(jb) - scat_od_lw_liq(jb) &
+                    &                   + od_lw_ice(jb) - scat_od_lw_ice(jb)
+            end do
           end if
 ! Added for DWD (2020)
 !NEC$ shortloop

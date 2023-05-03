@@ -56,7 +56,7 @@ contains
   subroutine allocate_thermodynamics_arrays(this, ncol, nlev, &
        &                                    use_h2o_sat)
 
-    use yomhook,  only : lhook, dr_hook
+    use yomhook,  only : lhook, dr_hook, jphook
 
     class(thermodynamics_type), intent(inout) :: this
     integer, intent(in)           :: ncol  ! Number of columns
@@ -65,7 +65,7 @@ contains
 
     logical :: use_h2o_sat_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_thermodynamics:allocate',0,hook_handle)
 
@@ -90,11 +90,11 @@ contains
   ! Deallocate variables
   subroutine deallocate_thermodynamics_arrays(this)
 
-    use yomhook,  only : lhook, dr_hook
+    use yomhook,  only : lhook, dr_hook, jphook
 
     class(thermodynamics_type), intent(inout) :: this
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',0,hook_handle)
 
@@ -117,7 +117,7 @@ contains
   ! Calculate approximate saturation with respect to liquid
   subroutine calc_saturation_wrt_liquid(this,istartcol,iendcol)
 
-    use yomhook,  only : lhook, dr_hook
+    use yomhook,  only : lhook, dr_hook, jphook
 
     class(thermodynamics_type), intent(inout) :: this
     integer, intent(in)                       :: istartcol, iendcol
@@ -131,7 +131,7 @@ contains
     integer :: ncol, nlev ! Dimension sizes
     integer :: jcol, jlev ! Loop indices for column and level
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',0,hook_handle)
 
@@ -163,7 +163,7 @@ contains
   ! The first version is for all columns.
   subroutine get_layer_mass(this,istartcol,iendcol,layer_mass)
 
-    use yomhook,              only : lhook, dr_hook
+    use yomhook,              only : lhook, dr_hook, jphook
     use radiation_constants,  only : AccelDueToGravity
 
     class(thermodynamics_type), intent(in)  :: this
@@ -173,7 +173,7 @@ contains
     integer    :: nlev
     real(jprb) :: inv_g
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',0,hook_handle)
 
@@ -194,7 +194,7 @@ contains
   ! The second version is for one column, the one numbered "icol".
   subroutine get_layer_mass_column(this, icol, layer_mass)
 
-    use yomhook,              only : lhook, dr_hook
+    use yomhook,              only : lhook, dr_hook, jphook
     use radiation_constants,  only : AccelDueToGravity
 
     class(thermodynamics_type), intent(in)  :: this
@@ -204,7 +204,7 @@ contains
     integer    :: nlev
     real(jprb) :: inv_g
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass_column',0,hook_handle)
 
@@ -228,7 +228,7 @@ contains
   ! radiation scheme.
   subroutine get_layer_separation(pressure_hl, temperature_hl, layer_separation)
 
-    use yomhook,              only : lhook, dr_hook
+    use yomhook,              only : lhook, dr_hook, jphook
     use radiation_constants,  only : GasConstantDryAir, AccelDueToGravity
 
     ! Pressure (Pa) and temperature (K) at half-levels, dimensioned
@@ -246,7 +246,7 @@ contains
     integer    :: jlev
     integer    :: i1, i2, nlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_separation',0,hook_handle)
 
@@ -295,7 +295,7 @@ contains
   ! optionally only considering columns between istartcol and iendcol
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_check,  only : out_of_bounds_2d
 
     class(thermodynamics_type), intent(inout) :: this
@@ -305,7 +305,7 @@ contains
 
     logical    :: do_fix_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_thermodynamics:out_of_physical_bounds',0,hook_handle)
 

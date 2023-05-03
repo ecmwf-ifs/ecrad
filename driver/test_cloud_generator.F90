@@ -58,9 +58,9 @@ program test_cloud_generator
 
   do jlev = 1,nlev
     do jcol = 1,ncol
-      write(*,'(f5.2,a)','advance','no') od_scaling(jcol,jlev), ' '
+      write(6,'(f5.2,a)',advance='no') od_scaling(jcol,jlev), ' '
     end do
-    write(*,*)
+    write(6,*)
   end do
 
 

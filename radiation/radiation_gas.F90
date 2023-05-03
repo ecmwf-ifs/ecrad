@@ -83,12 +83,12 @@ contains
   ! number of columns and levels
   subroutine allocate_gas(this, ncol, nlev)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(gas_type), intent(inout) :: this
     integer,         intent(in)    :: ncol, nlev
 
-    real(jprb)          :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:allocate',0,hook_handle)
 
@@ -109,11 +109,11 @@ contains
   ! Deallocate memory and reset arrays
   subroutine deallocate_gas(this)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(gas_type), intent(inout) :: this
 
-    real(jprb)          :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:deallocate',0,hook_handle)
 
@@ -141,7 +141,7 @@ contains
   subroutine put_gas(this, igas, iunits, mixing_ratio, scale_factor, &
        istartcol)
 
-    use yomhook,        only : lhook, dr_hook
+    use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type),      intent(inout) :: this
@@ -151,9 +151,10 @@ contains
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
 
-    integer :: i1, i2
+    integer :: i1, i2, jc, jk
 
-    real(jprb)                          :: hook_handle
+
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
@@ -205,8 +206,12 @@ contains
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
-    this%mixing_ratio(i1:i2,:,igas) = mixing_ratio
 
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+      end do
+    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -224,7 +229,7 @@ contains
   subroutine put_well_mixed_gas(this, igas, iunits, mixing_ratio, &
        scale_factor, istartcol, iendcol)
 
-    use yomhook,        only : lhook, dr_hook
+    use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type),      intent(inout) :: this
@@ -234,9 +239,9 @@ contains
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol, iendcol
 
-    real(jprb)                          :: hook_handle
+    real(jphook) :: hook_handle
 
-    integer :: i1, i2
+    integer :: i1, i2, jc, jk
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
@@ -286,8 +291,12 @@ contains
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
-    this%mixing_ratio(i1:i2,:,igas)    = mixing_ratio
 
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio
+      end do
+    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -448,7 +457,7 @@ contains
   subroutine get_gas(this, igas, iunits, mixing_ratio, scale_factor, &
        &   istartcol)
 
-    use yomhook,        only : lhook, dr_hook
+    use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type),      intent(in)  :: this
@@ -461,7 +470,7 @@ contains
     real(jprb)                        :: sf
     integer                           :: i1, i2
 
-    real(jprb)                        :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
 
@@ -549,7 +558,7 @@ contains
   ! optionally only considering columns between istartcol and iendcol
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_check,  only : out_of_bounds_3d
 
     class(gas_type),   intent(inout) :: this
@@ -559,7 +568,7 @@ contains
 
     logical    :: do_fix_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:out_of_physical_bounds',0,hook_handle)
 

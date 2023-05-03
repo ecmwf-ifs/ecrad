@@ -10,6 +10,7 @@ SUBROUTINE RRTM_SETCOEF_140GP (KIDIA,KFDIA,KLEV,P_COLDRY,P_WBROAD,P_WKL,&
 !     Reformatted for F90 by JJMorcrette, ECMWF, 980714
 !        NEC           25-Oct-2007 Optimisations
 !     201305 ABozzo updated to rrtmg_lw_v4.85
+!     201507 RHogan Bug fix: swapped P_COLO2 & P_CO2MULT in argument list
 
 
 !     Purpose:  For a given atmosphere, calculate the indices and
@@ -18,7 +19,7 @@ SUBROUTINE RRTM_SETCOEF_140GP (KIDIA,KFDIA,KLEV,P_COLDRY,P_WBROAD,P_WKL,&
 !     for each band at the level and layer temperatures.
 
 USE PARKIND1 , ONLY : JPIM, JPRB
-USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE PARRRTM  , ONLY : JPINPX
 USE YOERRTRF , ONLY : PREFLOG   ,TREF, CHI_MLS
 
@@ -76,11 +77,8 @@ INTEGER(KIND=JPIM) :: JP1, JLAY
 INTEGER(KIND=JPIM) :: JLON
 
 REAL(KIND=JPRB) :: Z_CO2REG, Z_COMPFP, Z_FACTOR, Z_FP, Z_FT, Z_FT1, Z_PLOG, Z_SCALEFAC, Z_STPFAC, Z_WATER
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
-!#include "yoeratm.h"    
-
-ASSOCIATE(NFLEVG=>KLEV)
 IF (LHOOK) CALL DR_HOOK('RRTM_SETCOEF_140GP',0,ZHOOK_HANDLE)
 
 DO JLON = KIDIA, KFDIA
@@ -105,7 +103,7 @@ DO JLON = KIDIA, KFDIA
     Z_FP = 5._JPRB * (PREFLOG(K_JP(JLON,JLAY)) - Z_PLOG)
 ! bound Z_FP in case Z_PLOG is outside range of ref. pressure PREFLOG
 ! (in LVERTFE, pressure at last full level is known, but not in finite diff (NH)
-    Z_FP = max(-1._JPRB,min(1._JPRB,Z_FP))
+    Z_FP = MAX(-1.0_JPRB, MIN(1.0_JPRB, Z_FP))
 !        Determine, for each reference pressure (JP and JP1), which
 !        reference temperature (these are different for each  
 !        reference pressure) is nearest the layer temperature but does
@@ -279,5 +277,4 @@ ENDDO
 
 IF (LHOOK) CALL DR_HOOK('RRTM_SETCOEF_140GP',1,ZHOOK_HANDLE)
 
-END ASSOCIATE
 END SUBROUTINE RRTM_SETCOEF_140GP

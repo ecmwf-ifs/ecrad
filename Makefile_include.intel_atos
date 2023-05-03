@@ -1,0 +1,40 @@
+# This is a Makefile for the Intel compiler on ECMWF's Atos
+# supercomputer: run "make PROFILE=intel_atos". Note that by default
+# the Intel compiler puts arrays on the stack, which is likely to
+# cause a stack overflow - hence the use of "-heap-arrays" which puts
+# them on the heap like most other compilers.  If you remove this
+# argument you will likely need to set the environment variable
+# OMP_STACKSIZE to 64MB.
+ifdef RUN_THESE_ON_COMMAND_LINE_FIRST
+  module load prgenv/intel
+  module load intel/2021.4.0
+  module load intel-mpi/2021.4.0
+  module load intel-mkl/19.0.5
+  module load netcdf4/4.7.4
+  module load hdf5/1.10.6
+  unset OMP_NUM_THREADS
+endif
+
+FC = ifort
+CC = icc
+CPPFLAGS = 
+
+ifndef DEBUG
+OPTFLAGS = -O2 -march=core-avx2 -no-fma
+else
+OPTFLAGS = -O0 -check bounds -init=snan
+endif
+
+LDFLAGS = -lrt
+WARNFLAGS = -warn all
+
+# We used to have the flag "-convert big_endian" here because the RRTM
+# input files are big endian Fortran unformatted files, but now the
+# file ordering has been specified at the OPEN command so no compiler
+# flags are needed.
+BASICFLAGS = -module ../mod -fpe0 -assume byterecl -align array64byte \
+	   -traceback -fpic -fp-model precise -heap-arrays \
+	   -fp-speculation=safe -fast-transcendentals -ftz \
+	   -finline-functions -finline-limit=1500 -Winline -assume realloc_lhs
+DEBUGFLAGS = -g
+OMPFLAG = -qopenmp -qopenmp-threadprivate=compat

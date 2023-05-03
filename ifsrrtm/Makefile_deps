@@ -1,6 +1,5 @@
 rrtm_prepare_gases.o: parrrtm.o 
-rrtm_gas_optical_depth.o: parrrtm.o yoerrtm.o yoerrtab.o 
-rrtm_gasabs1a_140gp.o: parrrtm.o yoerrtm.o yoerrtab.o 
+rrtm_gas_optical_depth.o: parrrtm.o yoerrtm.o 
 rrtm_setcoef_140gp.o: parrrtm.o yoerrtrf.o 
 rrtm_taumol1.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta1.o 
 rrtm_taumol10.o: parrrtm.o yoerrtm.o yoerrtwn.o yoerrta10.o 
@@ -105,3 +104,4 @@ srtm_kgb27.o: yoesrta27.o
 srtm_kgb28.o: yoesrta28.o 
 srtm_kgb29.o: yoesrta29.o 
 susrtm.o: yoesrtm.o yoesrtwn.o 
+modify_wv_continuum.o: yoesrta16.o yoesrta17.o yoesrta18.o yoesrta19.o yoesrta20.o yoesrta21.o yoesrta22.o yoesrta23.o yoesrta29.o 
