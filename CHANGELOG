@@ -1,3 +1,8 @@
+version 1.6.1
+	- radiation_cloud:set_overlap_param now has alternative form in
+	  which input decorrelation_length may vary with column, useful for
+	  models with a latitudinal or other dependence
+
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
 	  files as big endian: now the OPEN commands for the files RADRRTM

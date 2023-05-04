@@ -81,7 +81,9 @@ module radiation_cloud
   contains
     procedure :: allocate   => allocate_cloud_arrays
     procedure :: deallocate => deallocate_cloud_arrays
-    procedure :: set_overlap_param
+    procedure :: set_overlap_param_fix
+    procedure :: set_overlap_param_var
+    generic   :: set_overlap_param => set_overlap_param_fix, set_overlap_param_var
     procedure :: set_overlap_param_approx
     procedure :: create_fractional_std
     procedure :: create_inv_cloud_effective_size
@@ -189,8 +191,9 @@ contains
   ! provided then only columns in this range are computed.  If the
   ! overlap_param array has not been allocated then it will be
   ! allocated to be of the correct size relative to the pressure
-  ! field. 
-  subroutine set_overlap_param(this, thermodynamics, decorrelation_length, &
+  ! field. This version assumes a fixed decorrelation_length for all
+  ! columns.
+  subroutine set_overlap_param_fix(this, thermodynamics, decorrelation_length, &
        &  istartcol, iendcol)
 
     use yomhook,                  only : lhook, dr_hook, jphook
@@ -215,7 +218,7 @@ contains
 
     real(jphook) :: hook_handle
 
-    if (lhook) call dr_hook('radiation_cloud:set_overlap_param',0,hook_handle)
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_fix',0,hook_handle)
 
     ! Pressure at half-levels, pressure_hl, is defined at nlev+1
     ! points
@@ -283,9 +286,98 @@ contains
       end do
     end if
 
-    if (lhook) call dr_hook('radiation_cloud:set_overlap_param',1,hook_handle)
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_fix',1,hook_handle)
 
-  end subroutine set_overlap_param
+  end subroutine set_overlap_param_fix
+
+
+  !---------------------------------------------------------------------
+  ! Compute and store the overlap parameter from the provided overlap
+  ! decorrelation length (in metres), which may vary with column. Only
+  ! columns from istartcol to iendcol are computed.  If the
+  ! overlap_param array has not been allocated then it will be
+  ! allocated to be of the correct size relative to the pressure
+  ! field.
+  subroutine set_overlap_param_var(this, thermodynamics, decorrelation_length, &
+       &                           istartcol, iendcol)
+
+    use yomhook,                  only : lhook, dr_hook, jphook
+    use radiation_thermodynamics, only : thermodynamics_type
+    use radiation_constants,      only : GasConstantDryAir, AccelDueToGravity
+
+    class(cloud_type),         intent(inout) :: this
+    type(thermodynamics_type), intent(in)    :: thermodynamics
+    integer,                   intent(in)    :: istartcol, iendcol
+    real(jprb),                intent(in)    :: decorrelation_length(istartcol:iendcol) ! m
+
+    ! Ratio of gas constant for dry air to acceleration due to gravity
+    real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
+
+    integer :: ncol, nlev
+
+    integer :: jcol, jlev
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',0,hook_handle)
+
+    ! Pressure at half-levels, pressure_hl, is defined at nlev+1
+    ! points
+    ncol = size(thermodynamics%pressure_hl,dim=1)
+    nlev = size(thermodynamics%pressure_hl,dim=2)-1
+
+    if (.not. allocated(this%overlap_param)) then
+      ! If pressure is of size (ncol,nlev+1) then overlap_param is of
+      ! size (ncol,nlev-1), since overlap parameter is only defined here
+      ! for interfaces between model layers, not for the interface to
+      ! space or the surface
+      allocate(this%overlap_param(ncol, nlev-1))
+    end if
+
+    if (thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1)) then
+      ! Pressure is increasing with index (order of layers is
+      ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
+      ! don't take the logarithm of the first pressure in each column.
+      do jcol = istartcol,iendcol
+        this%overlap_param(jcol,1) = exp(-(R_over_g/decorrelation_length(jcol)) &
+             &                            * thermodynamics%temperature_hl(jcol,2) &
+             &                            *log(thermodynamics%pressure_hl(jcol,3) &
+             &                                /thermodynamics%pressure_hl(jcol,2)))
+      end do
+
+      do jlev = 2,nlev-1
+        do jcol = istartcol,iendcol
+          this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
+              &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
+              &                            *log(thermodynamics%pressure_hl(jcol,jlev+2) &
+              &                                /thermodynamics%pressure_hl(jcol,jlev)))
+        end do
+      end do
+
+    else
+       ! Pressure is decreasing with index (order of layers is surface
+       ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
+       ! don't take the logarithm of the last pressure in each column.
+      do jlev = 1,nlev-2
+        do jcol = istartcol,iendcol
+          this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
+              &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
+              &                            *log(thermodynamics%pressure_hl(jcol,jlev) &
+              &                                /thermodynamics%pressure_hl(jcol,jlev+2)))
+        end do
+      end do
+
+      do jcol = istartcol,iendcol
+        this%overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length(jcol)) &
+            &                            * thermodynamics%temperature_hl(jcol,nlev) &
+            &                            *log(thermodynamics%pressure_hl(jcol,nlev-1) &
+            &                                /thermodynamics%pressure_hl(jcol,nlev)))
+      end do
+    end if
+
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
+
+  end subroutine set_overlap_param_var
 
 
   !---------------------------------------------------------------------

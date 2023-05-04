@@ -395,6 +395,10 @@ DO JLON = KIDIA,KFDIA
       &                       ZDECORR_LEN_KM(JLON)*1000.0_JPRB,&
       &                       ISTARTCOL=JLON, IENDCOL=JLON)
 ENDDO
+! Or we can call the routine on all columns at once
+!CALL YLCLOUD%SET_OVERLAP_PARAM(THERMODYNAMICS,&
+!     &                       ZDECORR_LEN_KM(KIDIA:KFDIA)*1000.0_JPRB,&
+!     &                       ISTARTCOL=KIDIA, IENDCOL=KFDIA)
 
 ! Cloud water content fractional standard deviation is configurable
 ! from namelist NAERAD but must be globally constant. Before it was
