@@ -190,8 +190,10 @@ contains
           call radiation_abort()
         end if
         allocate(this%lw_up_toa_band(config%n_bands_lw, istartcol:iendcol))
+        !$ACC ENTER DATA CREATE(this%lw_up_toa_band) ASYNC(1)
         if (config%do_clear) then
           allocate(this%lw_up_toa_clear_band(config%n_bands_lw, istartcol:iendcol))
+          !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_band) ASYNC(1)
         end if
       end if
  
@@ -199,8 +201,6 @@ contains
       allocate(this%lw_dn_surf_g(config%n_g_lw,istartcol:iendcol))
       allocate(this%lw_up_toa_g (config%n_g_lw,istartcol:iendcol))
       !$ACC ENTER DATA CREATE(this%lw_dn_surf_g, this%lw_up_toa_g) ASYNC(1)
-      if (config%do_clear) then
-      allocate(this%lw_up_toa_g (config%n_g_lw,istartcol:iendcol))
       if (config%do_clear) then
         allocate(this%lw_dn_surf_clear_g(config%n_g_lw,istartcol:iendcol))
         allocate(this%lw_up_toa_clear_g (config%n_g_lw,istartcol:iendcol))
@@ -293,8 +293,10 @@ contains
         end if
         allocate(this%sw_dn_toa_band(config%n_bands_sw, istartcol:iendcol))
         allocate(this%sw_up_toa_band(config%n_bands_sw, istartcol:iendcol))
+        !$ACC ENTER DATA CREATE(this%sw_dn_toa_band, this%sw_up_toa_band) ASYNC(1)
         if (config%do_clear) then
           allocate(this%sw_up_toa_clear_band(config%n_bands_sw, istartcol:iendcol))
+          !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) ASYNC(1)
         end if
       end if
       
