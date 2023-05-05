@@ -9,22 +9,23 @@ SUBROUTINE RRTM_KGB15
 !     band 15:  2380-2600 cm-1 (low - n2o,co2; low minor - n2)
 !                              (high - nothing)
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 
-USE YOERRTO15, ONLY : KAO,KAO_D,KAO_MN2  ,SELFREFO,FORREFO   ,FRACREFAO
+USE YOERRTO15, ONLY : KAO,KAO_MN2  ,SELFREFO,FORREFO   ,FRACREFAO, KAO_D
 
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
@@ -907,7 +908,6 @@ ENDIF
       SELFREFO(:,16) = (/ &
      & 3.00005E-03_JPRB, 2.48296E-03_JPRB, 2.05500E-03_JPRB, 1.70080E-03_JPRB, 1.40765E-03_JPRB, &
      & 1.16503E-03_JPRB, 9.64224E-04_JPRB, 7.98030E-04_JPRB, 6.60481E-04_JPRB, 5.46641E-04_JPRB/)
-
 
 IF (LHOOK) CALL DR_HOOK('RRTM_KGB15',1,ZHOOK_HANDLE)
 RETURN

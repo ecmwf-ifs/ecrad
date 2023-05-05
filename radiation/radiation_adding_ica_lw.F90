@@ -34,7 +34,7 @@ contains
        &  flux_up, flux_dn)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -69,7 +69,7 @@ contains
     ! Loop index for model level and column
     integer :: jlev, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_adding_ica_lw:adding_ica_lw',0,hook_handle)
 
@@ -140,7 +140,7 @@ contains
        &  flux_up, flux_dn, albedo, source, inv_denominator)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -184,7 +184,7 @@ contains
     ! Loop index for model level and column
     integer :: jlev, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     !$ACC ROUTINE WORKER 
 
@@ -287,7 +287,7 @@ contains
 
     use parkind1, only           : jprb
 #ifndef _OPENACC
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 #endif
 
     implicit none
@@ -312,7 +312,7 @@ contains
     ! Loop index for model level
     integer :: jlev, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     !$ACC ROUTINE WORKER
 

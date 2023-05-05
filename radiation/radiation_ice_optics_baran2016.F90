@@ -31,7 +31,7 @@ contains
        &  qi, temperature, od, scat_od, g)
 
     use parkind1, only : jprb
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -47,7 +47,7 @@ contains
     ! Powers of temperature, some multiplied by qi
     real(jprb) :: qi_T, T2, qi_over_T4
     
-    !real(jprb) :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_baran2016',0,hook_handle)
 

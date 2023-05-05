@@ -30,7 +30,7 @@ contains
   subroutine calc_liq_optics_slingo(nb, coeff, lwp, re, od, scat_od, g)
 
     use parkind1, only : jprb
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -46,7 +46,7 @@ contains
     ! Effective radius in microns, and its inverse
     real(jprb) :: re_um, inv_re_um
 
-    !real(jprb) :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_liquid_optics_slingo:calc_liq_optics_slingo',0,hook_handle)
 
@@ -70,7 +70,7 @@ contains
   subroutine calc_liq_optics_lindner_li(nb, coeff, lwp, re, od, scat_od, g)
 
     use parkind1, only : jprb
-    use yomhook,  only : lhook, dr_hook
+    use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -86,7 +86,7 @@ contains
     ! Effective radius in microns, and its inverse
     real(jprb) :: re_um, inv_re_um
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_liquid_optics_slingo:calc_liq_optics_lindner_li',0,hook_handle)
 

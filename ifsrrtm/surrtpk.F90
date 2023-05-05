@@ -8,7 +8,7 @@ SUBROUTINE SURRTPK
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE YOERRTWN , ONLY : NG        ,NSPA      ,NSPB      ,&
  & DELWAVE    , TOTPLNK  !       ,WAVENUM1  ,WAVENUM2 
@@ -16,7 +16,7 @@ USE YOERRTWN , ONLY : NG        ,NSPA      ,NSPB      ,&
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('SURRTPK',0,ZHOOK_HANDLE)
 NG( :) = (/16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16/)
 NSPA( :) = (/1, 1,9, 9, 9, 1, 9, 1,9, 1, 1, 9, 9, 1, 9, 9/)

@@ -55,7 +55,7 @@ contains
   ! Load look-up table from a file 
   subroutine setup_pdf_sampler(this, file_name, iverbose)
     
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
     use easy_netcdf, only : netcdf_file
 
     class(pdf_sampler_type), intent(inout) :: this
@@ -66,7 +66,7 @@ contains
     integer            :: iverb
     real(jprb), allocatable :: fsd(:)
 
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_pdf_sampler:setup',0,hook_handle)
 
@@ -102,10 +102,10 @@ contains
   ! Deallocate data in pdf_sampler_type derived type
   subroutine deallocate_pdf_sampler(this)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(pdf_sampler_type), intent(inout) :: this
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_pdf_sampler:deallocate',0,hook_handle)
 

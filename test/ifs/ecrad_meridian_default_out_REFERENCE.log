@@ -1,0 +1,109 @@
+../../bin/ecrad configCY49R1.nam ecrad_meridian.nc ecrad_meridian_default_out.nc
+-------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------
+Copyright (C) 2014- ECMWF
+Contact: Robin Hogan (r.j.hogan@ecmwf.int)
+Floating-point precision: double
+General settings:
+  Data files expected in "../../data"
+  Clear-sky calculations are ON                              (do_clear=T)
+  Saving intermediate radiative properties OFF               (do_save_radiative_properties=F)
+  Saving spectral flux profiles ON                           (do_save_spectral_flux=T)
+  Gas model is "RRTMG-IFS"                                   (i_gas_model=1)
+  Aerosols are ON                                            (use_aerosols=T)
+  General aerosol optics ON                                  (use_general_aerosol_optics=T)
+  Clouds are ON
+  Do cloud/aerosol/surface SW properties per g-point OFF     (do_cloud_aerosol_per_sw_g_point=F)
+  Do cloud/aerosol/surface LW properties per g-point OFF     (do_cloud_aerosol_per_lw_g_point=F)
+  Represent solar cycle in spectral irradiance OFF           (use_spectral_solar_cycle=F)
+  Scale spectral solar irradiance OFF                        (use_spectral_solar_scaling=F)
+Surface and top-of-atmosphere settings:
+  Saving top-of-atmosphere spectral fluxes OFF               (do_toa_spectral_flux=F)
+  Saving surface shortwave spectral fluxes ON                (do_surface_sw_spectral_flux=T)
+  Saving surface shortwave fluxes in abledo bands ON         (do_canopy_fluxes_sw=T)
+  Saving surface longwave fluxes in emissivity bands ON      (do_canopy_fluxes_lw=T)
+  Longwave derivative calculation is ON                      (do_lw_derivatives=T)
+  Nearest-neighbour spectral albedo mapping OFF              (do_nearest_spectral_sw_albedo=F)
+  Nearest-neighbour spectral emissivity mapping ON           (do_nearest_spectral_lw_emiss=T)
+  Planck-weighted surface albedo/emiss mapping OFF           (do_weighted_surface_mapping=F)
+Cloud settings:
+  Cloud fraction threshold = .100E-05                        (cloud_fraction_threshold)
+  Cloud mixing-ratio threshold = .100E-08                    (cloud_mixing_ratio_threshold)
+  General cloud optics OFF                                   (use_general_cloud_optics=F)
+  Liquid optics scheme is "SOCRATES"                         (i_liq_model=1)
+  Ice optics scheme is "Fu-IFS"                              (i_ice_model=1)
+  Longwave ice optics bug in Fu scheme is OFF                (do_fu_lw_ice_optics_bug=F)
+  Cloud overlap scheme is "Exp-Ran"                          (i_overlap_scheme=1)
+  Use "beta" overlap parameter is OFF                        (use_beta_overlap=F)
+  Cloud PDF shape is "Gamma"                                 (i_cloud_pdf_shape=1)
+  Cloud inhom decorrelation scaling = .500                   (cloud_inhom_decorr_scaling)
+Solver settings:
+  Shortwave solver is "McICA"                                (i_solver_sw=2)
+  Shortwave delta scaling after merge with gases OFF         (do_sw_delta_scaling_with_gases=F)
+  Longwave solver is "McICA"                                 (i_solver_lw=2)
+  Longwave cloud scattering is ON                            (do_lw_cloud_scattering=T)
+  Longwave aerosol scattering is OFF                         (do_lw_aerosol_scattering=F)
+  Use vectorizable McICA cloud generator OFF                 (use_vectorizable_generator=F)
+Reading RRTMG longwave data file ../../data/RADRRTM
+Reading RRTMG shortwave data file ../../data/RADSRTM
+Surface shortwave albedo
+  Mapping from 6 values to 14 bands (wavenumber ranges in cm-1)
+  2600 to  3250: 0.00 0.00 0.00 0.00 0.00 1.00
+  3250 to  4000: 0.00 0.00 0.00 0.00 0.00 1.00
+  4000 to  4650: 0.00 0.00 0.00 0.00 0.69 0.31
+  4650 to  5150: 0.00 0.00 0.00 0.00 1.00 0.00
+  5150 to  6150: 0.00 0.00 0.00 0.00 1.00 0.00
+  6150 to  7700: 0.00 0.00 0.00 0.00 1.00 0.00
+  7700 to  8050: 0.00 0.00 0.00 0.00 1.00 0.00
+  8050 to 12850: 0.00 0.00 0.00 0.93 0.07 0.00
+ 12850 to 16000: 0.00 0.00 0.48 0.52 0.00 0.00
+ 16000 to 22650: 0.00 0.00 1.00 0.00 0.00 0.00
+ 22650 to 29000: 0.00 0.99 0.01 0.00 0.00 0.00
+ 29000 to 38000: 0.00 1.00 0.00 0.00 0.00 0.00
+ 38000 to 50000: 0.83 0.17 0.00 0.00 0.00 0.00
+   820 to  2600: 0.00 0.00 0.00 0.00 0.00 1.00
+Surface longwave emissivity
+Mapping from 16 longwave intervals to emissivity intervals: 1 1 1 1 1 2 2 2 1 1 1 1 1 1 1 1
+Reading NetCDF file ../../data/socrates_droplet_scattering_rrtm.nc
+  Reading coeff_lw(16,16)
+  Reading coeff_sw(14,16)
+Closing NetCDF file ../../data/socrates_droplet_scattering_rrtm.nc
+Reading NetCDF file ../../data/fu_ice_scattering_rrtm.nc
+  Reading coeff_lw(16,11)
+  Reading coeff_sw(14,10)
+Closing NetCDF file ../../data/fu_ice_scattering_rrtm.nc
+Reading NetCDF file ../../data/aerosol_ifs_49R1_20230119.nc
+  Reading wavenumber(331)
+  Reading mass_ext_hydrophobic(331,18)
+  Reading ssa_hydrophobic(331,18)
+  Reading asymmetry_hydrophobic(331,18)
+  Reading lidar_ratio_hydrophobic(331,18)
+  Reading mass_ext_hydrophilic(331,12,13)
+  Reading ssa_hydrophilic(331,12,13)
+  Reading asymmetry_hydrophilic(331,12,13)
+  Reading lidar_ratio_hydrophilic(331,12,13)
+  Reading relative_humidity1(12)
+Closing NetCDF file ../../data/aerosol_ifs_49R1_20230119.nc
+Aerosol mapping:
+   1 -> hydrophilic type 1: Sea salt, bin 1, 0.03-0.5 micron, OPAC
+   2 -> hydrophilic type 2: Sea salt, bin 2, 0.50-5.0 micron, OPAC
+   3 -> hydrophilic type 3: Sea salt, bin 3, 5.0-20.0 micron, OPAC
+   4 -> hydrophobic type 7: Desert dust, bin 1, 0.03-0.55 micron, Woodward 2001, Table 2
+   5 -> hydrophobic type 8: Desert dust, bin 2, 0.55-0.90 micron, Woodward 2001, Table 2
+   6 -> hydrophobic type 9: Desert dust, bin 3, 0.90-20.0 micron, Woodward 2001, Table 2
+   7 -> hydrophilic type 4: Hydrophilic organic matter, OPAC
+   8 -> hydrophobic type 10: Hydrophobic organic matter, OPAC (hydrophilic at RH=20%)
+   9 -> hydrophobic type 11: Black carbon, OPAC
+  10 -> hydrophobic type 11: Black carbon, OPAC
+  11 -> hydrophilic type 5: Ammonium sulfate (for sulfate), GACP Lacis et al https://gacp.giss.nasa.gov/data_sets/
+  12 -> hydrophobic type 14: Stratospheric sulfate, GACP (hydrophilic ammonium sulfate at RH 20%-30%)
+Reading NetCDF file ../../data/mcica_gamma.nc
+  Reading fsd(81)
+  Reading x(1000,81)
+Closing NetCDF file ../../data/mcica_gamma.nc
+Reading NetCDF file ecrad_meridian.nc
+  Warning: variable co_vmr not found
+  Warning: variable no2_vmr not found
+Performing radiative transfer calculations
+Time elapsed in radiative transfer:  0.77346E-01 seconds
+Writing NetCDF file ecrad_meridian_default_out.nc
+------------------------------------------------------------------------------------

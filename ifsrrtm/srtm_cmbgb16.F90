@@ -17,7 +17,7 @@ SUBROUTINE SRTM_CMBGB16
 !-----------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM , JPRB
-USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE YOESRTM  , ONLY : NGN
 USE YOESRTWN , ONLY : NGC, RWGT
@@ -31,7 +31,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM) :: JN, JT, JP, IGC, IPR, IPRSM
 REAL(KIND=JPRB)    :: ZSUMK, ZSUMF
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !     ------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRTM_CMBGB16',0,ZHOOK_HANDLE)
 
