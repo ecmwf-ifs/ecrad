@@ -312,7 +312,9 @@ contains
     ! Loop index for model level
     integer :: jlev, jcol
 
+#ifndef _OPENACC
     real(jphook) :: hook_handle
+#endif
 
     !$ACC ROUTINE WORKER
 
