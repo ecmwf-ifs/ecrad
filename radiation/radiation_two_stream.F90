@@ -315,8 +315,6 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_ref_trans_lw',0,hook_handle)
 #endif
 
-! Added for DWD (2020)
-!NEC$ shortloop
     do jg = 1, ng
       factor = (LwDiffusivityWP * 0.5_jprb) * ssa(jg)
       gamma1 = LwDiffusivityWP - factor*(1.0_jprb + asymmetry(jg))
@@ -406,8 +404,6 @@ contains
     transmittance = exp_fast(-LwDiffusivityWP*od)
 
 !$ACC LOOP WORKER VECTOR
-! Added for DWD (2020)
-!NEC$ shortloop
     do jg = 1, ng
       ! Compute upward and downward emission assuming the Planck
       ! function to vary linearly with optical depth within the layer
@@ -626,9 +622,9 @@ contains
 
     ! The three transfer coefficients from the two-stream
     ! differentiatial equations 
-    real(jprb), dimension(ng) :: gamma1, gamma2, gamma3, gamma4 
-    real(jprb), dimension(ng) :: alpha1, alpha2, k_exponent
-    real(jprb), dimension(ng) :: exponential ! = exp(-k_exponent*od)
+    real(jprb) :: gamma1, gamma2, gamma3, gamma4 
+    real(jprb) :: alpha1, alpha2, k_exponent
+    real(jprb) :: exponential ! = exp(-k_exponent*od)
     
     real(jprb) :: reftrans_factor, factor
     real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
@@ -642,47 +638,41 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_ref_trans_sw',0,hook_handle)
 #endif
 
-    ! GCC 9.3 strange error: intermediate values of ~ -8000 cause a
-    ! FPE when vectorizing exp(), but not in non-vectorized loop, nor
-    ! with larger negative values!
-    trans_dir_dir = max(-max(od * (1.0_jprb/mu0), 0.0_jprb),-1000.0_jprb)
-    trans_dir_dir = exp_fast(trans_dir_dir)
-
-! Added for DWD (2020)
-!NEC$ shortloop
     do jg = 1, ng
+
+      ! GCC 9.3 strange error: intermediate values of ~ -8000 cause a
+      ! FPE when vectorizing exp(), but not in non-vectorized loop, nor
+      ! with larger negative values!
+      trans_dir_dir(jg) = max(-max(od(jg) * (1.0_jprb/mu0),0.0_jprb),-1000.0_jprb)
+      trans_dir_dir(jg) = exp_fast(trans_dir_dir(jg))
 
       ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
       ! Atmospheric Physics 53, 147-66)
       factor = 0.75_jprb*asymmetry(jg)
 
-      gamma1(jg) = 2.0_jprb  - ssa(jg) * (1.25_jprb + factor)
-      gamma2(jg) = ssa(jg) * (0.75_jprb - factor)
-      gamma3(jg) = 0.5_jprb  - mu0*factor
-      gamma4(jg) = 1.0_jprb - gamma3(jg)
+      gamma1 = 2.0_jprb  - ssa(jg) * (1.25_jprb + factor)
+      gamma2 = ssa(jg) * (0.75_jprb - factor)
+      gamma3 = 0.5_jprb  - mu0*factor
+      gamma4 = 1.0_jprb - gamma3
 
-      alpha1(jg) = gamma1(jg)*gamma4(jg) + gamma2(jg)*gamma3(jg) ! Eq. 16
-      alpha2(jg) = gamma1(jg)*gamma3(jg) + gamma2(jg)*gamma4(jg) ! Eq. 17
+      alpha1 = gamma1*gamma4 + gamma2*gamma3 ! Eq. 16
+      alpha2 = gamma1*gamma3 + gamma2*gamma4 ! Eq. 17
       ! The following line crashes inexplicably with gfortran 8.5.0 in
       ! single precision - try a later version
-      k_exponent(jg) = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
-           &       1.0e-12_jprb)) ! Eq 18
-    end do
+      k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-12_jprb)) ! Eq 18
 
-    exponential = exp_fast(-k_exponent*od)
+      exponential = exp_fast(-k_exponent*od(jg))
 
-!NEC$ shortloop
-    do jg = 1, ng
-      k_mu0 = k_exponent(jg)*mu0
+      k_mu0 = k_exponent*mu0
       one_minus_kmu0_sqr = 1.0_jprb - k_mu0*k_mu0
-      k_gamma3 = k_exponent(jg)*gamma3(jg)
-      k_gamma4 = k_exponent(jg)*gamma4(jg)
-      exponential2 = exponential(jg)*exponential(jg)
-      k_2_exponential = 2.0_jprb * k_exponent(jg) * exponential(jg)
-      reftrans_factor = 1.0_jprb / (k_exponent(jg) + gamma1(jg) + (k_exponent(jg) - gamma1(jg))*exponential2)
+      k_gamma3 = k_exponent*gamma3
+      k_gamma4 = k_exponent*gamma4
+      exponential2 = exponential*exponential
+      k_2_exponential = 2.0_jprb * k_exponent * exponential
+      reftrans_factor = 1.0_jprb / (k_exponent + gamma1 + (k_exponent - gamma1)*exponential2)
         
       ! Meador & Weaver (1980) Eq. 25
-      ref_diff(jg) = gamma2(jg) * (1.0_jprb - exponential2) * reftrans_factor
+      ref_diff(jg) = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
         
       ! Meador & Weaver (1980) Eq. 26
       trans_diff(jg) = k_2_exponential * reftrans_factor
@@ -697,17 +687,17 @@ contains
       ! Meador & Weaver (1980) Eq. 14, multiplying top & bottom by
       ! exp(-k_exponent*od) in case of very high optical depths
       ref_dir(jg) = reftrans_factor &
-           &  * ( (1.0_jprb - k_mu0) * (alpha2(jg) + k_gamma3) &
-           &     -(1.0_jprb + k_mu0) * (alpha2(jg) - k_gamma3)*exponential2 &
-           &     -k_2_exponential*(gamma3(jg) - alpha2(jg)*mu0)*trans_dir_dir(jg) )
+           &  * ( (1.0_jprb - k_mu0) * (alpha2 + k_gamma3) &
+           &     -(1.0_jprb + k_mu0) * (alpha2 - k_gamma3)*exponential2 &
+           &     -k_2_exponential*(gamma3 - alpha2*mu0)*trans_dir_dir(jg) )
         
       ! Meador & Weaver (1980) Eq. 15, multiplying top & bottom by
       ! exp(-k_exponent*od), minus the 1*exp(-od/mu0) term
       ! representing direct unscattered transmittance.
-      trans_dir_diff(jg) = reftrans_factor * ( k_2_exponential*(gamma4(jg) + alpha1(jg)*mu0) &
+      trans_dir_diff(jg) = reftrans_factor * ( k_2_exponential*(gamma4 + alpha1*mu0) &
            & - trans_dir_dir(jg) &
-           & * ( (1.0_jprb + k_mu0) * (alpha1(jg) + k_gamma4) &
-           &    -(1.0_jprb - k_mu0) * (alpha1(jg) - k_gamma4) * exponential2) )
+           & * ( (1.0_jprb + k_mu0) * (alpha1 + k_gamma4) &
+           &    -(1.0_jprb - k_mu0) * (alpha1 - k_gamma4) * exponential2) )
 
       ! Final check that ref_dir + trans_dir_diff <= 1
       ref_dir(jg)        = max(0.0_jprb, min(ref_dir(jg), mu0*(1.0_jprb-trans_dir_dir(jg))))

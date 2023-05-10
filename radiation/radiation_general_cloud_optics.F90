@@ -167,7 +167,7 @@ contains
     ! In-cloud water path of one cloud type (kg m-2)
     real(jprb), dimension(istartcol:iendcol,nlev) :: water_path
 
-    integer :: jtype, jcol, jlev
+    integer :: jtype, jcol, jlev, jg
 
     real(jphook) :: hook_handle
 
@@ -270,10 +270,12 @@ contains
         do jlev = 1,nlev
           if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
             ! Scale to get asymmetry factor and single scattering albedo
-            g_sw_cloud(:,jlev,jcol) = g_sw_cloud(:,jlev,jcol) &
-                 &  / max(ssa_sw_cloud(:,jlev,jcol), 1.0e-15_jprb)
-            ssa_sw_cloud(:,jlev,jcol) = ssa_sw_cloud(:,jlev,jcol) &
-                 &  / max(od_sw_cloud(:,jlev,jcol),  1.0e-15_jprb)
+            do jg = 1, config%n_bands_sw
+              g_sw_cloud(jg,jlev,jcol) = g_sw_cloud(jg,jlev,jcol) &
+                 &  / max(ssa_sw_cloud(jg,jlev,jcol), 1.0e-15_jprb)
+              ssa_sw_cloud(jg,jlev,jcol) = ssa_sw_cloud(jg,jlev,jcol) &
+                 &  / max(od_sw_cloud(jg,jlev,jcol),  1.0e-15_jprb)
+            end do
           end if
         end do
       end do
