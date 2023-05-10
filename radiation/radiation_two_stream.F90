@@ -401,13 +401,14 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',0,hook_handle)
 #endif
 
+    transmittance = exp_fast(-LwDiffusivityWP*od)
+
 !$ACC LOOP WORKER VECTOR
     do jg = 1, ng
       ! Compute upward and downward emission assuming the Planck
       ! function to vary linearly with optical depth within the layer
       ! (e.g. Wiscombe , JQSRT 1976).
       coeff = LwDiffusivityWP*od(jg)
-      transmittance(jg) = exp_fast(-coeff)
       if (od(jg) > 1.0e-3_jprb) then
         ! Simplified from calc_reflectance_transmittance_lw above
         coeff = (planck_bot(jg)-planck_top(jg)) / coeff
