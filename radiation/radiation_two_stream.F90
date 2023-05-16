@@ -732,8 +732,8 @@ contains
     ! GPU-capable and vector-optimized version for ICON
     !$ACC ROUTINE WORKER
 
-    !$ACC LOOP WORKER VECTOR PRIVATE(gamma1, gamma2, gamma3, gamma4, alpha1,
-    !alpha2, k_exponent, &
+    !$ACC LOOP WORKER VECTOR PRIVATE(gamma1, gamma2, gamma3, gamma4, &
+    !$ACC   alpha1, alpha2, k_exponent, &
     !$ACC   reftrans_factor, exponential, k_mu0, &
     !$ACC   k_gamma3, k_gamma4, k_2_exponential, one_minus_kmu0_sqr)
     do jg = 1, ng
