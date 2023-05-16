@@ -473,6 +473,12 @@ contains
     if (allocated(this%sw_dn_diffuse_surf_clear_g)) deallocate(this%sw_dn_diffuse_surf_clear_g)
     if (allocated(this%sw_dn_direct_surf_clear_g))  deallocate(this%sw_dn_direct_surf_clear_g)
 
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_g) ASYNC(1) IF(allocated(this%lw_up_toa_g))
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_g) ASYNC(1) IF(allocated(this%sw_up_toa_g))
+    !$ACC EXIT DATA DELETE(this%sw_dn_toa_g) ASYNC(1) IF(allocated(this%sw_dn_toa_g))
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_g) ASYNC(1) IF(allocated(this%lw_up_toa_clear_g))
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_g) ASYNC(1) IF(allocated(this%sw_up_toa_clear_g))
+    !$ACC WAIT
     if (allocated(this%lw_up_toa_g))                deallocate(this%lw_up_toa_g)
     if (allocated(this%sw_up_toa_g))                deallocate(this%sw_up_toa_g)
     if (allocated(this%sw_dn_toa_g))                deallocate(this%sw_dn_toa_g)
@@ -490,7 +496,9 @@ contains
   subroutine calc_surface_spectral(this, config, istartcol, iendcol)
 
     use yomhook,          only : lhook, dr_hook, jphook
+#ifdef _OPENACC
     use radiation_io,     only : nulerr, radiation_abort
+#endif
     use radiation_config, only : config_type
 
     class(flux_type),  intent(inout) :: this
@@ -693,6 +701,10 @@ contains
 
     use yomhook,          only : lhook, dr_hook, jphook
     use radiation_config, only : config_type
+#ifdef _OPENACC
+    use radiation_io,     only : nulerr, radiation_abort
+#endif
+
 
     class(flux_type),  intent(inout) :: this
     type(config_type), intent(in)    :: config
@@ -703,6 +715,13 @@ contains
     real(jphook) :: hook_handle
     
     if (lhook) call dr_hook('radiation_flux:calc_toa_spectral',0,hook_handle)
+
+#ifdef _OPENACC
+    if (config%do_toa_spectral_flux) then
+      write(nulerr,'(a)') '*** Error: radiation_flux:calc_toa_spectral not ported to GPU.'
+      call radiation_abort()
+    end if
+#endif
 
     if (config%do_sw .and. config%do_toa_spectral_flux) then
 
