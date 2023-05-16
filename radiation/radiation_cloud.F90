@@ -350,6 +350,9 @@ contains
     use yomhook,                  only : lhook, dr_hook, jphook
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_constants,      only : GasConstantDryAir, AccelDueToGravity
+#ifdef _OPENACC
+    use radiation_io,             only : nulerr, radiation_abort
+#endif
 
     class(cloud_type),         intent(inout) :: this
     type(thermodynamics_type), intent(in)    :: thermodynamics
@@ -366,6 +369,11 @@ contains
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',0,hook_handle)
+
+#ifdef _OPENACC
+    write(nulerr,'(a)') '*** Error: radiation_cloud:set_overlap_param_var not ported to GPU.'
+    call radiation_abort()
+#endif
 
     ! Pressure at half-levels, pressure_hl, is defined at nlev+1
     ! points
