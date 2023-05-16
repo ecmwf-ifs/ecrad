@@ -318,6 +318,11 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_ref_trans_lw',0,hook_handle)
 #endif
 
+    !$ACC ROUTINE WORKER
+
+    !$ACC LOOP WORKER VECTOR PRIVATE(factor, gamma1, gamma2, k_exponent, &
+    !$ACC   reftrans_factor, exponential, exponential2, &
+    !$ACC   coeff, coeff_up_top, coeff_up_bot, coeff_dn_top, coeff_dn_bot)
     do jg = 1, ng
       factor = (LwDiffusivityWP * 0.5_jprb) * ssa(jg)
       gamma1 = LwDiffusivityWP - factor*(1.0_jprb + asymmetry(jg))
@@ -725,6 +730,12 @@ contains
 
 #else
     ! GPU-capable and vector-optimized version for ICON
+    !$ACC ROUTINE WORKER
+
+    !$ACC LOOP WORKER VECTOR PRIVATE(gamma1, gamma2, gamma3, gamma4, alpha1,
+    !alpha2, k_exponent, &
+    !$ACC   reftrans_factor, exponential, k_mu0, &
+    !$ACC   k_gamma3, k_gamma4, k_2_exponential, one_minus_kmu0_sqr)
     do jg = 1, ng
 
       trans_dir_dir(jg) = max(-max(od(jg) * (1.0_jprb/mu0),0.0_jprb),-1000.0_jprb)

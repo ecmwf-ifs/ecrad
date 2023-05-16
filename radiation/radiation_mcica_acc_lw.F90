@@ -48,9 +48,8 @@ contains
     use radiation_single_level, only   : single_level_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type
-    use radiation_two_stream, only     : calc_two_stream_gammas_lw, &
-         &                               calc_reflectance_transmittance_lw, &
-         &                               calc_no_scattering_transmittance_lw
+    use radiation_two_stream, only     : calc_no_scattering_transmittance_lw, &
+         &                               calc_ref_trans_lw
     use radiation_adding_ica_lw, only  : adding_ica_lw, fast_adding_ica_lw, &
          &                               calc_fluxes_no_scattering_lw
     use radiation_lw_derivatives, only : calc_lw_derivatives_ica, modify_lw_derivatives_ica
@@ -301,17 +300,12 @@ contains
       if (config%do_lw_aerosol_scattering) then
         ! Scattering case: first compute clear-sky reflectance,
         ! transmittance etc at each model level
-        do jlev = 1,nlev
-          ssa_total = ssa(:,jlev,jcol)
-          g_total   = g(:,jlev,jcol)
-          call calc_two_stream_gammas_lw(ng, ssa_total, g_total, &
-               &  gamma1, gamma2)
-          call calc_reflectance_transmittance_lw(ng, &
-               &  od(:,jlev,jcol), gamma1, gamma2, &
-               &  planck_hl(:,jlev,jcol), planck_hl(:,jlev+1,jcol), &
-               &  ref_clear(:,jlev), trans_clear(:,jlev), &
-               &  source_up_clear(:,jlev), source_dn_clear(:,jlev))
-        end do
+        call calc_ref_trans_lw(ng*nlev, &
+             &  od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), &
+             &  planck_hl(:,1:jlev,jcol), planck_hl(:,2:jlev+1,jcol), &
+             &  ref_clear, trans_clear, &
+             &  source_up_clear, source_dn_clear)
+
         ! Then use adding method to compute fluxes
         call adding_ica_lw(ng, nlev, &
              &  ref_clear, trans_clear, source_up_clear, source_dn_clear, &
@@ -443,13 +437,12 @@ contains
             
               ! Compute cloudy-sky reflectance, transmittance etc at
               ! each model level
-              call calc_two_stream_gammas_lw(ng, ssa_total, g_total, &
-                   &  gamma1, gamma2)
-              call calc_reflectance_transmittance_lw(ng, &
-                   &  od_total, gamma1, gamma2, &
+              call calc_ref_trans_lw(ng, &
+                   &  od_total, ssa_total, g_total, &
                    &  planck_hl(:,jlev,jcol), planck_hl(:,jlev+1,jcol), &
                    &  reflectance(:,jlev), transmittance(:,jlev), &
                    &  source_up(:,jlev), source_dn(:,jlev))
+
             else
               ! No-scattering case: use simpler functions for
               ! transmission and emission
