@@ -19,6 +19,9 @@
 !   2017-10-23  R Hogan  Renamed single-character variables
 !   2021-02-19  R Hogan  Security for shortwave singularity
 !   2022-11-22  P Ukkonen/R Hogan  Single precision uses no double precision
+#if defined (__SX__) || defined (_OPENACC)
+#define __VECTOR_ACC
+#endif
 
 module radiation_two_stream
 
@@ -388,12 +391,18 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_no_scattering_transmittance_lw',0,hook_handle)
 #endif
 
+#ifndef __VECTOR_ACC
+    transmittance = exp_fast(-LwDiffusivityWP*od)
+#endif
+
     do jg = 1, ng
       ! Compute upward and downward emission assuming the Planck
       ! function to vary linearly with optical depth within the layer
       ! (e.g. Wiscombe , JQSRT 1976).
       coeff = LwDiffusivityWP*od(jg)
+#ifdef __VECTOR_ACC
       transmittance(jg) = exp_fast(-coeff)
+#endif
       if (od(jg) > 1.0e-3_jprb) then
         ! Simplified from calc_reflectance_transmittance_lw above
         coeff = (planck_bot(jg)-planck_top(jg)) / coeff
@@ -602,9 +611,15 @@ contains
 
     ! The three transfer coefficients from the two-stream
     ! differentiatial equations 
+#ifndef __VECTOR_ACC
+    real(jprb), dimension(ng) :: gamma1, gamma2, gamma3, gamma4 
+    real(jprb), dimension(ng) :: alpha1, alpha2, k_exponent
+    real(jprb), dimension(ng) :: exponential ! = exp(-k_exponent*od)
+#else
     real(jprb) :: gamma1, gamma2, gamma3, gamma4 
     real(jprb) :: alpha1, alpha2, k_exponent
     real(jprb) :: exponential ! = exp(-k_exponent*od)
+#endif
     
     real(jprb) :: reftrans_factor, factor
     real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
@@ -618,11 +633,81 @@ contains
     if (lhook) call dr_hook('radiation_two_stream:calc_ref_trans_sw',0,hook_handle)
 #endif
 
+#ifndef __VECTOR_ACC
+    ! GCC 9.3 strange error: intermediate values of ~ -8000 cause a
+    ! FPE when vectorizing exp(), but not in non-vectorized loop, nor
+    ! with larger negative values!
+    trans_dir_dir = max(-max(od * (1.0_jprb/mu0), 0.0_jprb),-1000.0_jprb)
+    trans_dir_dir = exp_fast(trans_dir_dir)
+
     do jg = 1, ng
 
-      ! GCC 9.3 strange error: intermediate values of ~ -8000 cause a
-      ! FPE when vectorizing exp(), but not in non-vectorized loop, nor
-      ! with larger negative values!
+      ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
+      ! Atmospheric Physics 53, 147-66)
+      factor = 0.75_jprb*asymmetry(jg)
+
+      gamma1(jg) = 2.0_jprb  - ssa(jg) * (1.25_jprb + factor)
+      gamma2(jg) = ssa(jg) * (0.75_jprb - factor)
+      gamma3(jg) = 0.5_jprb  - mu0*factor
+      gamma4(jg) = 1.0_jprb - gamma3(jg)
+
+      alpha1(jg) = gamma1(jg)*gamma4(jg) + gamma2(jg)*gamma3(jg) ! Eq. 16
+      alpha2(jg) = gamma1(jg)*gamma3(jg) + gamma2(jg)*gamma4(jg) ! Eq. 17
+      ! The following line crashes inexplicably with gfortran 8.5.0 in
+      ! single precision - try a later version
+      k_exponent(jg) = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
+           &       1.0e-12_jprb)) ! Eq 18
+    end do
+
+    exponential = exp_fast(-k_exponent*od)
+
+    do jg = 1, ng
+      k_mu0 = k_exponent(jg)*mu0
+      one_minus_kmu0_sqr = 1.0_jprb - k_mu0*k_mu0
+      k_gamma3 = k_exponent(jg)*gamma3(jg)
+      k_gamma4 = k_exponent(jg)*gamma4(jg)
+      exponential2 = exponential(jg)*exponential(jg)
+      k_2_exponential = 2.0_jprb * k_exponent(jg) * exponential(jg)
+      reftrans_factor = 1.0_jprb / (k_exponent(jg) + gamma1(jg) + (k_exponent(jg) - gamma1(jg))*exponential2)
+        
+      ! Meador & Weaver (1980) Eq. 25
+      ref_diff(jg) = gamma2(jg) * (1.0_jprb - exponential2) * reftrans_factor
+        
+      ! Meador & Weaver (1980) Eq. 26
+      trans_diff(jg) = k_2_exponential * reftrans_factor
+        
+      ! Here we need mu0 even though it wasn't in Meador and Weaver
+      ! because we are assuming the incoming direct flux is defined to
+      ! be the flux into a plane perpendicular to the direction of the
+      ! sun, not into a horizontal plane
+      reftrans_factor = mu0 * ssa(jg) * reftrans_factor &
+            &  / merge(one_minus_kmu0_sqr, epsilon(1.0_jprb), abs(one_minus_kmu0_sqr) > epsilon(1.0_jprb))
+      
+      ! Meador & Weaver (1980) Eq. 14, multiplying top & bottom by
+      ! exp(-k_exponent*od) in case of very high optical depths
+      ref_dir(jg) = reftrans_factor &
+           &  * ( (1.0_jprb - k_mu0) * (alpha2(jg) + k_gamma3) &
+           &     -(1.0_jprb + k_mu0) * (alpha2(jg) - k_gamma3)*exponential2 &
+           &     -k_2_exponential*(gamma3(jg) - alpha2(jg)*mu0)*trans_dir_dir(jg) )
+        
+      ! Meador & Weaver (1980) Eq. 15, multiplying top & bottom by
+      ! exp(-k_exponent*od), minus the 1*exp(-od/mu0) term
+      ! representing direct unscattered transmittance.
+      trans_dir_diff(jg) = reftrans_factor * ( k_2_exponential*(gamma4(jg) + alpha1(jg)*mu0) &
+           & - trans_dir_dir(jg) &
+           & * ( (1.0_jprb + k_mu0) * (alpha1(jg) + k_gamma4) &
+           &    -(1.0_jprb - k_mu0) * (alpha1(jg) - k_gamma4) * exponential2) )
+
+      ! Final check that ref_dir + trans_dir_diff <= 1
+      ref_dir(jg)        = max(0.0_jprb, min(ref_dir(jg), mu0*(1.0_jprb-trans_dir_dir(jg))))
+      trans_dir_diff(jg) = max(0.0_jprb, min(trans_dir_diff(jg), mu0*(1.0_jprb-trans_dir_dir(jg))-ref_dir(jg)))
+
+    end do
+
+#else
+    ! GPU-capable and vector-optimized version for ICON
+    do jg = 1, ng
+
       trans_dir_dir(jg) = max(-max(od(jg) * (1.0_jprb/mu0),0.0_jprb),-1000.0_jprb)
       trans_dir_dir(jg) = exp_fast(trans_dir_dir(jg))
 
@@ -637,8 +722,6 @@ contains
 
       alpha1 = gamma1*gamma4 + gamma2*gamma3 ! Eq. 16
       alpha2 = gamma1*gamma3 + gamma2*gamma4 ! Eq. 17
-      ! The following line crashes inexplicably with gfortran 8.5.0 in
-      ! single precision - try a later version
       k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-12_jprb)) ! Eq 18
 
       exponential = exp_fast(-k_exponent*od(jg))
@@ -684,7 +767,8 @@ contains
       trans_dir_diff(jg) = max(0.0_jprb, min(trans_dir_diff(jg), mu0*(1.0_jprb-trans_dir_dir(jg))-ref_dir(jg)))
 
     end do
-    
+#endif
+
 #ifdef DO_DR_HOOK_TWO_STREAM
     if (lhook) call dr_hook('radiation_two_stream:calc_ref_trans_sw',1,hook_handle)
 #endif
