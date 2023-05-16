@@ -50,7 +50,8 @@ contains
     use radiation_single_level, only   : single_level_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type
-    use radiation_two_stream, only     : calc_reflectance_transmittance_sw, &
+    use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
+         &                               calc_reflectance_transmittance_sw, &
          &                               calc_ref_trans_sw
     use radiation_adding_ica_sw, only  : adding_ica_sw
     use radiation_cloud_generator_acc, only: cloud_generator_acc
