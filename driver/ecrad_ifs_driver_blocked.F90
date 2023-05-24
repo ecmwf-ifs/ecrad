@@ -65,7 +65,6 @@ program ecrad_ifs_driver
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
   use ifs_blocking
-  use yoeaeratm,                only : laerrad
 
   implicit none
 
@@ -195,10 +194,8 @@ program ecrad_ifs_driver
   ! Setup aerosols
   if (yradiation%rad_config%use_aerosols) then
     yradiation%yrerad%naermacc = 1 ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
-    laerrad = .true.
   else
     yradiation%yrerad%naermacc = 0
-    laerrad = .false.
   endif
 
   ! Setup the radiation scheme: load the coefficients for gas and
