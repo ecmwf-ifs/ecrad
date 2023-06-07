@@ -204,9 +204,11 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
 
   if (lhook) call dr_hook('tcrad:calc_flux',0,hook_handle)
 
-  ! Store local values for optional variables
+  ! Store local value for number of angles per hemisphere, ensuring
+  ! positivity because negative values indicate the use of an
+  ! alternative quadrature
   if (present(n_angles_per_hem)) then
-    n_angles_per_hem_local = min(n_angles_per_hem, MAX_GAUSS_LEGENDRE_POINTS)
+    n_angles_per_hem_local = min(abs(n_angles_per_hem), MAX_GAUSS_LEGENDRE_POINTS)
   else
     n_angles_per_hem_local = 0
   end if
@@ -289,6 +291,9 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
       ! Two-stream special case
       weight_list(1) = 1;
       mu_list = 1.0_jprb / lw_diffusivity
+    else if (present(n_angles_per_hem)) then
+      ! Ensure we retain the sign of n_angles_per_hem
+      call gauss_legendre(n_angles_per_hem, mu_list, weight_list)
     else
       call gauss_legendre(n_angles_per_hem_local, mu_list, weight_list)
     end if
