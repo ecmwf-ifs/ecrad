@@ -26,7 +26,7 @@ contains
        &  flux)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
 !    use radiation_io, only             : nulout
     use radiation_config, only         : config_type, IPdfShapeGamma
@@ -103,7 +103,7 @@ contains
 
     logical :: do_shadowing
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_tcrad_lw:solver_tcrad_lw',0,hook_handle)
 
@@ -294,7 +294,7 @@ contains
        &  emission, albedo, flux)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
 !    use radiation_io, only             : nulout
     use radiation_config, only         : config_type, IPdfShapeGamma
@@ -365,7 +365,7 @@ contains
 
     integer :: jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_tcrad_lw:radiance_solver_tcrad_lw',0,hook_handle)
 

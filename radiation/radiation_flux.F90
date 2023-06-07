@@ -405,7 +405,7 @@ contains
   ! Allocate radiances only
   subroutine allocate_radiances_only(this, config, istartcol, iendcol)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_io,     only : nulerr, radiation_abort
     use radiation_config, only : config_type
 
@@ -413,7 +413,7 @@ contains
     class(flux_type), intent(inout) :: this
     type(config_type), intent(in)   :: config
 
-    real(jprb)                      :: hook_handle
+    real(jphook)                    :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:allocate_radiances_only',0,hook_handle)
 
