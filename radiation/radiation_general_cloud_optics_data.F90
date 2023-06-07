@@ -104,7 +104,7 @@ contains
        &                                weighting_temperature, &
        &                                iverbose)
 
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use easy_netcdf,                   only : netcdf_file
     use radiation_spectral_definition, only : spectral_definition_type
     use radiation_io,                  only : nulout, nulerr, radiation_abort
@@ -155,7 +155,7 @@ contains
 
     logical    :: use_bands_local, use_thick_averaging_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup',0,hook_handle)
 
@@ -230,17 +230,11 @@ contains
     this%effective_radius_0 = effective_radius(1)
     this%d_effective_radius = effective_radius(2) - effective_radius(1)
 
-    ! Set up weighting
-    if (.not. present(weighting_temperature)) then
-      write(nulerr, '(a)') '*** Error: weighting_temperature not provided'
-      call radiation_abort('Radiation configuration error')
-    end if
-
     nwav = size(wavenumber)
 
     ! Define the mapping matrix
-    call specdef%calc_mapping(weighting_temperature, &
-         &                    wavenumber, mapping, use_bands=use_bands)
+    call specdef%calc_mapping(wavenumber, mapping, &
+         weighting_temperature=weighting_temperature, use_bands=use_bands)
 
     ! Thick averaging should be performed on delta-Eddington scaled
     ! quantities (it makes no difference to thin averaging)
@@ -317,7 +311,11 @@ contains
 
     if (iverb >= 2) then
       write(nulout,'(a,a)') '  File: ', trim(file_name)
-      write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', weighting_temperature, ' K'
+      if (present(weighting_temperature)) then
+        write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', weighting_temperature, ' K'
+      else
+        write(nulout,'(a,f7.1,a)') '  Weighting temperature: ', specdef%reference_temperature, ' K'
+      end if
       if (use_thick_averaging_local) then
         write(nulout,'(a)') '  SSA averaging: optically thick limit'
       else
@@ -529,7 +527,7 @@ contains
        &                            od, scat_od, scat_asymmetry, &
        &                            layer_depth, temperature_fl)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(general_cloud_optics_type), intent(in) :: this
 
@@ -573,7 +571,7 @@ contains
 
     integer :: jcol, jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties',0,hook_handle)
 

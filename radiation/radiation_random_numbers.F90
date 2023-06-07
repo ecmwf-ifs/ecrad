@@ -34,34 +34,61 @@
 ! Reference for MINSTD: Park, Stephen K.; Miller, Keith
 ! W. (1988). "Random Number Generators: Good Ones Are Hard To Find"
 ! (PDF). Communications of the ACM. 31 (10):
-! 1192–1201. doi:10.1145/63039.63042
+! 1192-1201. doi:10.1145/63039.63042
+!
+! Modifications
+!   2022-12-01  R. Hogan  Fixed zeroed state in single precision
 
 module radiation_random_numbers
 
-  use parkind1, only : jprb, jpim, jpib
+  use parkind1, only : jprb, jprd, jpim, jpib
 
   implicit none
 
   public :: rng_type, IRngMinstdVector, IRngNative
 
   enum, bind(c) 
-    enumerator IRngNative, &      ! Built-in Fortran-90 RNG
+    enumerator IRngNative, &    ! Built-in Fortran-90 RNG
          &     IRngMinstdVector ! Vector MINSTD algorithm
   end enum
-
-  ! Constants used in the random number generators - note particularly
-  ! the values for A0, A and M referenced in the introductory comment
-  ! above.  The type JPIM is 4 bytes and JPIB is 8 bytes. This is
-  ! because in the operation mod(A*X,M) we don't want A*X to overflow
-  ! or go negative.  The problem is avoided in C by the use of
-  ! unsigned integers where the appropriate value of M basically
-  ! represents overflow. If this operation can be done entirely with
-  ! 4-byte integers performance would presumably be improved.
+  
+  ! Maximum number of random numbers that can be computed in one call
+  ! - this can be increased
   integer(kind=jpim), parameter :: NMaxStreams = 512
-  integer(kind=jpib), parameter :: IMinstdA0 = 16807
-  integer(kind=jpib), parameter :: IMinstdA  = 48271
-  real(kind=jprb),    parameter :: IMinstdM  = 2147483647._jprb
-  real(kind=jprb),    parameter :: IMinstdScale = 1.0_jprb / 2147483647.0_jprb
+  
+  ! A requirement of the generator is that the operation mod(A*X,M) is
+  ! performed with no loss of precision, so type used for A and X must
+  ! be able to hold the largest possible value of A*X without
+  ! overflowing, going negative or losing precision. The largest
+  ! possible value is 48271*2147483647 = 103661183124337. This number
+  ! can be held in either a double-precision real number, or an 8-byte
+  ! integer. Either may be used, but on some hardwares it has been
+  ! found that operations on double-precision reals are faster. Select
+  ! which you prefer by defining USE_REAL_RNG_STATE for double
+  ! precision, or undefining it for an 8-byte integer.
+#define USE_REAL_RNG_STATE 1
+
+  ! Define RNG_STATE_TYPE based on USE_REAL_RNG_STATE, where jprd
+  ! refers to a double-precision number regardless of the working
+  ! precision described by jprb, while jpib describes an 8-byte
+  ! integer
+#ifdef USE_REAL_RNG_STATE
+#define RNG_STATE_TYPE real(kind=jprd)
+#else
+#define RNG_STATE_TYPE integer(kind=jpib)
+#endif
+
+  ! The constants used in the main random number generator
+  RNG_STATE_TYPE , parameter :: IMinstdA  = 48271
+  RNG_STATE_TYPE , parameter :: IMinstdM  = 2147483647
+
+  ! An alternative value of A that can be used to initialize the
+  ! members of the state from a single seed
+  RNG_STATE_TYPE , parameter :: IMinstdA0 = 16807
+  
+  ! Scaling to convert the state to a uniform deviate in the range 0
+  ! to 1 in working precision
+  real(kind=jprb), parameter :: IMinstdScale = 1.0_jprb / real(IMinstdM,jprb)
 
   !---------------------------------------------------------------------
   ! A random number generator type: after being initialized with a
@@ -71,7 +98,7 @@ module radiation_random_numbers
   type rng_type
 
     integer(kind=jpim) :: itype = IRngNative
-    real(kind=jprb)    :: istate(NMaxStreams)
+    RNG_STATE_TYPE     :: istate(NMaxStreams)
     integer(kind=jpim) :: nmaxstreams = NMaxStreams
     integer(kind=jpim) :: iseed
 
@@ -99,13 +126,13 @@ contains
   subroutine initialize(this, itype, iseed, nmaxstreams)
 
     class(rng_type), intent(inout) :: this
-    integer(kind=jpim), intent(in), optional      :: itype
-    integer(kind=jpim), intent(in), optional      :: iseed
-    integer(kind=jpim), intent(in), optional      :: nmaxstreams
+    integer(kind=jpim), intent(in), optional :: itype
+    integer(kind=jpim), intent(in), optional :: iseed
+    integer(kind=jpim), intent(in), optional :: nmaxstreams
 
     integer, allocatable :: iseednative(:)
-    integer :: nseed, jseed
-    real(jprb) :: rnd_init, rseed
+    integer :: nseed, jseed, jstr
+    real(jprd) :: rseed ! Note this must be in double precision
 
     if (present(itype)) then
       this%itype = itype
@@ -126,15 +153,30 @@ contains
     end if
     
     if (this%itype == IRngMinstdVector) then
-      rseed = REAL(ABS(this%iseed),jprb)
-      ! Use a modified (and vectorized) C++ minstd_rand0 algorithm to populate the state
-      do jseed = 1,this%nmaxstreams
-        rnd_init = nint(mod( rseed*jseed*(1._jprb-0.05_jprb*jseed+0.005_jprb*jseed**2)*IMinstdA0, IMinstdM))
-        !
-        ! One warmup of the C++ minstd_rand algorithm
-        this%istate(jseed) = mod(IMinstdA * rnd_init, IMinstdM)
+      ! ! OPTION 1: Use the C++ minstd_rand0 algorithm to populate the
+      ! ! state: this loop is not vectorizable because the state in
+      ! ! one stream depends on the one in the previous stream.
+      ! this%istate(1) = this%iseed
+      ! do jseed = 2,this%nmaxstreams
+      !   this%istate(jseed) = mod(IMinstdA0 * this%istate(jseed-1), IMinstdM)
+      ! end do
+
+      ! OPTION 2: Use a modified (and vectorized) C++ minstd_rand0 algorithm to
+      ! populate the state
+      rseed = real(abs(this%iseed),jprd)
+      do jstr = 1,this%nmaxstreams
+        ! Note that nint returns an integer of type jpib (8-byte)
+        ! which may be converted to double if that is the type of
+        ! istate
+        this%istate(jstr) = nint(mod(rseed*jstr*(1.0_jprd-0.05_jprd*jstr &
+             &      +0.005_jprd*jstr**2)*IMinstdA0, real(IMinstdM,jprd)),kind=jpib)
       end do
 
+      ! One warmup of the C++ minstd_rand algorithm
+      do jstr = 1,this%nmaxstreams
+        this%istate(jstr) = mod(IMinstdA * this%istate(jstr), IMinstdM)
+      end do
+      
     else
       ! Native generator by default
       call random_seed(size=nseed)
@@ -166,7 +208,11 @@ contains
 
       ! C++ minstd_rand algorithm
       do i = 1, imax
+        ! The following calculation is computed entirely with 8-byte
+        ! numbers (whether real or integer)
         this%istate(i) = mod(IMinstdA * this%istate(i), IMinstdM)
+        ! Scale the current state to a number in working precision
+        ! (jprb) between 0 and 1
         randnum(i) = IMinstdScale * this%istate(i)
       end do
 

@@ -7,22 +7,23 @@ SUBROUTINE RRTM_KGB13
 !     G.Mozdzynski March 2011 read constants from files
 !     ABozzo 201306 updated to rrtmg v4.85
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 
-USE YOERRTO13, ONLY : KAO     ,KAO_D,SELFREFO, FORREFO ,FRACREFAO, FRACREFBO, KAO_MCO2, KAO_MCO,KBO_MO3
+USE YOERRTO13, ONLY : KAO, KAO_D, SELFREFO, FORREFO ,FRACREFAO, FRACREFBO, KAO_MCO2, KAO_MCO,KBO_MO3
 
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
@@ -1720,7 +1721,6 @@ ENDIF
       SELFREFO(:,16) = (/ &
      & 3.11402E-03_JPRB, 3.35870E-03_JPRB, 3.62260E-03_JPRB, 3.90724E-03_JPRB, 4.21424E-03_JPRB, &
      & 4.54536E-03_JPRB, 4.90250E-03_JPRB, 5.28770E-03_JPRB, 5.70317E-03_JPRB, 6.15128E-03_JPRB/)
-
 
 
 

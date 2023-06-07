@@ -11,6 +11,11 @@ endif
 
 WARNFLAGS =
 BASICFLAGS = -emf -J../mod -p../mod
-LDFLAGS = -hbyteswapio -Ktrap=fp -Wl,--as-needed -dynamic
+
+# We used to have the flag "-hbyteswapio" here because the RRTM input
+# files are big endian Fortran unformatted files, but now the file
+# ordering has been specified at the OPEN command so no compiler flags
+# are needed.
+LDFLAGS = -Ktrap=fp -Wl,--as-needed -dynamic
 DEBUGFLAGS =
 OMPFLAG = -homp

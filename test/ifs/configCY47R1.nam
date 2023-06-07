@@ -4,8 +4,8 @@
 ! including parallelization options and overriding numbers read from
 ! the NetCDF input file
 !
-! This version matches the expected configuration of ECMWF IFS Cycle
-! 47R1: compared to 46R1, the surface shortwave albedo and longwave
+! This version matches the configuration of ECMWF IFS Cycle 47R1:
+! compared to 46R1, the surface shortwave albedo and longwave
 ! emissivity mappings are specified
 !
 &radiation_driver
@@ -22,6 +22,8 @@ cloud_separation_scale_surface = 2500.0,
 cloud_separation_scale_power = 3.5,
 cloud_inhom_separation_factor = 0.75,
 !do_save_aerosol_optics = false,
+do_save_net_fluxes = false,
+do_write_double_precision = false,
 /
 !
 ! The following namelist controls the behaviour of the SPARTACUS

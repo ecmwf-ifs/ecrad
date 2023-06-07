@@ -7,23 +7,24 @@ SUBROUTINE SRTM_KGB24
 !     R. Elkhatib 12-10-2005 Split for faster and more robust compilation.
 !     G.Mozdzynski March 2011 read constants from files
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  , ONLY : JPRB
-USE YOMHOOK   , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    , ONLY : NULRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 USE MPL_MODULE, ONLY : MPL_BROADCAST
 USE YOMTAG    , ONLY : MTAGRAD
-USE YOESRTA24 , ONLY : KA, KB, KA_D, KB_D, SELFREF, FORREF, SFLUXREF, RAYLA, RAYLB, &
- & ABSO3A, ABSO3B, STRRAT, LAYREFFR  
+USE YOESRTA24 , ONLY : KA, KB, SELFREF, FORREF, SFLUXREF, RAYLA, RAYLB, &
+ & ABSO3A, ABSO3B, STRRAT, LAYREFFR  , KA_D, KB_D
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
 
 ! KURUCZ
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
@@ -32,7 +33,7 @@ IF (LHOOK) CALL DR_HOOK('SRTM_KGB24',0,ZHOOK_HANDLE)
 IF( MYPROC==1 )THEN
   READ(NULRAD,ERR=1001) KA_D,KB_D
   KA = REAL(KA_D,JPRB)
-  KB = REAL(KB_D,JPRB) 
+  KB = REAL(KB_D,JPRB)
 ENDIF
 IF( NPROC>1 )THEN
   CALL MPL_BROADCAST (KA,MTAGRAD,1,CDSTRING='SRTM_KGB24:')

@@ -32,7 +32,7 @@ subroutine calc_radiance_up(nspec, nlev, &
      &  transmittance, source_up, u_overlap, radiance_up)
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   
   implicit none
   
@@ -73,7 +73,7 @@ subroutine calc_radiance_up(nspec, nlev, &
   ! Loop index for level
   integer(jpim) :: jlev
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_radiance_up',0,hook_handle)
 
@@ -112,7 +112,7 @@ subroutine calc_radiance_dn(nspec, nlev, &
      &  weight, transmittance, source_dn, v_overlap, radiance_dn)
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   
   implicit none
   
@@ -150,7 +150,7 @@ subroutine calc_radiance_dn(nspec, nlev, &
   ! Loop index for level
   integer(jpim) :: jlev
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_radiance_dn',0,hook_handle)
 
@@ -179,7 +179,7 @@ subroutine calc_radiance_up_3d(nspec, nlev, &
      &  transmittance, source_up, u_overlap, radiance_up)
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   
   implicit none
   
@@ -220,7 +220,7 @@ subroutine calc_radiance_up_3d(nspec, nlev, &
   ! Loop index for level
   integer(jpim) :: jlev
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_radiance_up_3d',0,hook_handle)
 
@@ -253,7 +253,7 @@ subroutine calc_radiance_dn_3d(nspec, nlev, &
      &  weight, transmittance, source_dn, v_overlap, radiance_dn)
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   
   implicit none
   
@@ -291,7 +291,7 @@ subroutine calc_radiance_dn_3d(nspec, nlev, &
   ! Loop index for level
   integer(jpim) :: jlev
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_radiance_dn_3d',0,hook_handle)
 

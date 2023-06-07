@@ -6,21 +6,22 @@ SUBROUTINE RRTM_KGB12
 !     R. Elkhatib 12-10-2005 Split for faster and more robust compilation.
 !     G.Mozdzynski March 2011 read constants from files
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 
-USE YOERRTO12, ONLY : KAO     ,KAO_D,SELFREFO,FORREFO   ,FRACREFAO
+USE YOERRTO12, ONLY : KAO, KAO_D, SELFREFO, FORREFO, FRACREFAO
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 
 #include "abor1.intfb.h"

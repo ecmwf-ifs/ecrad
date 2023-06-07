@@ -36,7 +36,7 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
      &  inv_cloud_scale_up, inv_cloud_scale_dn);
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
        &  calc_radiance_rates, calc_radiance_trans_source, gauss_legendre, &
        &  lw_diffusivity, MAX_GAUSS_LEGENDRE_POINTS
@@ -200,7 +200,7 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Loop indices for region and stream
   integer(jpim) :: jreg, jstream
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_flux',0,hook_handle)
 
@@ -411,7 +411,7 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
      &  cloud_cover)
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
        &  calc_no_scattering_radiance_source, &
        &  gauss_legendre, lw_diffusivity, MAX_GAUSS_LEGENDRE_POINTS
@@ -526,7 +526,7 @@ subroutine calc_no_scattering_flux(nspec, nlev, surf_emission, surf_albedo, plan
   ! Loop indices for region and stream
   integer(jpim) :: jreg, jstream
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_no_scattering_flux',0,hook_handle)
 

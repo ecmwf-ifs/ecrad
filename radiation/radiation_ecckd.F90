@@ -65,9 +65,21 @@ module radiation_ecckd
     ! m-2, dimensioned (ng,nplanck)
     real(jprb), allocatable :: planck_function(:,:)
 
-    ! Normalized solar irradiance in each g point dimensioned (ng)
+    ! Normalized solar irradiance in each g point, dimensioned (ng)
     real(jprb), allocatable :: norm_solar_irradiance(:)
 
+    ! Normalized amplitude of variations in the solar irradiance
+    ! through the solar cycle in each g point, dimensioned (ng).
+    ! Since the user always provides the solar irradiance SI
+    ! integrated across the spectrum, this variable must sum to zero:
+    ! this ensures that the solar irradiance in each g-point is
+    ! SSI=SI*(norm_solar_irradiance +
+    ! A*norm_amplitude_solar_irradiance) for any A, where A denotes
+    ! the amplitude of deviations from the mean solar spectrum,
+    ! typically between -1.0 and 1.0 and provided by
+    ! single_level%solar_spectral_multiplier.
+    real(jprb), allocatable :: norm_amplitude_solar_irradiance(:)
+    
     ! Rayleigh molar scattering coefficient in m2 mol-1 in each g
     ! point
     real(jprb), allocatable :: rayleigh_molar_scat(:)
@@ -89,6 +101,7 @@ module radiation_ecckd
   contains
 
     procedure :: read => read_ckd_model
+    procedure :: read_spectral_solar_cycle
     procedure :: calc_optical_depth => calc_optical_depth_ckd_model
     procedure :: print => print_ckd_model
     procedure :: calc_planck_function
@@ -108,7 +121,7 @@ contains
 
     use easy_netcdf,  only : netcdf_file
     !use radiation_io, only : nulerr, radiation_abort
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
 
     class(ckd_model_type), intent(inout) :: this
     character(len=*),      intent(in)    :: filename
@@ -129,7 +142,7 @@ contains
 
     integer :: istart, inext, nchar, i_gas_code
 
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ecckd:read_ckd_model',0,hook_handle)
 
@@ -207,7 +220,9 @@ contains
       call this%single_gas(jgas)%read(file, constituent_id(istart:inext-2), i_gas_code)
       istart = inext
     end do
-    
+
+    call file%close()
+
     if (lhook) call dr_hook('radiation_ecckd:read_ckd_model',1,hook_handle)
 
   end subroutine read_ckd_model
@@ -264,13 +279,171 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Read the amplitude of the spectral variations associated with the
+  ! solar cycle and map to g-points
+  subroutine read_spectral_solar_cycle(this, filename, iverbose, use_updated_solar_spectrum)
+
+    use easy_netcdf,  only : netcdf_file
+    use radiation_io, only : nulout, nulerr, radiation_abort
+    use yomhook,      only : lhook, dr_hook, jphook
+
+    ! Reference total solar irradiance (W m-2)
+    real(jprb), parameter :: ReferenceTSI = 1361.0_jprb
+   
+    class(ckd_model_type), intent(inout) :: this
+    character(len=*),      intent(in)    :: filename
+    integer, optional,     intent(in)    :: iverbose
+    ! Do we update the mean solar spectral irradiance for each g-point
+    ! based on the contents of the file?
+    logical, optional,     intent(in)    :: use_updated_solar_spectrum
+
+    type(netcdf_file) :: file
+
+    ! Solar spectral irradiance, its amplitude and wavenumber
+    ! coordinate variable, read from NetCDF file
+    real(jprb), allocatable :: wavenumber(:) ! cm-1
+    real(jprb), allocatable :: ssi(:) ! W m-2 cm
+    real(jprb), allocatable :: ssi_amplitude(:) ! W m-2 cm
+
+    ! As above but on the wavenumber grid delimited by
+    ! this%wavenumber1 and this%wavenumber2
+    real(jprb), allocatable :: ssi_grid(:)
+    real(jprb), allocatable :: ssi_amplitude_grid(:)
+    real(jprb), allocatable :: wavenumber_grid(:)
+    
+    ! Old normalized solar irradiance in case it gets changed and we
+    ! need to report the amplitude of the change
+    real(jprb), allocatable :: old_norm_solar_irradiance(:)
+    
+    real(jprb) :: dwav_grid
+    
+    ! Number of input wavenumbers, and number on ecCKD model's grid
+    integer :: nwav, nwav_grid
+    ! Corresponding loop indices
+    integer :: jwav, jwav_grid, jg
+
+    integer :: iband
+    
+    integer :: iverbose_local
+
+    real(jphook) :: hook_handle
+    
+    if (lhook) call dr_hook('radiation_ecckd:read_spectral_solar_cycle',0,hook_handle)
+
+    if (present(iverbose)) then
+      iverbose_local = iverbose
+    else
+      iverbose_local = 3
+    end if
+
+    call file%open(trim(filename), iverbose=iverbose_local)
+
+    call file%get('wavenumber', wavenumber)
+    call file%get('mean_solar_spectral_irradiance', ssi)
+    call file%get('ssi_solar_cycle_amplitude', ssi_amplitude)
+
+    call file%close()
+
+    nwav = size(wavenumber)
+    
+    nwav_grid = size(this%spectral_def%wavenumber1)
+    allocate(ssi_grid(nwav_grid))
+    allocate(ssi_amplitude_grid(nwav_grid))
+    allocate(wavenumber_grid(nwav_grid))
+    wavenumber_grid = 0.5_jprb * (this%spectral_def%wavenumber1+this%spectral_def%wavenumber2)
+    dwav_grid = this%spectral_def%wavenumber2(1)-this%spectral_def%wavenumber1(1)
+    
+    ssi_grid = 0.0_jprb
+    ssi_amplitude_grid = 0.0_jprb
+
+    ! Interpolate input SSI to regular wavenumber grid
+    do jwav_grid = 1,nwav_grid
+      do jwav = 1,nwav-1
+        if (wavenumber(jwav) < wavenumber_grid(jwav_grid) &
+             &  .and. wavenumber(jwav+1) >= wavenumber_grid(jwav_grid)) then
+          ! Linear interpolation - this is not perfect
+          ssi_grid(jwav_grid) = (ssi(jwav)*(wavenumber(jwav+1)-wavenumber_grid(jwav_grid)) &
+               &                +ssi(jwav+1)*(wavenumber_grid(jwav_grid)-wavenumber(jwav))) &
+               &                * dwav_grid / (wavenumber(jwav+1)-wavenumber(jwav))
+          ssi_amplitude_grid(jwav_grid) = (ssi_amplitude(jwav)*(wavenumber(jwav+1)-wavenumber_grid(jwav_grid)) &
+               &                +ssi_amplitude(jwav+1)*(wavenumber_grid(jwav_grid)-wavenumber(jwav))) &
+               &                * dwav_grid / (wavenumber(jwav+1)-wavenumber(jwav))
+          exit
+        end if
+      end do
+    end do
+
+    ! Optionally update the solar irradiances in each g-point, and the
+    ! spectral solar irradiance on the wavenumber grid corresponding
+    ! to gpoint_fraction
+    allocate(old_norm_solar_irradiance(nwav_grid))
+    old_norm_solar_irradiance = this%norm_solar_irradiance
+    if (present(use_updated_solar_spectrum)) then
+      if (use_updated_solar_spectrum) then
+        if (.not. allocated(this%spectral_def%solar_spectral_irradiance)) then
+          write(nulerr,'(a)') 'Cannot use_updated_solar_spectrum unless gas optics model is from ecCKD >= 1.4'
+          call radiation_abort()
+        end if
+        this%norm_solar_irradiance = old_norm_solar_irradiance &
+             &  * matmul(ssi_grid,this%spectral_def%gpoint_fraction) &
+             &  / matmul(this%spectral_def%solar_spectral_irradiance,this%spectral_def%gpoint_fraction)
+        this%norm_solar_irradiance = this%norm_solar_irradiance / sum(this%norm_solar_irradiance)
+        this%spectral_def%solar_spectral_irradiance = ssi_grid
+      end if
+    end if
+    
+    ! Map on to g-points
+    this%norm_amplitude_solar_irradiance &
+         &  = this%norm_solar_irradiance &
+         &  * matmul(ssi_amplitude_grid, this%spectral_def%gpoint_fraction) &
+         &  / matmul(ssi_grid,this%spectral_def%gpoint_fraction)
+    
+    ! Remove the mean from the solar-cycle fluctuations, since the
+    ! user will scale with total solar irradiance
+    this%norm_amplitude_solar_irradiance &
+         &  = (this%norm_solar_irradiance+this%norm_amplitude_solar_irradiance) &
+         &  / sum(this%norm_solar_irradiance+this%norm_amplitude_solar_irradiance) &
+         &  - this%norm_solar_irradiance
+
+    ! Print the spectral solar irradiance per g point, and solar cycle amplitude 
+    if (iverbose_local >= 2) then
+      write(nulout,'(a,f6.1,a)') 'G-point, solar irradiance for nominal TSI = ', &
+           &  ReferenceTSI, ' W m-2, solar cycle amplitude (at solar maximum), update to original solar irradiance'
+      iband = 0
+      do jg = 1,this%ng
+        if (this%spectral_def%i_band_number(jg) > iband) then
+          iband = this%spectral_def%i_band_number(jg)
+          write(nulout, '(i2,f10.4,f7.3,a,f8.4,a,i2,a,f7.1,a,f7.1,a)') &
+               &  jg, ReferenceTSI*this%norm_solar_irradiance(jg), &
+               &  100.0_jprb * this%norm_amplitude_solar_irradiance(jg) &
+               &  / this%norm_solar_irradiance(jg), '% ', &
+               &  100.0_jprb * (this%norm_solar_irradiance(jg) &
+               &  / old_norm_solar_irradiance(jg) - 1.0_jprb), '% Band ', iband, ': ', &
+               &  this%spectral_def%wavenumber1_band(iband), '-', &
+               &  this%spectral_def%wavenumber2_band(iband), ' cm-1'
+        else
+          write(nulout, '(i2,f10.4,f7.3,a,f8.4,a)') jg, ReferenceTSI*this%norm_solar_irradiance(jg), &
+               &  100.0_jprb * this%norm_amplitude_solar_irradiance(jg) &
+               &  / this%norm_solar_irradiance(jg), '% ', &
+               &  100.0_jprb * (this%norm_solar_irradiance(jg) &
+               &  / old_norm_solar_irradiance(jg) - 1.0_jprb), '%'
+        end if
+      end do
+    end if
+    
+    if (lhook) call dr_hook('radiation_ecckd:read_spectral_solar_cycle',1,hook_handle)
+    
+  end subroutine read_spectral_solar_cycle
+  
+
+  !---------------------------------------------------------------------
   ! Compute layerwise optical depth for each g point for ncol columns
   ! at nlev layers
   subroutine calc_optical_depth_ckd_model(this, ncol, nlev, istartcol, iendcol, nmaxgas, &
        &  pressure_hl, temperature_fl, mole_fraction_fl, &
        &  optical_depth_fl, rayleigh_od_fl)
 
-    use yomhook,             only : lhook, dr_hook
+    use yomhook,             only : lhook, dr_hook, jphook
     use radiation_constants, only : AccelDueToGravity
 
     ! Input variables
@@ -318,7 +491,7 @@ contains
 
     integer :: jcol, jlev, jgas, igascode
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ecckd:calc_optical_depth',0,hook_handle)
 
@@ -541,15 +714,33 @@ contains
   ! of a solar correlated k-distribution model, given the
   ! total_solar_irradiance
   subroutine calc_incoming_sw(this, total_solar_irradiance, &
-       &                      spectral_solar_irradiance)
+       &                      spectral_solar_irradiance, &
+       &                      solar_spectral_multiplier)
+
+    use radiation_io, only : nulerr, radiation_abort
 
     class(ckd_model_type), intent(in)    :: this
     real(jprb),            intent(in)    :: total_solar_irradiance ! W m-2
     real(jprb),            intent(inout) :: spectral_solar_irradiance(:,:) ! W m-2
- 
-    spectral_solar_irradiance &
-         &  = spread(total_solar_irradiance * this%norm_solar_irradiance, &
-         &           2, size(spectral_solar_irradiance,2))
+    real(jprb), optional,  intent(in)    :: solar_spectral_multiplier
+
+    if (.not. present(solar_spectral_multiplier)) then
+      spectral_solar_irradiance &
+           &  = spread(total_solar_irradiance * this%norm_solar_irradiance, &
+           &           2, size(spectral_solar_irradiance,2))
+    else if (allocated(this%norm_amplitude_solar_irradiance)) then
+      spectral_solar_irradiance &
+           &  = spread(total_solar_irradiance * (this%norm_solar_irradiance &
+           &   + solar_spectral_multiplier*this%norm_amplitude_solar_irradiance), &
+           &           2, size(spectral_solar_irradiance,2))
+    else if (solar_spectral_multiplier == 0.0_jprb) then
+      spectral_solar_irradiance &
+           &  = spread(total_solar_irradiance * this%norm_solar_irradiance, &
+           &           2, size(spectral_solar_irradiance,2))
+    else
+      write(nulerr, '(a)') '*** Error in calc_incoming_sw: no information present on solar cycle'
+      call radiation_abort()
+    end if
 
   end subroutine calc_incoming_sw
 

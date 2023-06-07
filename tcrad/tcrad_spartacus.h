@@ -29,7 +29,7 @@ subroutine calc_radiance_trans_source_3d(nspec, nlev, &
      &  source_up, source_dn)
 
   use parkind1, only           : jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
 
   real(jprb), parameter :: PI = acos(-1.0_jprb)
 
@@ -104,7 +104,7 @@ subroutine calc_radiance_trans_source_3d(nspec, nlev, &
   ! Loop indices
   integer(jpim) :: jlev, jreg, jspec
     
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_radiance_trans_source_3d',0,hook_handle)
 

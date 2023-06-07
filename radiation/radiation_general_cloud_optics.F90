@@ -32,7 +32,7 @@ contains
   subroutine setup_general_cloud_optics(config)
 
     use parkind1,         only : jprb
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
 
     use radiation_io,     only : nulout
     use radiation_config, only : config_type, NMaxCloudTypes
@@ -46,7 +46,7 @@ contains
     integer :: jtype ! loop index
     integer :: strlen
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics:setup_general_cloud_optics',0,hook_handle)
 
@@ -135,7 +135,7 @@ contains
        &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     use radiation_io,     only : nulout
     use radiation_config, only : config_type
@@ -183,7 +183,7 @@ contains
     ! Loop indices
     integer :: jtype, jcol, jlev, jcomp
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics:general_cloud_optics',0,hook_handle)
 

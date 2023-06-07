@@ -2,12 +2,18 @@ INPUT = ecrad_meridian
 
 #DRIVER = totalview ../../bin/ecrad -a
 DRIVER = ../../bin/ecrad
+IFS_DRIVER = ../../bin/ecrad_ifs
+IFS_DRIVER_BLOCKED = ../../bin/ecrad_ifs_blocked
 CHANGENAM = ../common/change_namelist.sh
 
+# Various configuration files corresponding to cycles of ECMWF's
+# Integrated Forecasting System (IFS)
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
-CONFIG = configCY47R1.nam
-CONFIG_ECCKD = configCY49R1.nam
+#CONFIG = configCY47R1.nam
+#CONFIG = configCY47R3.nam
+CONFIG = configCY49R1.nam
+CONFIG_ECCKD = configCY49R1_ecckd.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
@@ -16,7 +22,7 @@ test: test_orig test_ecckd test_radiance
 
 # Tests of CY47R1 configuration with RRTMG gas optics model and
 # various solvers
-test_orig: test_default test_noaer test_expran test_expran_vec test_tripleclouds test_spartacus \
+test_orig: test_default test_noaer test_expexp test_vec test_tripleclouds test_spartacus \
 	test_spartacus_maxentr test_tcrad
 
 # Tests of ecCKD gas optics model and various solvers
@@ -30,23 +36,34 @@ test_radiance: test_tcrad
 test_default:
 	$(DRIVER) $(CONFIG) $(INPUT).nc $(INPUT)_default_out.nc
 
+test_ifsdriver:
+	$(CHANGENAM) $(CONFIG) config_net.nam do_save_net_fluxes=true do_write_double_precision=true \
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
+	$(IFS_DRIVER) config_net.nam $(INPUT).nc $(INPUT)_ifsdriver_out.nc | tee $(INPUT)_ifsdriver_out.log
+	$(DRIVER) config_net.nam $(INPUT).nc $(INPUT)_net_out.nc | tee $(INPUT)_net_out.log
+
+test_ifsdriver_blocked:
+	$(CHANGENAM) $(CONFIG) config_net.nam do_save_net_fluxes=true do_write_double_precision=true \
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
+	$(IFS_DRIVER_BLOCKED) config_net.nam $(INPUT).nc $(INPUT)_ifsdriver_blocked_out.nc | tee $(INPUT)_ifsdriver_blocked_out.log
+	$(DRIVER) config_net.nam $(INPUT).nc $(INPUT)_net_out.nc | tee $(INPUT)_net_out.log
+
 # Turn off aerosols
 test_noaer:
 	$(CHANGENAM) $(CONFIG) config_noaer.nam \
 		use_aerosols=false
 	$(DRIVER) config_noaer.nam $(INPUT).nc $(INPUT)_noaer_out.nc
 
-# Exponential-random overlap
-test_expran:
-	$(CHANGENAM) $(CONFIG) config_expran.nam \
-		overlap_scheme_name='"Exp-Ran"'
-	$(DRIVER) config_expran.nam $(INPUT).nc $(INPUT)_expran_out.nc
+# Older exponential-exponential overlap
+test_expexp:
+	$(CHANGENAM) $(CONFIG) config_expexp.nam \
+		overlap_scheme_name='"Exp-Exp"'
+	$(DRIVER) config_expexp.nam $(INPUT).nc $(INPUT)_expexp_out.nc
 
 # Tripleclouds solver with exponential-random overlap 
 test_tripleclouds:
 	$(CHANGENAM) $(CONFIG) config_tc.nam \
-		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"' \
-		overlap_scheme_name='"Exp-Ran"'
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
 	$(DRIVER) config_tc.nam $(INPUT).nc $(INPUT)_tc_out.nc
 
 # Longwave scattering; since 46R1 this is the default
@@ -59,7 +76,7 @@ test_lwscat:
 test_spartacus:
 	$(CHANGENAM) $(CONFIG) config_spartacus.nam \
 		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
-		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
+		do_3d_effects="true" \
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus.nam $(INPUT).nc $(INPUT)_spartacus_out.nc
 
@@ -67,7 +84,7 @@ test_spartacus:
 test_spartacus_maxentr:
 	$(CHANGENAM) $(CONFIG) config_spartacus_maxentr.nam \
 		sw_solver_name='"SPARTACUS"' lw_solver_name='"SPARTACUS"' \
-		do_3d_effects="true" overlap_scheme_name='"Exp-Ran"' \
+		do_3d_effects="true" \
 		sw_entrapment_name='"Maximum"' \
 		do_sw_delta_scaling_with_gases="false"
 	$(DRIVER) config_spartacus_maxentr.nam $(INPUT).nc $(INPUT)_spartacus_maxentr_out.nc
@@ -87,10 +104,9 @@ test_cloudless:
 	$(DRIVER) config_cloudless.nam $(INPUT).nc $(INPUT)_cloudless_out.nc
 
 # Exponential-random overlap with "vectorizable" cloud generator
-test_expran_vec:
-	$(CHANGENAM) $(CONFIG) config_expran_vec.nam \
-		overlap_scheme_name='"Exp-Ran"' use_vectorizable_generator=true
-	$(DRIVER) config_expran_vec.nam $(INPUT).nc $(INPUT)_expran_vec_out.nc
+test_vec:
+	$(CHANGENAM) $(CONFIG) config_vec.nam use_vectorizable_generator=true
+	$(DRIVER) config_vec.nam $(INPUT).nc $(INPUT)_vec_out.nc
 
 
 ### The following targets use the $CONFIG_ECCKD configuration file ###
@@ -151,7 +167,43 @@ test_ecckd_tc_noaer:
 		use_aerosols=false 
 	$(DRIVER) config_ecckd_tc_noaer.nam $(INPUT).nc $(INPUT)_ecckd_tc_noaer_out.nc
 
+# Profiling
+TAG = default
+profile:
+	mkdir -p profiling_$(TAG)
+	$(CHANGENAM) $(CONFIG) config_profile.nam \
+		nrepeat=100 do_save_spectral_flux=false
+	DR_HOOK=1 DR_HOOK_OPT=prof DR_HOOK_PROFILE=profiling_$(TAG)/$(INPUT)_default_prof_out.drhook \
+		$(DRIVER) config_profile.nam $(INPUT).nc $(INPUT)_default_prof_out.nc \
+		| tee $(INPUT)_default_prof_out.log
+	if [[ -f gmon.out ]]; then gprof $(DRIVER) gmon.out > profiling_$(TAG)/$(INPUT)_default_prof_out.gprof; fi
+	$(CHANGENAM) $(CONFIG_ECCKD) config_profile.nam \
+		nrepeat=100 do_save_spectral_flux=false do_save_radiative_properties=false
+	DR_HOOK=1 DR_HOOK_OPT=prof DR_HOOK_PROFILE=profiling_$(TAG)/$(INPUT)_ecckd_tc_prof_out.drhook \
+		$(DRIVER) config_profile.nam $(INPUT).nc $(INPUT)_ecckd_tc_prof_out.nc \
+		| tee $(INPUT)_ecckd_tc_prof_out.log
+	if [[ -f gmon.out ]]; then gprof $(DRIVER) gmon.out > $(INPUT)_ecckd_tc_prof_out.gprof; fi
+
+	mv $(INPUT)_*_prof_out.* profiling_$(TAG)
+
+# ecCKD gas optics with spectral diagnostics every 25nm in the visible
+# written to a separate file; do this both with the 32- and 96-gpoint
+# models (which have 100nm and 25nm resolution in the visible,
+# respectively).
+DIAGBOUNDS="sw_diag_wavelength_bound=.2e-6,.225e-6,.25e-6,.275e-6,.3e-6,.325e-6,.35e-6,.375e-6,.4e-6,.425e-6,.45e-6,.475e-6,.5e-6,.525e-6,.55e-6,.575e-6,.6e-6,.625e-6,.65e-6,.675e-6,.7e-6"
+test_diag:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_rrtmg.nc"' gas_model_name='"RRTMG-IFS"'
+	$(DRIVER) config_diag.nam $(INPUT).nc $(INPUT)_diag_rrtmg_out.nc
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_rgb_orig.nc"'
+	$(DRIVER) config_ecckd_diag.nam $(INPUT).nc $(INPUT)_ecckd_diag_rgb_orig_out.nc
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_rgb.nc"' \
+		gas_optics_sw_override_file_name='"ecckd-1.4_sw_climate_rgb-32b_ckd-definition.nc"'
+	$(DRIVER) config_ecckd_diag.nam $(INPUT).nc $(INPUT)_ecckd_diag_rgb_out.nc
+	$(CHANGENAM) $(CONFIG_ECCKD) config_ecckd_diag.nam $(DIAGBOUNDS) sw_diag_file_name='"sw_diag_vfine.nc"' \
+		gas_optics_sw_override_file_name='"ecckd-1.4_sw_climate_vfine-96b_ckd-definition.nc"'
+	$(DRIVER) config_ecckd_diag.nam $(INPUT).nc $(INPUT)_ecckd_diag_vfine_out.nc
+
 # Clean data files
 clean:
-	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc \
+	rm -f *_out.nc tmp*.nc radiative_properties*.nc inputs.nc sw_diag*nc \
 	config_*.nam gmon.out

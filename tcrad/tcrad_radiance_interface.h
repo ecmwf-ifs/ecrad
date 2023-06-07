@@ -30,7 +30,7 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
      &  layer_thickness, inv_cloud_scale, do_specular_surface)
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
        &  calc_radiance_rates, calc_radiance_trans_source, lw_diffusivity
 
@@ -176,7 +176,7 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Loop indices for region
   integer(jpim) :: jreg
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_radiance',0,hook_handle)
 
@@ -382,7 +382,7 @@ subroutine calc_no_scattering_radiance(nspec, nlev, surf_emission, surf_albedo, 
      &  od_clear, od_cloud, overlap_param, mu, radiance, do_3d_effects, cloud_cover)
 
   use parkind1, only           : jpim, jprb
-  use yomhook,  only           : lhook, dr_hook
+  use yomhook,  only           : lhook, dr_hook, jphook
   use tcrad_layer_solutions, only : calc_no_scattering_radiance_source, lw_diffusivity
 
   implicit none
@@ -487,7 +487,7 @@ subroutine calc_no_scattering_radiance(nspec, nlev, surf_emission, surf_albedo, 
   ! Loop indices for region
   integer(jpim) :: jreg
 
-  real(jprb) :: hook_handle
+  real(jphook) :: hook_handle
 
   if (lhook) call dr_hook('tcrad:calc_no_scattering_radiance',0,hook_handle)
 

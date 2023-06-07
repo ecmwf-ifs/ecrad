@@ -1,16 +1,72 @@
-version 1.5.1
+version 1.6.0 (27 April 2023)
+	- Removed compiler flag specifying to load unformated Fortran
+	  files as big endian: now the OPEN commands for the files RADRRTM
+	  and RADSRTM specify CONVERT='BIG_ENDIAN' in rrtm_kgb1.F90 and
+	  srtm_kgb16.F90
+	- make test_programs to make test programs in driver directory
+	- Unpublished "Baran" and "Baran2017" ice optics models are
+	  deprecated, only accessible with namelist entries
+	  "Baran-EXPERIMENTAL" and "Baran2017-EXPERIMENTAL"
+	- Wavelength tolerance for requesting monochromatic aerosol info
+	  increased from 1% to 2%
+	- test/ifs directory contains configCY*.nam files corresponding to
+	  more previous operational IFS cycles, and added
+	  ecrad_meridian_default_out_REFERENCE.log indicating how the
+	  reference file (now updated) was produced
+	- Default generalized aerosol optics file changed to
+	  aerosol_ifs_49R1_20230119.nc
+
+version 1.5.1 (8 December 2022)
 	- Added Makefile_include.intel_atos to match compiler options on
 	  ECMWF supercomputer, plus "-heap-arrays" which is necessary for
 	  the Intel compiler
+	- Fix occasional crash in single-precision fast_expm_exchange_3
+	  for shortwave SPARTACUS entrapment
+	- Fixed radiation_random_numbers.F90 in single precision
+	- Removed Dr Hook implementation for profiling; instead optionally
+	  call make with FIATDIR to specify the location of ECMWF's fiat
+	  library which contains Dr Hook
+	- Added "make ifsdriver" which compiles ifs/libifs.a and
+	  bin/ecrad_ifs to demonstrate use of IFS's radiation_scheme and
+	  setup_radiation_scheme; test with make test_ifsdriver in
+	  test/ifs. Note that the input file must have variables with the
+	  dimensions expected in the IFS, as in test/ifs/ecrad_meridian.nc.
+	- Added "make ifsdriver_blocked" from Balthasar Reuter which
+	  compiles bin/ecrad_ifs_blocked, gathering the input data into
+	  blocks of length driver_config%nblocksize as in the IFS, which can
+	  benefit memory locality
+	- Added capability for ecCKD to represent the solar cycle in solar
+	  spectral irradiance, via "radiation" namelist parameter
+	  use_spectral_solar_cycle and new file ssi_nrl2.nc (which can be
+	  overridden with ssi_override_file_name). Caller provides
+	  single_level%spectral_solar_cycle_multiplier from -1 (solar
+	  minimum) to +1 (solar maximum), or "radiation_config" namelist
+	  parameter solar_cycle_multiplier_override
+	- If use_spectral_solar_cycle then if also
+	  use_updated_solar_spectrum, the mean solar irradiance per g-point
+	  will be updated from the solar cycle file. This only works for
+	  gas-optics models from ecCKD >= 1.4, since these store the solar
+	  spectrum on a wavenumber grid.
+	- Added get_sw_mapping, which returns a matrix to map from fluxes
+	  in solar bands to fluxes in user-specified wavelength intervals,
+	  useful for (for example) computing spectral fluxes for ocean
+	  biology or UV index
+	- Added demonstration of get_sw_mapping: radiation_driver namelist
+	  now accepts sw_diag_wavelength_bound, which takes a list of
+	  wavenumber bounds for shortwave diagnostics. These are written to
+	  radiation_driver: sw_diag_file_name, or sw_diagnostics.nc by
+	  default. Test with "make test_ecckd_diag" in test/ifs.
+	- do_toa_spectral_flux namelist option stores top-of-atmosphere
+	  spectral flux diagnostics per band
+	- Added Tripleclouds Radiance (TCRAD) capability including both
+	  flux and radiance solvers, including Eddington and two-stream
+	  modes
 	- Added capability to read cloud optical properties a function of
 	  water content (kg m-3) and temperature, rather than effective
 	  radius, useful for RTTOV comparisons
 	- Override cloud fraction with
 	  driver_config%cloud_fraction_override, useful for files with no
 	  cloud fraction variable
-	- Added Tripleclouds Radiance (TCRAD) capability including both
-	  flux and radiance solvers, including Eddington and two-stream
-	  modes
 
 version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description

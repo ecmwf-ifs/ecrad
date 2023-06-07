@@ -149,7 +149,7 @@ contains
        &  region_fracs, planck_hl, od, ssa, asymmetry, &
        &  reflectance, transmittance, source_up, source_dn)
         
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     ! Inputs
 
@@ -195,7 +195,7 @@ contains
     ! Loop indices
     integer(jpim) :: jspec, jreg, jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_reflectance_transmittance',0,hook_handle)
 
@@ -316,7 +316,7 @@ contains
        &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
        &  rate_up_top, rate_up_base, rate_dn_top, rate_dn_base)
     
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     ! Inputs
 
@@ -375,7 +375,7 @@ contains
     ! Loop indices for level, spectral interval and region
     integer(jpim) :: jlev, jspec, jreg
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_radiance_rates',0,hook_handle)
 
@@ -473,7 +473,7 @@ contains
        &  mu, region_fracs, planck_hl, od, &
        &  transmittance, source_up, source_dn)
       
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     ! Inputs
 
@@ -520,7 +520,7 @@ contains
     ! Loop indices for level, spectral interval and region
     integer(jpim) :: jlev, jspec, jreg
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_no_scattering_radiance_source',0,hook_handle)
 
@@ -605,7 +605,7 @@ contains
        &  mu, planck_hl, od, &
        &  transmittance, source_up, source_dn)
       
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     ! Inputs
 
@@ -642,7 +642,7 @@ contains
     ! Loop indices for level and spectral interval
     integer(jpim) :: jlev, jspec
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_clear_sky_trans_source',0,hook_handle)
 
@@ -701,7 +701,7 @@ contains
              &  rate_up_top, rate_up_base, rate_dn_top, rate_dn_base, &
              &  source_up, source_dn)
 
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     ! Inputs
 
@@ -757,7 +757,7 @@ contains
     ! Loop indices
     integer(jpim) :: jlev, jreg, jspec
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_radiance_trans_source',0,hook_handle)
 
@@ -819,7 +819,7 @@ contains
   end subroutine calc_radiance_trans_source
 
 
-#warning "calc_radiance_source is deprecated"
+!#warning "calc_radiance_source is deprecated"
 
   !---------------------------------------------------------------------
   ! Compute the transmittance to a beam of radiation at a particular
@@ -832,7 +832,7 @@ contains
        &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
        &  transmittance, source_up, source_dn)
     
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     ! Inputs
 
@@ -892,7 +892,7 @@ contains
     ! Loop indices for level, spectral interval and region
     integer(jpim) :: jlev, jspec, jreg
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_radiance_source',0,hook_handle)
 

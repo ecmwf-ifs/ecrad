@@ -22,7 +22,7 @@ contains
        &  od_clear, flux_up, flux_dn, n_angles_per_hem)
 
     use parkind1, only           : jpim, jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
     use tcrad_layer_solutions, only : calc_clear_sky_trans_source, &
          &  gauss_legendre, lw_diffusivity, MAX_GAUSS_LEGENDRE_POINTS
 
@@ -94,7 +94,7 @@ contains
     ! Loop index for stream
     integer(jpim) :: jstream
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_clear_sky_flux',0,hook_handle)
 
@@ -183,7 +183,7 @@ contains
        &  transmittance, source_up, radiance_up)
 
     use parkind1, only           : jpim, jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -227,7 +227,7 @@ contains
     ! Loop index for level
     integer(jpim) :: jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_clear_sky_radiance_up',0,hook_handle)
 
@@ -261,7 +261,7 @@ contains
        &  weight, transmittance, source_dn, radiance_dn)
 
     use parkind1, only           : jpim, jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -302,7 +302,7 @@ contains
     ! Loop index for level
     integer(jpim) :: jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('tcrad:calc_clear_sky_radiance_dn',0,hook_handle)
 
