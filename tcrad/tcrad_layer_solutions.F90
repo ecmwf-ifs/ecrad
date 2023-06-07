@@ -70,8 +70,8 @@ contains
   
   
   !---------------------------------------------------------------------
-  ! Return Gauss-Legendre quadrature points, or "optimized" values for
-  ! radiation if npoint == -1 or -2
+  ! Return Gauss-Legendre quadrature points, or Gauss-Jacobi-5 for
+  ! negative values
   subroutine gauss_legendre(npoint, xpoint, weight)
 
     integer(jpim), intent(in)  :: npoint
@@ -81,24 +81,14 @@ contains
     xpoint = 0.5_jprb
     weight = 0.0_jprb
 
-    if (npoint == 1 .or. npoint == 0) then
+    if (npoint < 0) then
+      call gauss_jacobi_5(-npoint, xpoint, weight)
+    else if (npoint == 1 .or. npoint == 0) then
       xpoint(1) = 0.5_jprb
       weight(1) = 1.0_jprb
-    else if (npoint == -1) then
-      ! Optimized values minimizing error in transmission over the
-      ! full range of optical depths; this is likely to be updated in
-      ! future
-      xpoint(1) = 0.6158_jprb;
-      weight(1) = 0.5_jprb / xpoint(1)
     else if (npoint == 2) then
       xpoint(1:2) = [0.211324865405187_jprb, 0.788675134594813_jprb]
       weight(1:2) = [0.5_jprb, 0.5_jprb]
-    else if (npoint == -2) then
-      ! Optimized values minimizing error in transmission over the
-      ! full range of optical depths; this is likely to be updated in
-      ! future
-      xpoint(1:2) = [0.2704_jprb, 0.8018_jprb];
-      weight(1:2) = 1.0_jprb / sum(xpoint(1:2))
     else if (npoint == 3) then
       xpoint(1:3) = [0.112701665379258_jprb, 0.5_jprb, &
            &         0.887298334620742_jprb]
@@ -137,6 +127,32 @@ contains
     end if
 
   end subroutine gauss_legendre
+
+  
+  !---------------------------------------------------------------------
+  ! Return Gauss-Jacobi-5 quadrature points
+  subroutine gauss_jacobi_5(npoint, xpoint, weight)
+
+    integer(jpim), intent(in)  :: npoint
+    real(jprb),    intent(out) :: xpoint(:), weight(:)
+
+    if (npoint == 1) then
+      xpoint(1) = 0.62973761_jprb
+      weight(1) = 0.79398148_jprb
+    else if (npoint == 2) then
+      xpoint(1:2) = [0.25099074_jprb, 0.79084740_jprb]
+      weight(1:2) = [0.45823479_jprb, 0.48680354_jprb]
+    else if (npoint == 3) then
+      xpoint(1:3) = [0.10249222_jprb, 0.44179603_jprb, 0.86337516_jprb]
+      weight(1:3) = [0.21358706_jprb, 0.43864096_jprb, 0.32931125_jprb]
+    else
+      xpoint(1:4) = [0.04545867_jprb, 0.23223344_jprb, &
+           &         0.57401988_jprb, 0.90307760_jprb]
+      weight(1:4) = [0.10126647_jprb, 0.27681291_jprb, &
+           &         0.37658817_jprb, 0.23801084_jprb]
+    end if
+
+  end subroutine gauss_jacobi_5
 
 
   !---------------------------------------------------------------------

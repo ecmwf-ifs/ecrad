@@ -424,7 +424,7 @@ contains
     class(flux_type), intent(inout) :: this
     type(config_type), intent(in)   :: config
 
-    real(jphook)                      :: hook_handle
+    real(jphook)                    :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:allocate_radiances_only',0,hook_handle)
 
