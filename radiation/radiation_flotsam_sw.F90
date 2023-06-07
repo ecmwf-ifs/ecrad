@@ -27,7 +27,7 @@ contains
        &  flux, use_stochastic_columns)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     use radiation_config, only         : config_type, IPdfShapeGamma
     use radiation_single_level, only   : single_level_type
@@ -134,7 +134,7 @@ contains
     ! Loop counters
     integer :: jcol, jg, jband, jsub, jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flotsam_sw:solver_flotsam_sw',0,hook_handle)
 
@@ -292,7 +292,7 @@ contains
   subroutine allocate_ocean_reflectance_model(config)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
     use radiation_config, only   : config_type
     use radiation_io, only       : nulout
     
@@ -310,7 +310,7 @@ contains
 
     real(jprb) :: wavelength
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flotsam_sw:allocate_ocean_reflectance_model',0,hook_handle)
 

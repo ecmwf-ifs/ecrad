@@ -234,7 +234,7 @@ contains
 
     ! Define the mapping matrix
     call specdef%calc_mapping(wavenumber, mapping, &
-         weighting_temperature=weighting_temperature, use_bands=use_bands)
+         &  weighting_temperature=weighting_temperature, use_bands=use_bands)
 
     ! Thick averaging should be performed on delta-Eddington scaled
     ! quantities (it makes no difference to thin averaging)
@@ -350,7 +350,7 @@ contains
        &                                    weighting_temperature, &
        &                                    iverbose)
 
-    use yomhook,                       only : lhook, dr_hook
+    use yomhook,                       only : lhook, dr_hook, jphook
     use easy_netcdf,                   only : netcdf_file
     use radiation_spectral_definition, only : spectral_definition_type
     use radiation_io,                  only : nulout, nulerr, radiation_abort
@@ -394,7 +394,7 @@ contains
 
     integer    :: jband, jwav, jt ! Loop indices
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup_wct',0,hook_handle)
 
@@ -447,8 +447,8 @@ contains
     nwav = size(wavenumber)
 
     ! Define the mapping matrix
-    call specdef%calc_mapping(weighting_temperature, &
-         &                    wavenumber, mapping, use_bands=use_bands)
+    call specdef%calc_mapping(wavenumber, mapping, &
+         &  weighting_temperature=weighting_temperature, use_bands=use_bands)
 
     ! Thick averaging should be performed on delta-Eddington scaled
     ! quantities (it makes no difference to thin averaging)
@@ -675,7 +675,7 @@ contains
        &                            scattering_angle, &
        &                            od, scat_od, pf)
 
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(general_cloud_optics_type), intent(in) :: this
 
@@ -709,7 +709,7 @@ contains
 
     integer :: jcol, jlev, jcomp
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:add_optical_properties_flotsam',0,hook_handle)
 

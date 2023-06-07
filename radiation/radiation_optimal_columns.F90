@@ -30,7 +30,7 @@ contains
        &  fractional_std, od_in, weight, od_out, total_cloud_cover, cloudy_fsd_od)
 
     use parkind1, only           : jprb, jpim
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
     use radiation_cloud_cover, only : cum_cloud_cover_exp_ran
     !use radiation_gen_gauss_laguerre, only : calc_gen_gauss_laguerre
     !use radiation_gauss_lognormal, only : calc_gauss_lognormal
@@ -142,7 +142,7 @@ contains
 
     logical :: is_first_layer
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_optimal_columns:optimal_columns',0,hook_handle)
 
