@@ -3,6 +3,8 @@ version 1.6.1
 	  which input decorrelation_length may vary with column, useful for
 	  models with a latitudinal or other dependence
 	- radiation_ecckd:calc_optical_depth has vector version for NEC
+	- test/ckdmip can now run CKDMIP scenarios of concentrations
+	  downloaded (see Makefile)
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran

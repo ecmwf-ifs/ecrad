@@ -80,7 +80,7 @@ contains
     else
       if (i_local_verbose >= 1) then
         write(nulout,'(a,a,a)') 'Warning: neither longwave nor shortwave computed so ', &
-             &                  file_name,' not written'
+             &                  trim(file_name),' not written'
       end if
       return
     end if
