@@ -138,7 +138,7 @@ symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
 	cd practical && ln -s ../data
 
-test: test_ifs test_i3rc test_ckdmip
+test: test_ifs test_i3rc test_ckdmip test_disort
 
 test_ifs:
 	cd test/ifs && $(MAKE) test
@@ -149,12 +149,16 @@ test_i3rc:
 test_ckdmip:
 	cd test/ckdmip && $(MAKE) test
 
+test_disort:
+	cd test/disort && $(MAKE) test
+
 clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks
 
 clean-tests:
 	cd test/ifs && $(MAKE) clean
 	cd test/i3rc && $(MAKE) clean
 	cd test/ckdmip && $(MAKE) clean
+	cd test/disort && $(MAKE) clean
 
 clean-toplevel:
 	cd radiation && $(MAKE) clean
