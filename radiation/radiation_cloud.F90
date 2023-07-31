@@ -370,11 +370,6 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',0,hook_handle)
 
-#ifdef _OPENACC
-    write(nulerr,'(a)') '*** Error: radiation_cloud:set_overlap_param_var not ported to GPU.'
-    call radiation_abort()
-#endif
-
     ! Pressure at half-levels, pressure_hl, is defined at nlev+1
     ! points
     ncol = size(thermodynamics%pressure_hl,dim=1)
@@ -386,12 +381,17 @@ contains
       ! for interfaces between model layers, not for the interface to
       ! space or the surface
       allocate(this%overlap_param(ncol, nlev-1))
+      !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1)
     end if
 
+    !$ACC DATA PRESENT(this, thermodynamics, decorrelation_length)
+    !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1)
     if (thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1)) then
       ! Pressure is increasing with index (order of layers is
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
       ! don't take the logarithm of the first pressure in each column.
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
         this%overlap_param(jcol,1) = exp(-(R_over_g/decorrelation_length(jcol)) &
              &                            * thermodynamics%temperature_hl(jcol,2) &
@@ -399,7 +399,9 @@ contains
              &                                /thermodynamics%pressure_hl(jcol,2)))
       end do
 
+      !$ACC LOOP SEQ
       do jlev = 2,nlev-1
+        !$ACC LOOP GANG(STATIC:1) VECTOR
         do jcol = istartcol,iendcol
           this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
               &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
@@ -407,12 +409,16 @@ contains
               &                                /thermodynamics%pressure_hl(jcol,jlev)))
         end do
       end do
+      !$ACC END PARALLEL
 
     else
        ! Pressure is decreasing with index (order of layers is surface
        ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
        ! don't take the logarithm of the last pressure in each column.
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC LOOP SEQ
       do jlev = 1,nlev-2
+        !$ACC LOOP GANG(STATIC:1) VECTOR
         do jcol = istartcol,iendcol
           this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
               &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
@@ -421,13 +427,17 @@ contains
         end do
       end do
 
+      !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
         this%overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length(jcol)) &
             &                            * thermodynamics%temperature_hl(jcol,nlev) &
             &                            *log(thermodynamics%pressure_hl(jcol,nlev-1) &
             &                                /thermodynamics%pressure_hl(jcol,nlev)))
       end do
+      !$ACC END PARALLEL
     end if
+
+    !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
 
