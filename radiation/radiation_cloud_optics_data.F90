@@ -45,9 +45,8 @@ contains
 
   !---------------------------------------------------------------------
   ! Setup cloud optics coefficients by reading them from a file
-  subroutine setup_cloud_optics(this, liq_file_name, ice_file_name, &
-       &                        iverbose)
-
+  subroutine setup_cloud_optics(this, liq_file_name, ice_file_name, iverbose)
+    
     use yomhook,  only : lhook, dr_hook, jphook
     use easy_netcdf, only : netcdf_file
 
