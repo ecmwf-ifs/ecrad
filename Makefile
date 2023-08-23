@@ -140,7 +140,7 @@ libutilities: libifsaux
 libifsrrtm: libifsaux
 	cd ifsrrtm && $(MAKE)
 
-libradiation: libutilities libifsaux
+libradiation: libifsrrtm libutilities libifsaux
 	cd radiation && $(MAKE)
 
 driver: libifsaux libifsrrtm libutilities libradiation

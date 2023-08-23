@@ -7,6 +7,8 @@ version 1.6.1
 	  downloaded (see Makefile)
 	- ecCKD gas optics can now be used with older cloud/aerosol optics
 	  files provided they have the same number of bands
+	- Added dependence to Makefile ensuring libradiation built after
+	  libifsrrtm, ensuring that multi-threaded make works
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
