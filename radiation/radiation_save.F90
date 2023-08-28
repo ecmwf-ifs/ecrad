@@ -777,7 +777,9 @@ contains
 
     ! Emission (Planck*emissivity) and albedo (1-emissivity) at the
     ! surface at each longwave g-point
-    real(jprb), dimension(config%n_g_lw, istartcol:iendcol) :: lw_emission, lw_albedo
+    real(jprb), intent(in), dimension(config%n_g_lw, istartcol:iendcol) :: lw_emission, lw_albedo
+
+    ! Local variables
 
     integer :: n_col_local ! Number of columns from istartcol to iendcol
 
