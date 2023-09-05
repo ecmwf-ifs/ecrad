@@ -40,7 +40,7 @@ contains
   subroutine calc_liq_optics_socrates(nb, coeff, lwp, re_in, od, scat_od, g)
 
     use parkind1, only : jprb
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -55,7 +55,7 @@ contains
     ! Local effective radius (m), after applying bounds
     real(jprb) :: re
 
-    !real(jprb) :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_liquid_optics_socrates:calc_liq_optics_socrates',0,hook_handle)
 

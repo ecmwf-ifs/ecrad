@@ -62,13 +62,13 @@ contains
   ! code these are allocated when they are read from the NetCDF file
   subroutine allocate_aerosol_arrays(this, ncol, istartlev, iendlev, ntype)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(aerosol_type), intent(inout) :: this
     integer, intent(in)                :: ncol  ! Number of columns
     integer, intent(in)                :: istartlev, iendlev ! Level range
     integer, intent(in)                :: ntype ! Number of aerosol types
-    real(jprb)                         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol:allocate',0,hook_handle)
 
@@ -87,7 +87,7 @@ contains
   subroutine allocate_aerosol_arrays_direct(this, config, &
        &                                    ncol, istartlev, iendlev)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_config, only : config_type
 
     class(aerosol_type), intent(inout) :: this
@@ -95,7 +95,7 @@ contains
     integer, intent(in)                :: ncol  ! Number of columns
     integer, intent(in)                :: istartlev, iendlev ! Level range
 
-    real(jprb)                         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol:allocate_direct',0,hook_handle)
 
@@ -130,11 +130,11 @@ contains
   ! Deallocate arrays
   subroutine deallocate_aerosol_arrays(this)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(aerosol_type), intent(inout) :: this
 
-    real(jprb)                         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol:deallocate',0,hook_handle)
 
@@ -156,7 +156,7 @@ contains
   ! optionally only considering columns between istartcol and iendcol
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_check,  only : out_of_bounds_3d
 
     class(aerosol_type),   intent(inout) :: this
@@ -166,7 +166,7 @@ contains
 
     logical    :: do_fix_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol:out_of_physical_bounds',0,hook_handle)
 

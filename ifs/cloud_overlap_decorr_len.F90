@@ -1,5 +1,5 @@
 SUBROUTINE CLOUD_OVERLAP_DECORR_LEN &
-     & (KIDIA, KFDIA, KLON, PGEMU, NDECOLAT, &
+     & (KIDIA, KFDIA, KLON, PGEMU, KDECOLAT, &
      &  PDECORR_LEN_EDGES_KM, PDECORR_LEN_WATER_KM, PDECORR_LEN_RATIO)
 
 ! CLOUD_OVERLAP_DECORR_LEN
@@ -33,9 +33,9 @@ SUBROUTINE CLOUD_OVERLAP_DECORR_LEN &
 ! -------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB
-USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCST   , ONLY : RPI
-USE YOECLD   , ONLY : YRECLD
+USE YOECLD   , ONLY : RDECORR_CF, RDECORR_CW
 
 ! -------------------------------------------------------------------
 
@@ -49,7 +49,7 @@ INTEGER(KIND=JPIM),INTENT(IN) :: KFDIA    ! End column to process
 INTEGER(KIND=JPIM),INTENT(IN) :: KLON     ! Number of columns
 
 ! *** Configuration variable controlling the overlap scheme
-INTEGER(KIND=JPIM),INTENT(IN) :: NDECOLAT
+INTEGER(KIND=JPIM),INTENT(IN) :: KDECOLAT
 
 ! *** Single-level variables 
 REAL(KIND=JPRB),   INTENT(IN) :: PGEMU(KLON) ! Sine of latitude
@@ -70,7 +70,7 @@ REAL(KIND=JPRB) :: ZRADIANS_TO_DEGREES, ZABS_LAT_DEG, ZCOS_LAT
 
 INTEGER(KIND=JPIM) :: JL
 
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 ! -------------------------------------------------------------------
 
@@ -78,28 +78,28 @@ IF (LHOOK) CALL DR_HOOK('CLOUD_OVERLAP_DECORR_LEN',0,ZHOOK_HANDLE)
   
 ! -------------------------------------------------------------------
 
-IF (NDECOLAT == 0) THEN
+IF (KDECOLAT == 0) THEN
 
   ! Decorrelation lengths are constant values
-  PDECORR_LEN_EDGES_KM(KIDIA:KFDIA) = YRECLD%RDECORR_CF
+  PDECORR_LEN_EDGES_KM(KIDIA:KFDIA) = RDECORR_CF
   IF (PRESENT(PDECORR_LEN_WATER_KM)) THEN
-    PDECORR_LEN_WATER_KM(KIDIA:KFDIA) = YRECLD%RDECORR_CW
+    PDECORR_LEN_WATER_KM(KIDIA:KFDIA) = RDECORR_CW
   ENDIF
   IF (PRESENT(PDECORR_LEN_RATIO)) THEN
-    PDECORR_LEN_RATIO = YRECLD%RDECORR_CW / YRECLD%RDECORR_CF
+    PDECORR_LEN_RATIO = RDECORR_CW / RDECORR_CF
   ENDIF
 
 ELSE
 
   ZRADIANS_TO_DEGREES = 180.0_JPRB / RPI
 
-  IF (NDECOLAT == 1) THEN
+  IF (KDECOLAT == 1) THEN
     ! Shonk et al. (2010) Eq. 13 formula
     DO JL = KIDIA,KFDIA
       ZABS_LAT_DEG = ABS(ASIN(PGEMU(JL)) * ZRADIANS_TO_DEGREES)
       PDECORR_LEN_EDGES_KM(JL) = 2.899_JPRB - 0.02759_JPRB * ZABS_LAT_DEG
     ENDDO
-  ELSE ! NDECOLAT == 2
+  ELSE ! KDECOLAT == 2
     DO JL = KIDIA,KFDIA
       ! Shonk et al. (2010) but smoothed over the equator
       ZCOS_LAT = COS(ASIN(PGEMU(JL)))
@@ -107,7 +107,7 @@ ELSE
     ENDDO
   ENDIF
 
-  ! Both NDECOLAT = 1 and 2 assume that the decorrelation length for
+  ! Both KDECOLAT = 1 and 2 assume that the decorrelation length for
   ! cloud water content is half that for cloud edges
   IF (PRESENT(PDECORR_LEN_WATER_KM)) THEN
     PDECORR_LEN_WATER_KM(KIDIA:KFDIA) = PDECORR_LEN_EDGES_KM(KIDIA:KFDIA) * 0.5_JPRB

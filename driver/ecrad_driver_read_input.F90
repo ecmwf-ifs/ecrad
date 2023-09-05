@@ -108,6 +108,23 @@ contains
         end if
     end if
 
+    ! Configure the amplitude of the spectral variations in solar
+    ! output associated with the 11-year solar cycle: +1.0 means solar
+    ! maximum, -1.0 means solar minimum, 0.0 means use the mean solar
+    ! spectrum.
+    if (driver_config%solar_cycle_multiplier_override > -1.0e6_jprb) then
+      single_level%spectral_solar_cycle_multiplier &
+           &  = driver_config%solar_cycle_multiplier_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,f10.1)')  '  Overriding solar spectral multiplier with ', &
+             &  driver_config%solar_cycle_multiplier_override
+      end if
+    else if (file%exists('solar_spectral_multiplier')) then
+      call file%get('spectral_solar_cycle_multiplier', single_level%spectral_solar_cycle_multiplier)
+    else
+      single_level%spectral_solar_cycle_multiplier = 0.0_jprb
+    end if
+    
     if (driver_config%cos_sza_override >= 0.0_jprb) then
       ! Optional override of cosine of solar zenith angle
       allocate(single_level%cos_sza(ncol))
@@ -170,6 +187,7 @@ contains
       cloud%q_ice  => cloud%mixing_ratio(:,:,2)
       cloud%re_liq => cloud%effective_radius(:,:,1)
       cloud%re_ice => cloud%effective_radius(:,:,2)
+      cloud%ntype = size(cloud%mixing_ratio,3)
 
       ! Simple initialization of the seeds for the Monte Carlo scheme
       call single_level%init_seed_simple(1,ncol)

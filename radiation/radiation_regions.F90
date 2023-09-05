@@ -36,7 +36,7 @@ contains
        &  cloud_fraction, frac_std, reg_fracs, od_scaling, cloud_fraction_threshold)
 
     use parkind1,     only : jprb
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulerr, radiation_abort
 
     ! Minimum od_scaling in the case of a Gamma distribution
@@ -92,7 +92,7 @@ contains
     ! Loop indices
     integer :: jcol, jlev
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_region_properties:calc_region_properties',0,hook_handle)
 

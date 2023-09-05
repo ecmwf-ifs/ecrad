@@ -45,7 +45,7 @@ SUBROUTINE SURDI
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE YOERDI   , ONLY : RRAE     ,&
  & RCARDI   ,RCH4     ,RN2O     ,RNO2     ,RO3      ,&
@@ -59,7 +59,7 @@ IMPLICIT NONE
 
 REAL(KIND=JPRB) :: ZAIRMWG, ZC11MWG, ZC12MWG, ZCH4MWG, ZCO2MWG,&
  & ZN2OMWG, ZNO2MWG, ZO3MWG, ZC22MWG, ZCL4MWG
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 !      ----------------------------------------------------------------
 
