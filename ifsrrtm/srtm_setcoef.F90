@@ -20,7 +20,7 @@ SUBROUTINE SRTM_SETCOEF &
 !     fractions related to the pressure and temperature interpolations.
 
 USE PARKIND1 , ONLY : JPIM, JPRB
-USE YOMHOOK  , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOESRTWN , ONLY : PREFLOG, TREF
 !!  USE YOESWN  , ONLY : NDBUG
 
@@ -67,12 +67,9 @@ REAL(KIND=JPRB) :: Z_STPFAC, Z_PLOG
 REAL(KIND=JPRB) :: Z_FP, Z_FT, Z_FT1, Z_WATER, Z_SCALEFAC
 REAL(KIND=JPRB) :: Z_FACTOR, Z_CO2REG, Z_COMPFP
 !REAL(KIND=JPRB) :: Z_TBNDFRAC, Z_T0FRAC
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 
-
-
-ASSOCIATE(NFLEVG=>KLEV)
 IF (LHOOK) CALL DR_HOOK('SRTM_SETCOEF',0,ZHOOK_HANDLE)
 
 Z_STPFAC = 296._JPRB/1013._JPRB
@@ -131,7 +128,10 @@ DO JK = 1, I_NLAYERS
       !        If the pressure is less than ~100mb, perform a different
       !        set of species interpolations.
 
-      IF (Z_PLOG <= 4.56_JPRB) GO TO 5300
+      ! Olivier Marsden (15 June 2017)
+      !IF (Z_PLOG <= 4.56_JPRB) GO TO 5300
+      IF (KJP(JL,JK) >= 13) GO TO 5300
+      
       KLAYTROP(JL) =  KLAYTROP(JL) + 1
 
       !        Set up factors needed to separately include the water vapor
@@ -215,20 +215,11 @@ DO JK = 1, I_NLAYERS
       PFAC11(JL,JK) = Z_FP * Z_FT1
       PFAC01(JL,JK) = Z_FP * (1. - Z_FT1)
 
-      !  IF (NDBUG.LE.3) THEN
-      !    print 9000,LAY,LAYTROP,JP(LAY),JT(LAY),JT1(LAY),TAVEL(LAY) &
-      !      &,FAC00(LAY),FAC01(LAY),FAC10(LAY),FAC11(LAY) &
-      !      &,COLMOL(LAY),COLCH4(LAY),COLCO2(LAY),COLH2O(LAY) &
-      !      &,COLO2(LAY),COLO3(LAY),SELFFAC(LAY),SELFFRAC(LAY) &
-      !      &,FORFAC(LAY),FORFRAC(LAY),INDSELF(LAY),INDFOR(LAY)
-9000  format(1x,2I3,3I4,F6.1,4F7.2,12E9.2,2I5)
-      !  ENDIF
-
     ENDIF
   ENDDO
 ENDDO
 
 !----------------------------------------------------------------------- 
 IF (LHOOK) CALL DR_HOOK('SRTM_SETCOEF',1,ZHOOK_HANDLE)
-END ASSOCIATE
+
 END SUBROUTINE SRTM_SETCOEF

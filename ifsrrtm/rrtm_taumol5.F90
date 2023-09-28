@@ -21,7 +21,7 @@ SUBROUTINE RRTM_TAUMOL5 (KIDIA,KFDIA,KLEV,P_TAU,P_WX,&
 ! ---------------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE PARRRTM  , ONLY : JPBAND ,JPXSEC
 USE YOERRTM  , ONLY : JPGPT  ,NG5    ,NGS4
@@ -86,7 +86,10 @@ REAL(KIND=JPRB) :: Z_FS, Z_SPECMULT, Z_SPECPARM, &
 & Z_FS1, Z_SPECMULT1, Z_SPECPARM1, &
 & Z_FPL, Z_SPECMULT_PLANCK, Z_SPECPARM_PLANCK, &
 & Z_FMO3, Z_SPECMULT_MO3, Z_SPECPARM_MO3  
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL5',0,ZHOOK_HANDLE)
 
 ! Minor gas mapping level :
 !     lower - o3, p = 317.34 mbar, t = 240.77 k
@@ -104,14 +107,10 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 ! P = 317.3480
       Z_REFRAT_M_A = CHI_MLS(1,7)/CHI_MLS(2,7)
 
-
 !     Compute the optical depth by interpolating in ln(pressure), 
 !     temperature, and appropriate species.  Below LAYTROP, the water
 !     vapor self-continuum and foreign continuum is 
 !     interpolated (in temperature) separately.  
-
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL5',0,ZHOOK_HANDLE)
 
 DO JLAY = 1, KLEV
   DO JLON = KIDIA, KFDIA
@@ -350,5 +349,4 @@ ENDDO
 
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL5',1,ZHOOK_HANDLE)
 
-END ASSOCIATE
 END SUBROUTINE RRTM_TAUMOL5

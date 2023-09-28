@@ -1,11 +1,10 @@
 OBJECTS = parrrtm.o parsrtm.o rrtm_prepare_gases.o	\
-rrtm_gas_optical_depth.o \
-rrtm_gasabs1a_140gp.o rrtm_setcoef_140gp.o	\
+rrtm_gas_optical_depth.o rrtm_setcoef_140gp.o	\
 rrtm_taumol1.o rrtm_taumol10.o rrtm_taumol11.o rrtm_taumol12.o		\
 rrtm_taumol13.o rrtm_taumol14.o rrtm_taumol15.o rrtm_taumol16.o		\
 rrtm_taumol2.o rrtm_taumol3.o rrtm_taumol4.o rrtm_taumol5.o		\
 rrtm_taumol6.o rrtm_taumol7.o rrtm_taumol8.o rrtm_taumol9.o		\
-srtm_setcoef.o surrtrf.o srtm_gas_optical_depth.o \
+srtm_setcoef.o surrtrf.o srtm_gas_optical_depth.o 			\
 srtm_taumol16.o srtm_taumol17.o srtm_taumol18.o srtm_taumol19.o		\
 srtm_taumol20.o srtm_taumol21.o srtm_taumol22.o srtm_taumol23.o		\
 srtm_taumol24.o srtm_taumol25.o srtm_taumol26.o srtm_taumol27.o		\
@@ -15,8 +14,8 @@ yoerrta2.o yoerrta3.o yoerrta4.o yoerrta5.o yoerrta6.o yoerrta7.o	\
 yoerrta8.o yoerrta9.o yoerrtab.o yoesrta16.o yoesrta17.o yoesrta18.o	\
 yoesrta19.o yoesrta20.o yoesrta21.o yoesrta22.o yoesrta23.o		\
 yoesrta24.o yoesrta25.o yoesrta26.o yoesrta27.o yoesrta28.o		\
-yoesrta29.o yoesrtab.o yoesrtaer.o yoerad.o yoesw.o yoeaeratm.o		\
-yom_ygfl.o yomdimv.o yoerrtm.o yoerrtftr.o yoerrtrf.o	\
+yoesrta29.o yoesrtab.o yoesrtaer.o yoesw.o 				\
+yom_ygfl.o yomdimv.o yoerrtm.o yoerrtftr.o yoerrtrf.o			\
 yoerrtwn.o yoesrtwn.o yoesrtm.o yoerdi.o rrtm_init_140gp.o		\
 yoerrtbg2.o yoerrtrwt.o surdi.o surrtab.o surrtpk.o surrtftr.o		\
 srtm_init.o rrtm_cmbgb1.o rrtm_cmbgb10.o rrtm_cmbgb11.o			\
@@ -35,7 +34,7 @@ srtm_kgb22.o srtm_kgb23.o srtm_kgb24.o srtm_kgb25.o srtm_kgb26.o	\
 srtm_kgb27.o srtm_kgb28.o srtm_kgb29.o yoerrto1.o yoerrto10.o		\
 yoerrto11.o yoerrto12.o yoerrto13.o yoerrto14.o yoerrto15.o		\
 yoerrto16.o yoerrto2.o yoerrto3.o yoerrto4.o yoerrto5.o yoerrto6.o	\
-yoerrto7.o yoerrto8.o yoerrto9.o susrtm.o
+yoerrto7.o yoerrto8.o yoerrto9.o susrtm.o modify_wv_continuum.o
 
 SOURCES := $(OBJECTS:.o=.F90)
 

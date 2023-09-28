@@ -6,22 +6,24 @@ SUBROUTINE SRTM_KGB20
 !     Reformatted for F90 by JJMorcrette, ECMWF
 !     G.Mozdzynski March 2011 read constants from files
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  , ONLY : JPRB
-USE YOMHOOK   , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    , ONLY : NULRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
 USE MPL_MODULE, ONLY : MPL_BROADCAST
 USE YOMTAG    , ONLY : MTAGRAD
-USE YOESRTA20 , ONLY : KA, KB, KA_D, KB_D, SELFREF, FORREF, SFLUXREF, RAYL, ABSCH4, LAYREFFR  
+USE YOESRTA20 , ONLY : KA, KB, SELFREF, FORREF, SFLUXREF, RAYL, ABSCH4, LAYREFFR  ,&
+  & KA_D, KB_D
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
 
 ! KURUCZ
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
@@ -162,6 +164,7 @@ SELFREF(:,16) = (/ &
  & 0.599065E-01_JPRB, 0.548058E-01_JPRB, 0.501394E-01_JPRB, 0.458704E-01_JPRB, 0.419648E-01_JPRB /)  
      
 !     -----------------------------------------------------------------
+
 IF (LHOOK) CALL DR_HOOK('SRTM_KGB20',1,ZHOOK_HANDLE)
 RETURN
 

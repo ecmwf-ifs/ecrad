@@ -33,6 +33,7 @@ module radiation_cloud
   type cloud_type
     ! For maximum flexibility, an arbitrary number "ntype" of
     ! hydrometeor types can be stored, dimensioned (ncol,nlev,ntype)
+    integer                                   :: ntype = 0
     real(jprb), allocatable, dimension(:,:,:) :: &
          &  mixing_ratio, &  ! mass mixing ratio (kg/kg)
          &  effective_radius ! (m)
@@ -80,7 +81,9 @@ module radiation_cloud
   contains
     procedure :: allocate   => allocate_cloud_arrays
     procedure :: deallocate => deallocate_cloud_arrays
-    procedure :: set_overlap_param
+    procedure :: set_overlap_param_fix
+    procedure :: set_overlap_param_var
+    generic   :: set_overlap_param => set_overlap_param_fix, set_overlap_param_var
     procedure :: set_overlap_param_approx
     procedure :: create_fractional_std
     procedure :: create_inv_cloud_effective_size
@@ -99,7 +102,7 @@ contains
   ! the NetCDF file
   subroutine allocate_cloud_arrays(this, ncol, nlev, ntype, use_inhom_effective_size)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(cloud_type), intent(inout), target :: this
     integer, intent(in)              :: ncol   ! Number of columns
@@ -111,22 +114,23 @@ contains
     integer, intent(in), optional    :: ntype
     logical, intent(in), optional    :: use_inhom_effective_size
 
-    real(jprb)                       :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:allocate',0,hook_handle)
 
     if (present(ntype)) then
-      ! Arbitrary number of types
-      allocate(this%mixing_ratio(ncol,nlev,ntype))
-      allocate(this%effective_radius(ncol,nlev,ntype))
-      nullify(this%q_liq)
-      nullify(this%q_ice)
-      nullify(this%re_liq)
-      nullify(this%re_ice)
+      this%ntype = ntype
     else
+      this%ntype = 2
+    end if
+    allocate(this%mixing_ratio(ncol,nlev,this%ntype))
+    allocate(this%effective_radius(ncol,nlev,this%ntype))
+    nullify(this%q_liq)
+    nullify(this%q_ice)
+    nullify(this%re_liq)
+    nullify(this%re_ice)
+    if (.not. present(ntype)) then
       ! Older interface in which only liquid and ice are supported
-      allocate(this%mixing_ratio(ncol,nlev,2))
-      allocate(this%effective_radius(ncol,nlev,2))
       this%q_liq  => this%mixing_ratio(:,:,1)
       this%q_ice  => this%mixing_ratio(:,:,2)
       this%re_liq => this%effective_radius(:,:,1)
@@ -153,11 +157,11 @@ contains
   ! Deallocate arrays
   subroutine deallocate_cloud_arrays(this)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(cloud_type), intent(inout) :: this
 
-    real(jprb)                       :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:deallocate',0,hook_handle)
 
@@ -187,11 +191,12 @@ contains
   ! provided then only columns in this range are computed.  If the
   ! overlap_param array has not been allocated then it will be
   ! allocated to be of the correct size relative to the pressure
-  ! field. 
-  subroutine set_overlap_param(this, thermodynamics, decorrelation_length, &
+  ! field. This version assumes a fixed decorrelation_length for all
+  ! columns.
+  subroutine set_overlap_param_fix(this, thermodynamics, decorrelation_length, &
        &  istartcol, iendcol)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_constants,      only : GasConstantDryAir, AccelDueToGravity
 
@@ -211,9 +216,9 @@ contains
 
     integer :: jcol, jlev
 
-    real(jprb)        :: hook_handle
+    real(jphook) :: hook_handle
 
-    if (lhook) call dr_hook('radiation_cloud:set_overlap_param',0,hook_handle)
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_fix',0,hook_handle)
 
     ! Pressure at half-levels, pressure_hl, is defined at nlev+1
     ! points
@@ -281,9 +286,98 @@ contains
       end do
     end if
 
-    if (lhook) call dr_hook('radiation_cloud:set_overlap_param',1,hook_handle)
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_fix',1,hook_handle)
 
-  end subroutine set_overlap_param
+  end subroutine set_overlap_param_fix
+
+
+  !---------------------------------------------------------------------
+  ! Compute and store the overlap parameter from the provided overlap
+  ! decorrelation length (in metres), which may vary with column. Only
+  ! columns from istartcol to iendcol are computed.  If the
+  ! overlap_param array has not been allocated then it will be
+  ! allocated to be of the correct size relative to the pressure
+  ! field.
+  subroutine set_overlap_param_var(this, thermodynamics, decorrelation_length, &
+       &                           istartcol, iendcol)
+
+    use yomhook,                  only : lhook, dr_hook, jphook
+    use radiation_thermodynamics, only : thermodynamics_type
+    use radiation_constants,      only : GasConstantDryAir, AccelDueToGravity
+
+    class(cloud_type),         intent(inout) :: this
+    type(thermodynamics_type), intent(in)    :: thermodynamics
+    integer,                   intent(in)    :: istartcol, iendcol
+    real(jprb),                intent(in)    :: decorrelation_length(istartcol:iendcol) ! m
+
+    ! Ratio of gas constant for dry air to acceleration due to gravity
+    real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
+
+    integer :: ncol, nlev
+
+    integer :: jcol, jlev
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',0,hook_handle)
+
+    ! Pressure at half-levels, pressure_hl, is defined at nlev+1
+    ! points
+    ncol = size(thermodynamics%pressure_hl,dim=1)
+    nlev = size(thermodynamics%pressure_hl,dim=2)-1
+
+    if (.not. allocated(this%overlap_param)) then
+      ! If pressure is of size (ncol,nlev+1) then overlap_param is of
+      ! size (ncol,nlev-1), since overlap parameter is only defined here
+      ! for interfaces between model layers, not for the interface to
+      ! space or the surface
+      allocate(this%overlap_param(ncol, nlev-1))
+    end if
+
+    if (thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1)) then
+      ! Pressure is increasing with index (order of layers is
+      ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
+      ! don't take the logarithm of the first pressure in each column.
+      do jcol = istartcol,iendcol
+        this%overlap_param(jcol,1) = exp(-(R_over_g/decorrelation_length(jcol)) &
+             &                            * thermodynamics%temperature_hl(jcol,2) &
+             &                            *log(thermodynamics%pressure_hl(jcol,3) &
+             &                                /thermodynamics%pressure_hl(jcol,2)))
+      end do
+
+      do jlev = 2,nlev-1
+        do jcol = istartcol,iendcol
+          this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
+              &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
+              &                            *log(thermodynamics%pressure_hl(jcol,jlev+2) &
+              &                                /thermodynamics%pressure_hl(jcol,jlev)))
+        end do
+      end do
+
+    else
+       ! Pressure is decreasing with index (order of layers is surface
+       ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
+       ! don't take the logarithm of the last pressure in each column.
+      do jlev = 1,nlev-2
+        do jcol = istartcol,iendcol
+          this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
+              &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
+              &                            *log(thermodynamics%pressure_hl(jcol,jlev) &
+              &                                /thermodynamics%pressure_hl(jcol,jlev+2)))
+        end do
+      end do
+
+      do jcol = istartcol,iendcol
+        this%overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length(jcol)) &
+            &                            * thermodynamics%temperature_hl(jcol,nlev) &
+            &                            *log(thermodynamics%pressure_hl(jcol,nlev-1) &
+            &                                /thermodynamics%pressure_hl(jcol,nlev)))
+      end do
+    end if
+
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
+
+  end subroutine set_overlap_param_var
 
 
   !---------------------------------------------------------------------
@@ -298,7 +392,7 @@ contains
   subroutine set_overlap_param_approx(this, thermodynamics, decorrelation_length, &
        &  istartcol, iendcol)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
     use radiation_thermodynamics, only : thermodynamics_type
 
     class(cloud_type),         intent(inout) :: this
@@ -319,7 +413,7 @@ contains
 
     integer :: ncol, nlev
 
-    real(jprb)        :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_approx',0,hook_handle)
 
@@ -375,13 +469,13 @@ contains
   ! (dimensionless)
   subroutine create_fractional_std(this, ncol, nlev, frac_std)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     real(jprb),        intent(in)    :: frac_std
 
-    real(jprb)             :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',0,hook_handle)
 
@@ -402,13 +496,13 @@ contains
   ! Create a matrix of constant inverse cloud effective size (m-1)
   subroutine create_inv_cloud_effective_size(this, ncol, nlev, inv_eff_size)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     real(jprb),        intent(in)    :: inv_eff_size
 
-    real(jprb)             :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:create_inv_cloud_effective_size',0,hook_handle)
 
@@ -432,7 +526,7 @@ contains
        &  pressure_hl, inv_eff_size_low, inv_eff_size_mid, inv_eff_size_high, &
        &  eta_low_mid, eta_mid_high, istartcol, iendcol)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
@@ -455,7 +549,7 @@ contains
     ! Local values of istartcol, iendcol
     integer :: i1, i2
 
-    real(jprb)             :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:create_inv_cloud_effective_size_eta',0,hook_handle)
 
@@ -510,7 +604,7 @@ contains
        &  pressure_hl, separation_surf, separation_toa, power, &
        &  inhom_separation_factor, istartcol, iendcol)
 
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
@@ -539,7 +633,7 @@ contains
     ! Local values of istartcol, iendcol
     integer :: i1, i2
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:param_cloud_effective_separation_eta',0,hook_handle)
 
@@ -607,27 +701,36 @@ contains
   subroutine crop_cloud_fraction(this, istartcol, iendcol, &
        &    cloud_fraction_threshold, cloud_mixing_ratio_threshold)
     
-    use yomhook, only : lhook, dr_hook
+    use yomhook, only : lhook, dr_hook, jphook
 
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: istartcol, iendcol
 
-    integer :: nlev
-    integer :: jcol, jlev
+    integer :: nlev, ntype
+    integer :: jcol, jlev, jh
 
     real(jprb) :: cloud_fraction_threshold, cloud_mixing_ratio_threshold
+    real(jprb) :: sum_mixing_ratio(istartcol:iendcol)
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',0,hook_handle)
 
-    nlev = size(this%fraction,2)
-
+    nlev  = size(this%fraction,2)
+    ntype = size(this%mixing_ratio,3)
+    
     do jlev = 1,nlev
       do jcol = istartcol,iendcol
-        if (this%fraction(jcol,jlev) < cloud_fraction_threshold &
-             &  .or. sum(this%mixing_ratio(jcol,jlev,:)) &
-             &        < cloud_mixing_ratio_threshold) then
+        sum_mixing_ratio(jcol) = 0.0_jprb
+      end do
+      do jh = 1, ntype
+        do jcol = istartcol,iendcol
+          sum_mixing_ratio(jcol) = sum_mixing_ratio(jcol) + this%mixing_ratio(jcol,jlev,jh)
+        end do
+      end do
+      do jcol = istartcol,iendcol
+        if (this%fraction(jcol,jlev)        < cloud_fraction_threshold &
+             &  .or. sum_mixing_ratio(jcol) < cloud_mixing_ratio_threshold) then
           this%fraction(jcol,jlev) = 0.0_jprb
         end if
       end do
@@ -643,7 +746,7 @@ contains
   ! optionally only considering columns between istartcol and iendcol
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
-    use yomhook,          only : lhook, dr_hook
+    use yomhook,          only : lhook, dr_hook, jphook
     use radiation_check, only : out_of_bounds_2d, out_of_bounds_3d
 
     class(cloud_type), intent(inout) :: this
@@ -653,7 +756,7 @@ contains
 
     logical    :: do_fix_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud:out_of_physical_bounds',0,hook_handle)
 

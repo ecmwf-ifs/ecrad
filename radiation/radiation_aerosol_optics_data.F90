@@ -35,7 +35,7 @@ module radiation_aerosol_optics_data
   ! tries to use this aerosol type. The user may specify that an
   ! aerosol type is to be ignored in the radiation calculation, in
   ! which case iclass will be set equal to AerosolClassIgnored.
-  enum, bind(c) 
+  enum, bind(c)
      enumerator IAerosolClassUndefined,   IAerosolClassIgnored, &
           &     IAerosolClassHydrophobic, IAerosolClassHydrophilic
   end enum
@@ -156,7 +156,7 @@ contains
   ! Setup aerosol optics coefficients by reading them from a file
   subroutine setup_aerosol_optics(this, file_name, iverbose)
 
-    use yomhook,              only : lhook, dr_hook
+    use yomhook,              only : lhook, dr_hook, jphook
     use easy_netcdf,          only : netcdf_file
     use radiation_io,         only : nulerr, radiation_abort
 
@@ -170,7 +170,7 @@ contains
     real(jprb), allocatable :: wavelength_tmp(:)
     integer            :: iverb
 
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_data:setup',0,hook_handle)
 
@@ -317,7 +317,7 @@ contains
 
     class(aerosol_optics_type), intent(inout) :: this
     integer,                    intent(in)    :: ntype
-    
+
     ! Allocate memory for mapping arrays
     this%ntype = ntype
     allocate(this%iclass(ntype))
@@ -333,13 +333,13 @@ contains
   subroutine allocate(this, n_type_phobic, n_type_philic, nrh, &
        &              n_bands_lw, n_bands_sw, n_mono_wl)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(aerosol_optics_type), intent(inout) :: this
     integer, intent(in) :: n_type_phobic, n_type_philic, nrh
     integer, intent(in) :: n_bands_lw, n_bands_sw, n_mono_wl
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_data:allocate',0,hook_handle)
 
@@ -398,9 +398,10 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Save aerosol optical properties in the named file
   subroutine save_aerosol_optics(this, file_name, iverbose)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
     use easy_netcdf, only : netcdf_file
 
     class(aerosol_optics_type), intent(inout) :: this
@@ -410,7 +411,7 @@ contains
     ! Object for output NetCDF file
     type(netcdf_file) :: out_file
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_data:save',0,hook_handle)
 
@@ -502,11 +503,11 @@ contains
   ! Map user type "itype" onto stored hydrophobic type "i_type_phobic"
   subroutine set_hydrophobic_type(this, itype, i_type_phobic)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(aerosol_optics_type), intent(inout) :: this
     integer, intent(in)                       :: itype, i_type_phobic
-    real(jprb)                                :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_data:set_hydrophobic_type',0,hook_handle)
 
@@ -533,17 +534,17 @@ contains
   ! Map user type "itype" onto stored hydrophilic type "i_type_philic"
   subroutine set_hydrophilic_type(this, itype, i_type_philic)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(aerosol_optics_type), intent(inout) :: this
     integer, intent(in)                       :: itype, i_type_philic
-    real(jprb)                                :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_data:set_hydrophilic_type',0,hook_handle)
 
     if (.not. this%use_hydrophilic) then
       write(nulerr,'(a)') '*** Error: attempt to set hydrophilic aerosol type when no such types present'
-      call radiation_abort('Error setting up aerosols')      
+      call radiation_abort('Error setting up aerosols')
     end if
 
     if (itype < 1 .or. itype > this%ntype) then
@@ -569,11 +570,11 @@ contains
   ! Set a user type "itype" to be ignored in the radiation scheme
   subroutine set_empty_type(this, itype)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(aerosol_optics_type), intent(inout) :: this
     integer, intent(in)                       :: itype
-    real(jprb)                                :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_data:set_empty_type',0,hook_handle)
 
@@ -599,14 +600,14 @@ contains
   ! is ignored.
   subroutine set_types(this, itypes)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(aerosol_optics_type), intent(inout) :: this
     integer, dimension(:), intent(in)         :: itypes
 
     integer :: jtype
     integer :: istart, iend
-    real(jprb)                                :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_data:set_types',0,hook_handle)
 
@@ -634,12 +635,12 @@ contains
   ! it is best to remove the Dr Hook call.
   function calc_rh_index(this, rh)
 
-    !use yomhook,     only : lhook, dr_hook
+    !use yomhook,     only : lhook, dr_hook, jphook
 
-    class(aerosol_optics_type), intent(inout) :: this
+    class(aerosol_optics_type), intent(in)    :: this
     real(jprb),                 intent(in)    :: rh
     integer                                   :: calc_rh_index
-    !real(jprb)                                :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_aerosol_optics_data:calc_rh_index',0,hook_handle)
 
@@ -687,7 +688,7 @@ contains
         write(nulout,'(i4,a)') jtype, ' is unused'
       end if
     end do
-    
+
   end subroutine print_description
 
 
@@ -697,10 +698,10 @@ contains
     character(len=*), intent(in)  :: str
     integer,          intent(in)  :: iline
     character(len=NMaxLineLength) :: line_str
-    
+
     integer :: istart, iend, i_start_new, ioffset, ilength, i_line_current
     logical :: is_fail
-    
+
     i_line_current = 1
     istart = 1
     iend = len(str)
@@ -718,7 +719,7 @@ contains
       end if
       i_line_current = i_line_current + 1
     end do
-    
+
     if (.not. is_fail) then
       ! Find index of last character
       ioffset = scan(str(istart:iend), new_line(' '))
@@ -727,17 +728,17 @@ contains
       else
         ilength = ioffset - 1
       end if
-      
+
       if (ilength > NMaxLineLength) then
         ilength = NMaxLineLength
       end if
       iend = istart + ilength - 1
-      
+
       line_str = str(istart:iend)
     else
       write(line_str,'(i0,a)') iline, ': <unknown>'
     end if
-    
+
   end function get_line
-  
+
 end module radiation_aerosol_optics_data

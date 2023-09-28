@@ -25,7 +25,7 @@ contains
        &  config, od, ssa, g, planck_hl, emission, albedo, flux)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     use radiation_config, only         : config_type
     use radiation_flux, only           : flux_type, indexed_sum_profile
@@ -87,7 +87,7 @@ contains
     ! Loop indices for level and column
     integer :: jlev, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloudless_lw:solver_cloudless_lw',0,hook_handle)
 

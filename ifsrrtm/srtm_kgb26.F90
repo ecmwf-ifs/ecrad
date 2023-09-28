@@ -9,7 +9,7 @@ SUBROUTINE SRTM_KGB26
 !     ------------------------------------------------------------------
 
 USE PARKIND1  , ONLY : JPRB
-USE YOMHOOK   , ONLY : LHOOK, DR_HOOK
+USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOESRTA26 , ONLY : SFLUXREF, RAYL 
 
 !     ------------------------------------------------------------------
@@ -17,7 +17,7 @@ USE YOESRTA26 , ONLY : SFLUXREF, RAYL
 IMPLICIT NONE
 
 ! KURUCZ
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('SRTM_KGB26',0,ZHOOK_HANDLE)
 
 SFLUXREF = (/ &

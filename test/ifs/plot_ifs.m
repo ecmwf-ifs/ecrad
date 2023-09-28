@@ -7,30 +7,30 @@ path(path, '../common')
 code = 'ecrad_meridian';
 in = loadnc([code '.nc']);
 cases = {[code '_noaer_out.nc'],
-	 [code '_ecckd_noaer_out.nc'],
+	 [code '_ecckd_tc_noaer_out.nc'],
 	 [code '_default_out.nc'],
-	 [code '_ecckd_out.nc'],
-	 [code '_expran_out.nc'],
+	 [code '_ecckd_tc_out.nc'],
+	 [code '_expexp_out.nc'],
 	 [code '_tc_out.nc'],
 	 [code '_spartacus_out.nc'],
 	 [code '_ecckd_spartacus_out.nc'],
-	 [code '_spartacus_maxentr_out.nc']};
+	 [code '_default_out_REFERENCE.nc']};
 clear out
 for icase = 1:length(cases)
   out{icase} = loadnc(cases{icase});
 end
-case_list = [1 2 3 4 5 6 7 8];
-leg = {'McICA Exp-Exp no aerosols',...
-       'ecCKD McICA Exp-Exp no aerosols',...
+case_list = [1 2 3 4 5 6 7 8 9];
+leg = {'McICA no aerosols',...
+       'ecCKD Tripleclouds no aerosols',...
+       'McICA',...
+       'ecCKD McICA',...
        'McICA Exp-Exp',...
-       'ecCKD McICA Exp-Exp',...
-       'McICA Exp-Ran',...
-       'Tripleclouds Exp-Ran',...
-       'SPARTACUS Exp-Ran',...
-       'ecCKD SPARTACUS Exp-Ran',...
-       'Classic SPARTACUS Exp-Ran'};
+       'Tripleclouds',...
+       'SPARTACUS',...
+       'ecCKD SPARTACUS',...
+       'McICA REFERENCE'};
 
-styles = {'b','b--','r','r--','g','m','c','k'};
+styles = {'b','b--','r','r--','g','m','c','k','k--'};
 
 p = 0.01.*0.5.*median(in.pressure_hl(1:end-1,:)+in.pressure_hl(2:end,:),2);
 
@@ -49,7 +49,7 @@ subplot(nplot,1,2)
 plot(in.lat,in.skin_temperature-273.15,'r');
 hold on
 plot(in.lat,in.temperature_hl(end-1,:)-273.15,'b');
-legend('Skin temperature','Air between first two model levels',1);
+legend('Skin temperature','Air between first two model levels');
 xlim([-90 90]);
 ylabel('Temperature (\circC)');
 ylim([-50 60]);

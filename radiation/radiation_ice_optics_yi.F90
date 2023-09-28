@@ -16,7 +16,7 @@
 ! P. Yang, B.A. Baum, T. L'Ecuyer, L. Oreopoulos, E.J. Mlawer,
 ! A.J. Heymsfield, and K. Liou, 2013: Influence of Ice Particle
 ! Surface Roughening on the Global Cloud Radiative
-! Effect. J. Atmos. Sci., 70, 2794–2807,
+! Effect. J. Atmos. Sci., 70, 2794-2807,
 ! https://doi.org/10.1175/JAS-D-13-020.1
 
 module radiation_ice_optics_yi
@@ -39,7 +39,7 @@ contains
        &  re, od, scat_od, g)
 
     use parkind1, only : jprb, jpim
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -61,7 +61,7 @@ contains
     integer(jpim) :: lu_idx
     real(kind=jprb), parameter    :: lu_scale  = 0.2_jprb
     real(kind=jprb), parameter    :: lu_offset = 1.0_jprb
-    !real(jprb)  :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_yi_sw',0,hook_handle)
 
@@ -96,7 +96,7 @@ contains
        &  re, od, scat_od, g)
 
     use parkind1, only : jprb, jpim
-    !use yomhook,  only : lhook, dr_hook
+    !use yomhook,  only : lhook, dr_hook, jphook
 
     ! Number of bands
     integer, intent(in)  :: nb
@@ -118,7 +118,7 @@ contains
     integer(jpim) :: lu_idx
     real(kind=jprb), parameter    :: lu_scale  = 0.2_jprb
     real(kind=jprb), parameter    :: lu_offset = 1.0_jprb
-    !real(jprb)  :: hook_handle
+    !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_yi_sw',0,hook_handle)
 
