@@ -117,14 +117,6 @@ contains
     ao%n_type_phobic = size(ao%mass_ext_lw_phobic, 2)
     ao%n_type_philic = size(ao%mass_ext_lw_philic, 3)
 
-    ! Allocate memory for mapping arrays
-    ao%ntype = ao%n_type_phobic + ao%n_type_philic
-    allocate(ao%iclass(ao%ntype))
-    allocate(ao%itype(ao%ntype))
-
-    ao%iclass = IAerosolClassUndefined
-    ao%itype  = 0
-
   end subroutine setup_aerosol_optics_lmdz
 
 end module setup_aerosol_optics_lmdz_m
