@@ -64,9 +64,9 @@ endif
 # Consolidate flags
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
-	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
-export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
-	-lifsrrtm -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG) -I${HOME}/.local/include
+export LIBS    = $(LDFLAGS) -L../lib -L${HOME}/.local/lib -lradiation -lutilities \
+	-lifsrrtm -lifsaux $(FCLIBS) -lnetcdf95 $(NETCDF_LIB) $(OMPFLAG) -lnetcdf
 
 # Do we include Dr Hook from ECMWF's fiat library?
 ifdef FIATDIR
