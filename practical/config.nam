@@ -83,11 +83,11 @@ do_lw_aerosol_scattering = false,     ! Aerosols scatter in the longwave?
 n_aerosol_types  = 11,   ! Number of aerosol types in input file
 !
 ! The aerosol optical properties are in this file:
-aerosol_optics_override_file_name = 'aerosol_ifs_rrtm_46R1_with_NI_AM.nc'
+aerosol_optics_override_file_name = 'aerosol_optics_lmdz.nc'
 !
 ! For each of the 11 mixing ratios in the input file, we need to map to
 ! one of the optical properties, where negative numbers index
 ! hydrophilic aerosol types and positive numbers index hydrophobic
 ! aerosol types, e.g. 11=black carbon, -5=sulphate.
-i_aerosol_type_map = -1, -2, -3, 1, 2, 3, -4, 10, 11, 11, -5,
+i_aerosol_type_map = - 7, - 6, - 5, 1, 1, 1, - 2, 3, 2, 2, - 4
 /
