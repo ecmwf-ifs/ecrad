@@ -713,7 +713,7 @@ contains
       i_start_new = scan(str(istart:iend), new_line(' '))
       if (i_start_new == 0) then
         is_fail = .true.
-        cycle
+        exit
       else
         istart = istart + i_start_new
       end if
