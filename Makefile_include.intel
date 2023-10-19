@@ -22,7 +22,7 @@ WARNFLAGS = -warn all
 # input files are big endian Fortran unformatted files, but now the
 # file ordering has been specified at the OPEN command so no compiler
 # flags are needed.
-BASICFLAGS = -module ../mod -fpe0 -fp-model precise -ftz -fp-speculation safe -heap-arrays -traceback
+BASICFLAGS = -module ../mod -fpe0 -fp-model precise -ftz -fp-speculation safe -heap-arrays
 
 DEBUGFLAGS = -g
 OMPFLAG = -qopenmp -qopenmp-lib=compat
