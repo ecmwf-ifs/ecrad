@@ -207,9 +207,6 @@ contains
     ! Indices to wavenumber intervals in spectral definition structure
     integer    :: isd, isd0, isd1, isd2
 
-    ! Wavenumber index
-    integer    :: iwav
-    
     ! Loop indices
     integer    :: jg, jwav, jband
 
@@ -268,27 +265,6 @@ contains
             weight(jwav) = (wavenum2-wavenum1) * planck_weight(jwav)
           end if
         end do
-        if (sum(weight) <= 0.0_jprb) then
-          ! No cloud wavenumbers lie in the band; interpolate to
-          ! central wavenumber of band instead
-          if (wavenumber(1) >= this%wavenumber2_band(jband)) then
-            ! Band is entirely below first cloudy wavenumber
-            weight(1) = 1.0_jprb
-          else if (wavenumber(nwav) <= this%wavenumber1_band(jband)) then
-            ! Band is entirely above last cloudy wavenumber
-            weight(nwav) = 1.0_jprb
-          else
-            ! Find interpolating points
-            iwav = 2
-            do while (wavenumber(iwav) < this%wavenumber2_band(jband))
-              iwav = iwav+1
-            end do
-            weight(iwav-1) = planck_weight(iwav-1) * (wavenumber(iwav) &
-                 &  - 0.5_jprb*(this%wavenumber2_band(jband)+this%wavenumber1_band(jband)))
-            weight(iwav) = planck_weight(iwav) * (-wavenumber(iwav-1) &
-                 &  + 0.5_jprb*(this%wavenumber2_band(jband)+this%wavenumber1_band(jband)))
-          end if
-        end if
         mapping(jband,:) = weight / sum(weight)
       end do
 

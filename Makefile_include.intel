@@ -1,9 +1,6 @@
 # This is a Makefile for the Intel compiler: run "make
-# PROFILE=intel". Note that by default the Intel compiler puts arrays
-# on the stack, which is likely to cause a stack overflow - hence the
-# use of "-heap-arrays" which puts them on the heap like most other
-# compilers.  If you remove this argument you will likely need to set
-# the environment variable OMP_STACKSIZE to 64MB.
+# PROFILE=intel". Need all arrays to be on the heap for it to work,
+# hence -heap-arrays.
 
 FC = ifort
 CC = icc
@@ -12,11 +9,11 @@ CPPFLAGS =
 ifndef DEBUG
 OPTFLAGS = -O3
 else
-OPTFLAGS = -O0 -check bounds -init=snan
+OPTFLAGS = -O0
 endif
 
 LDFLAGS = -lrt
 WARNFLAGS = -warn all
-BASICFLAGS = -module ../mod -convert big_endian -fpe0 -fp-model precise -ftz -fp-speculation safe -heap-arrays
+BASICFLAGS = -module ../mod -convert big_endian -fpe0 -fp-model precise -ftz -fp-speculation safe
 DEBUGFLAGS = -g
 OMPFLAG = -qopenmp -qopenmp-lib=compat
