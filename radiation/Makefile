@@ -24,7 +24,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_gas_constants.F90 radiation_ecckd_gas.F90 \
 	radiation_spectral_definition.F90 radiation_general_cloud_optics.F90 \
 	radiation_general_cloud_optics_data.F90 radiation_random_numbers.F90 \
-	radiation_aerosol_optics_description.F90 setup_aerosol_optics_lmdz_m.F90
+	radiation_aerosol_optics_description.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBRAD = ../lib/libradiation.a
