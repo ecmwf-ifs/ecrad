@@ -7,22 +7,23 @@ SUBROUTINE RRTM_KGB6
 !     G.Mozdzynski March 2011 read constants from files
 !     ABozzo 201306 updated to rrtmg v4.85
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
+!      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 
-USE YOERRTO6 , ONLY : KAO     ,KAO_D,KAO_MCO2, SELFREFO, FORREFO ,FRACREFAO ,CFC11ADJO ,&
- & CFC12O 
+USE YOERRTO6 , ONLY : KAO     ,KAO_MCO2, SELFREFO, FORREFO ,FRACREFAO ,CFC11ADJO ,&
+ & CFC12O, KAO_D 
 USE YOMMP0    , ONLY : NPROC, MYPROC
 
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
 
@@ -245,6 +246,7 @@ CFC12O( :) = (/&
      & 4.63286E-02_JPRB, 3.97054E-02_JPRB, 3.40290E-02_JPRB, 2.91641E-02_JPRB, 2.49948E-02_JPRB/)
 
 IF (LHOOK) CALL DR_HOOK('RRTM_KGB6',1,ZHOOK_HANDLE)
+
 RETURN
 
 1001 CONTINUE

@@ -54,7 +54,7 @@ contains
        &  flux)
 
     use parkind1,                 only : jprb
-    use yomhook,                  only : lhook, dr_hook
+    use yomhook,                  only : lhook, dr_hook, jphook
 
     use radiation_io,             only : nulout
     use radiation_config,         only : config_type, IPdfShapeGamma
@@ -272,7 +272,7 @@ contains
     ! and below the ground, both treated as single-region clear skies
     logical :: is_clear_sky_layer(0:nlev+1)
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spartacus_lw:solver_spartacus_lw',0,hook_handle)
 

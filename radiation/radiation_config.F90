@@ -102,7 +102,7 @@ module radiation_config
        &                                                'RRTMG-IFS    ', &
        &                                                'ECCKD        '/)
 
-  ! Hydrometeor scattering models
+  ! Liquid cloud optics models for use with RRTMG gas optics
   enum, bind(c) 
      enumerator ILiquidModelMonochromatic, &
           &     ILiquidModelSOCRATES, ILiquidModelSlingo
@@ -111,17 +111,21 @@ module radiation_config
        &                                                   'SOCRATES     ', &
        &                                                   'Slingo       ' /)
 
+  ! Ice optics models for use with RRTMG gas optics. Note that of the
+  ! "Baran" parameterizations, only Baran2016 is published (Baran,
+  ! J. Climate, 2016) - the others are experimental and not
+  ! recommended.
   enum, bind(c) 
      enumerator IIceModelMonochromatic, IIceModelFu, &
           &  IIceModelBaran, IIceModelBaran2016, IIceModelBaran2017,   &
           &  IIceModelYi
   end enum
-  character(len=*), parameter :: IceModelName(0:5) = (/ 'Monochromatic', &
-       &                                                'Fu-IFS       ', &
-       &                                                'Baran        ', &
-       &                                                'Baran2016    ', &
-       &                                                'Baran2017    ', &
-       &                                                'Yi           ' /)
+  character(len=*), parameter :: IceModelName(0:5) = (/ 'Monochromatic         ', &
+       &                                                'Fu-IFS                ', &
+       &                                                'Baran-EXPERIMENTAL    ', &
+       &                                                'Baran2016             ', &
+       &                                                'Baran2017-EXPERIMENTAL', &
+       &                                                'Yi                    ' /)
 
   ! Cloud PDF distribution shapes
   enum, bind(c)
@@ -154,9 +158,16 @@ module radiation_config
   type config_type
     ! USER-CONFIGURABLE PARAMETERS
 
-    ! Override default solar spectrum
+    ! Scale the solar spectrum per band (or g-point if
+    ! do_cloud_aerosol_per_sw_g_point=true) via vector
+    ! single_level%spectral_solar_scaling
     logical :: use_spectral_solar_scaling = .false.
 
+    ! Modify the solar spectrum per g-point to account for the current
+    ! phase of the solar cycle, via scalar
+    ! single_level%spectral_solar_cycle_multiplier
+    logical :: use_spectral_solar_cycle = .false.
+    
     ! Directory in which gas, cloud and aerosol data files are to be
     ! found
     character(len=511) :: directory_name = '.'
@@ -310,7 +321,7 @@ module radiation_config
     ! the wavelength bounds specified in sw_albedo_wavelength_bound
     ! and lw_emiss_wavelength_bound
     integer :: i_sw_albedo_index(NMaxAlbedoIntervals) = 0
-    integer :: i_lw_emiss_index (NMaxAlbedoIntervals)  = 0
+    integer :: i_lw_emiss_index (NMaxAlbedoIntervals) = 0
 
     ! Do we compute longwave and/or shortwave radiation?
     logical :: do_lw = .true.
@@ -413,6 +424,9 @@ module radiation_config
     ! Save the surface downwelling shortwave fluxes in each band?
     logical :: do_surface_sw_spectral_flux = .true.
 
+    ! Save the TOA fluxes in each band?
+    logical :: do_toa_spectral_flux = .false.
+
     ! Compute the longwave derivatives needed to apply the approximate
     ! radiation updates of Hogan and Bozzo (2015)
     logical :: do_lw_derivatives = .false.
@@ -466,6 +480,15 @@ module radiation_config
     character(len=511) :: gas_optics_sw_override_file_name  = ''
     character(len=511) :: gas_optics_lw_override_file_name  = ''
 
+    ! Optionally override the default file describing variations in
+    ! the spectral solar irradiance associated with the solar cycle
+    character(len=511) :: ssi_override_file_name = ''
+
+    ! Do we use the solar spectral irradiance file to update the solar
+    ! irradiance in each g point? Only possible if
+    ! use_spectral_solar_cycle==true.
+    logical :: use_updated_solar_spectrum = .false.
+    
     ! Optionally override the look-up table file for the cloud-water
     ! PDF used by the McICA solver
     character(len=511) :: cloud_pdf_override_file_name = ''
@@ -568,6 +591,9 @@ module radiation_config
          &                aerosol_optics_file_name, &
          &                gas_optics_sw_file_name, &
          &                gas_optics_lw_file_name
+
+    ! Solar spectral irradiance file name
+    character(len=511) :: ssi_file_name
     
     ! McICA PDF look-up table file name
     character(len=511) :: cloud_pdf_file_name
@@ -606,6 +632,7 @@ module radiation_config
      procedure :: set  => set_config
      procedure :: print => print_config
      procedure :: get_sw_weights
+     procedure :: get_sw_mapping
      procedure :: define_sw_albedo_intervals
      procedure :: define_lw_emiss_intervals
      procedure :: set_aerosol_wavelength_mono
@@ -629,7 +656,7 @@ contains
   ! read, but not both.
   subroutine read_config_from_namelist(this, file_name, unit, is_success)
 
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulout, nulerr, nulrad, radiation_abort
 
     class(config_type), intent(inout)         :: this
@@ -650,14 +677,15 @@ contains
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
     logical :: do_save_radiative_properties, do_save_spectral_flux
-    logical :: do_save_gpoint_flux, do_surface_sw_spectral_flux
+    logical :: do_save_gpoint_flux, do_surface_sw_spectral_flux, do_toa_spectral_flux
     logical :: use_beta_overlap, do_lw_derivatives, use_vectorizable_generator
     logical :: do_sw_delta_scaling_with_gases
     logical :: do_canopy_fluxes_sw, do_canopy_fluxes_lw
     logical :: use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw
     logical :: do_canopy_gases_sw, do_canopy_gases_lw
     logical :: do_cloud_aerosol_per_sw_g_point, do_cloud_aerosol_per_lw_g_point
-    logical :: do_weighted_surface_mapping    
+    logical :: do_weighted_surface_mapping
+    logical :: use_spectral_solar_scaling, use_spectral_solar_cycle, use_updated_solar_spectrum
     integer :: n_regions, iverbose, iverbosesetup, n_aerosol_types
     real(jprb):: mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od
     real(jprb):: mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo
@@ -671,6 +699,7 @@ contains
     character(511) :: liq_optics_override_file_name, ice_optics_override_file_name
     character(511) :: cloud_pdf_override_file_name
     character(511) :: gas_optics_sw_override_file_name, gas_optics_lw_override_file_name
+    character(511) :: ssi_override_file_name
     character(63)  :: liquid_model_name, ice_model_name, gas_model_name
     character(63)  :: sw_solver_name, lw_solver_name, overlap_scheme_name
     character(63)  :: sw_entrapment_name, sw_encroachment_name, cloud_pdf_shape_name
@@ -694,12 +723,13 @@ contains
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
-         &  do_surface_sw_spectral_flux, do_lw_derivatives, &
+         &  do_surface_sw_spectral_flux, do_lw_derivatives, do_toa_spectral_flux, &
          &  do_lw_aerosol_scattering, do_lw_cloud_scattering, &
          &  n_regions, directory_name, gas_model_name, &
          &  ice_optics_override_file_name, liq_optics_override_file_name, &
          &  aerosol_optics_override_file_name, cloud_pdf_override_file_name, &
          &  gas_optics_sw_override_file_name, gas_optics_lw_override_file_name, &
+         &  ssi_override_file_name, &
          &  liquid_model_name, ice_model_name, max_3d_transfer_rate, &
          &  min_cloud_effective_size, overhang_factor, encroachment_scaling, &
          &  use_canopy_full_spectrum_sw, use_canopy_full_spectrum_lw, &
@@ -721,9 +751,10 @@ contains
          &  sw_albedo_wavelength_bound, lw_emiss_wavelength_bound, &
          &  i_sw_albedo_index, i_lw_emiss_index, &
          &  do_cloud_aerosol_per_lw_g_point, &
-         &  do_cloud_aerosol_per_sw_g_point, do_weighted_surface_mapping
+         &  do_cloud_aerosol_per_sw_g_point, do_weighted_surface_mapping, &
+         &  use_spectral_solar_scaling, use_spectral_solar_cycle, use_updated_solar_spectrum
          
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_config:read',0,hook_handle)
 
@@ -753,6 +784,7 @@ contains
     aerosol_optics_override_file_name = this%aerosol_optics_override_file_name
     gas_optics_sw_override_file_name = this%gas_optics_sw_override_file_name
     gas_optics_lw_override_file_name = this%gas_optics_lw_override_file_name
+    ssi_override_file_name = this%ssi_override_file_name
     use_expm_everywhere = this%use_expm_everywhere
     use_aerosols = this%use_aerosols
     do_save_radiative_properties = this%do_save_radiative_properties
@@ -760,6 +792,7 @@ contains
     do_save_gpoint_flux = this%do_save_gpoint_flux
     do_lw_derivatives = this%do_lw_derivatives
     do_surface_sw_spectral_flux = this%do_surface_sw_spectral_flux
+    do_toa_spectral_flux = this%do_toa_spectral_flux
     iverbose = this%iverbose
     iverbosesetup = this%iverbosesetup
     use_general_cloud_optics = this%use_general_cloud_optics
@@ -807,6 +840,9 @@ contains
     do_cloud_aerosol_per_lw_g_point = this%do_cloud_aerosol_per_lw_g_point
     do_cloud_aerosol_per_sw_g_point = this%do_cloud_aerosol_per_sw_g_point
     do_weighted_surface_mapping   = this%do_weighted_surface_mapping
+    use_spectral_solar_scaling    = this%use_spectral_solar_scaling
+    use_spectral_solar_cycle      = this%use_spectral_solar_cycle
+    use_updated_solar_spectrum    = this%use_updated_solar_spectrum
 
     if (present(file_name) .and. present(unit)) then
       write(nulerr,'(a)') '*** Error: cannot specify both file_name and unit in call to config_type%read'
@@ -896,6 +932,7 @@ contains
     this%do_lw_aerosol_scattering = do_lw_aerosol_scattering
     this%nregions = n_regions
     this%do_surface_sw_spectral_flux = do_surface_sw_spectral_flux
+    this%do_toa_spectral_flux = do_toa_spectral_flux
     this%do_sw_delta_scaling_with_gases = do_sw_delta_scaling_with_gases
     this%do_fu_lw_ice_optics_bug = do_fu_lw_ice_optics_bug
     this%do_canopy_fluxes_sw = do_canopy_fluxes_sw
@@ -937,6 +974,7 @@ contains
     this%aerosol_optics_override_file_name = aerosol_optics_override_file_name
     this%gas_optics_sw_override_file_name = gas_optics_sw_override_file_name
     this%gas_optics_lw_override_file_name = gas_optics_lw_override_file_name
+    this%ssi_override_file_name = ssi_override_file_name
     this%use_general_cloud_optics      = use_general_cloud_optics
     this%use_general_aerosol_optics    = use_general_aerosol_optics
     this%cloud_fraction_threshold = cloud_fraction_threshold
@@ -955,6 +993,9 @@ contains
     this%do_cloud_aerosol_per_lw_g_point = do_cloud_aerosol_per_lw_g_point
     this%do_cloud_aerosol_per_sw_g_point = do_cloud_aerosol_per_sw_g_point
     this%do_weighted_surface_mapping   = do_weighted_surface_mapping
+    this%use_spectral_solar_scaling    = use_spectral_solar_scaling
+    this%use_spectral_solar_cycle      = use_spectral_solar_cycle
+    this%use_updated_solar_spectrum    = use_updated_solar_spectrum
 
     if (do_save_gpoint_flux) then
       ! Saving the fluxes every g-point overrides saving as averaged
@@ -1044,12 +1085,12 @@ contains
   subroutine consolidate_config(this)
 
     use parkind1,     only : jprd
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulout, nulerr, radiation_abort
 
     class(config_type), intent(inout)         :: this
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_config:consolidate',0,hook_handle)
 
@@ -1088,15 +1129,13 @@ contains
     ! If ecCKD gas optics model is being used set relevant file names
     if (this%i_gas_model == IGasModelECCKD) then
 
-      ! This gas optics model requires the general cloud and
+      ! This gas optics model usually used with general cloud and
       ! aerosol optics settings
       if (.not. this%use_general_cloud_optics) then
-        write(nulerr,'(a)') '*** Error: ecCKD gas optics model requires general cloud optics'
-        call radiation_abort('Radiation configuration error')
+        write(nulout,'(a)') 'Warning: ecCKD gas optics model usually used with general cloud optics'
       end if
       if (.not. this%use_general_aerosol_optics) then
-        write(nulerr,'(a)') '*** Error: ecCKD gas optics model requires general aerosol optics'
-        call radiation_abort('Radiation configuration error')
+        write(nulout,'(a)') 'Warning: ecCKD gas optics model usually used with general aerosol optics'
       end if
 
       if (len_trim(this%gas_optics_sw_override_file_name) > 0) then
@@ -1110,7 +1149,7 @@ contains
         ! In the IFS, the gas optics files should be specified in
         ! ifs/module/radiation_setup.F90, not here
         this%gas_optics_sw_file_name = trim(this%directory_name) &
-             &  // "/ecckd-1.0_sw_climate_rgb-32b_ckd-definition.nc"
+             &  // "/ecckd-1.4_sw_climate_rgb-32b_ckd-definition.nc"
       end if
 
       if (len_trim(this%gas_optics_lw_override_file_name) > 0) then
@@ -1129,6 +1168,26 @@ contains
 
     end if
 
+    if (this%use_spectral_solar_cycle) then
+      if (this%i_gas_model /= IGasModelECCKD) then
+        write(nulerr,'(a)') '*** Error: solar cycle only available with ecCKD gas optics model'
+        call radiation_abort('Radiation configuration error')
+      else
+        ! Add directory name to solar spectral irradiance file, if
+        ! provided and does not start with '/'
+        if (len_trim(this%ssi_override_file_name) > 0) then
+          if (this%ssi_override_file_name(1:1) /= '/') then
+            this%ssi_file_name = trim(this%directory_name) &
+                 &  // '/' // trim(this%ssi_override_file_name)
+          else
+            this%ssi_file_name = trim(this%ssi_override_file_name)
+          end if
+        else
+          this%ssi_file_name = 'ssi_nrl2.nc'
+        end if
+      end if
+    end if
+    
     ! Set aerosol optics file name
     if (len_trim(this%aerosol_optics_override_file_name) > 0) then
       if (this%aerosol_optics_override_file_name(1:1) == '/') then
@@ -1142,7 +1201,7 @@ contains
       ! ifs/module/radiation_setup.F90, not here
       if (this%use_general_aerosol_optics) then
          this%aerosol_optics_file_name &
-             &   = trim(this%directory_name) // "/aerosol_ifs_48R1.nc"       
+             &   = trim(this%directory_name) // "/aerosol_ifs_49R1_20230119.nc"       
       else
         this%aerosol_optics_file_name &
              &   = trim(this%directory_name) // "/aerosol_ifs_rrtm_46R1_with_NI_AM.nc"
@@ -1228,6 +1287,7 @@ contains
 
     ! McICA solver currently can't store full profiles of spectral fluxes
     if (this%i_solver_sw == ISolverMcICA) then
+      write(nulout, '(a)') 'Warning: McICA solver cannot store full profiles of spectral fluxes'
       this%do_save_spectral_flux = .false.
     end if
 
@@ -1351,9 +1411,17 @@ contains
         call print_logical('  Do cloud/aerosol/surface LW properties per g-point', &
              &  'do_cloud_aerosol_per_lw_g_point', this%do_cloud_aerosol_per_lw_g_point)
       end if
-
+      if (this%do_sw) then
+        call print_logical('  Represent solar cycle in spectral irradiance', &
+             &  'use_spectral_solar_cycle', this%use_spectral_solar_cycle)
+        call print_logical('  Scale spectral solar irradiance', &
+             &  'use_spectral_solar_scaling', this%use_spectral_solar_scaling)
+      end if
+      
       !---------------------------------------------------------------------
-      write(nulout, '(a)') 'Surface settings:'
+      write(nulout, '(a)') 'Surface and top-of-atmosphere settings:'
+      call print_logical('  Saving top-of-atmosphere spectral fluxes', &
+           &   'do_toa_spectral_flux', this%do_toa_spectral_flux)
       if (this%do_sw) then
         call print_logical('  Saving surface shortwave spectral fluxes', &
              &   'do_surface_sw_spectral_flux', this%do_surface_sw_spectral_flux)
@@ -1500,7 +1568,6 @@ contains
   end subroutine print_config
 
 
-
   !---------------------------------------------------------------------
   ! In order to estimate UV and photosynthetically active radiation,
   ! we need weighted sum of fluxes considering wavelength range
@@ -1548,7 +1615,7 @@ contains
     wavenumber1 = 0.01_jprb / wavelength2
     wavenumber2 = 0.01_jprb / wavelength1
 
-    call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
+    call this%gas_optics_sw%spectral_def%calc_mapping_from_bands( &
          &  [wavelength1, wavelength2], [1, 2, 3], mapping, &
          &  use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point), use_fluxes=.true.)
 
@@ -1588,6 +1655,73 @@ contains
 
   end subroutine get_sw_weights
 
+  
+  !---------------------------------------------------------------------
+  ! As get_sw_weights but suitable for a larger number of spectral
+  ! diagnostics at once: a set of monotonically increasing wavelength
+  ! bounds are provided (m), and a mapping matrix is allocated and
+  ! returned such that y=matmul(mapping,x), where x is a set of
+  ! band-wise fluxes after calling ecRad, e.g. flux%sw_dn_surf_band,
+  ! and y is the resulting fluxes in each of the wavenumber
+  ! intervals. If the character string "weighting_name" is present,
+  ! and iverbose>=2, then information on the weighting will be
+  ! provided on nulout.
+  subroutine get_sw_mapping(this, wavelength_bound, mapping, weighting_name)
+
+    use parkind1, only : jprb
+    use radiation_io, only : nulout, nulerr, radiation_abort
+    use radiation_spectral_definition, only : SolarReferenceTemperature
+
+    class(config_type), intent(in) :: this
+    ! Range of wavelengths to get weights for (m)
+    real(jprb), intent(in)  :: wavelength_bound(:)
+    real(jprb), intent(out), allocatable :: mapping(:,:)
+    character(len=*), optional, intent(in) :: weighting_name
+
+    real(jprb), allocatable :: mapping_local(:,:)
+    integer,    allocatable :: diag_ind(:)
+
+    integer :: ninterval
+    
+    integer :: jint  ! Loop for interval
+    
+    if (this%n_bands_sw <= 0) then
+      write(nulerr,'(a)') '*** Error: get_sw_mapping called before number of shortwave bands set'
+      call radiation_abort('Radiation configuration error')
+    end if
+
+    ninterval = size(wavelength_bound)-1
+    allocate(diag_ind(ninterval+2))
+    diag_ind = 0
+    do jint = 1,ninterval+2
+      diag_ind(jint) = jint
+    end do
+    
+    call this%gas_optics_sw%spectral_def%calc_mapping_from_bands( &
+         &  wavelength_bound, diag_ind, mapping_local, &
+         &  use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point), use_fluxes=.false.)
+
+    ! "mapping" now contains a (ninterval+2)*nband matrix, where the
+    ! first and last rows correspond to wavelengths smaller than the
+    ! first and larger than the last, which we discard
+    mapping = mapping_local(2:ninterval+1,:)
+
+    if (this%iverbosesetup >= 2 .and. present(weighting_name)) then
+      write(nulout,'(a,a)') 'Spectral mapping generated for ', &
+           &  weighting_name
+        if (this%do_cloud_aerosol_per_sw_g_point) then
+          write(nulout,'(a,i0,a,i0,a,f9.3,a,f9.3,a)') '  from ', size(mapping,2), ' g-points to ', &
+             &  size(mapping,1), ' wavelength intervals between ', &
+             &  wavelength_bound(1)*1.0e6_jprb, ' um and ', wavelength_bound(ninterval+1)*1.0e6_jprb, ' um'
+        else
+          write(nulout,'(a,i0,a,i0,a,f9.3,a,f9.3,a)') '  from ', size(mapping,2), ' bands to ', &
+               &  size(mapping,1), ' wavelength intervals between ', &
+               &  wavelength_bound(1)*1.0e6_jprb, ' um and ', wavelength_bound(ninterval+1)*1.0e6_jprb, ' um'
+      end if
+    end if
+    
+  end subroutine get_sw_mapping
+
 
   !---------------------------------------------------------------------
   ! The input shortwave surface albedo coming in is likely to be in
@@ -1624,7 +1758,9 @@ contains
     else
       this%do_nearest_spectral_sw_albedo = .false.
     end if
-    this%sw_albedo_wavelength_bound(1:ninterval-1) = wavelength_bound(1:ninterval-1)
+    if (ninterval > 1) then
+      this%sw_albedo_wavelength_bound(1:ninterval-1) = wavelength_bound(1:ninterval-1)
+    end if
     this%sw_albedo_wavelength_bound(ninterval:)    = -1.0_jprb
     this%i_sw_albedo_index(1:ninterval)            = i_intervals(1:ninterval)
     this%i_sw_albedo_index(ninterval+1:)           = 0
@@ -1670,7 +1806,9 @@ contains
     else
       this%do_nearest_spectral_lw_emiss = .false.
     end if
-    this%lw_emiss_wavelength_bound(1:ninterval-1) = wavelength_bound(1:ninterval-1)
+    if (ninterval > 1) then
+      this%lw_emiss_wavelength_bound(1:ninterval-1) = wavelength_bound(1:ninterval-1)
+    end if
     this%lw_emiss_wavelength_bound(ninterval:)    = -1.0_jprb
     this%i_lw_emiss_index(1:ninterval)            = i_intervals(1:ninterval)
     this%i_lw_emiss_index(ninterval+1:)           = 0
@@ -1749,12 +1887,12 @@ contains
     end if
     
     if (this%do_weighted_surface_mapping) then
-      call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(SolarReferenceTemperature, &
+      call this%gas_optics_sw%spectral_def%calc_mapping_from_bands( &
            &  this%sw_albedo_wavelength_bound(1:ninterval-1), this%i_sw_albedo_index(1:ninterval), &
            &  this%sw_albedo_weights, use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point))
     else
       ! Weight each wavenumber equally as in IFS Cycles 48 and earlier
-      call this%gas_optics_sw%spectral_def%calc_mapping_from_bands(-1.0_jprb, &
+      call this%gas_optics_sw%spectral_def%calc_mapping_from_bands( &
            &  this%sw_albedo_wavelength_bound(1:ninterval-1), this%i_sw_albedo_index(1:ninterval), &
            &  this%sw_albedo_weights, use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point))
     end if
@@ -1827,12 +1965,12 @@ contains
     end if
 
     if (this%do_weighted_surface_mapping) then
-      call this%gas_optics_lw%spectral_def%calc_mapping_from_bands(TerrestrialReferenceTemperature, &
+      call this%gas_optics_lw%spectral_def%calc_mapping_from_bands( &
            &  this%lw_emiss_wavelength_bound(1:ninterval-1), this%i_lw_emiss_index(1:ninterval), &
            &  this%lw_emiss_weights, use_bands=(.not. this%do_cloud_aerosol_per_lw_g_point))
     else
       ! Weight each wavenumber equally as in IFS Cycles 48 and earlier
-      call this%gas_optics_lw%spectral_def%calc_mapping_from_bands(-1.0_jprb, &
+      call this%gas_optics_lw%spectral_def%calc_mapping_from_bands( &
            &  this%lw_emiss_wavelength_bound(1:ninterval-1), this%i_lw_emiss_index(1:ninterval), &
            &  this%lw_emiss_weights, use_bands=(.not. this%do_cloud_aerosol_per_lw_g_point))
     end if

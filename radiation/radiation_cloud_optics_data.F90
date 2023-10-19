@@ -45,10 +45,9 @@ contains
 
   !---------------------------------------------------------------------
   ! Setup cloud optics coefficients by reading them from a file
-  subroutine setup_cloud_optics(this, liq_file_name, ice_file_name, &
-       &                        iverbose)
-
-    use yomhook,  only : lhook, dr_hook
+  subroutine setup_cloud_optics(this, liq_file_name, ice_file_name, iverbose)
+    
+    use yomhook,  only : lhook, dr_hook, jphook
     use easy_netcdf, only : netcdf_file
 
     class(cloud_optics_type), intent(inout) :: this
@@ -58,7 +57,7 @@ contains
     ! The NetCDF file containing the coefficients
     type(netcdf_file)  :: file
     integer            :: iverb
-    real(jprb)         :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_optics_data:setup',0,hook_handle)
 

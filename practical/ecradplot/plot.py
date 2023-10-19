@@ -1,7 +1,7 @@
 """
 Filename:     plot.py
 Author:       Shannon Mason, shannon.mason@ecmwf.int
-Description:  Plotting functions 
+Description:  Plotting functions
 """
 
 import pandas as pd
@@ -38,7 +38,7 @@ warnings.simplefilter(action = "ignore", category = RuntimeWarning)
 def get_vextents(da, q=0.01, symmetric=False):
     vmin = da.quantile(q=0.01).values
     vmax = da.quantile(q=1-q).values
-    
+
     #All negative
     if (vmin < 0) & (vmax < 0) & ~symmetric:
         return vmin, 0
@@ -52,21 +52,21 @@ def get_vextents(da, q=0.01, symmetric=False):
 def irregular_pcolor(ax, X, Y, C, args, cbar_kwargs=None):
     _X, _Y, _C = xr.broadcast(X, Y, C)
     _cm = ax.pcolor(_X.values, _Y.values, _C.values, **args)
-        
+
     if cbar_kwargs:
         try:
             _cb = plt.colorbar(_cm, ax=ax, **cbar_kwargs)
         except:
             print("Bug with colorbars")
-        
+
     if 'level' in C.dims:
-        ax.fill_between(_X.max('level'), _Y.max('level'), y2=1100e2, facecolor='0.67', 
+        ax.fill_between(_X.max('level'), _Y.max('level'), y2=1100e2, facecolor='0.67',
                         hatch='////', edgecolor='k', lw=0.0, zorder=-10)
     elif 'half_level' in C.dims:
-        ax.fill_between(_X.max('half_level'), _Y.max('half_level'), y2=1100e2, facecolor='0.67', 
+        ax.fill_between(_X.max('half_level'), _Y.max('half_level'), y2=1100e2, facecolor='0.67',
                         hatch='////', edgecolor='k', lw=0.0, zorder=-10)
     return _cm
-    
+
 def irregular_contour(ax, X, Y, C, args, cbar_kwargs=None):
     _X, _Y, _C = xr.broadcast(X, Y, C)
     _cm = ax.contour(_X, _Y, _C, **args)
@@ -78,27 +78,27 @@ def add_temperature_contours(ax, ds, x_dim='latitude'):
     """
     Draw contours of temperature (from ds) to ax.
     """
-    
+
     _cn = irregular_contour(ax, ds.latitude, ds.pressure_hl, ds.temperature_hl-273.15,
                      dict(levels=np.arange(-80,41,20),
-                          colors=['k'], 
+                          colors=['k'],
                           linewidths=[1.5, 0.5, 1.5, 0.5, 2.5, 0.5, 1.5]))
     _labels = ax.clabel(_cn, [l for l in [-80,-60,-40,-20,0,20,40] if l in _cn.levels], inline=1, fmt='$%.0f^{\circ}$C', fontsize='xx-small', colors=['k'])
-    
+
     for l in _labels:
         l.set_rotation(0)
-    
+
 
 def plot_inputs_noncloud(IFS_srcfile, dstfile=None, line_ds='default'):
     """
     Plot multiple-panel figure describing non-cloud inputs to ecRAD.
     """
-    
+
     _ds = load_inputs(IFS_srcfile)
-        
+
     #Set up figure and axes
     nrows=4
-        
+
     fig, axes= plt.subplots(figsize=(25,4*nrows), nrows=nrows, sharex=True)
 
     #First panel: SW & surface fields
@@ -113,7 +113,7 @@ def plot_inputs_noncloud(IFS_srcfile, dstfile=None, line_ds='default'):
     _ax0 = axes[i].twinx()
     _ax0.yaxis.set_label_position("right")
     _ax0.yaxis.tick_right()
-        
+
     if hasattr(_ds, 'sw_albedo_band'):
         _ds.sw_albedo.isel(sw_albedo_band=2).plot.step(ax=_ax0, x='latitude', color=sns.color_palette()[0], lw=4, drawstyle=line_ds)
     else:
@@ -143,10 +143,10 @@ def plot_inputs_noncloud(IFS_srcfile, dstfile=None, line_ds='default'):
 
     #Specific humidity
     i+=1
-    irregular_pcolor(axes[i], _ds.latitude, _ds.pressure_fl, _ds.q, 
-                     dict(vmin=1e-6, vmax=1e-2, norm=LogNorm(), cmap='Greens'),
+    irregular_pcolor(axes[i], _ds.latitude, _ds.pressure_fl, _ds.q,
+                     dict(norm=LogNorm(1e-6, 1e-2), cmap='Greens'),
                      cbar_kwargs={'pad':0.01, 'label':'mass mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-5,1e-4,1e-3,1e-2]})
-                     
+
     axes[i].set_title('Specific humidity')
     axes[i].set_xlabel('')
 
@@ -156,10 +156,10 @@ def plot_inputs_noncloud(IFS_srcfile, dstfile=None, line_ds='default'):
 
     #Ozone
     i+=1
-    irregular_pcolor(axes[i], _ds.latitude, _ds.pressure_fl, _ds.o3_mmr, 
-                     dict(vmin=1e-8, vmax=1e-5, norm=LogNorm(), cmap='Blues'),
+    irregular_pcolor(axes[i], _ds.latitude, _ds.pressure_fl, _ds.o3_mmr,
+                     dict(norm=LogNorm(1e-8, 1e-5), cmap='Blues'),
                      cbar_kwargs={'pad':0.01, 'label':'mass mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-8,1e-7,1e-6,1e-5]})
-    
+
     axes[i].set_title('Ozone')
     axes[i].set_xlabel('')
 
@@ -178,28 +178,28 @@ def plot_inputs_noncloud(IFS_srcfile, dstfile=None, line_ds='default'):
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-    
+
     add_subfigure_labels(axes)
-    
+
     if hasattr(_ds, 'experiment'):
         fig.suptitle(_ds.attrs['experiment'] + "\nsurface properties and atmospheric composition", x=get_figure_center(axes[0]), y=get_figure_top(fig, axes[0]), va='bottom')
     else:
         fig.suptitle("surface properties and atmospheric composition", x=get_figure_center(axes[0]), y=get_figure_top(fig, axes[0]), va='bottom')
-    
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
 
-    
+
 def plot_inputs_cloud(IFS_srcfile, include_effective_radius=False, dstfile=None):
     _ds = load_inputs(IFS_srcfile)
-    
+
     if include_effective_radius:
         nrows=5
     else:
         nrows=3
-        
+
     fig, axes = plt.subplots(figsize=(25,4*nrows), nrows=nrows, sharex=True, sharey=True,  subplot_kw={'facecolor':sns.xkcd_rgb['earth']})
 
     irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_fl, _ds.cloud_fraction,
@@ -208,29 +208,29 @@ def plot_inputs_cloud(IFS_srcfile, include_effective_radius=False, dstfile=None)
     axes[0].set_title('Cloud fraction')
     axes[0].set_xlabel('')
 
-    irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_fl, _ds.q_ice.where(_ds.q_ice > 1e-10).fillna(1e-10), 
-                     dict(vmin=1e-8, vmax=0.5e-2, norm=LogNorm(), cmap='Blues'),
+    irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_fl, _ds.q_ice.where(_ds.q_ice > 1e-10).fillna(1e-10),
+                     dict(norm=LogNorm(1e-8, 0.5e-2), cmap='Blues'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-7, 1e-5, 1e-3]})
     axes[1].set_title('Cloud ice water content')
     axes[1].set_xlabel('')
 
-    irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_fl, _ds.q_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10), 
-                     dict(vmin=1e-8, vmax=0.5e-2, norm=LogNorm(), cmap='Reds'),
+    irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_fl, _ds.q_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10),
+                     dict(norm=LogNorm(1e-8, 0.5e-2), cmap='Reds'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-7, 1e-5, 1e-3]})
     axes[2].set_title('Cloud liquid water content')
     format_latitude(axes[-1])
-    
+
     if include_effective_radius:
         axes[2].set_xlabel('')
-        
+
         irregular_pcolor(axes[3], _ds.latitude, _ds.pressure_fl, _ds.re_ice.where(_ds.q_ice > 1e-10).fillna(1e-10),
-                         dict(vmin=3e-6, vmax=1e-4, norm=LogNorm(), cmap='Blues'),
+                         dict(norm=LogNorm(3e-6, 1e-4), cmap='Blues'),
                          cbar_kwargs={'pad':0.01, 'label':'$r_{\mathrm{eff}}$ [m]'})
         axes[3].set_title('Ice effective radius')
         axes[3].set_xlabel('')
 
-        irregular_pcolor(axes[4], _ds.latitude, _ds.re_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10), 
-                         dict(vmin=3e-6, vmax=1e-4, norm=LogNorm(), cmap='Reds'),
+        irregular_pcolor(axes[4], _ds.latitude, _ds.re_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10),
+                         dict(norm=LogNorm(3e-6, 1e-4), cmap='Reds'),
                          cbar_kwargs={'pad':0.01, 'label':'$r_{\mathrm{eff}}$ [m]'})
         axes[4].set_title('Liquid effective radius')
 
@@ -241,57 +241,56 @@ def plot_inputs_cloud(IFS_srcfile, include_effective_radius=False, dstfile=None)
     axes[-1].set_xlim(-90,90)
     axes[-1].set_xticks(np.arange(-90,91,15))
     axes[-1].set_xlabel('Latitude')
-    
+
     axes[0].set_yticks([1000e2,800e2,600e2,400e2,200e2,1])
     axes[0].set_ylim(1050e2,1)
-        
+
     add_subfigure_labels(axes)
-        
+
     if hasattr(_ds, 'experiment'):
         fig.suptitle(_ds.attrs['experiment'] + "\ncloud fields", x=get_figure_center(axes[0]), y=get_figure_top(fig, axes[0])+ 0.1, va='bottom')
     else:
         fig.suptitle("cloud fields", x=get_figure_center(axes[0]), y=get_figure_top(fig, axes[0])+ 0.1, va='bottom')
-    
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
-    
-    
+
 def plot_inputs_aerosols(IFS_srcfile, dstfile=None):
     _ds = load_inputs(IFS_srcfile)
-    
+
     nrows=5
-        
+
     fig, axes = plt.subplots(figsize=(25,4*nrows), nrows=nrows, sharex=True, sharey=True, )
 
     irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_fl, _ds.sea_salt.where(_ds.sea_salt > 1e-12).fillna(1e-12),
-                     dict(vmin=1e-12, vmax=1e-6, norm=LogNorm(), cmap='Blues'),
+                     dict(norm=LogNorm(1e-12, 1e-6), cmap='Blues'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-9, 1e-6]})
     axes[0].set_title('Sea salt')
     axes[0].set_xlabel('')
 
     irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_fl, _ds.dust.where(_ds.dust > 1e-12).fillna(1e-12),
-                     dict(vmin=1e-12, vmax=1e-6, norm=LogNorm(), cmap='OrRd'),
+                     dict(norm=LogNorm(1e-12, 1e-6), cmap='OrRd'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-9, 1e-6]})
     axes[1].set_title('Dust')
     axes[1].set_xlabel('')
 
-    irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_fl, _ds.organics.where(_ds.organics > 1e-12).fillna(1e-12), 
-                     dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Greens'), 
+    irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_fl, _ds.organics.where(_ds.organics > 1e-12).fillna(1e-12),
+                     dict(norm=LogNorm(1e-12, 1e-7), cmap='Greens'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]})
     axes[2].set_title('Organics')
     format_latitude(axes[-1])
     axes[2].set_xlabel('')
-        
-    irregular_pcolor(axes[3], _ds.latitude, _ds.pressure_fl, _ds.black_carbon.where(_ds.black_carbon > 1e-12).fillna(1e-12), 
-                     dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Greys'),
+
+    irregular_pcolor(axes[3], _ds.latitude, _ds.pressure_fl, _ds.black_carbon.where(_ds.black_carbon > 1e-12).fillna(1e-12),
+                     dict(norm=LogNorm(1e-12, 1e-7), cmap='Greys'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]})
     axes[3].set_title('Black carbon')
     axes[3].set_xlabel('')
 
     irregular_pcolor(axes[4], _ds.latitude, _ds.pressure_fl, _ds.sulphate.where(_ds.sulphate > 1e-12).fillna(1e-12),
-                     dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Reds'),
+                     dict(norm=LogNorm(1e-12, 1e-7), cmap='Reds'),
                      cbar_kwargs={'pad':0.01, 'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]})
     axes[4].set_title('Sulphates')
 
@@ -302,26 +301,25 @@ def plot_inputs_aerosols(IFS_srcfile, dstfile=None):
     axes[-1].set_xlim(-90,90)
     axes[-1].set_xticks(np.arange(-90,91,15))
     axes[-1].set_xlabel('Latitude')
-    
+
     axes[0].set_yticks([1000e2,800e2,600e2,400e2,200e2,1])
     axes[0].set_ylim(1050e2,1)
-        
+
     add_subfigure_labels(axes)
-        
+
     if hasattr(_ds, 'experiment'):
         fig.suptitle(_ds.attrs['experiment'] + "\naerosols", x=get_figure_center(axes[0]), y=0.95, va='top')
     else:
         fig.suptitle("aerosols", x=get_figure_center(axes[0]), y=0.95, va='top')
-    
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
 
-    
 def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
     with sns.plotting_context('notebook', font_scale=1.1), sns.axes_style('ticks'):
-    
+
         _ds = load_inputs(IFS_srcfile)
 
         #Set up figure and axes
@@ -329,7 +327,7 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
         ncols=2
 
         cbar_kwargs = {'pad':0.0125, 'aspect':10}
-        
+
         fig, axes= plt.subplots(figsize=(25,2.25*nrows), nrows=nrows, ncols=ncols, gridspec_kw={'wspace':0.0, 'hspace':0.25})
 
         #First row
@@ -345,7 +343,7 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
         axes[i,j].set_title('Solar zenith angle and shortwave albedo')
         if 'solar_irradiance' in _ds:
             axes[i,j].text(0.001, 1.01, f"Solar irradiance\n$Q={_ds.solar_irradiance.values:5.1f}$ W m$^{{-2}}$", ha='left', va='bottom', fontsize='small', transform=axes[i,j].transAxes)
-            
+
         _ax0 = axes[i,j].twinx()
         _ax0.yaxis.set_label_position("right")
         _ax0.yaxis.tick_right()
@@ -378,8 +376,8 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
 
         #Specific humidity
         i+=1
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q, 
-                         dict(vmin=1e-6, vmax=1e-2, norm=LogNorm(), cmap='Greens'),
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q,
+                         dict(norm=LogNorm(1e-6, 1e-2), cmap='Greens'),
                          cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-5,1e-4,1e-3,1e-2]}})
 
         axes[i,j].set_title('Specific humidity')
@@ -398,25 +396,25 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
         axes[i,j].set_xlabel('')
 
         i+=1
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q_ice.where(_ds.q_ice > 1e-10).fillna(1e-10), 
-                             dict(vmin=1e-8, vmax=0.5e-2, norm=LogNorm(), cmap='Blues'),
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q_ice.where(_ds.q_ice > 1e-10).fillna(1e-10),
+                             dict(norm=LogNorm(1e-8, 0.5e-2), cmap='Blues'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-7, 1e-5, 1e-3]}})
         axes[i,j].set_title('Cloud ice water content')
         axes[i,j].set_xlabel('')
 
         i+=1
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10), 
-                             dict(vmin=1e-8, vmax=0.5e-2, norm=LogNorm(), cmap='Reds'),
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.q_liquid.where(_ds.q_liquid > 1e-10).fillna(1e-10),
+                             dict(norm=LogNorm(1e-8, 0.5e-2), cmap='Reds'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-7, 1e-5, 1e-3]}})
         axes[i,j].set_title('Cloud liquid water content')
 
         ####SECOND COLUMN
         j+=1
-        
+
         #Ozone
         i=0
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.o3_mmr, 
-                         dict(vmin=1e-8, vmax=1e-5, norm=LogNorm(), cmap='Blues'),
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.o3_mmr,
+                         dict(norm=LogNorm(1e-8, 1e-5), cmap='Blues'),
                          cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-8,1e-7,1e-6,1e-5]}})
 
         axes[i,j].set_title('Ozone')
@@ -425,40 +423,40 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
         axes[i,j].set_yscale('log')
         axes[i,j].set_yticks([1e5,1e4,1e3,1e2,1e1,1e0])
         axes[i,j].set_ylim(1.1e5,1)
-        
+
         #Aerosols
-        
+
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.sea_salt.where(_ds.sea_salt > 1e-12).fillna(1e-12),
-                             dict(vmin=1e-12, vmax=1e-6, norm=LogNorm(), cmap='Blues'),
+                             dict(norm=LogNorm(1e-12, 1e-6), cmap='Blues'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-9, 1e-6]}})
         axes[i,j].set_title('Sea salt')
         axes[i,j].set_xlabel('')
 
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.dust.where(_ds.dust > 1e-12).fillna(1e-12),
-                             dict(vmin=1e-12, vmax=1e-6, norm=LogNorm(), cmap='OrRd'),
+                             dict(norm=LogNorm(1e-12, 1e-6), cmap='OrRd'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-9, 1e-6]}})
         axes[i,j].set_title('Dust')
         axes[i,j].set_xlabel('')
 
         i+=1
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.organics.where(_ds.organics > 1e-12).fillna(1e-12), 
-                             dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Greens'), 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.organics.where(_ds.organics > 1e-12).fillna(1e-12),
+                             dict(norm=LogNorm(1e-12, 1e-7), cmap='Greens'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]}})
         axes[i,j].set_title('Organics')
         axes[i,j].set_xlabel('')
 
         i+=1
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.black_carbon.where(_ds.black_carbon > 1e-12).fillna(1e-12), 
-                             dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Greys'),
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.black_carbon.where(_ds.black_carbon > 1e-12).fillna(1e-12),
+                             dict(norm=LogNorm(1e-12, 1e-7), cmap='Greys'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]}})
         axes[i,j].set_title('Black carbon')
         axes[i,j].set_xlabel('')
 
         i+=1
         irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, _ds.sulphate.where(_ds.sulphate > 1e-12).fillna(1e-12),
-                             dict(vmin=1e-12, vmax=1e-7, norm=LogNorm(), cmap='Reds'),
+                             dict(norm=LogNorm(1e-12, 1e-7), cmap='Reds'),
                              cbar_kwargs={**cbar_kwargs, **{'label':'mixing ratio\n[kg kg$^{-1}$]', 'ticks':[1e-12, 1e-10, 1e-8]}})
         axes[i,j].set_title('Sulphates')
 
@@ -467,74 +465,73 @@ def plot_inputs(IFS_srcfile, dstfile=None, line_ds='default'):
             format_pressure(ax)
             ax.set_yticks([1000e2,800e2,600e2,400e2,200e2,1])
             ax.set_ylim(1050e2,1)
-            
+
         for ax in axes[:2,0]:
-            snap_to_axis(ax, axes[-1,0])        
-    
+            snap_to_axis(ax, axes[-1,0])
+
         for ax in axes[1:,1]:
             add_temperature_contours(ax, _ds)
             ax.set_yticks([1000e2,800e2,600e2,400e2,200e2,1])
             ax.set_ylim(1050e2,1)
             ax.set_yticklabels([])
             ax.set_ylabel("")
-            
+
         format_pressure(axes[0,1])
         add_temperature_contours(axes[0,1], _ds)
-        
+
         for ax in axes.flatten():
             ax.set_xlim(-90,90)
             ax.set_xticks(np.arange(-90,91,15))
             ax.set_xlabel('')
             ax.set_xticklabels([])
-            
+
         for ax in axes[-1,:].flatten():
             format_latitude(ax)
             ax.set_xlabel('Latitude')
 
         import string
         add_subfigure_labels(axes)
-        
+
         name_string = os.path.splitext(os.path.basename(IFS_srcfile))[0]
-        
+
         x = (get_figure_center(axes[0,0]) + get_figure_center(axes[0,1]))/2
         y = get_figure_top(fig, axes[0,0], include_hspace=True)
 
         #fig.suptitle(f"{name_string}\nIFS cloud, aerosol and radiation fields", x=x, y=y-0.025, va='top', fontsize=30)
-        
+
         fig.suptitle(f"{name_string}\nIFS cloud, aerosol and radiation fields", x=x, y=y-0.07, va='bottom', fontsize=25)
 
         if dstfile:
             fig.savefig(dstfile, dpi=90, bbox_inches='tight')
         else:
             return fig, axes
-    
-    
+
 def plot_LW_flux(IFS_srcfile, ecRAD_srcfile, dstfile=None, clearsky=False):
     _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
-    
+
     # LW fluxes
     nrows=3
     fig, axes = plt.subplots(figsize=(25,nrows*4), nrows=nrows, sharex=True, sharey=True)
 
     if clearsky:
-        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_lw_clear, 
+        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_lw_clear,
                          dict(cmap='Reds', vmin=0, vmax=500),
                          cbar_kwargs={'pad':0.01, 'label':'flux [W m$^{-2}$]'})
         axes[0].set_title("Clear-sky downwelling")
     else:
-        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_lw, 
+        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_lw,
                          dict(cmap='Reds', vmin=0, vmax=500),
                          cbar_kwargs={'pad':0.01, 'label':'flux [W m$^{-2}$]'})
         axes[0].set_title("Downwelling")
     axes[0].set_xlabel('')
 
     if clearsky:
-        irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, _ds.flux_up_lw_clear, 
+        irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, _ds.flux_up_lw_clear,
                          dict(cmap='Reds', vmin=0, vmax=500),
                          cbar_kwargs={'pad':0.01, 'label':'flux [W m$^{-2}$]'})
         axes[1].set_title("Clear-sky upwelling")
     else:
-        irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, _ds.flux_up_lw, 
+        irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, _ds.flux_up_lw,
                          dict(cmap='Reds', vmin=0, vmax=500),
                          cbar_kwargs={'pad':0.01, 'label':'flux [W m$^{-2}$]'})
         axes[1].set_title("Upwelling")
@@ -570,30 +567,29 @@ def plot_LW_flux(IFS_srcfile, ecRAD_srcfile, dstfile=None, clearsky=False):
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-    
+
     if hasattr(_ds, 'experiment'):
-        place_suptitle(fig, axes, _ds.attrs['experiment'] + "\nLongwave fluxes", y=1.0) 
+        place_suptitle(fig, axes, _ds.attrs['experiment'] + "\nLongwave fluxes", y=1.0)
     else:
-        place_suptitle(fig, axes, "Longwave fluxes") 
-    
+        place_suptitle(fig, axes, "Longwave fluxes")
+
     add_subfigure_labels(axes)
-    
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
-    
-    
+
 def plot_LW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile, title=None, dstfile=None, clearsky=False):
     ds = load_ecRAD(reference_ecRAD_srcfile, IFS_srcfile)
     _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
-    
+
     # LW fluxes
     nrows=3
     fig, axes = plt.subplots(figsize=(25,nrows*4), nrows=nrows, sharex=True, sharey=True)
 
     cbar_kwargs = {'pad':0.01, 'label':'$\Delta$ flux [W m$^{-2}$]'}
-    
+
     if clearsky:
         da = (_ds.flux_dn_lw_clear - ds.flux_dn_lw_clear)
         vmin, vmax = get_vextents(da)
@@ -604,7 +600,7 @@ def plot_LW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
     else:
         da = (_ds.flux_dn_lw - ds.flux_dn_lw)
         vmin, vmax = get_vextents(da)
-        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[0].set_title("Downwelling")
@@ -613,7 +609,7 @@ def plot_LW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
     if clearsky:
         da = (_ds.flux_up_lw_clear - ds.flux_up_lw_clear)
         vmin, vmax = get_vextents(da)
-        irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[1].set_title("Clear-sky upwelling")
@@ -629,7 +625,7 @@ def plot_LW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
     if clearsky:
         da = (_ds.flux_net_lw_clear - ds.flux_net_lw_clear)
         vmin, vmax = get_vextents(da)
-        irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[2].set_title("Clear-sky net")
@@ -660,76 +656,75 @@ def plot_LW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-    
+
     if hasattr(_ds, 'experiment'):
-        place_suptitle(fig, axes, f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\nLongwave fluxes", y=1.0) 
+        place_suptitle(fig, axes, f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\nLongwave fluxes", y=1.0)
     else:
-        place_suptitle(fig, axes, "Longwave fluxes") 
-    
+        place_suptitle(fig, axes, "Longwave fluxes")
+
     add_subfigure_labels(axes)
-    
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
-    
-    
+
 def plot_SW_flux(IFS_srcfile, ecRAD_srcfile, title=None, dstfile=None, clearsky=False):
-    _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)    
-    
+    _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
+
     # SW fluxes
     nrows=3
     fig, axes = plt.subplots(figsize=(25,nrows*4), nrows=nrows, sharex=True, sharey=True)
 
     cbar_kwargs = {'pad':0.01, 'label':'flux [W m$^{-2}$]'}
-    
+
     if clearsky:
-        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_sw_clear, 
-                         dict(cmap='Blues', vmin=0), 
+        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_sw_clear,
+                         dict(cmap='Blues', vmin=0),
                          cbar_kwargs=cbar_kwargs)
         axes[0].set_title("Clear-sky downwelling")
     else:
-        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_sw, 
-                         dict(cmap='Blues', vmin=0), 
+        irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_sw,
+                         dict(cmap='Blues', vmin=0),
                          cbar_kwargs=cbar_kwargs)
         axes[0].set_title("Downwelling")
     axes[0].set_xlabel('')
 
     if clearsky:
         irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, _ds.flux_up_sw_clear,
-                         dict(cmap='Blues', vmin=0), 
+                         dict(cmap='Blues', vmin=0),
                          cbar_kwargs=cbar_kwargs)
         axes[1].set_title("Clear-sky upwelling")
     else:
-        irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, _ds.flux_up_sw, 
-                         dict(cmap='Blues', vmin=0), 
+        irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, _ds.flux_up_sw,
+                         dict(cmap='Blues', vmin=0),
                          cbar_kwargs=cbar_kwargs)
         axes[1].set_title("Upwelling")
     axes[1].set_xlabel('')
 
     if clearsky:
         if (_ds.flux_net_sw_clear.quantile(q=0.01) < 0) & (0 < _ds.flux_net_sw_clear.quantile(q=0.99)):
-            irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, _ds.flux_net_sw_clear, 
+            irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, _ds.flux_net_sw_clear,
                              dict(cmap='RdBu_r', norm=DivergingNorm(vcenter=0, vmin=_ds.flux_net_sw_clear.quantile(q=0.01), vmax=_ds.flux_net_sw_clear.quantile(q=0.99))),
                              cbar_kwargs=cbar_kwargs)
         else:
-            irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, _ds.flux_net_sw_clear, 
+            irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, _ds.flux_net_sw_clear,
                              dict(cmap='Blues_r', vmax=0),
                              cbar_kwargs=cbar_kwargs)
         axes[2].set_title("Clear-sky net")
     else:
         if (_ds.flux_net_sw_clear.quantile(q=0.01) < 0) & (0 < _ds.flux_net_sw_clear.quantile(q=0.99)):
-            irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, _ds.flux_net_sw, 
+            irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, _ds.flux_net_sw,
                              dict(cmap='RdBu_r', norm=DivergingNorm(vcenter=0, vmin=_ds.flux_net_sw.quantile(q=0.01), vmax=_ds.flux_net_sw.quantile(q=0.99))),
                              cbar_kwargs=cbar_kwargs)
         else:
-            irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, _ds.flux_net_sw, 
+            irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, _ds.flux_net_sw,
                              dict(cmap='Blues_r', vmax=0),
                              cbar_kwargs=cbar_kwargs)
         axes[2].set_title("Net")
 
     for ax in axes:
-        add_temperature_contours(ax, _ds) 
+        add_temperature_contours(ax, _ds)
         format_pressure(ax)
 
     for ax in axes:
@@ -747,29 +742,29 @@ def plot_SW_flux(IFS_srcfile, ecRAD_srcfile, title=None, dstfile=None, clearsky=
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-               
+
     if hasattr(_ds, 'experiment'):
-        place_suptitle(fig, axes, _ds.attrs['experiment'] + "\nShortwave fluxes", y=1.0) 
+        place_suptitle(fig, axes, _ds.attrs['experiment'] + "\nShortwave fluxes", y=1.0)
     else:
-        place_suptitle(fig, axes, "Shortwave fluxes") 
-    
+        place_suptitle(fig, axes, "Shortwave fluxes")
+
     add_subfigure_labels(axes)
-        
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
-    
-    
+
+
 def plot_SW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile, title=None, dstfile=None, clearsky=False):
     ds = load_ecRAD(reference_ecRAD_srcfile, IFS_srcfile).load()
     _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile).load()
-    
+
     cbar_kwargs = {'pad':0.01, 'label':'$\Delta$ flux [W m$^{-2}$]'}
-                
+
     nrows=3
     fig, axes = plt.subplots(figsize=(25,nrows*4), nrows=nrows, sharex=True, sharey=True)
-    
+
     if clearsky:
         da = (_ds.flux_dn_sw_clear - ds.flux_dn_sw_clear)
         vmin, vmax = get_vextents(da)
@@ -777,7 +772,7 @@ def plot_SW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[0].set_title("Clear-sky downwelling")
-        
+
     else:
         da = (_ds.flux_dn_sw - ds.flux_dn_sw)
         vmin, vmax = get_vextents(da)
@@ -791,11 +786,11 @@ def plot_SW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
         da = (_ds.flux_up_sw_clear - ds.flux_up_sw_clear)
         vmin, vmax = get_vextents(da)
         irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, da,
-                         dict(cmap='RdBu_r', vmin=vmin, vmax=vmax), 
+                         dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
-        
+
         axes[1].set_title("Clear-sky upwelling")
-        
+
     else:
         da = (_ds.flux_up_sw - ds.flux_up_sw)
         vmin, vmax = get_vextents(da)
@@ -808,11 +803,11 @@ def plot_SW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
     if clearsky:
         da = (_ds.flux_net_sw_clear - ds.flux_net_sw_clear)
         vmin, vmax = get_vextents(da)
-        irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[2].set_title("Clear-sky net")
-        
+
     else:
         da = (_ds.flux_net_sw - ds.flux_net_sw)
         vmin, vmax = get_vextents(da)
@@ -822,7 +817,7 @@ def plot_SW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
         axes[2].set_title("Net")
 
     for ax in axes:
-        add_temperature_contours(ax, _ds) 
+        add_temperature_contours(ax, _ds)
         format_pressure(ax)
 
     for ax in axes:
@@ -840,38 +835,38 @@ def plot_SW_flux_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile,
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-               
+
     if hasattr(_ds, 'experiment'):
-        place_suptitle(fig, axes, f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\nShortwave fluxes", y=1.0) 
+        place_suptitle(fig, axes, f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\nShortwave fluxes", y=1.0)
     else:
-        place_suptitle(fig, axes, "Shortwave fluxes") 
-        
+        place_suptitle(fig, axes, "Shortwave fluxes")
+
     add_subfigure_labels(axes)
-        
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
-    
+
 
 def plot_CRE(IFS_srcfile, ecRAD_srcfile, title=None, dstfile=None):
-    _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)    
-    
+    _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
+
     nrows=3
     fig, axes = plt.subplots(figsize=(25,nrows*4), nrows=nrows, sharex=True, sharey=True)
-    
+
     da = _ds.cloud_radiative_effect_sw
     vmin, vmax = get_vextents(da)
-    irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, da, 
+    irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs={'pad':0.01, 'label':'CRE$_{\mathrm{SW}}$ [W m$^{-2}$]'})
-    
+
     axes[0].set_xlabel('')
     axes[0].set_title("Shortwave")
 
     da = _ds.cloud_radiative_effect_lw
     vmin, vmax= get_vextents(da)
-    irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, da, 
+    irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs={'pad':0.01, 'label':'CRE$_{\mathrm{LW}}$ [W m$^{-2}$]'})
     axes[1].set_xlabel('')
@@ -885,7 +880,7 @@ def plot_CRE(IFS_srcfile, ecRAD_srcfile, title=None, dstfile=None):
     axes[2].set_title("Net")
 
     for ax in axes:
-        add_temperature_contours(ax, _ds) 
+        add_temperature_contours(ax, _ds)
         format_pressure(ax)
 
     for ax in axes:
@@ -903,32 +898,32 @@ def plot_CRE(IFS_srcfile, ecRAD_srcfile, title=None, dstfile=None):
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-               
+
     if hasattr(_ds, 'experiment'):
-        place_suptitle(fig, axes, _ds.attrs['experiment'] + "\nCloud radiative effects", y=1.0) 
+        place_suptitle(fig, axes, _ds.attrs['experiment'] + "\nCloud radiative effects", y=1.0)
     else:
-        place_suptitle(fig, axes, "Cloud radiative effects") 
-    
+        place_suptitle(fig, axes, "Cloud radiative effects")
+
     add_subfigure_labels(axes)
-        
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
-    
-    
+
+
 def plot_CRE_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile, title=None, dstfile=None):
     name_string = os.path.splitext(os.path.basename(IFS_srcfile))[0]
-    
-    ds = load_ecRAD(reference_ecRAD_srcfile, IFS_srcfile)    
-    _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)    
-    
+
+    ds = load_ecRAD(reference_ecRAD_srcfile, IFS_srcfile)
+    _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
+
     nrows=3
     fig, axes = plt.subplots(figsize=(25,nrows*4), nrows=nrows, sharex=True, sharey=True)
-    
+
     da = (_ds.cloud_radiative_effect_sw - ds.cloud_radiative_effect_sw)
     vmin, vmax= get_vextents(da)
-    irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, da, 
+    irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_hl, da,
                      dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                      cbar_kwargs={'pad':0.01, 'label':'$\Delta$ CRE$_{\mathrm{SW}}$ [W m$^{-2}$]'})
     axes[0].set_xlabel('')
@@ -936,7 +931,7 @@ def plot_CRE_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile, tit
 
     da = (_ds.cloud_radiative_effect_lw - ds.cloud_radiative_effect_lw)
     vmin, vmax= get_vextents(da)
-    irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, da, 
+    irregular_pcolor(axes[1], _ds.latitude, _ds.pressure_hl, da,
                      dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                      cbar_kwargs={'pad':0.01, 'label':'$\Delta$ CRE$_{\mathrm{SW}}$ [W m$^{-2}$]'})
     axes[1].set_xlabel('')
@@ -944,13 +939,13 @@ def plot_CRE_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile, tit
 
     da = ((_ds.cloud_radiative_effect_sw + _ds.cloud_radiative_effect_lw) - (ds.cloud_radiative_effect_sw + ds.cloud_radiative_effect_lw))
     vmin, vmax= get_vextents(da)
-    irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, da, 
+    irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_hl, da,
                      dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                      cbar_kwargs={'pad':0.01, 'label':'$\Delta$ CRE$_\mathrm{net}$ [W m$^{-2}$]'})
     axes[2].set_title("Net")
 
     for ax in axes:
-        add_temperature_contours(ax, _ds) 
+        add_temperature_contours(ax, _ds)
         format_pressure(ax)
 
     for ax in axes:
@@ -968,41 +963,41 @@ def plot_CRE_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile, tit
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-               
+
     if hasattr(_ds, 'experiment'):
-        place_suptitle(fig, axes, f"{name_string}\n{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\nCloud radiative effects", y=1.0) 
+        place_suptitle(fig, axes, f"{name_string}\n{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\nCloud radiative effects", y=1.0)
     else:
-        place_suptitle(fig, axes, "Cloud radiative effects")  
+        place_suptitle(fig, axes, "Cloud radiative effects")
 
     add_subfigure_labels(axes)
-        
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
 
-    
+
 def plot_heating_rate(IFS_srcfile, ecRAD_srcfile, title=None, linear_pressure=True, dstfile=None):
     name_string = os.path.splitext(os.path.basename(IFS_srcfile))[0]
-    
+
     _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
 
     if linear_pressure:
         vmax = 10
     else:
         vmax = 30
-    
+
     nrows=3
     fig, axes = plt.subplots(figsize=(25,nrows*4), nrows=nrows, sharex=True, sharey=True)
-    
+
     cbar_kwargs = {'pad':0.01, 'label':'$\dfrac{dT}{dt}$ [K d$^{-1}$]'}
-                                                                        
+
     da = _ds.heating_rate_lw
     if linear_pressure:
         vmin, vmax= get_vextents(da.where(_ds.pressure_fl > 100e2))
     else:
         vmin, vmax= get_vextents(da)
-    irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_fl, da, 
+    irregular_pcolor(axes[0], _ds.latitude, _ds.pressure_fl, da,
                      dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                      cbar_kwargs=cbar_kwargs)
     axes[0].set_xlabel('')
@@ -1024,7 +1019,7 @@ def plot_heating_rate(IFS_srcfile, ecRAD_srcfile, title=None, linear_pressure=Tr
         vmin, vmax= get_vextents(da.where(_ds.pressure_fl > 100e2))
     else:
         vmin, vmax= get_vextents(da)
-    irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_fl, da, 
+    irregular_pcolor(axes[2], _ds.latitude, _ds.pressure_fl, da,
                      dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                      cbar_kwargs=cbar_kwargs)
     axes[2].set_title("Net")
@@ -1048,23 +1043,23 @@ def plot_heating_rate(IFS_srcfile, ecRAD_srcfile, title=None, linear_pressure=Tr
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-    
+
     if hasattr(_ds, 'experiment'):
-        place_suptitle(fig, axes, f"{name_string}\n{_ds.attrs['experiment']}\nHeating rates", y=1.0) 
+        place_suptitle(fig, axes, f"{name_string}\n{_ds.attrs['experiment']}\nHeating rates", y=1.0)
     else:
-        place_suptitle(fig, axes, "Heating rates") 
+        place_suptitle(fig, axes, "Heating rates")
 
     add_subfigure_labels(axes)
-    
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
-    
-    
+
+
 def plot_heating_rate_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_srcfile, title=None, linear_pressure=True, dstfile=None):
     name_string = os.path.splitext(os.path.basename(IFS_srcfile))[0]
-    
+
     ds = load_ecRAD(reference_ecRAD_srcfile, IFS_srcfile)
     _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
 
@@ -1072,12 +1067,12 @@ def plot_heating_rate_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_src
         vmax = 10
     else:
         vmax = 30
-    
+
     nrows=3
     fig, axes = plt.subplots(figsize=(25,nrows*4), nrows=nrows, sharex=True, sharey=True)
-    
+
     cbar_kwargs = {'pad':0.01, 'label':'$\Delta \dfrac{dT}{dt}$ [K d$^{-1}$]'}
-    
+
     da = (_ds.heating_rate_lw - ds.heating_rate_lw)
     if linear_pressure:
         vmin, vmax= get_vextents(da.where(_ds.pressure_fl > 100e2))
@@ -1088,7 +1083,7 @@ def plot_heating_rate_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_src
                      cbar_kwargs=cbar_kwargs)
     axes[0].set_xlabel('')
     axes[0].set_title("Longwave")
-    
+
     da = (_ds.heating_rate_sw - ds.heating_rate_sw)
     if linear_pressure:
         vmin, vmax= get_vextents(da.where(_ds.pressure_fl > 100e2))
@@ -1129,22 +1124,22 @@ def plot_heating_rate_difference(IFS_srcfile, ecRAD_srcfile, reference_ecRAD_src
     axes[-1].set_xticks(np.arange(-90,91,15))
     format_latitude(axes[-1])
     axes[-1].set_xlabel('Latitude')
-    
+
     if hasattr(_ds, 'experiment'):
-        place_suptitle(fig, axes, f"{name_string}\n{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\nHeating rates", y=1.0) 
+        place_suptitle(fig, axes, f"{name_string}\n{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\nHeating rates", y=1.0)
     else:
-        place_suptitle(fig, axes, "Heating rates")  
+        place_suptitle(fig, axes, "Heating rates")
 
     add_subfigure_labels(axes)
-    
+
     if dstfile:
         fig.savefig(dstfile, dpi=90, bbox_inches='tight')
     else:
         return fig, axes
-    
+
 
 def plot_output(IFS_srcfile, ecRAD_srcfile, dstfile=None):
-    
+
     with sns.plotting_context('notebook', font_scale=1.1), sns.axes_style('ticks'):
 
         _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
@@ -1158,14 +1153,14 @@ def plot_output(IFS_srcfile, ecRAD_srcfile, dstfile=None):
         ### LW fluxes
         j=0
         i=0
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_lw, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_lw,
                              dict(cmap='Reds', vmin=0, vmax=500),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'flux [W m$^{-2}$]'})
         axes[i,j].set_title("Downwelling longwave flux")
         axes[i,j].set_xlabel('')
 
         i+=1
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, _ds.flux_up_lw, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, _ds.flux_up_lw,
                              dict(cmap='Reds', vmin=0, vmax=500),
                              cbar_kwargs={'pad':0.0125, 'aspect':10,'label':'flux [W m$^{-2}$]'})
         axes[i,j].set_title("Upwelling longwave flux")
@@ -1174,25 +1169,25 @@ def plot_output(IFS_srcfile, ecRAD_srcfile, dstfile=None):
         #SW fluxes
         j=1
         i=0
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_sw, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, _ds.flux_dn_sw,
                              dict(cmap='Reds', vmin=0, vmax=1300),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'flux [W m$^{-2}$]'})
         axes[i,j].set_title("Downwelling shortwave flux")
         axes[i,j].set_xlabel('')
 
         i+=1
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, _ds.flux_up_sw, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, _ds.flux_up_sw,
                              dict(cmap='Reds', vmin=0, vmax=1300),
                              cbar_kwargs={'pad':0.0125, 'aspect':10,'label':'flux [W m$^{-2}$]'})
         axes[i,j].set_title("Upwelling shortwave flux")
         axes[i,j].set_xlabel('')
 
-        #Cloud radiative effects    
+        #Cloud radiative effects
         j=0
         i+=1
         da = _ds.cloud_radiative_effect_lw
         vmin, vmax = get_vextents(da)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da,
                              dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'CRE$_{\mathrm{LW}}$ [W m$^{-2}$]'})
 
@@ -1202,7 +1197,7 @@ def plot_output(IFS_srcfile, ecRAD_srcfile, dstfile=None):
         j+=1
         da = _ds.cloud_radiative_effect_sw
         vmin, vmax= get_vextents(da)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da,
                              dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'CRE$_{\mathrm{SW}}$ [W m$^{-2}$]'})
         axes[i,j].set_xlabel('')
@@ -1220,7 +1215,7 @@ def plot_output(IFS_srcfile, ecRAD_srcfile, dstfile=None):
             vmin, vmax= get_vextents(da.where(_ds.pressure_fl > 100e2))
         else:
             vmin, vmax= get_vextents(da)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[i,j].set_xlabel('')
@@ -1248,7 +1243,7 @@ def plot_output(IFS_srcfile, ecRAD_srcfile, dstfile=None):
             vmin, vmax= get_vextents(da.where(_ds.pressure_fl > 100e2))
         else:
             vmin, vmax= get_vextents(da)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[i,j].set_xlabel('')
@@ -1271,7 +1266,7 @@ def plot_output(IFS_srcfile, ecRAD_srcfile, dstfile=None):
             ax.set_yscale('linear')
             ax.set_yticks([1000e2,800e2,600e2,400e2,200e2,1])
             ax.set_ylim(1050e2,1)
-        
+
         for ax in axes[-1,:].flatten():
             add_temperature_contours(ax, _ds)
             ax.set_yscale('log')
@@ -1282,28 +1277,28 @@ def plot_output(IFS_srcfile, ecRAD_srcfile, dstfile=None):
             ax.set_xticks(np.arange(-90,91,15))
             format_latitude(ax)
             ax.set_xlabel('Latitude')
-            
+
         for ax in axes[:,0]:
             format_pressure(ax)
 
         x = (get_figure_center(axes[0,0]) + get_figure_center(axes[0,1]))/2
         y = get_figure_top(fig, axes[0,0], include_hspace=True)
-        
+
         name_string = os.path.splitext(os.path.basename(IFS_srcfile))[0]
-        fig.suptitle(f"{name_string}\n{_ds.attrs['experiment']}\nFluxes, cloud radiative effects and heating rates", x=x, y=y-0.025, va='bottom', fontsize='xx-large') 
-            
-        add_subfigure_labels(axes, flatten_order='C') 
+        fig.suptitle(f"{name_string}\n{_ds.attrs['experiment']}\nFluxes, cloud radiative effects and heating rates", x=x, y=y-0.025, va='bottom', fontsize='xx-large')
+
+        add_subfigure_labels(axes, flatten_order='C')
 
         if dstfile:
             fig.savefig(dstfile, dpi=90, bbox_inches='tight')
         else:
             return fig, axes
-    
-    
+
+
 def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
-    
+
     ds = load_ecRAD(ctrl_srcfile, IFS_srcfile)
-    
+
     with sns.plotting_context('notebook', font_scale=1.1), sns.axes_style('ticks'):
 
         _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile)
@@ -1319,7 +1314,7 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
         i=0
         da = _ds.flux_dn_lw - ds.flux_dn_lw
         vmin, vmax = get_vextents(da, symmetric=True)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da,
                              dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'flux [W m$^{-2}$]'})
         axes[i,j].set_title("Change to downwelling longwave flux")
@@ -1328,7 +1323,7 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
         i+=1
         da = _ds.flux_up_lw - ds.flux_up_lw
         vmin, vmax = get_vextents(da, symmetric=True)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da,
                              dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'flux [W m$^{-2}$]'})
         axes[i,j].set_title("Change to upwelling longwave flux")
@@ -1339,7 +1334,7 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
         i=0
         da = _ds.flux_dn_sw - ds.flux_dn_sw
         vmin, vmax = get_vextents(da, symmetric=True)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da,
                              dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'flux [W m$^{-2}$]'})
         axes[i,j].set_title("Change to downwelling shortwave flux")
@@ -1354,12 +1349,12 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
         axes[i,j].set_title("Change to upwelling shortwave flux")
         axes[i,j].set_xlabel('')
 
-        #Cloud radiative effects    
+        #Cloud radiative effects
         j=0
         i+=1
         da = _ds.cloud_radiative_effect_lw - ds.cloud_radiative_effect_lw
         vmin, vmax = get_vextents(da, symmetric=True)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da,
                              dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'CRE$_{\mathrm{LW}}$ [W m$^{-2}$]'})
 
@@ -1369,7 +1364,7 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
         j+=1
         da = _ds.cloud_radiative_effect_sw - ds.cloud_radiative_effect_sw
         vmin, vmax= get_vextents(da, symmetric=True)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_hl, da,
                              dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                              cbar_kwargs={'pad':0.0125, 'aspect':10, 'label':'CRE$_{\mathrm{SW}}$ [W m$^{-2}$]'})
         axes[i,j].set_xlabel('')
@@ -1387,7 +1382,7 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
             vmin, vmax= get_vextents(da.where(_ds.pressure_fl > 100e2))
         else:
             vmin, vmax= get_vextents(da)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[i,j].set_xlabel('')
@@ -1415,7 +1410,7 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
             vmin, vmax= get_vextents(da.where(_ds.pressure_fl > 100e2))
         else:
             vmin, vmax= get_vextents(da)
-        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, da, 
+        irregular_pcolor(axes[i,j], _ds.latitude, _ds.pressure_fl, da,
                          dict(cmap='RdBu_r', vmin=vmin, vmax=vmax),
                          cbar_kwargs=cbar_kwargs)
         axes[i,j].set_xlabel('')
@@ -1438,7 +1433,7 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
             ax.set_yscale('linear')
             ax.set_yticks([1000e2,800e2,600e2,400e2,200e2,1])
             ax.set_ylim(1050e2,1)
-        
+
         for ax in axes[-1,:].flatten():
             add_temperature_contours(ax, _ds)
             ax.set_yscale('log')
@@ -1449,31 +1444,31 @@ def compare_output(IFS_srcfile, ctrl_srcfile, ecRAD_srcfile, dstfile=None):
             ax.set_xticks(np.arange(-90,91,15))
             format_latitude(ax)
             ax.set_xlabel('Latitude')
-            
+
         for ax in axes[:,0]:
             format_pressure(ax)
 
         x = (get_figure_center(axes[0,0]) + get_figure_center(axes[0,1]))/2
         y = get_figure_top(fig, axes[0,0], include_hspace=True)
-        
+
         name_string = os.path.splitext(os.path.basename(IFS_srcfile))[0]
-        fig.suptitle(f"{name_string}\n{_ds.attrs['experiment']} minus {ds.attrs['experiment']}\nFluxes, cloud radiative effects and heating rates", 
-                     x=x, y=y-0.025, va='bottom', fontsize='xx-large') 
-            
+        fig.suptitle(f"{name_string}\n{_ds.attrs['experiment']} minus {ds.attrs['experiment']}\nFluxes, cloud radiative effects and heating rates",
+                     x=x, y=y-0.025, va='bottom', fontsize='xx-large')
+
         add_subfigure_labels(axes, flatten_order='C') # This will go across columns, then down rows
 
         if dstfile:
             fig.savefig(dstfile, dpi=90, bbox_inches='tight')
         else:
             return fig, axes
-    
-    
+
+
 def plot_output_scalar(IFS_srcfile, ecRAD_srcfiles, ecRAD_styles, dstfile=None, latitudes_to_highlight=None, line_ds='default', title=None):
-    
+
     with sns.axes_style("ticks", {"xtick.major.size": 6, "ytick.major.size": 6}):
 
         nrows=4
-        ncols=2 
+        ncols=2
         fig, axes = plt.subplots(figsize=(11.0*ncols,3.*nrows), nrows=nrows, ncols=ncols, sharex=True, gridspec_kw={'wspace':0.05, 'hspace':0.25})
 
         main_legend_labels = []
@@ -1487,23 +1482,23 @@ def plot_output_scalar(IFS_srcfile, ecRAD_srcfiles, ecRAD_styles, dstfile=None, 
                 _line = (_ds.flux_up_lw.isel(half_level=-1)).plot(ax=axes[0,0], color='0.85', zorder=-1, lw=3, **{'label':'Upwelling longwave\nflux at surface'})[0]
                 minor_legend_ax0 = axes[0,0].legend([_line], ['Longwave upwelling\nflux at surface'], loc='upper left', frameon=False, fontsize='x-small')
                 for text in minor_legend_ax0.get_texts():
-                    text.set_color("0.75") 
+                    text.set_color("0.75")
 
                 #SW downwelling at TOA
                 _line = (_ds.flux_dn_direct_sw_clear.isel(half_level=0)).plot(ax=axes[1,1], color='0.85', zorder=-1, lw=3, **{'label':'Shortwave downwelling\nflux at TOA'})[0]
                 minor_legend_ax1 = axes[1,1].legend([_line], ['Shortwave downwelling\nflux at TOA'], loc='upper left', frameon=False, fontsize='x-small')
                 for text in minor_legend_ax1.get_texts():
-                    text.set_color("0.75")   
+                    text.set_color("0.75")
 
             main_legend_labels.append(_ds.attrs['experiment'])
 
-            # LW up at TOA  
+            # LW up at TOA
             main_legend_handles.append(_ds.flux_up_lw.isel(half_level=0).plot(ax=axes[0,0], x='latitude', drawstyle=line_ds, **{**_style, **{'label':_ds.attrs['experiment']}}))
 
             # LW down at surface
             _ds.flux_dn_lw.isel(half_level=-1).plot(ax=axes[1,0], x='latitude', drawstyle=line_ds, **{**_style, **{'label':_ds.attrs['experiment']}})
 
-            # LW CRE at TOA             
+            # LW CRE at TOA
             _ds.cloud_radiative_effect_lw.isel(half_level=0).plot(ax=axes[2,0], x='latitude', drawstyle=line_ds, **{**_style, **{'label':_ds.attrs['experiment']}})
 
             # Cloud cover
@@ -1538,11 +1533,11 @@ def plot_output_scalar(IFS_srcfile, ecRAD_srcfiles, ecRAD_styles, dstfile=None, 
 
         axes[2,0].set_ylabel('CRE [W m$^{-2}$]')
         axes[2,0].set_title("Longwave cloud radiative effect at TOA", color=sns.color_palette()[3])
-        axes[2,0].set_xlabel('') 
+        axes[2,0].set_xlabel('')
 
         axes[0,1].set_ylabel('flux [W m$^{-2}$]')
         axes[0,1].set_title('Shortwave upwelling flux at TOA', color=sns.color_palette()[0])
-        axes[0,1].set_xlabel('')          
+        axes[0,1].set_xlabel('')
 
         axes[1,1].set_ylabel('flux [W m$^{-2}$]')
         axes[1,1].set_title('Shortwave downwelling flux at surface', color=sns.color_palette()[0])
@@ -1551,7 +1546,7 @@ def plot_output_scalar(IFS_srcfile, ecRAD_srcfiles, ecRAD_styles, dstfile=None, 
 
         axes[2,1].set_ylabel('CRE [W m$^{-2}$]')
         axes[2,1].set_title("Shortwave cloud radiative effect at TOA", color=sns.color_palette()[0])
-        axes[2,1].set_xlabel('')  
+        axes[2,1].set_xlabel('')
 
         axes[3,0].set_ylabel('$f_c$ [-]')
         axes[3,0].set_title("Cloud cover", color='0.33')
@@ -1562,7 +1557,7 @@ def plot_output_scalar(IFS_srcfile, ecRAD_srcfiles, ecRAD_styles, dstfile=None, 
 
         axes[3,1].set_ylabel('flux [W m$^{-2}$]')
         axes[3,1].set_title("Shortwave direct downwelling at surface", color=sns.color_palette()[0])
-        axes[3,1].set_xlabel('') 
+        axes[3,1].set_xlabel('')
         format_latitude(axes[3,1])
         axes[3,1].set_xlabel('Latitude')
 
@@ -1573,7 +1568,7 @@ def plot_output_scalar(IFS_srcfile, ecRAD_srcfiles, ecRAD_styles, dstfile=None, 
         else:
             legend = axes[0,1].legend(frameon=False, loc='upper right', bbox_to_anchor=(1,1.75), fontsize='xx-small', ncol=1)
 
-        fig.suptitle("Fluxes and cloud radiative effects\nat top-of-atmosphere and the surface", y=0.985, fontsize='large') 
+        fig.suptitle("Fluxes and cloud radiative effects\nat top-of-atmosphere and the surface", y=0.985, fontsize='large')
 
         axes[-1,0].set_xlim(-90,90)
         axes[-1,0].set_xticks(np.arange(-90,91,30)[:-1])
@@ -1586,7 +1581,7 @@ def plot_output_scalar(IFS_srcfile, ecRAD_srcfiles, ecRAD_styles, dstfile=None, 
         else:
             return fig, axes
 
-    
+
 def compare_output_scalar(IFS_srcfile, ecRAD_srcfiles, reference_ecRAD_srcfile, ecRAD_styles, reference_label="", latitudes_to_highlight=None, line_ds='default', title=None, dstfile=None):
 
     with sns.axes_style("ticks", {"xtick.major.size": 8, "ytick.major.size": 8}):
@@ -1606,27 +1601,27 @@ def compare_output_scalar(IFS_srcfile, ecRAD_srcfiles, reference_ecRAD_srcfile, 
             _ds = load_ecRAD(_srcfile, IFS_srcfile)
 
             #Longwave net flux at TOA
-            (_ds.flux_net_lw - ds.flux_net_lw).isel(half_level=0).plot(ax=axes[0,0], x='latitude', drawstyle=line_ds, 
+            (_ds.flux_net_lw - ds.flux_net_lw).isel(half_level=0).plot(ax=axes[0,0], x='latitude', drawstyle=line_ds,
                                                           **{**_style, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
 
             #Longwave net flux at surface
-            (_ds.flux_net_lw - ds.flux_net_lw).isel(half_level=-1).plot(ax=axes[1,0], x='latitude', drawstyle=line_ds, 
+            (_ds.flux_net_lw - ds.flux_net_lw).isel(half_level=-1).plot(ax=axes[1,0], x='latitude', drawstyle=line_ds,
                                                           **{**_style, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
 
             #Change to cloud cover
-            (_ds.cloud_cover_sw - ds.cloud_cover_sw).plot(ax=axes[2,0], x='latitude', drawstyle=line_ds, 
+            (_ds.cloud_cover_sw - ds.cloud_cover_sw).plot(ax=axes[2,0], x='latitude', drawstyle=line_ds,
                                                           **{**_style, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
 
             #Shortwave net flux at TOA
-            (_ds.flux_net_sw - ds.flux_net_sw).isel(half_level=0).plot(ax=axes[0,1], x='latitude', drawstyle=line_ds, 
+            (_ds.flux_net_sw - ds.flux_net_sw).isel(half_level=0).plot(ax=axes[0,1], x='latitude', drawstyle=line_ds,
                                                           **{**_style, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
 
             #Shortwave net flux at surface
-            (_ds.flux_net_sw - ds.flux_net_sw).isel(half_level=-1).plot(ax=axes[1,1], x='latitude', drawstyle=line_ds, 
+            (_ds.flux_net_sw - ds.flux_net_sw).isel(half_level=-1).plot(ax=axes[1,1], x='latitude', drawstyle=line_ds,
                                                           **{**_style, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
 
             #Shortwave direct downward at surface
-            (_ds.flux_dn_direct_sw - ds.flux_dn_direct_sw).isel(half_level=-1).plot(ax=axes[2,1], x='latitude', drawstyle=line_ds, 
+            (_ds.flux_dn_direct_sw - ds.flux_dn_direct_sw).isel(half_level=-1).plot(ax=axes[2,1], x='latitude', drawstyle=line_ds,
                                                           **{**_style, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
 
         axes[0,0].set_ylabel('$\Delta$ flux [W m$^{-2}$]')
@@ -1664,20 +1659,20 @@ def compare_output_scalar(IFS_srcfile, ecRAD_srcfiles, reference_ecRAD_srcfile, 
 
         add_subfigure_labels(axes, yloc=1.04)
 
-        fig.suptitle("Fluxes and cloud radiative effects\nat top-of-atmosphere and the surface", y=1.025, fontsize='large') 
+        fig.suptitle("Fluxes and cloud radiative effects\nat top-of-atmosphere and the surface", y=1.025, fontsize='large')
 
         if dstfile:
             fig.savefig(dstfile, dpi=90, bbox_inches='tight')
         else:
             return fig, axes
-    
-    
-    
+
+
+
 def plot_on_hybrid_pressure_axis(_axes, x, y, linedict, overwriting=False):
     #Log part of the plot
     _axes[0].plot(x, y, **linedict)
     _axes[1].plot(x, y, **linedict)
-    
+
     if not overwriting:
         _axes[0].set_yscale('log')
         format_pressure(_axes[0], label='')
@@ -1694,23 +1689,23 @@ def plot_on_hybrid_pressure_axis(_axes, x, y, linedict, overwriting=False):
         _axes[1].spines['top'].set_visible(False)
         _axes[0].spines['bottom'].set_visible(False)
         _axes[1].spines['top'].set_visible(False)
-    
+
         _axes[0].axhline(10000, lw=3.5, color='0.67', ls='-', zorder=-11)
         _axes[0].text(0.99, 0.03, 'log', color='0.67', fontsize='small', va='bottom', ha='right', transform=_axes[0].transAxes, zorder=-10)
         _axes[1].text(0.99, 0.99, 'linear', color='0.67', fontsize='small', va='top', ha='right', transform=_axes[1].transAxes, zorder=-10)
-    
-    
+
+
 def label_hybrid_pressure_axes(_axes):
     l = _axes[0].set_ylabel('Pressure [hPa]')
     x, y = l.get_position()
-    l.set_position((x, y - 1)) 
-    
-    
+    l.set_position((x, y - 1))
+
+
 def plot_input_profile(latitude, IFS_srcfile, dstfile=None, title=None):
 
     from ecradplot import io as eio
     from ecradplot import plot as eplt
-    
+
     with sns.plotting_context('talk'):
         ncols=4
         nrows=5
@@ -1732,9 +1727,9 @@ def plot_input_profile(latitude, IFS_srcfile, dstfile=None, title=None):
 
         #Water content
         i+=1
-        plot_on_hybrid_pressure_axis(axes[:2,i], 1e6*_ds.q_liquid.where(_ds.q_liquid > 1e-10).fillna(0), _ds.pressure_fl, 
+        plot_on_hybrid_pressure_axis(axes[:2,i], 1e6*_ds.q_liquid.where(_ds.q_liquid > 1e-10).fillna(0), _ds.pressure_fl,
                                      {'lw':5, 'color':sns.color_palette()[3], 'label':'liquid'})
-        plot_on_hybrid_pressure_axis(axes[:2,i], 1e6*_ds.q_ice.where(_ds.q_ice > 1e-10).fillna(0), _ds.pressure_fl, 
+        plot_on_hybrid_pressure_axis(axes[:2,i], 1e6*_ds.q_ice.where(_ds.q_ice > 1e-10).fillna(0), _ds.pressure_fl,
                                      {'lw':5, 'color':sns.color_palette()[0], 'label':'ice'}, overwriting=True)
 
         #Ozone
@@ -1746,11 +1741,11 @@ def plot_input_profile(latitude, IFS_srcfile, dstfile=None, title=None):
         plot_on_hybrid_pressure_axis(axes[-2:,i], _ds.ch4_vmr, _ds.pressure_fl, {'label':'CH$_4$', 'lw':5, 'color':sns.color_palette()[0]})
         plot_on_hybrid_pressure_axis(axes[-2:,i], _ds.n2o_vmr, _ds.pressure_fl, {'label':'N$_2$O', 'lw':5, 'color':sns.color_palette()[3]}, overwriting=True)
 
-        i+=1 
+        i+=1
         plot_on_hybrid_pressure_axis(axes[-2:,i], 1e6*_ds.co2_vmr, _ds.pressure_fl, {'label':'CO$_2$', 'lw':5, 'color':sns.color_palette()[2]})
 
         #Aerosols
-        i+=1 
+        i+=1
         plot_on_hybrid_pressure_axis(axes[-2:,i], _ds.sea_salt, _ds.pressure_fl, {'label':'sea salt', 'lw':5, 'color':sns.color_palette()[0]})
         plot_on_hybrid_pressure_axis(axes[-2:,i], _ds.dust, _ds.pressure_fl, {'label':'dust', 'lw':5, 'color':sns.color_palette()[1]}, overwriting=True)
         plot_on_hybrid_pressure_axis(axes[-2:,i], _ds.organics, _ds.pressure_fl, {'label':'org.', 'lw':5, 'color':sns.color_palette()[2]}, overwriting=True)
@@ -1838,7 +1833,7 @@ def plot_input_profile(latitude, IFS_srcfile, dstfile=None, title=None):
 
 
 
-def plot_output_profile(latitude, IFS_srcfile, ecRAD_srcfiles, linedicts, dstfile=None, 
+def plot_output_profile(latitude, IFS_srcfile, ecRAD_srcfiles, linedicts, dstfile=None,
                        clearsky_linedict={ 'ls':'--'}):
 
     with sns.plotting_context('talk'):
@@ -1848,7 +1843,7 @@ def plot_output_profile(latitude, IFS_srcfile, ecRAD_srcfiles, linedicts, dstfil
         fig, axes = plt.subplots(figsize=(4.5*ncols,12), nrows=nrows, ncols=ncols, gridspec_kw={'hspace':0, 'height_ratios':[1,2,1.1,1,2]})
 
         for j, ecRAD_srcfile in enumerate(ecRAD_srcfiles):
-            _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile).sel(latitude=latitude, method='nearest')  
+            _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile).sel(latitude=latitude, method='nearest')
 
             i = 0
             if j == 0:
@@ -1973,45 +1968,45 @@ def plot_output_profile(latitude, IFS_srcfile, ecRAD_srcfiles, linedicts, dstfil
             fig.savefig(dstfile, dpi=90, bbox_inches='tight')
         else:
             return fig, axes
-    
-    
-def compare_output_profile(latitude, IFS_srcfile, ecRAD_reference_srcfile, ecRAD_srcfiles, linedicts, dstfile=None, 
+
+
+def compare_output_profile(latitude, IFS_srcfile, ecRAD_reference_srcfile, ecRAD_srcfiles, linedicts, dstfile=None,
                        clearsky_linedict={'ls':'--'}):
 
-    with sns.plotting_context('talk'):                                                                                                                                     
+    with sns.plotting_context('talk'):
 
         ncols=4
         nrows=5
         fig, axes = plt.subplots(figsize=(4.5*ncols,12), nrows=nrows, ncols=ncols, gridspec_kw={'hspace':0, 'height_ratios':[1,2,1.2,1,2]})
 
-        ds = load_ecRAD(ecRAD_reference_srcfile, IFS_srcfile).sel(latitude=latitude, method='nearest')  
+        ds = load_ecRAD(ecRAD_reference_srcfile, IFS_srcfile).sel(latitude=latitude, method='nearest')
 
         for j, ecRAD_srcfile in enumerate(ecRAD_srcfiles):
-            _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile).sel(latitude=latitude, method='nearest')  
+            _ds = load_ecRAD(ecRAD_srcfile, IFS_srcfile).sel(latitude=latitude, method='nearest')
 
             i = 0
-            plot_on_hybrid_pressure_axis(axes[:2,i], _ds.flux_dn_lw - ds.flux_dn_lw, _ds.pressure_hl, 
+            plot_on_hybrid_pressure_axis(axes[:2,i], _ds.flux_dn_lw - ds.flux_dn_lw, _ds.pressure_hl,
                                          {**linedicts[j], **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
             if j == 0:
-                plot_on_hybrid_pressure_axis(axes[:2,i], _ds.flux_dn_lw_clear - ds.flux_dn_lw_clear, _ds.pressure_hl, 
+                plot_on_hybrid_pressure_axis(axes[:2,i], _ds.flux_dn_lw_clear - ds.flux_dn_lw_clear, _ds.pressure_hl,
                                          {**linedicts[j], **clearsky_linedict, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\n(clearsky)"}},  overwriting=True)
 
             i+=1
-            plot_on_hybrid_pressure_axis(axes[:2,i], _ds.flux_up_lw - ds.flux_up_lw, _ds.pressure_hl, 
+            plot_on_hybrid_pressure_axis(axes[:2,i], _ds.flux_up_lw - ds.flux_up_lw, _ds.pressure_hl,
                                          {**linedicts[j], **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
             if j == 0:
-                plot_on_hybrid_pressure_axis(axes[:2,i], _ds.flux_up_lw_clear - ds.flux_up_lw_clear, _ds.pressure_hl, 
+                plot_on_hybrid_pressure_axis(axes[:2,i], _ds.flux_up_lw_clear - ds.flux_up_lw_clear, _ds.pressure_hl,
                                          {**linedicts[j], **clearsky_linedict, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\n(clearsky)"}},  overwriting=True)
 
             i+=1
-            plot_on_hybrid_pressure_axis(axes[:2,i], _ds.cloud_radiative_effect_lw - ds.cloud_radiative_effect_lw, _ds.pressure_hl, 
+            plot_on_hybrid_pressure_axis(axes[:2,i], _ds.cloud_radiative_effect_lw - ds.cloud_radiative_effect_lw, _ds.pressure_hl,
                                          {**linedicts[j], **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
 
             i+=1
-            plot_on_hybrid_pressure_axis(axes[:2,i], _ds.heating_rate_lw - ds.heating_rate_lw, _ds.pressure_fl, 
+            plot_on_hybrid_pressure_axis(axes[:2,i], _ds.heating_rate_lw - ds.heating_rate_lw, _ds.pressure_fl,
                                          {**linedicts[j], **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
             if j == 0:
-                plot_on_hybrid_pressure_axis(axes[:2,i], _ds.heating_rate_lw_clear - ds.heating_rate_lw_clear, _ds.pressure_fl, 
+                plot_on_hybrid_pressure_axis(axes[:2,i], _ds.heating_rate_lw_clear - ds.heating_rate_lw_clear, _ds.pressure_fl,
                                          {**linedicts[j], **clearsky_linedict, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\n(clearsky)"}}, overwriting=True)
 
 
@@ -2023,14 +2018,14 @@ def compare_output_profile(latitude, IFS_srcfile, ecRAD_reference_srcfile, ecRAD
                                          {**linedicts[j], **clearsky_linedict, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\n(clearsky)"}}, overwriting=True)
 
             i+=1
-            plot_on_hybrid_pressure_axis(axes[3:,i], _ds.flux_up_sw - ds.flux_up_sw, _ds.pressure_hl, 
+            plot_on_hybrid_pressure_axis(axes[3:,i], _ds.flux_up_sw - ds.flux_up_sw, _ds.pressure_hl,
                                          {**linedicts[j], **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
             if j == 0:
-                plot_on_hybrid_pressure_axis(axes[3:,i], _ds.flux_up_sw_clear - ds.flux_up_sw_clear, _ds.pressure_hl, 
+                plot_on_hybrid_pressure_axis(axes[3:,i], _ds.flux_up_sw_clear - ds.flux_up_sw_clear, _ds.pressure_hl,
                                          {**linedicts[j], **clearsky_linedict, **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}\n(clearsky)"}},  overwriting=True)
 
             i+=1
-            plot_on_hybrid_pressure_axis(axes[3:,i], _ds.cloud_radiative_effect_sw - ds.cloud_radiative_effect_sw, _ds.pressure_hl, 
+            plot_on_hybrid_pressure_axis(axes[3:,i], _ds.cloud_radiative_effect_sw - ds.cloud_radiative_effect_sw, _ds.pressure_hl,
                                          {**linedicts[j], **{'label':f"{_ds.attrs['experiment']} $-$ {ds.attrs['experiment']}"}})
 
             i+=1

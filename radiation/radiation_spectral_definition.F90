@@ -45,6 +45,14 @@ module radiation_spectral_definition
     ! dimensioned (nwav, ng)
     real(jprb), allocatable :: gpoint_fraction(:,:)
 
+    ! Spectral weighting information for generating mappings to/from
+    ! different spectral grids: this can be in terms of a reference
+    ! temperature (K) to generate a Planck function, or the
+    ! solar_spectral_irradiance (W m-2) if available in the gas-optics
+    ! file.
+    real(jprb) :: reference_temperature = -1.0_jprb
+    real(jprb), allocatable :: solar_spectral_irradiance(:)
+    
     ! Band information
 
     ! Number of bands
@@ -77,12 +85,12 @@ contains
   subroutine read_spectral_definition(this, file)
 
     use easy_netcdf, only : netcdf_file
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(inout) :: this
     type(netcdf_file),               intent(inout) :: file
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:read',0,hook_handle)
 
@@ -96,6 +104,20 @@ contains
     call file%get('wavenumber2_band', this%wavenumber2_band)
     call file%get('band_number', this%i_band_number)
 
+    ! Read spectral weighting information
+    if (file%exists('solar_spectral_irradiance')) then
+      ! This is on the same grid as wavenumber1,2
+      call file%get('solar_spectral_irradiance', &
+           &        this%solar_spectral_irradiance)
+    end if
+    if (file%exists('solar_irradiance')) then
+      ! Shortwave default temperature
+      this%reference_temperature = SolarReferenceTemperature
+    else
+      ! Longwave reference temperature
+      this%reference_temperature = TerrestrialReferenceTemperature
+    end if
+    
     ! Band number is 0-based: add 1
     this%i_band_number = this%i_band_number + 1
 
@@ -113,12 +135,12 @@ contains
   ! upper wavenumbers of each band
   subroutine allocate_bands_only(this, wavenumber1, wavenumber2)
 
-    use yomhook,     only : lhook, dr_hook
+    use yomhook,     only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(inout) :: this
     real(jprb),        dimension(:), intent(in)    :: wavenumber1, wavenumber2
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:allocate_bands_only',0,hook_handle)
 
@@ -182,17 +204,16 @@ contains
   ! expression y=matmul(mapping,x) where x is a variable containing
   ! optical properties at each input "wavenumber", and y is this
   ! variable mapped on to the spectral intervals in the spectral
-  ! definition "this". Temperature (K) is used to generate a Planck
-  ! function to weight each wavenumber appropriately.
-  subroutine calc_mapping(this, temperature, wavenumber, mapping, use_bands)
+  ! definition "this". 
+  subroutine calc_mapping(this, wavenumber, mapping, weighting_temperature, use_bands)
 
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
-    real(jprb),                      intent(in)    :: temperature   ! K
     real(jprb),                      intent(in)    :: wavenumber(:) ! cm-1
     real(jprb), allocatable,         intent(inout) :: mapping(:,:)
+    real(jprb), optional,            intent(in)    :: weighting_temperature ! K
     logical,    optional,            intent(in)    :: use_bands
 
     ! Spectral weights to apply, same length as wavenumber above
@@ -215,7 +236,7 @@ contains
 
     logical    :: use_bands_local
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping',0,hook_handle)
 
@@ -240,8 +261,18 @@ contains
 
       ! Planck weight uses the wavenumbers of the cloud points
       allocate(planck_weight(nwav))
-      planck_weight = calc_planck_function_wavenumber(wavenumber, &
-           &                                          temperature)
+      if (present(weighting_temperature)) then
+        if (weighting_temperature > 0.0_jprb) then
+          planck_weight = calc_planck_function_wavenumber(wavenumber, &
+               &                          weighting_temperature)
+        else
+          ! Legacy mode: unweighted average
+          planck_weight = 1.0_jprb
+        end if
+      else
+        planck_weight = calc_planck_function_wavenumber(wavenumber, &
+             &                          this%reference_temperature)
+      end if
 
       do jband = 1,this%nband
         weight = 0.0_jprb
@@ -307,9 +338,13 @@ contains
       allocate(weight(this%nwav))
       allocate(planck_weight(this%nwav))
 
-      planck_weight = calc_planck_function_wavenumber(0.5_jprb &
-           &  * (this%wavenumber1 + this%wavenumber2), &
-           &  temperature)
+      if (allocated(this%solar_spectral_irradiance)) then
+        planck_weight = this%solar_spectral_irradiance
+      else
+        planck_weight = calc_planck_function_wavenumber(0.5_jprb &
+             &  * (this%wavenumber1 + this%wavenumber2), &
+             &  this%reference_temperature)
+      end if
 
       mapping = 0.0_jprb
       ! Loop over wavenumbers representing cloud
@@ -450,35 +485,32 @@ contains
   ! expression y=matmul(mapping^T,x) where x is a variable containing
   ! optical properties in input bands (e.g. albedo in shortwave albedo
   ! bands), and y is this variable mapped on to the spectral intervals
-  ! in the spectral definition "this". Temperature (K) is used to
-  ! generate a Planck function to weight each input band
-  ! appropriately. Note that "mapping" is here transposed from the
-  ! convention in the calc_mapping routine.  Under the alternative
-  ! operation (if use_fluxes is present and .true.), the mapping works
-  ! in the reverse sense: if y contains fluxes in each ecRad band or
-  ! g-point, then x=matmul(mapping,y) would return fluxes in x
-  ! averaged to user-supplied "input" bands. In this version, the
-  ! bands are described by their wavelength bounds (wavelength_bound,
-  ! which must be increasing and exclude the end points) and the index
-  ! of the mapping matrix that each band corresponds to (i_intervals,
-  ! which has one more element than wavelength_bound and can have
-  ! duplicated values if an albedo/emissivity value is to be
-  ! associated with more than one discontinuous ranges of the
-  ! spectrum).
-  subroutine calc_mapping_from_bands(this, temperature, &
+  ! in the spectral definition "this". Note that "mapping" is here
+  ! transposed from the convention in the calc_mapping routine.  Under
+  ! the alternative operation (if use_fluxes is present and .true.),
+  ! the mapping works in the reverse sense: if y contains fluxes in
+  ! each ecRad band or g-point, then x=matmul(mapping,y) would return
+  ! fluxes in x averaged to user-supplied "input" bands. In this
+  ! version, the bands are described by their wavelength bounds
+  ! (wavelength_bound, which must be increasing and exclude the end
+  ! points) and the index of the mapping matrix that each band
+  ! corresponds to (i_intervals, which has one more element than
+  ! wavelength_bound and can have duplicated values if an
+  ! albedo/emissivity value is to be associated with more than one
+  ! discontinuous ranges of the spectrum).
+  subroutine calc_mapping_from_bands(this, &
        &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
 
-    use yomhook,      only : lhook, dr_hook
+    use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulerr, radiation_abort
 
     class(spectral_definition_type), intent(in)    :: this
-    real(jprb),                      intent(in)    :: temperature   ! K
     ! Monotonically increasing wavelength bounds (m) between
     ! intervals, not including the outer bounds (which are assumed to
     ! be zero and infinity)
-    real(jprb), intent(in)    :: wavelength_bound(:)
+    real(jprb),                      intent(in)    :: wavelength_bound(:)
     ! The albedo band indices corresponding to each interval
-    integer,    intent(in)    :: i_intervals(:)
+    integer,                         intent(in)    :: i_intervals(:)
     real(jprb), allocatable,         intent(inout) :: mapping(:,:)
     logical,    optional,            intent(in)    :: use_bands
     logical,    optional,            intent(in)    :: use_fluxes
@@ -519,9 +551,9 @@ contains
     logical    :: use_bands_local, use_fluxes_local
 
     ! Loop indices
-    integer    :: jg, jband, jin, jint
+    integer    :: jg, jband, jin, jint, jwav
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_bands',0,hook_handle)
 
@@ -595,7 +627,8 @@ contains
             ! function over the relevant part of the spectrum
             wavenumber_sample = wavenumber1_bound + [(isamp,isamp=0,nsample-1)] &
                  &  * (wavenumber2_bound-wavenumber1_bound) / real(nsample-1,jprb)
-            planck_sample = calc_planck_function_wavenumber(wavenumber_sample, temperature)
+            planck_sample = calc_planck_function_wavenumber(wavenumber_sample, &
+                 &                                 this%reference_temperature)
             mapping(i_intervals(jint),jband) = mapping(i_intervals(jint),jband) &
                  &  + sum(planck_sample*weight_sample) * (wavenumber2_bound-wavenumber1_bound)
             if (use_fluxes_local) then
@@ -603,7 +636,8 @@ contains
               wavenumber_sample = this%wavenumber1_band(jband) + [(isamp,isamp=0,nsample-1)] &
                    &  * (this%wavenumber2_band(jband)-this%wavenumber1_band(jband)) &
                    &  / real(nsample-1,jprb)
-              planck_sample = calc_planck_function_wavenumber(wavenumber_sample, temperature)
+              planck_sample = calc_planck_function_wavenumber(wavenumber_sample, &
+                   &                                 this%reference_temperature)
               mapping_denom(i_intervals(jint),jband) = mapping_denom(i_intervals(jint),jband) &
                  &  + sum(planck_sample*weight_sample) * (this%wavenumber2_band(jband)-this%wavenumber1_band(jband))
             end if
@@ -629,8 +663,14 @@ contains
       mapping = 0.0_jprb
 
       wavenumber_mid = 0.5_jprb * (this%wavenumber1 + this%wavenumber2)
-      planck = calc_planck_function_wavenumber(wavenumber_mid, temperature)
+      if (allocated(this%solar_spectral_irradiance)) then
+        planck = this%solar_spectral_irradiance
+      else
+        planck = calc_planck_function_wavenumber(wavenumber_mid, &
+             &                       this%reference_temperature)
+      end if
 
+#ifdef USE_COARSE_MAPPING
       ! In the processing that follows, we assume that the wavenumber
       ! grid on which the g-points are defined in the spectral
       ! definition is much finer than the albedo/emissivity intervals
@@ -651,8 +691,8 @@ contains
         end where
       end do
 
-      ! Final interval in wavelength space goes up to wavenumber of
-      ! infinity
+      ! Final interval in wavelength space goes up to wavelength of
+      ! infinity (wavenumber of zero)
       if (ninterval > 1) then
         wavenumber2_bound = 0.01_jprb / wavelength_bound(ninterval-1)
         where (wavenumber_mid <= wavenumber2_bound)
@@ -670,6 +710,51 @@ contains
         end do
       end do
 
+#else
+
+      ! Loop through all intervals
+      do jint = 1,ninterval
+        ! Loop through the wavenumbers for gpoint_fraction
+        do jwav = 1,this%nwav
+          if (jint == 1) then
+            ! First input interval in wavelength space: lower
+            ! wavelength bound is 0 m, so infinity cm-1
+            wavenumber2_bound = this%wavenumber2(jwav)
+          else
+            wavenumber2_bound = min(this%wavenumber2(jwav), &
+                 &                  0.01_jprb/wavelength_bound(jint-1))
+          end if
+
+          if (jint == ninterval) then
+            ! Final input interval in wavelength space: upper
+            ! wavelength bound is infinity m, so 0 cm-1
+            wavenumber1_bound = this%wavenumber1(jwav)
+          else
+            wavenumber1_bound = max(this%wavenumber1(jwav), &
+                 &                  0.01_jprb/wavelength_bound(jint))
+
+          end if
+
+          if (wavenumber2_bound > wavenumber1_bound) then
+            ! Overlap between input interval and gpoint_fraction
+            ! interval: compute the weight of the contribution in
+            ! proportion to an approximate calculation of the integral
+            ! of the Planck function over the relevant part of the
+            ! spectrum
+            mapping(i_intervals(jint),:) = mapping(i_intervals(jint),:) + this%gpoint_fraction(jwav,:) &
+                 &  * (planck(jwav) * (wavenumber2_bound - wavenumber1_bound) &
+                 &                  / (this%wavenumber2(jwav)-this%wavenumber1(jwav)))
+          end if
+        end do
+      end do
+      if (use_fluxes_local) then
+        do jg = 1,this%ng
+          mapping(:,jg) = mapping(:,jg) / sum(this%gpoint_fraction(:,jg) * planck)
+        end do
+      end if
+
+#endif
+      
     end if
 
     if (.not. use_fluxes_local) then
@@ -687,14 +772,12 @@ contains
   !---------------------------------------------------------------------
   ! As calc_mapping_from_bands but in terms of wavenumber bounds from
   ! wavenumber1 to wavenumber2
-  subroutine calc_mapping_from_wavenumber_bands(this, temperature, &
+  subroutine calc_mapping_from_wavenumber_bands(this, &
        &  wavenumber1, wavenumber2, mapping, use_bands, use_fluxes)
 
-    use yomhook,      only : lhook, dr_hook
-    use radiation_io, only : nulerr, radiation_abort
+    use yomhook,      only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(in)    :: this
-    real(jprb),                      intent(in)    :: temperature   ! K
     real(jprb), intent(in)    :: wavenumber1(:), wavenumber2(:)
     real(jprb), allocatable,         intent(inout) :: mapping(:,:)
     logical,    optional,            intent(in)    :: use_bands
@@ -726,7 +809,7 @@ contains
     ! Loop indices
     integer :: jint
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_wavenumber_bands',0,hook_handle)
 
@@ -744,8 +827,7 @@ contains
       i_intervals(jint) = inext
     end do
 
-    call calc_mapping_from_bands(this, temperature, &
-         &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
+    call calc_mapping_from_bands(this, wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
 
     if (lhook) call dr_hook('radiation_spectral_definition:calc_mapping_from_wavenumber_bands',1,hook_handle)
 

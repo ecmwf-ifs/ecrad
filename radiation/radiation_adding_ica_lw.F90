@@ -34,7 +34,7 @@ contains
        &  flux_up, flux_dn)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -69,7 +69,7 @@ contains
     ! Loop index for model level and column
     integer :: jlev, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_adding_ica_lw:adding_ica_lw',0,hook_handle)
 
@@ -140,7 +140,7 @@ contains
        &  flux_up, flux_dn)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -184,7 +184,7 @@ contains
     ! Loop index for model level and column
     integer :: jlev, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_adding_ica_lw:fast_adding_ica_lw',0,hook_handle)
 
@@ -273,7 +273,7 @@ contains
        &  transmittance, source_up, source_dn, emission_surf, albedo_surf, flux_up, flux_dn)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook
+    use yomhook,  only           : lhook, dr_hook, jphook
 
     implicit none
 
@@ -297,7 +297,7 @@ contains
     ! Loop index for model level
     integer :: jlev, jcol
 
-    real(jprb) :: hook_handle
+    real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_adding_ica_lw:calc_fluxes_no_scattering_lw',0,hook_handle)
 

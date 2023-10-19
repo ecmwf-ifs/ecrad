@@ -21,7 +21,7 @@ SUBROUTINE RRTM_TAUMOL15 (KIDIA,KFDIA,KLEV,P_TAU,&
 ! ---------------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
+USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
 
 USE PARRRTM  , ONLY : JPBAND
 USE YOERRTM  , ONLY : JPGPT  ,NGS14  ,NG15
@@ -78,7 +78,10 @@ REAL(KIND=JPRB) :: Z_FS, Z_SPECMULT, Z_SPECPARM,Z_SPECCOMB,  &
 & Z_FS1, Z_SPECMULT1, Z_SPECPARM1,Z_SPECCOMB1, &
 & Z_FMN2, Z_SPECMULT_MN2, Z_SPECPARM_MN2,Z_SPECCOMB_MN2, &
 & Z_FPL, Z_SPECMULT_PLANCK, Z_SPECPARM_PLANCK,Z_SPECCOMB_PLANCK
-REAL(KIND=JPRB) :: ZHOOK_HANDLE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL15',0,ZHOOK_HANDLE)
+
 ! ---------------------------------------------------------------------------
 ! Minor gas mapping level : 
 !     Lower - Nitrogen Continuum, P = 1053., T = 294.
@@ -86,19 +89,16 @@ REAL(KIND=JPRB) :: ZHOOK_HANDLE
 ! Calculate reference ratio to be used in calculation of Planck
 ! fraction in lower atmosphere.
 ! P = 1053. mb (Level 1)
-      Zrefrat_planck_a = chi_mls(4,1)/chi_mls(2,1)
+      ZREFRAT_PLANCK_A = CHI_MLS(4,1)/CHI_MLS(2,1)
 
 ! P = 1053.
-      Zrefrat_m_a = chi_mls(4,1)/chi_mls(2,1)
+      ZREFRAT_M_A = CHI_MLS(4,1)/CHI_MLS(2,1)
 
 ! Compute the optical depth by interpolating in ln(pressure), 
 ! temperature, and appropriate species.  Below laytrop, the water
 ! vapor self-continuum and foreign continuum is interpolated 
 ! (in temperature) separately.  
  
-ASSOCIATE(NFLEVG=>KLEV)
-IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL15',0,ZHOOK_HANDLE)
-
 DO JLAY = 1, KLEV
   DO JLON = KIDIA, KFDIA
     IF (JLAY <= K_LAYTROP(JLON)) THEN
@@ -288,5 +288,4 @@ ENDDO
 
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL15',1,ZHOOK_HANDLE)
 
-END ASSOCIATE
 END SUBROUTINE RRTM_TAUMOL15
