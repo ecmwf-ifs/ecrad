@@ -51,7 +51,6 @@ program ecrad_driver
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
   use print_matrix_mod,         only : print_matrix
-  use setup_aerosol_optics_lmdz_m, only: setup_aerosol_optics_lmdz
   
   implicit none
 
@@ -165,8 +164,6 @@ program ecrad_driver
   !     &   4.69e-07_jprb, 5.0e-07_jprb, 5.32e-07_jprb, 5.5e-07_jprb, 6.45e-07_jprb, &
   !     &   6.7e-07_jprb, 8.0e-07_jprb, 8.58e-07_jprb, 8.65e-07_jprb, 1.02e-06_jprb, &
   !     &   1.064e-06_jprb, 1.24e-06_jprb, 1.64e-06_jprb, 2.13e-06_jprb, 1.0e-05_jprb])
-
-  config%aerosol_optics%setup => setup_aerosol_optics_lmdz
 
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
