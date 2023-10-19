@@ -42,7 +42,7 @@ module radiation_gas
     ! 1.0e-6 is used to indicate the units are actually PPMV: need to
     ! multiply by 1e-6 to get mol/mol.
     real(jprb) :: scale_factor(NMaxGases) = 1.0_jprb
-
+    
     ! Mixing ratios of variable gases, dimensioned (ncol, nlev,
     ! NMaxGases)
     real(jprb), allocatable, dimension(:,:,:) :: mixing_ratio
@@ -61,7 +61,7 @@ module radiation_gas
     ! A list of length ntype of gases whose volume mixing ratios have
     ! been provided
     integer :: icode(NMaxGases) = 0
-
+    
    contains
      procedure :: allocate   => allocate_gas
      procedure :: deallocate => deallocate_gas
@@ -83,12 +83,12 @@ contains
   ! number of columns and levels
   subroutine allocate_gas(this, ncol, nlev)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     class(gas_type), intent(inout) :: this
     integer,         intent(in)    :: ncol, nlev
 
-    real(jphook) :: hook_handle
+    real(jprb)          :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:allocate',0,hook_handle)
 
@@ -109,18 +109,18 @@ contains
   ! Deallocate memory and reset arrays
   subroutine deallocate_gas(this)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     class(gas_type), intent(inout) :: this
 
-    real(jphook) :: hook_handle
+    real(jprb)          :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:deallocate',0,hook_handle)
 
     if (allocated(this%mixing_ratio)) then
        deallocate(this%mixing_ratio)
     end if
-
+    
     this%iunits = 0
     this%scale_factor = 0.0_jprb
     this%is_present = .false.
@@ -141,7 +141,7 @@ contains
   subroutine put_gas(this, igas, iunits, mixing_ratio, scale_factor, &
        istartcol)
 
-    use yomhook,        only : lhook, dr_hook, jphook
+    use yomhook,        only : lhook, dr_hook
     use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type),      intent(inout) :: this
@@ -154,7 +154,7 @@ contains
     integer :: i1, i2, jc, jk
 
 
-    real(jphook) :: hook_handle
+    real(jprb)                          :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
@@ -229,7 +229,7 @@ contains
   subroutine put_well_mixed_gas(this, igas, iunits, mixing_ratio, &
        scale_factor, istartcol, iendcol)
 
-    use yomhook,        only : lhook, dr_hook, jphook
+    use yomhook,        only : lhook, dr_hook
     use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type),      intent(inout) :: this
@@ -239,7 +239,7 @@ contains
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol, iendcol
 
-    real(jphook) :: hook_handle
+    real(jprb)                          :: hook_handle
 
     integer :: i1, i2, jc, jk
 
@@ -352,7 +352,7 @@ contains
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: iunits
     integer,    optional, intent(in)    :: igas
-    real(jprb), optional, intent(in)    :: scale_factor
+    real(jprb), optional, intent(in)    :: scale_factor    
 
     integer :: ig
 
@@ -385,7 +385,7 @@ contains
           sf = sf * AirMolarMass / GasMolarMass(igas)
         end if
         sf = sf * this%scale_factor(igas)
-
+        
         if (sf /= 1.0_jprb) then
           this%mixing_ratio(:,:,igas) = this%mixing_ratio(:,:,igas) * sf
         end if
@@ -410,13 +410,13 @@ contains
   ! subsequent multiplication to apply; for PPMV one would use
   ! iunits=IVolumeMixingRatio and scale_factor=1.0e6.
   recursive subroutine assert_units_gas(this, iunits, igas, scale_factor)
-
-    use radiation_io,   only : nulerr, radiation_abort
+    
+    use radiation_io,   only : nulerr, radiation_abort    
 
     class(gas_type),      intent(in) :: this
     integer,              intent(in) :: iunits
     integer,    optional, intent(in) :: igas
-    real(jprb), optional, intent(in) :: scale_factor
+    real(jprb), optional, intent(in) :: scale_factor    
 
     integer :: ig
 
@@ -457,7 +457,7 @@ contains
   subroutine get_gas(this, igas, iunits, mixing_ratio, scale_factor, &
        &   istartcol)
 
-    use yomhook,        only : lhook, dr_hook, jphook
+    use yomhook,        only : lhook, dr_hook
     use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type),      intent(in)  :: this
@@ -470,7 +470,7 @@ contains
     real(jprb)                        :: sf
     integer                           :: i1, i2
 
-    real(jphook) :: hook_handle
+    real(jprb)                        :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
 
@@ -503,7 +503,7 @@ contains
 
     if (.not. this%is_present(igas)) then
       mixing_ratio = 0.0_jprb
-    else
+    else 
       if (iunits == IMassMixingRatio &
            &   .and. this%iunits(igas) == IVolumeMixingRatio) then
         sf = sf * GasMolarMass(igas) / AirMolarMass
@@ -512,7 +512,7 @@ contains
         sf = sf * AirMolarMass / GasMolarMass(igas)
       end if
       sf = sf * this%scale_factor(igas)
-
+        
       if (sf /= 1.0_jprb) then
         mixing_ratio = this%mixing_ratio(i1:i2,:,igas) * sf
       else
@@ -530,7 +530,7 @@ contains
   ! data
   subroutine reverse_gas(this, istartcol, iendcol, gas_rev)
 
-    class(gas_type), intent(in) :: this
+    class(gas_type)             :: this
     integer,        intent(in)  :: istartcol, iendcol
     type(gas_type), intent(out) :: gas_rev
 
@@ -558,7 +558,7 @@ contains
   ! optionally only considering columns between istartcol and iendcol
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
-    use yomhook,          only : lhook, dr_hook, jphook
+    use yomhook,          only : lhook, dr_hook
     use radiation_check,  only : out_of_bounds_3d
 
     class(gas_type),   intent(inout) :: this
@@ -568,7 +568,7 @@ contains
 
     logical    :: do_fix_local
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:out_of_physical_bounds',0,hook_handle)
 
@@ -584,5 +584,5 @@ contains
     if (lhook) call dr_hook('radiation_gas:out_of_physical_bounds',1,hook_handle)
 
   end function out_of_physical_bounds
-
+  
 end module radiation_gas

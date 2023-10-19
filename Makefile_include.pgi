@@ -8,11 +8,6 @@ OPTFLAGS = -O0
 endif
 
 WARNFLAGS = -Minform=inform
-
-# We used to have the flag "-Mbyteswapio" here because the RRTM input
-# files are big endian Fortran unformatted files and most machines are
-# now little endian, but now the file ordering has been specified at
-# the OPEN command so no compiler flags are needed.
-BASICFLAGS = -module ../mod
+BASICFLAGS = -module ../mod -Mbyteswapio
 DEBUGFLAGS = -g
 OMPFLAG = -mp=nonuma

@@ -27,7 +27,7 @@ contains
        &  flux_up, flux_dn_diffuse, flux_dn_direct)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,  only           : lhook, dr_hook
 
     implicit none
 
@@ -76,7 +76,7 @@ contains
     ! Loop index for model level and column
     integer :: jlev, jcol
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_adding_ica_sw:adding_ica_sw',0,hook_handle)
 

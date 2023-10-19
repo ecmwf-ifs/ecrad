@@ -121,7 +121,7 @@ contains
   subroutine cum_cloud_cover_max_ran(nlev, frac, &
        & cum_cloud_cover, pair_cloud_cover)
 
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,  only           : lhook, dr_hook
 
     implicit none
 
@@ -147,7 +147,7 @@ contains
     ! Loop index for model level
     integer :: jlev
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_cover:cum_cloud_cover_max_ran',0,hook_handle)
 
@@ -181,7 +181,7 @@ contains
   subroutine cum_cloud_cover_exp_ran(nlev, frac, overlap_param, &
        & cum_cloud_cover, pair_cloud_cover, is_beta_overlap)
 
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,  only           : lhook, dr_hook
 
     implicit none
 
@@ -223,7 +223,7 @@ contains
     ! Loop index for model level
     integer :: jlev
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_cover:cum_cloud_cover_exp_ran',0,hook_handle)
 
@@ -287,7 +287,7 @@ contains
   subroutine cum_cloud_cover_exp_exp(nlev, frac, overlap_param, &
        & cum_cloud_cover, pair_cloud_cover, is_beta_overlap)
 
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,  only           : lhook, dr_hook
 
     implicit none
 
@@ -367,7 +367,7 @@ contains
     ! cumulative cloud cover of lower layer
     real(jprb) :: cc_pair, scaling
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_cover:cum_cloud_cover_exp_exp',0,hook_handle)
 

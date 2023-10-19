@@ -37,12 +37,12 @@ contains
   subroutine setup_radiation(config)
 
     use parkind1,         only : jprb
-    use yomhook,          only : lhook, dr_hook, jphook
-    use radiation_io,     only : nulerr, radiation_abort
+    use yomhook,          only : lhook, dr_hook
     use radiation_config, only : config_type, ISolverMcICA, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD
     use radiation_spectral_definition, only &
          &  : SolarReferenceTemperature, TerrestrialReferenceTemperature
+
     ! Currently there are two gas absorption models: RRTMG (default)
     ! and monochromatic
     use radiation_monochromatic,  only : &
@@ -55,10 +55,9 @@ contains
     use radiation_general_cloud_optics, only :  setup_general_cloud_optics
     use radiation_aerosol_optics, only :  setup_aerosol_optics
 
-    
     type(config_type), intent(inout) :: config
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_interface:setup_radiation',0,hook_handle)
 
@@ -75,13 +74,6 @@ contains
       call setup_gas_optics_ecckd(config)
     end if
 
-    if (config%do_lw_aerosol_scattering &
-         & .and. .not. config%do_lw_cloud_scattering) then
-      write(nulerr, '(a)') '*** Error: longwave aerosol scattering requires longwave cloud scattering'
-      call radiation_abort('Radiation configuration error')
-    end if
-
-    
     ! Whether or not the "radiation" subroutine needs ssa_lw and g_lw
     ! arrays depends on whether longwave scattering by aerosols is to
     ! be included.  If not, one of the array dimensions will be set to
@@ -191,7 +183,7 @@ contains
        &  single_level, thermodynamics, gas, cloud, aerosol, flux)
 
     use parkind1,                 only : jprb
-    use yomhook,                  only : lhook, dr_hook, jphook
+    use yomhook,                  only : lhook, dr_hook
 
     use radiation_io,             only : nulout
     use radiation_config,         only : config_type, &
@@ -293,7 +285,7 @@ contains
     character(len=100) :: rad_prop_file_name
     character(*), parameter :: rad_prop_base_file_name = "radiative_properties"
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_interface:radiation',0,hook_handle)
 
@@ -483,10 +475,9 @@ contains
         end if
       end if
 
-      ! Store surface downwelling, and TOA, fluxes in bands from
-      ! fluxes in g points
+      ! Store surface downwelling fluxes in bands from fluxes in g
+      ! points
       call flux%calc_surface_spectral(config, istartcol, iendcol)
-      call flux%calc_toa_spectral    (config, istartcol, iendcol)
 
     end if
     

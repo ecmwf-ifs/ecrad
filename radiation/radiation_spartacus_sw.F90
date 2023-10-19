@@ -68,7 +68,7 @@ contains
        &  flux)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,  only           : lhook, dr_hook
 
     use radiation_io, only             : nulout
     use radiation_config, only         : config_type, IPdfShapeGamma, &
@@ -83,7 +83,8 @@ contains
          &                               indexed_sum, add_indexed_sum
     use radiation_matrix
     use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
-         &  calc_reflectance_transmittance_sw, calc_frac_scattered_diffuse_sw
+         &  calc_reflectance_transmittance_sw, calc_frac_scattered_diffuse_sw, &
+         &  SwDiffusivity
     use radiation_constants, only      : Pi, GasConstantDryAir, &
          &                               AccelDueToGravity
 
@@ -290,7 +291,7 @@ contains
     ! Maximum entrapment coefficient
     real(jprb) :: max_entr
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_spartacus_sw:solver_spartacus_sw',0,hook_handle)
 

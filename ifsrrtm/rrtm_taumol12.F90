@@ -19,7 +19,7 @@ SUBROUTINE RRTM_TAUMOL12 (KIDIA,KFDIA,KLEV,P_TAU,&
 ! ---------------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
 
 USE PARRRTM  , ONLY : JPBAND
 USE YOERRTM  , ONLY : JPGPT  ,NG12 ,NGS11
@@ -79,17 +79,18 @@ REAL(KIND=JPRB) :: ZP, ZP4, ZFK0, ZFK1, ZFK2
 REAL(KIND=JPRB) :: ZTAUFOR,ZTAUSELF,ZTAU_MAJOR,ZTAU_MAJOR1
 REAL(KIND=JPRB) :: ZREFRAT_PLANCK_A
 
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
 !  ----------------------------------------------------------
 
+ASSOCIATE(NFLEVG=>KLEV)
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL12',0,ZHOOK_HANDLE)
 
 ! Calculate reference ratio to be used in calculation of Planck
 ! fraction in lower/upper atmosphere.
 
 ! P =   174.164 mb 
-      ZREFRAT_PLANCK_A = CHI_MLS(1,10)/CHI_MLS(2,10)
+      Zrefrat_planck_a = chi_mls(1,10)/chi_mls(2,10)
 
 ! Compute the optical depth by interpolating in ln(pressure), 
 ! temperature, and appropriate species.  Below laytrop, the water
@@ -267,4 +268,5 @@ ENDDO
 
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL12',1,ZHOOK_HANDLE)
 
+END ASSOCIATE
 END SUBROUTINE RRTM_TAUMOL12

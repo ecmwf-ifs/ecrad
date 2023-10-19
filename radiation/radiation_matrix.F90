@@ -42,8 +42,7 @@ module radiation_matrix
   public  :: mat_x_vec, singlemat_x_vec, mat_x_mat, &
        &     singlemat_x_mat, mat_x_singlemat, &
        &     identity_minus_mat_x_mat, solve_vec, solve_mat, expm, &
-       &     fast_expm_exchange_2, fast_expm_exchange_3, &
-       &     sparse_x_dense
+       &     fast_expm_exchange_2, fast_expm_exchange_3
 
   private :: solve_vec_2, solve_vec_3, solve_mat_2, &
        &     solve_mat_3, lu_factorization, lu_substitution, solve_mat_n, &
@@ -63,7 +62,7 @@ contains
   ! multiplications on first iend pairs
   function mat_x_vec(n,iend,m,A,b,do_top_left_only_in)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in)                   :: n, m, iend
     real(jprb), intent(in), dimension(:,:,:) :: A
@@ -74,7 +73,7 @@ contains
     integer :: j1, j2
     logical :: do_top_left_only
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:mat_x_vec',0,hook_handle)
 
@@ -109,7 +108,7 @@ contains
   ! multiplications on first iend pairs
   function singlemat_x_vec(n,iend,m,A,b)
 
-!    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in)                    :: n, m, iend
     real(jprb), intent(in), dimension(m,m)    :: A
@@ -117,9 +116,9 @@ contains
     real(jprb),             dimension(iend,m) :: singlemat_x_vec
 
     integer    :: j1, j2
-!    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
-!    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',0,hook_handle)
+    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',0,hook_handle)
 
     ! Array-wise assignment
     singlemat_x_vec = 0.0_jprb
@@ -131,7 +130,7 @@ contains
       end do
     end do
 
-!    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',1,hook_handle)
+    if (lhook) call dr_hook('radiation_matrix:single_mat_x_vec',1,hook_handle)
 
   end function singlemat_x_vec
 
@@ -144,7 +143,7 @@ contains
   ! all n matrix pairs
   function mat_x_mat(n,iend,m,A,B,i_matrix_pattern)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in)                      :: n, m, iend
     integer,    intent(in), optional            :: i_matrix_pattern
@@ -154,7 +153,7 @@ contains
     integer    :: j1, j2, j3
     integer    :: mblock, m2block
     integer    :: i_actual_matrix_pattern
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:mat_x_mat',0,hook_handle)
 
@@ -222,7 +221,7 @@ contains
   ! multiplications on the first iend matrix pairs
   function singlemat_x_mat(n,iend,m,A,B)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in)                      :: n, m, iend
     real(jprb), intent(in), dimension(m,m)      :: A
@@ -230,7 +229,7 @@ contains
     real(jprb),             dimension(iend,m,m) :: singlemat_x_mat
 
     integer    :: j1, j2, j3
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:singlemat_x_mat',0,hook_handle)
 
@@ -257,7 +256,7 @@ contains
   ! multiplications on the first iend matrix pairs
   function mat_x_singlemat(n,iend,m,A,B)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in)                      :: n, m, iend
     real(jprb), intent(in), dimension(:,:,:)    :: A
@@ -265,7 +264,7 @@ contains
 
     real(jprb),             dimension(iend,m,m) :: mat_x_singlemat
     integer    :: j1, j2, j3
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:mat_x_singlemat',0,hook_handle)
 
@@ -291,7 +290,7 @@ contains
   ! m-by-m square matrices
   function identity_minus_mat_x_mat(n,iend,m,A,B,i_matrix_pattern)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in)                   :: n, m, iend
     integer,    intent(in), optional         :: i_matrix_pattern
@@ -299,7 +298,7 @@ contains
     real(jprb),             dimension(iend,m,m) :: identity_minus_mat_x_mat
 
     integer    :: j
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:identity_mat_x_mat',0,hook_handle)
 
@@ -319,33 +318,6 @@ contains
 
   end function identity_minus_mat_x_mat
 
-
-  
-  !---------------------------------------------------------------------
-  ! Replacement for matmul in the case that the first matrix is sparse
-  function sparse_x_dense(sparse, dense)
-
-    real(jprb), intent(in) :: sparse(:,:), dense(:,:)
-    real(jprb) :: sparse_x_dense(size(sparse,1),size(dense,2))
-
-    integer :: j1, j2, j3 ! Loop indices
-    integer :: n1, n2, n3 ! Array sizes
-
-    n1 = size(sparse,1)
-    n2 = size(sparse,2)
-    n3 = size(dense,2)
-    
-    sparse_x_dense = 0.0_jprb
-    do j2 = 1,n2
-      do j1 = 1,n1
-        if (sparse(j1,j2) /= 0.0_jprb) then
-          sparse_x_dense(j1,:) = sparse_x_dense(j1,:) + sparse(j1,j2)*dense(j2,:)
-        end if
-      end do
-    end do
-    
-  end function sparse_x_dense
-  
 
   ! --- REPEATEDLY SQUARE A MATRIX ---
 
@@ -736,7 +708,7 @@ contains
   ! decomposition without pivoting.
   function solve_vec(n,iend,m,A,b)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in) :: n, m, iend
     real(jprb), intent(in) :: A(:,:,:)
@@ -744,7 +716,7 @@ contains
 
     real(jprb)             :: solve_vec(iend,m)
     real(jprb)             :: LU(iend,m,m)
-    real(jphook) :: hook_handle
+    real(jprb)             :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:solve_vec',0,hook_handle)
 
@@ -768,14 +740,14 @@ contains
   ! general LU decomposition without pivoting.
   function solve_mat(n,iend,m,A,B)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in)  :: n, m, iend
     real(jprb), intent(in)  :: A(:,:,:)
     real(jprb), intent(in)  :: B(:,:,:)
 
     real(jprb)              :: solve_mat(iend,m,m)
-    real(jphook) :: hook_handle
+    real(jprb)              :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:solve_mat',0,hook_handle)
 
@@ -804,7 +776,7 @@ contains
   ! multiplications for matrices with a small norm.
   subroutine expm(n,iend,m,A,i_matrix_pattern)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,    intent(in)      :: n, m, iend
     real(jprb), intent(inout)   :: A(n,m,m)
@@ -827,7 +799,7 @@ contains
     integer    :: expo(iend)
     real(jprb) :: scaling(iend)
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:expm',0,hook_handle)
 
@@ -913,7 +885,7 @@ contains
   ! Putzer's algorithm - see the appendix of Hogan et al. (GMD 2018)
   subroutine fast_expm_exchange_2(n,iend,a,b,R)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     integer,                      intent(in)  :: n, iend
     real(jprb), dimension(n),     intent(in)  :: a, b
@@ -921,7 +893,7 @@ contains
 
     real(jprb), dimension(iend) :: factor
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:fast_expm_exchange_2',0,hook_handle)
 
@@ -951,7 +923,7 @@ contains
   ! which assumed c==d.
   subroutine fast_expm_exchange_3(n,iend,a,b,c,d,R)
 
-    use yomhook, only : lhook, dr_hook, jphook
+    use yomhook, only : lhook, dr_hook
 
     real(jprb), parameter :: my_epsilon = 1.0e-12_jprb
 
@@ -976,22 +948,17 @@ contains
 
     integer :: j1, j2
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_matrix:fast_expm_exchange_3',0,hook_handle)
 
-    ! Eigenvalues lambda1 and lambda2
+    ! Eigenvalues
     tmp1 = 0.5_jprb * (a(1:iend)+b(1:iend)+c(1:iend)+d(1:iend))
-    tmp2 = sqrt(max(0.0_jprb, tmp1*tmp1 - (a(1:iend)*c(1:iend) &
-         &                    + a(1:iend)*d(1:iend) + b(1:iend)*d(1:iend))))
-    ! The eigenvalues must not be the same or the LU decomposition
-    ! fails; this can occur occasionally in single precision, which we
-    ! avoid by limiting the minimum value of tmp2
-    tmp2 = max(tmp2, epsilon(1.0_jprb) * tmp1)
+    tmp2 = sqrt(tmp1*tmp1 - (a(1:iend)*c(1:iend) + a(1:iend)*d(1:iend) + b(1:iend)*d(1:iend)))
     lambda1 = -tmp1 + tmp2
     lambda2 = -tmp1 - tmp2
 
-    ! Eigenvectors, with securities such that if a--d are all zero
+    ! Eigenvectors, with securities such taht if a--d are all zero
     ! then V is non-singular and the identity matrix is returned in R;
     ! note that lambdaX is typically negative so we need a
     ! sign-preserving security
@@ -1029,5 +996,5 @@ contains
 
 !  generic :: fast_expm_exchange => fast_expm_exchange_2, fast_expm_exchange_3
 
- 
+
 end module radiation_matrix

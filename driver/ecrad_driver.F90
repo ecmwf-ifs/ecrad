@@ -44,14 +44,11 @@ program ecrad_driver
   use radiation_cloud,          only : cloud_type
   use radiation_aerosol,        only : aerosol_type
   use radiation_flux,           only : flux_type
-  use radiation_save,           only : save_fluxes, save_net_fluxes, &
-       &                               save_inputs, save_sw_diagnostics
-  use radiation_general_cloud_optics, only : save_general_cloud_optics
+  use radiation_save,           only : save_fluxes, save_inputs
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
-  use print_matrix_mod,         only : print_matrix
-  
+
   implicit none
 
   ! The NetCDF file containing the input profiles
@@ -81,9 +78,6 @@ program ecrad_driver
   ! For parallel processing of multiple blocks
   integer :: jblock, nblock ! Block loop index and number
 
-  ! Mapping matrix for shortwave spectral diagnostics
-  real(jprb), allocatable :: sw_diag_mapping(:,:)
-  
 #ifndef NO_OPENMP
   ! OpenMP functions
   integer, external :: omp_get_thread_num
@@ -179,25 +173,8 @@ program ecrad_driver
   !       &  'photosynthetically active radiation, PAR')
   !end if
 
-  ! Optionally compute shortwave spectral diagnostics in
-  ! user-specified wavlength intervals
-  if (driver_config%n_sw_diag > 0) then
-    if (.not. config%do_surface_sw_spectral_flux) then
-      stop 'Error: shortwave spectral diagnostics require do_surface_sw_spectral_flux=true'
-    end if
-    call config%get_sw_mapping(driver_config%sw_diag_wavelength_bound(1:driver_config%n_sw_diag+1), &
-         &  sw_diag_mapping, 'user-specified diagnostic intervals')
-    !if (driver_config%iverbose >= 3) then
-    !  call print_matrix(sw_diag_mapping, 'Shortwave diagnostic mapping', nulout)
-    !end if
-  end if
-  
   if (driver_config%do_save_aerosol_optics) then
     call config%aerosol_optics%save('aerosol_optics.nc', iverbose=driver_config%iverbose)
-  end if
-
-  if (driver_config%do_save_cloud_optics .and. config%use_general_cloud_optics) then
-    call save_general_cloud_optics(config, 'hydrometeor_optics', iverbose=driver_config%iverbose)
   end if
 
   ! --------------------------------------------------------
@@ -346,7 +323,7 @@ program ecrad_driver
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  write(nulout, '(a,g11.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
 #endif
 
   ! --------------------------------------------------------
@@ -356,29 +333,11 @@ program ecrad_driver
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   ! Store the fluxes in the output file
-  if (.not. driver_config%do_save_net_fluxes) then
-    call save_fluxes(file_name, config, thermodynamics, flux, &
-         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
-         &   experiment_name=driver_config%experiment_name, &
-         &   is_double_precision=driver_config%do_write_double_precision)
-  else
-    call save_net_fluxes(file_name, config, thermodynamics, flux, &
-         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
-         &   experiment_name=driver_config%experiment_name, &
-         &   is_double_precision=driver_config%do_write_double_precision)
-  end if
-
-  if (driver_config%n_sw_diag > 0) then
-    ! Store spectral fluxes in user-defined intervals in a second
-    ! output file
-    call save_sw_diagnostics(driver_config%sw_diag_file_name, config, &
-         &  driver_config%sw_diag_wavelength_bound(1:driver_config%n_sw_diag+1), &
-         &  sw_diag_mapping, flux, iverbose=driver_config%iverbose, &
-         &  is_hdf5_file=driver_config%do_write_hdf5, &
-         &  experiment_name=driver_config%experiment_name, &
-         &  is_double_precision=driver_config%do_write_double_precision)
-  end if
-  
+  call save_fluxes(file_name, config, thermodynamics, flux, &
+       &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+       &   experiment_name=driver_config%experiment_name, &
+       &   is_double_precision=driver_config%do_write_double_precision)
+    
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if

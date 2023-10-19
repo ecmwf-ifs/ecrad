@@ -32,7 +32,7 @@ contains
   subroutine setup_general_cloud_optics(config)
 
     use parkind1,         only : jprb
-    use yomhook,          only : lhook, dr_hook, jphook
+    use yomhook,          only : lhook, dr_hook
 
     use radiation_io,     only : nulout
     use radiation_config, only : config_type, NMaxCloudTypes
@@ -46,7 +46,7 @@ contains
     integer :: jtype ! loop index
     integer :: strlen
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics:setup_general_cloud_optics',0,hook_handle)
 
@@ -107,7 +107,6 @@ contains
              &  use_thick_averaging=config%use_thick_cloud_spectral_averaging(jtype), &
              &  weighting_temperature=SolarReferenceTemperature, &
              &  iverbose=config%iverbosesetup)
-        config%cloud_optics_sw(jtype)%type_name = trim(config%cloud_type_name(jtype))
       end if
 
       if (config%do_lw) then
@@ -120,7 +119,6 @@ contains
              &  use_thick_averaging=config%use_thick_cloud_spectral_averaging(jtype), &
              &  weighting_temperature=TerrestrialReferenceTemperature, &
              &  iverbose=config%iverbosesetup)
-        config%cloud_optics_lw(jtype)%type_name = trim(config%cloud_type_name(jtype))
       end if
 
     end do
@@ -137,7 +135,7 @@ contains
        &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,  only           : lhook, dr_hook
 
     use radiation_io,     only : nulout
     use radiation_config, only : config_type
@@ -171,7 +169,7 @@ contains
 
     integer :: jtype, jcol, jlev
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_general_cloud_optics:general_cloud_optics',0,hook_handle)
 
@@ -284,45 +282,5 @@ contains
     if (lhook) call dr_hook('radiation_general_cloud_optics:general_cloud_optics',1,hook_handle)
 
   end subroutine general_cloud_optics
-
-
-  !---------------------------------------------------------------------
-  ! Save all the cloud optics look-up tables for sw/lw and for each
-  ! hydrometeor type
-  subroutine save_general_cloud_optics(config, file_prefix, iverbose)
-
-    use yomhook,     only : lhook, dr_hook, jphook
-    use easy_netcdf, only : netcdf_file
-    use radiation_config, only : config_type
-    
-    type(config_type),  intent(in) :: config
-    character(len=*),   intent(in) :: file_prefix
-    integer,  optional, intent(in) :: iverbose
-
-    integer :: jtype
-
-    real(jphook) :: hook_handle
-
-    if (lhook) call dr_hook('radiation_general_cloud_optics:save',0,hook_handle)
-
-    do jtype = 1,config%n_cloud_types
-      if (config%do_sw) then
-        associate(co_sw => config%cloud_optics_sw(jtype))
-          call co_sw%save(file_prefix//"_sw_" &
-               &          //trim(co_sw%type_name)//".nc", iverbose)
-        end associate
-      end if
-
-      if (config%do_lw) then
-        associate(co_lw => config%cloud_optics_lw(jtype))
-          call co_lw%save(file_prefix//"_lw_" &
-               &          //trim(co_lw%type_name)//".nc", iverbose)
-        end associate
-      end if
-    end do
-    
-    if (lhook) call dr_hook('radiation_general_cloud_optics:save',1,hook_handle)
-
-  end subroutine save_general_cloud_optics
 
 end module radiation_general_cloud_optics

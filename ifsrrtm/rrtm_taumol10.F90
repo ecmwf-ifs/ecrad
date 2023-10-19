@@ -18,7 +18,7 @@ SUBROUTINE RRTM_TAUMOL10 (KIDIA,KFDIA,KLEV,P_TAU,&
 ! ---------------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK, DR_HOOK, JPHOOK
+USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
 
 USE PARRRTM  , ONLY : JPBAND
 USE YOERRTM  , ONLY : JPGPT  ,NG10   ,NGS9
@@ -57,7 +57,7 @@ INTEGER(KIND=JPIM) :: INDS(KLEV),INDF(KLEV)
 INTEGER(KIND=JPIM) :: IG, JLAY
 INTEGER(KIND=JPIM) :: JLON
 REAL(KIND=JPRB) :: ZTAUFOR,ZTAUSELF
-REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+REAL(KIND=JPRB) :: ZHOOK_HANDLE
 
 !     Compute the optical depth by interpolating in ln(pressure) and 
 !     temperature.  

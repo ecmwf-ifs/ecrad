@@ -40,7 +40,7 @@ $(LIBRAD): $(OBJECTS)
 clean:
 	rm -f *.o $(LIBRAD)
 
-radiation_flux.o radiation_aerosol.o: radiation_config.o
+radiation_flux.o radiation_aerosol.o radiation_ecckd_interface: radiation_config.o 
 radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_flux.o radiation_cloud.o radiation_save.o \
 	radiation_single_level.o radiation_gas.o radiation_monochromatic.o \
@@ -53,7 +53,7 @@ radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o \
 	radiation_ecckd_interface.o radiation_general_cloud_optics.o
 radiation_ifs_rrtm.o radiation_monochromatic.o: radiation_config.o \
-	radiation_thermodynamics.o radiation_gas.o radiation_single_level.o
+	radiation_thermodynamics.o radiation_gas.o
 radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_mcica_sw.o \
 	radiation_mcica_lw.o radiation_homogeneous_sw.o radiation_homogeneous_lw.o \
 	radiation_cloudless_sw.o radiation_cloudless_lw.o: \
@@ -82,7 +82,7 @@ radiation_mcica_sw.o radiation_homogeneous_sw.o: radiation_adding_ica_sw.o radia
 radiation_mcica_lw.o radiation_homogeneous_lw.o: radiation_adding_ica_lw.o radiation_cloud_generator.o \
 	radiation_lw_derivatives.o
 radiation_cloudless_sw.o: radiation_adding_ica_sw.o
-radiation_cloudless_lw.o radiation_tripleclouds_lw.o: radiation_adding_ica_lw.o radiation_lw_derivatives.o
+radiation_cloudless_lw.o, radiation_tripleclouds_lw.o: radiation_adding_ica_lw.o radiation_lw_derivatives.o
 radiation_aerosol_optics.o radiation_cloud_optics.o: \
 	radiation_config.o
 radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
@@ -99,8 +99,6 @@ radiation_spartacus_sw.o radiation_spartacus_lw.o \
 	radiation_matrix.o radiation_flux.o radiation_regions.o
 radiation_ecckd.o: radiation_ecckd_gas.o radiation_spectral_definition.o
 radiation_ecckd_gas.o: radiation_gas_constants.o
-radiation_ecckd_interface.o: radiation_config.o radiation_single_level.o radiation_thermodynamics.o \
-	radiation_gas.o radiation_gas_constants.o
 
 radiation_gas.o radiation_single_level.o radiation_thermodynamics.o \
 	radiation_flux.o radiation_aerosol.o: radiation_check.o

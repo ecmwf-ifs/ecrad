@@ -18,9 +18,6 @@ module radiation_check
 
   use parkind1, only : jprb
 
-  implicit none
-  public
-
 contains
 
   !---------------------------------------------------------------------

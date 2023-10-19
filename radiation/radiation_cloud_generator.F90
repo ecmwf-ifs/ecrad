@@ -42,7 +42,7 @@ contains
        &  use_beta_overlap, use_vectorizable_generator)
 
     use parkind1, only           : jprb
-    use yomhook,  only           : lhook, dr_hook, jphook
+    use yomhook,  only           : lhook, dr_hook
     use radiation_io,   only     : nulerr, radiation_abort
     use random_numbers_mix, only : randomnumberstream, &
          initialize_random_numbers, uniform_distribution
@@ -132,7 +132,7 @@ contains
 
     logical :: use_vec_gen
 
-    real(jphook) :: hook_handle
+    real(jprb) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_generator:cloud_generator',0,hook_handle)
 
@@ -388,6 +388,7 @@ contains
     end do
 
   end subroutine generate_column_exp_ran
+
 
 
   !---------------------------------------------------------------------
