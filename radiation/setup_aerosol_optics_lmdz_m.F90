@@ -4,7 +4,7 @@ module setup_aerosol_optics_lmdz_m
 
 contains
 
-  subroutine setup_aerosol_optics_lmdz(ao, file_name, iverbose)
+  subroutine setup_aerosol_optics_lmdz(ao, file_name)
 
     ! Read aerosol optical properties. Note differences with
     ! "radiation_aerosol_optics_data::setup_aerosol_optics":
@@ -30,16 +30,10 @@ contains
          nf95_inq_dimid, nf95_inq_varid, nf95_inquire_dimension, &
          nf95_get_var, nf95_gw_var, nf95_nowrite
 
-    class(aerosol_optics_type), intent(inout):: ao
-    ! Could be intent(out) here but must conform to the interface of
-    ! radiation_aerosol_optics_data::setup_aerosol_optics.
+    type(aerosol_optics_type), intent(out):: ao
 
     character(len=*), intent(in):: file_name
     ! NetCDF file containing the aerosol optics data
-
-    integer, intent(in), optional:: iverbose
-    ! Not used but we must conform to the interface of
-    ! radiation_aerosol_optics_data::setup_aerosol_optics.
 
     ! Local:
     integer ncid, grpid, dimid, varid
