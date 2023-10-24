@@ -486,6 +486,10 @@ contains
     do jcol = istartcol,iendcol
       do jlev = 1, nlev+1
 
+        ! Only perform calculation if sun above the horizon
+        if (single_level%cos_sza(jcol) > 0.0_jprb) then
+          cos_sza = single_level%cos_sza(jcol)
+
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes
         sum_up = 0.0_jprb
@@ -502,10 +506,6 @@ contains
           flux%sw_dn_direct_clear(jcol,jlev) = sum_dn_direct
         end if
         flux%sw_dn_clear(jcol,jlev) = sum_dn_diffuse + sum_dn_direct
-
-        ! Only perform calculation if sun above the horizon
-        if (single_level%cos_sza(jcol) > 0.0_jprb) then
-          cos_sza = single_level%cos_sza(jcol)
 
             ! Store total cloud cover
             total_cloud_cover = flux%cloud_cover_sw(jcol)
