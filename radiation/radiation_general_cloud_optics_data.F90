@@ -29,11 +29,11 @@ module radiation_general_cloud_optics_data
   type general_cloud_optics_type
     ! Band-specific (or g-point-specific) values as a look-up table
     ! versus effective radius dimensioned (nband,n_effective_radius)
-    
+
     ! Extinction coefficient per unit mass (m2 kg-1)
     real(jprb), allocatable, dimension(:,:) :: &
          &  mass_ext
-    
+
     ! Single-scattering albedo and asymmetry factor (dimensionless)
     real(jprb), allocatable, dimension(:,:) :: &
          &  ssa, asymmetry
@@ -48,7 +48,7 @@ module radiation_general_cloud_optics_data
     ! generate the name of the data file from which the coefficients
     ! are read.
     character(len=511) :: type_name, scheme_name
-    
+
     ! Do we use bands or g-points?
     logical :: use_bands = .false.
 
@@ -81,7 +81,7 @@ contains
     logical, intent(in), optional              :: use_bands, use_thick_averaging
     real(jprb), intent(in), optional           :: weighting_temperature ! K
     integer, intent(in), optional              :: iverbose
-    
+
     ! Spectral properties read from file, dimensioned (wavenumber,
     ! n_effective_radius)
     real(jprb), dimension(:,:), allocatable :: mass_ext, & ! m2 kg-1
@@ -182,7 +182,7 @@ contains
     this%mass_ext  = matmul(mapping, mass_ext)
     this%ssa       = matmul(mapping, mass_ext*ssa) / this%mass_ext
     this%asymmetry = matmul(mapping, mass_ext*ssa*asymmetry) / (this%mass_ext*this%ssa)
-    
+
     if (use_thick_averaging_local) then
       ! Thick averaging as described by Edwards and Slingo (1996),
       ! modifying only the single-scattering albedo
@@ -301,7 +301,7 @@ contains
       do jcol = 1,ncol
         do jlev = 1,nlev
           if (water_path(jcol, jlev) > 0.0_jprb) then
-            re_index = max(1.0, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+            re_index = max(1.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
                  &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
             ire = int(re_index)
             weight2 = re_index - ire
