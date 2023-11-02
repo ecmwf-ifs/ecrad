@@ -1,3 +1,6 @@
+	- Increased security value in single-precision SW
+	  reflectance-transmittance calculation from 1e-12 to 1e-6
+
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
 	  files as big endian: now the OPEN commands for the files RADRRTM
