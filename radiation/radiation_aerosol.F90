@@ -131,6 +131,9 @@ contains
       ! then the user may wish to just provide absorption optical
       ! depth in od_lw, in which case we must set the following two
       ! variables to zero
+
+      !$ACC WAIT ! ACCWA (nvhpc 22.7) crashes otherwise
+
       !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, config) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(3)
       do jcol = 1,ncol

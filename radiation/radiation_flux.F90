@@ -332,6 +332,8 @@ contains
     allocate(this%cloud_cover_sw(istartcol:iendcol))
     !$ACC ENTER DATA CREATE(this%cloud_cover_lw, this%cloud_cover_sw) ASYNC(1)
 
+    !$ACC WAIT ! ACCWA (nvhpc 22.7) crashes otherwise
+
     ! Some solvers may not write to cloud cover, so we initialize to
     ! an unphysical value
     !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
