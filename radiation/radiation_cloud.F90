@@ -547,6 +547,7 @@ contains
 
     if (allocated(this%fractional_std)) then
       !$ACC EXIT DATA DELETE(this%fractional_std) WAIT(1)
+      !$ACC WAIT ! ACCWA (nvhpc 22.7, nvhpc 22.5) crashes otherwise
        deallocate(this%fractional_std)
     end if
     
