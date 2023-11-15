@@ -36,8 +36,7 @@ contains
     use parkind1,                      only : jprb
     use yomhook,                       only : lhook, dr_hook, jphook
     use radiation_config,              only : config_type
-    use radiation_aerosol_optics_data, only : aerosol_optics_type, &
-         data_setup_aerosol_optics => setup_aerosol_optics
+    use radiation_aerosol_optics_data, only : aerosol_optics_type
     use radiation_io,                  only : nulerr, radiation_abort
 
     type(config_type), intent(inout) :: config
@@ -57,8 +56,6 @@ contains
       else
         ! Read file containing optical properties already in the bands
         ! of the gas-optics scheme
-         if (.not. associated(config%aerosol_optics%setup)) &
-              config%aerosol_optics%setup => data_setup_aerosol_optics
         call config%aerosol_optics%setup(trim(config%aerosol_optics_file_name), &
              &                           iverbose=config%iverbosesetup)
       end if
@@ -345,8 +342,7 @@ contains
     use yomhook,                       only : lhook, dr_hook, jphook
     use easy_netcdf,                   only : netcdf_file
     use radiation_config,              only : config_type
-    use radiation_aerosol_optics_data, only : aerosol_optics_type, &
-         data_setup_aerosol_optics => setup_aerosol_optics
+    use radiation_aerosol_optics_data, only : aerosol_optics_type
     use radiation_spectral_definition, only : SolarReferenceTemperature, &
          &                                    TerrestrialReferenceTemperature
 
@@ -373,7 +369,6 @@ contains
 
     if (lhook) call dr_hook('radiation_aerosol_optics:setup_general_aerosol_optics_legacy',0,hook_handle)
     ao => config%aerosol_optics
-    ao_legacy%setup => data_setup_aerosol_optics
 
     ! Load file into a local structure
     call ao_legacy%setup(file_name, iverbose=config%iverbosesetup)

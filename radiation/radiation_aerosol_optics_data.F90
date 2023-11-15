@@ -134,9 +134,8 @@ module radiation_aerosol_optics_data
      ! Do we have monochromatic optical properties
      logical :: use_monochromatic = .false.
 
-     procedure(setup_aerosol_optics), pointer:: setup => null()
-
    contains
+     procedure :: setup => setup_aerosol_optics
      procedure :: save  => save_aerosol_optics
      procedure :: allocate
      procedure :: initialize_types
