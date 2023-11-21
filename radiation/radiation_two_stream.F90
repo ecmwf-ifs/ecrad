@@ -19,6 +19,8 @@
 !   2017-10-23  R Hogan  Renamed single-character variables
 !   2021-02-19  R Hogan  Security for shortwave singularity
 !   2022-11-22  P Ukkonen/R Hogan  Single precision uses no double precision
+!   2023-09-28  R Hogan  Increased security for single-precision SW "k"
+
 #if defined (__SX__) || defined (_OPENACC)
 #define __VECTOR_ACC
 #endif
@@ -214,7 +216,7 @@ contains
     do jg = 1, ng
       if (od(jg) > 1.0e-3_jprd) then
         k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
-             1.E-12_jprd)) ! Eq 18 of Meador & Weaver (1980)
+             1.0e-12_jprd)) ! Eq 18 of Meador & Weaver (1980)
         exponential = exp_fast(-k_exponent*od(jg))
         exponential2 = exponential*exponential
         reftrans_factor = 1.0 / (k_exponent + gamma1(jg) + (k_exponent - gamma1(jg))*exponential2)
@@ -237,7 +239,7 @@ contains
         source_dn(jg) =  coeff_dn_bot - reflectance(jg) * coeff_up_bot - transmittance(jg) * coeff_dn_top
       else
         k_exponent = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
-             1.E-12_jprd)) ! Eq 18 of Meador & Weaver (1980)
+             1.0e-12_jprd)) ! Eq 18 of Meador & Weaver (1980)
         reflectance(jg) = gamma2(jg) * od(jg)
         transmittance(jg) = (1.0_jprb - k_exponent*od(jg)) / (1.0_jprb + od(jg)*(gamma1(jg)-k_exponent))
         source_up(jg) = (1.0_jprb - reflectance(jg) - transmittance(jg)) &
@@ -312,7 +314,7 @@ contains
       gamma1 = LwDiffusivityWP - factor*(1.0_jprb + asymmetry(jg))
       gamma2 = factor * (1.0_jprb - asymmetry(jg))
       k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
-           1.E-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
+           1.0e-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
       if (od(jg) > 1.0e-3_jprb) then
         exponential = exp_fast(-k_exponent*od(jg))
         exponential2 = exponential*exponential
@@ -654,9 +656,16 @@ contains
       alpha1(jg) = gamma1(jg)*gamma4(jg) + gamma2(jg)*gamma3(jg) ! Eq. 16
       alpha2(jg) = gamma1(jg)*gamma3(jg) + gamma2(jg)*gamma4(jg) ! Eq. 17
       ! The following line crashes inexplicably with gfortran 8.5.0 in
-      ! single precision - try a later version
+      ! single precision - try a later version. Note that the minimum
+      ! value is needed to produce correct results for single
+      ! scattering albedos very close to or equal to one.
+#ifdef PARKIND1_SINGLE
+      k_exponent(jg) = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
+           &       1.0e-6_jprb)) ! Eq 18
+#else
       k_exponent(jg) = sqrt(max((gamma1(jg) - gamma2(jg)) * (gamma1(jg) + gamma2(jg)), &
            &       1.0e-12_jprb)) ! Eq 18
+#endif
     end do
 
     exponential = exp_fast(-k_exponent*od)
@@ -672,10 +681,12 @@ contains
         
       ! Meador & Weaver (1980) Eq. 25
       ref_diff(jg) = gamma2(jg) * (1.0_jprb - exponential2) * reftrans_factor
-        
-      ! Meador & Weaver (1980) Eq. 26
-      trans_diff(jg) = k_2_exponential * reftrans_factor
-        
+      !ref_diff(jg)       = max(0.0_jprb, min(ref_diff(jg)), 1.0_jprb)
+
+      ! Meador & Weaver (1980) Eq. 26, with security (which is
+      ! sometimes needed, but apparently not on ref_diff)
+      trans_diff(jg) = max(0.0_jprb, min(k_2_exponential * reftrans_factor, 1.0_jprb-ref_diff(jg)))
+
       ! Here we need mu0 even though it wasn't in Meador and Weaver
       ! because we are assuming the incoming direct flux is defined to
       ! be the flux into a plane perpendicular to the direction of the
@@ -701,7 +712,6 @@ contains
       ! Final check that ref_dir + trans_dir_diff <= 1
       ref_dir(jg)        = max(0.0_jprb, min(ref_dir(jg), mu0*(1.0_jprb-trans_dir_dir(jg))))
       trans_dir_diff(jg) = max(0.0_jprb, min(trans_dir_diff(jg), mu0*(1.0_jprb-trans_dir_dir(jg))-ref_dir(jg)))
-
     end do
 
 #else

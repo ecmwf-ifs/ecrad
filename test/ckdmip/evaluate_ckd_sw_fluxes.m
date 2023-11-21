@@ -84,12 +84,7 @@ rmse_save = [];
     if do_fix_ssi(ie)
       ckd_tmp = correct_ssi(ref_orig, ckd_tmp, specdef);
     end
-    % The Makefile in this directory uses nco tools to concatenate the
-    % 5 calculations each with a different solar zenith angle, but
-    % this leads to the 50 columns and 5 solar zenith angles being
-    % interlaced differently than in the reference dataset. This
-    % function permutes them to the same convention.
-    ckd{ie} = permute_sza(ckd_tmp,[0.1 0.3 0.5 0.7 0.9]);
+    ckd{ie} = flatten_sza(ckd_tmp,isza_list);
     hr_ckd{ie} = calc_hr(ckd{ie},'sw')';
   end
 

@@ -3,6 +3,17 @@ version 1.6.1
 	  which input decorrelation_length may vary with column, useful for
 	  models with a latitudinal or other dependence
 	- radiation_ecckd:calc_optical_depth has vector version for NEC
+	- test/ckdmip can now run CKDMIP scenarios of concentrations
+	  downloaded (see Makefile)
+	- ecCKD gas optics can now be used with older cloud/aerosol optics
+	  files provided they have the same number of bands
+	- Added dependence to Makefile ensuring libradiation built after
+	  libifsrrtm, ensuring that multi-threaded make works
+	- Added radiation_driver:do_save_cloud_optics namelist entry which
+	  saves look-up table averaged to the bands of the radiation scheme
+	  (general cloud optics only)
+	- Increased security value in single-precision SW
+	  reflectance-transmittance calculation from 1e-12 to 1e-6
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
@@ -45,7 +56,7 @@ version 1.5.1 (8 December 2022)
 	  use_spectral_solar_cycle and new file ssi_nrl2.nc (which can be
 	  overridden with ssi_override_file_name). Caller provides
 	  single_level%spectral_solar_cycle_multiplier from -1 (solar
-	  minimum) to +1 (solar maximum), or "radiation_config" namelist
+	  minimum) to +1 (solar maximum), or "radiation_driver" namelist
 	  parameter solar_cycle_multiplier_override
 	- If use_spectral_solar_cycle then if also
 	  use_updated_solar_spectrum, the mean solar irradiance per g-point
@@ -93,7 +104,7 @@ version 1.5.0 (22 May 2022)
 	- Generalized aerosol has ability to read old-style aerosol
 	  property files in predefined (e.g. RRTM) bands into the spectral
 	  intervals of the ecCKD gas optics scheme
-	- Added radiation_config:do_save_aerosol_optics namelist option to
+	- Added radiation_driver:do_save_aerosol_optics namelist option to
 	  save aerosol optical properties in aerosol_optics.nc, and "make
 	  test_aerosol_averaging" in test/ifs to test the various
 	  combinations of gas optics scheme and aerosol optics file
@@ -106,7 +117,7 @@ version 1.5.0 (22 May 2022)
 	  effective radius
 
 version 1.4.2 (15 October 2021)
-	- radiation_config:do_write_double_precision writes fluxes as
+	- radiation_driver:do_write_double_precision writes fluxes as
 	  doubles in NetCDF file, which reduces noise in heating rate
 	  differences between two experiments
 	- Added use_vectorizable_generator for vectorizable random number
@@ -146,7 +157,7 @@ version 1.3.0 (20 March 2020)
 	  solvers, which scaled the direct downwelling spectral flux by the
 	  cosine of the solar zenith angle twice
 	- Write "experiment" global attribute to output if
-	  radiation_config variable "experiment_name" is present
+	  radiation_driver variable "experiment_name" is present
 	- Previously overlap_decorr_length_scaling=0.0 was ignored; now it
 	  implements random overlap
 	- Added the ecRad practical exercises to the "practical" directory
@@ -163,7 +174,7 @@ version 1.2.0 (30 October 2019)
 	- cos_solar_zenith_angle not needed if do_sw=false
 	- skin_temperature set to lowest air temperature if not provided
 	- Warning issued if default solar_irradiance of 1366 is used
-	- Added radiation_config namelist variable "vmr_suffix_str"
+	- Added radiation_driver namelist variable "vmr_suffix_str"
 	  (default "_vmr") to enable the expected variable names containing
 	  gas volume mixing ratios to be overridden
 	- Use the nf-config utility to set NETCDF_INCLUDE and NETCDF_LIB
@@ -515,7 +526,7 @@ version 0.9.36 (10 May 2016)
 	- Maximum 3D transfer rate is now configurable (max_3d_transfer_rate)
 	- Inverse effective cloud size can be specified separately for eta
 	  in the bands 0-0.45, 0.45-0.8 and 0.8-1 via high_inv_eff_size,
-	  middle_inv_eff_size, low_inv_eff_size in the radiation_config
+	  middle_inv_eff_size, low_inv_eff_size in the radiation_driver
 	  namelist.
 	- License and copyright now in LICENSE and NOTICE; COPYING has
 	  been removed

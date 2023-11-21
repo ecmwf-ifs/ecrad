@@ -156,7 +156,7 @@ contains
         ! transmittance etc at each model level
         call calc_ref_trans_lw(ng*nlev, &
              &  od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), &
-             &  planck_hl(:,1:jlev,jcol), planck_hl(:,2:jlev+1,jcol), &
+             &  planck_hl(:,1:nlev,jcol), planck_hl(:,2:nlev+1,jcol), &
              &  ref_clear, trans_clear, &
              &  source_up_clear, source_dn_clear)
         ! Then use adding method to compute fluxes

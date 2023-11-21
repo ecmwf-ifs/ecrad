@@ -1129,15 +1129,13 @@ contains
     ! If ecCKD gas optics model is being used set relevant file names
     if (this%i_gas_model == IGasModelECCKD) then
 
-      ! This gas optics model requires the general cloud and
+      ! This gas optics model usually used with general cloud and
       ! aerosol optics settings
       if (.not. this%use_general_cloud_optics) then
-        write(nulerr,'(a)') '*** Error: ecCKD gas optics model requires general cloud optics'
-        call radiation_abort('Radiation configuration error')
+        write(nulout,'(a)') 'Warning: ecCKD gas optics model usually used with general cloud optics'
       end if
       if (.not. this%use_general_aerosol_optics) then
-        write(nulerr,'(a)') '*** Error: ecCKD gas optics model requires general aerosol optics'
-        call radiation_abort('Radiation configuration error')
+        write(nulout,'(a)') 'Warning: ecCKD gas optics model usually used with general aerosol optics'
       end if
 
       if (len_trim(this%gas_optics_sw_override_file_name) > 0) then
@@ -1289,6 +1287,7 @@ contains
 
     ! McICA solver currently can't store full profiles of spectral fluxes
     if (this%i_solver_sw == ISolverMcICA) then
+      write(nulout, '(a)') 'Warning: McICA solver cannot store full profiles of spectral fluxes'
       this%do_save_spectral_flux = .false.
     end if
 
