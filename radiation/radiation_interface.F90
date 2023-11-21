@@ -67,11 +67,11 @@ contains
     call config%consolidate()
 
     ! Load the look-up tables from files in the specified directory
-    if (config%i_gas_model == IGasModelMonochromatic) then
+    if (config%i_gas_model_sw == IGasModelMonochromatic) then
       call setup_gas_optics_mono(config, trim(config%directory_name))
-    else if (config%i_gas_model == IGasModelIFSRRTMG) then
+    else if (config%i_gas_model_sw == IGasModelIFSRRTMG .or. config%i_gas_model_lw == IGasModelIFSRRTMG) then
       call setup_gas_optics_rrtmg(config, trim(config%directory_name))
-    else if (config%i_gas_model == IGasModelECCKD) then
+    else if (config%i_gas_model_sw == IGasModelECCKD .or. config%i_gas_model_lw == IGasModelECCKD) then
       call setup_gas_optics_ecckd(config)
     end if
 

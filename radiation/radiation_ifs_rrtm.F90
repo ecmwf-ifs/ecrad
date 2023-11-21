@@ -64,6 +64,8 @@ contains
           &   52, 5, 98, 10, 42, 99, 100, 66, 11, 74, 34, 53, 26, 6, 106, 12, 43, 13, 54, 93,  &
           &   44, 107, 94, 14, 108, 15, 16, 109, 17, 18, 110, 111, 112 &
           & /)
+
+    logical :: do_sw, do_lw
     
     real(jphook) :: hook_handle
 
@@ -76,6 +78,9 @@ contains
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:setup_gas_optics',0,hook_handle)
 
+    do_sw = (config%do_sw .and. config%i_gas_optics_sw == IGasModelIFSRRTMG)
+    do_lw = (config%do_lw .and. config%i_gas_optics_lw == IGasModelIFSRRTMG)
+    
     ! The IFS implementation of RRTMG uses many global variables.  In
     ! the IFS these will have been set up already; otherwise set them
     ! up now.
@@ -84,89 +89,105 @@ contains
       call SURRTAB
       call SURRTPK
       call SURRTRF
-      call RRTM_INIT_140GP(directory)
-      call SRTM_INIT(directory)
-    end if
-
-    ! Cloud and aerosol properties can only be defined per band
-    config%do_cloud_aerosol_per_sw_g_point = .false.
-    config%do_cloud_aerosol_per_lw_g_point = .false.
-
-    config%n_g_sw = jpgsw
-    config%n_g_lw = jpglw
-    config%n_bands_sw = 14
-    config%n_bands_lw = 16
-
-    ! Wavenumber ranges of each band may be needed so that the user
-    ! can compute UV and photosynthetically active radiation for a
-    ! particular wavelength range
-    call config%gas_optics_sw%spectral_def%allocate_bands_only( &
-         &  [2600.0_jprb, 3250.0_jprb, 4000.0_jprb, 4650.0_jprb, 5150.0_jprb, 6150.0_jprb, 7700.0_jprb, &
-         &   8050.0_jprb, 12850.0_jprb, 16000.0_jprb, 22650.0_jprb, 29000.0_jprb, 38000.0_jprb, 820.0_jprb], &
-         &  [3250.0_jprb, 4000.0_jprb, 4650.0_jprb, 5150.0_jprb, 6150.0_jprb, 7700.0_jprb, 8050.0_jprb, &
-         &   12850.0_jprb, 16000.0_jprb, 22650.0_jprb, 29000.0_jprb, 38000.0_jprb, 50000.0_jprb, 2600.0_jprb])
-    call config%gas_optics_lw%spectral_def%allocate_bands_only( &
-         &  [10.0_jprb, 350.0_jprb, 500.0_jprb, 630.0_jprb, 700.0_jprb, 820.0_jprb, 980.0_jprb, 1080.0_jprb, &
-         &   1180.0_jprb, 1390.0_jprb, 1480.0_jprb, 1800.0_jprb, 2080.0_jprb, 2250.0_jprb, 2380.0_jprb, 2600.0_jprb], &
-         &  [350.0_jprb, 500.0_jprb, 630.0_jprb, 700.0_jprb, 820.0_jprb, 980.0_jprb, 1080.0_jprb, 1180.0_jprb, &
-         &   1390.0_jprb, 1480.0_jprb, 1800.0_jprb, 2080.0_jprb, 2250.0_jprb, 2380.0_jprb, 2600.0_jprb, 3250.0_jprb])
-
-    allocate(config%i_band_from_g_sw          (config%n_g_sw))
-    allocate(config%i_band_from_g_lw          (config%n_g_lw))
-    allocate(config%i_band_from_reordered_g_sw(config%n_g_sw))
-    allocate(config%i_band_from_reordered_g_lw(config%n_g_lw))
-    allocate(config%i_g_from_reordered_g_sw(config%n_g_sw))
-    allocate(config%i_g_from_reordered_g_lw(config%n_g_lw))
-
-    ! Shortwave starts at 16: need to start at 1
-    config%i_band_from_g_sw = ngb_sw - ngb_sw(1)+1
-    config%i_band_from_g_lw = ngb_lw
-
-    if (config%i_solver_sw == ISolverSpartacus) then
-      ! SPARTACUS requires g points ordered in approximately
-      ! increasing order of optical depth
-      config%i_g_from_reordered_g_sw = RRTM_GPOINT_REORDERING_SW
-    else
-      ! Implied-do for no reordering
-!      config%i_g_from_reordered_g_sw = RRTM_GPOINT_REORDERING_SW
-      config%i_g_from_reordered_g_sw = (/ (irep, irep=1,config%n_g_sw) /)
-    end if
-
-    if (config%i_solver_lw == ISolverSpartacus) then
-      ! SPARTACUS requires g points ordered in approximately
-      ! increasing order of optical depth
-      config%i_g_from_reordered_g_lw = RRTM_GPOINT_REORDERING_LW
-    else
-      ! Implied-do for no reordering
-      config%i_g_from_reordered_g_lw = (/ (irep, irep=1,config%n_g_lw) /)
-    end if
-
-    config%i_band_from_reordered_g_sw &
-         = config%i_band_from_g_sw(config%i_g_from_reordered_g_sw)
-
-    config%i_band_from_reordered_g_lw &
-         = config%i_band_from_g_lw(config%i_g_from_reordered_g_lw)
-
-    ! The i_spec_* variables are used solely for storing spectral
-    ! data, and this can either be by band or by g-point
-    if (config%do_save_spectral_flux .or. config%do_toa_spectral_flux) then
-      if (config%do_save_gpoint_flux) then
-        config%n_spec_sw = config%n_g_sw
-        config%n_spec_lw = config%n_g_lw
-        config%i_spec_from_reordered_g_sw => config%i_g_from_reordered_g_sw
-        config%i_spec_from_reordered_g_lw => config%i_g_from_reordered_g_lw
-      else
-        config%n_spec_sw = config%n_bands_sw
-        config%n_spec_lw = config%n_bands_lw
-        config%i_spec_from_reordered_g_sw => config%i_band_from_reordered_g_sw
-        config%i_spec_from_reordered_g_lw => config%i_band_from_reordered_g_lw
+      if (do_lw) then
+        call RRTM_INIT_140GP(directory)
       end if
-    else
-      config%n_spec_sw = 0
-      config%n_spec_lw = 0
-      nullify(config%i_spec_from_reordered_g_sw)
-      nullify(config%i_spec_from_reordered_g_lw)
+      if (do_sw) then
+        call SRTM_INIT(directory)
+      end if
     end if
+
+    if (do_sw) then
+      
+      ! Cloud and aerosol properties can only be defined per band
+      config%do_cloud_aerosol_per_sw_g_point = .false.
+      config%n_g_sw = jpgsw
+      config%n_bands_sw = 14
+      ! Wavenumber ranges of each band may be needed so that the user
+      ! can compute UV and photosynthetically active radiation for a
+      ! particular wavelength range
+      call config%gas_optics_sw%spectral_def%allocate_bands_only( &
+           &  [2600.0_jprb, 3250.0_jprb, 4000.0_jprb, 4650.0_jprb, 5150.0_jprb, 6150.0_jprb, 7700.0_jprb, &
+           &   8050.0_jprb, 12850.0_jprb, 16000.0_jprb, 22650.0_jprb, 29000.0_jprb, 38000.0_jprb, 820.0_jprb], &
+           &  [3250.0_jprb, 4000.0_jprb, 4650.0_jprb, 5150.0_jprb, 6150.0_jprb, 7700.0_jprb, 8050.0_jprb, &
+           &   12850.0_jprb, 16000.0_jprb, 22650.0_jprb, 29000.0_jprb, 38000.0_jprb, 50000.0_jprb, 2600.0_jprb])
+      allocate(config%i_band_from_g_sw          (config%n_g_sw))
+      allocate(config%i_band_from_reordered_g_sw(config%n_g_sw))
+      allocate(config%i_g_from_reordered_g_sw   (config%n_g_sw))
+      ! Shortwave starts at 16: need to start at 1
+      config%i_band_from_g_sw = ngb_sw - ngb_sw(1)+1
+
+      if (config%i_solver_sw == ISolverSpartacus) then
+        ! SPARTACUS requires g points ordered in approximately
+        ! increasing order of optical depth
+        config%i_g_from_reordered_g_sw = RRTM_GPOINT_REORDERING_SW
+      else
+        ! Implied-do for no reordering
+        !      config%i_g_from_reordered_g_sw = RRTM_GPOINT_REORDERING_SW
+        config%i_g_from_reordered_g_sw = (/ (irep, irep=1,config%n_g_sw) /)
+      end if
+
+      config%i_band_from_reordered_g_sw &
+           = config%i_band_from_g_sw(config%i_g_from_reordered_g_sw)
+
+      ! The i_spec_* variables are used solely for storing spectral
+      ! data, and this can either be by band or by g-point
+      if (config%do_save_spectral_flux .or. config%do_toa_spectral_flux) then
+        if (config%do_save_gpoint_flux) then
+          config%n_spec_sw = config%n_g_sw
+          config%i_spec_from_reordered_g_sw => config%i_g_from_reordered_g_sw
+        else
+          config%n_spec_sw = config%n_bands_sw
+          config%i_spec_from_reordered_g_sw => config%i_band_from_reordered_g_sw
+        end if
+      else
+        config%n_spec_sw = 0
+        nullify(config%i_spec_from_reordered_g_sw)
+      end if
+      
+    end if
+
+    if (do_lw) then
+      ! Cloud and aerosol properties can only be defined per band
+      config%do_cloud_aerosol_per_lw_g_point = .false.
+      config%n_g_lw = jpglw
+      config%n_bands_lw = 16
+      call config%gas_optics_lw%spectral_def%allocate_bands_only( &
+           &  [10.0_jprb, 350.0_jprb, 500.0_jprb, 630.0_jprb, 700.0_jprb, 820.0_jprb, 980.0_jprb, 1080.0_jprb, &
+           &   1180.0_jprb, 1390.0_jprb, 1480.0_jprb, 1800.0_jprb, 2080.0_jprb, 2250.0_jprb, 2380.0_jprb, 2600.0_jprb], &
+           &  [350.0_jprb, 500.0_jprb, 630.0_jprb, 700.0_jprb, 820.0_jprb, 980.0_jprb, 1080.0_jprb, 1180.0_jprb, &
+           &   1390.0_jprb, 1480.0_jprb, 1800.0_jprb, 2080.0_jprb, 2250.0_jprb, 2380.0_jprb, 2600.0_jprb, 3250.0_jprb])
+      allocate(config%i_band_from_g_lw          (config%n_g_lw))
+      allocate(config%i_band_from_reordered_g_lw(config%n_g_lw))
+      allocate(config%i_g_from_reordered_g_lw   (config%n_g_lw))
+      config%i_band_from_g_lw = ngb_lw
+
+      if (config%i_solver_lw == ISolverSpartacus) then
+        ! SPARTACUS requires g points ordered in approximately
+        ! increasing order of optical depth
+        config%i_g_from_reordered_g_lw = RRTM_GPOINT_REORDERING_LW
+      else
+        ! Implied-do for no reordering
+        config%i_g_from_reordered_g_lw = (/ (irep, irep=1,config%n_g_lw) /)
+      end if
+
+      config%i_band_from_reordered_g_lw &
+           = config%i_band_from_g_lw(config%i_g_from_reordered_g_lw)
+
+      ! The i_spec_* variables are used solely for storing spectral
+      ! data, and this can either be by band or by g-point
+      if (config%do_save_spectral_flux .or. config%do_toa_spectral_flux) then
+        if (config%do_save_gpoint_flux) then
+          config%n_spec_lw = config%n_g_lw
+          config%i_spec_from_reordered_g_lw => config%i_g_from_reordered_g_lw
+        else
+          config%n_spec_lw = config%n_bands_lw
+          config%i_spec_from_reordered_g_lw => config%i_band_from_reordered_g_lw
+        end if
+      else
+        config%n_spec_lw = 0
+        nullify(config%i_spec_from_reordered_g_lw)
+      end if
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:setup_gas_optics',1,hook_handle)
 

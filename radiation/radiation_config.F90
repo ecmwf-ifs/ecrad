@@ -275,7 +275,8 @@ module radiation_config
     logical :: do_sw_delta_scaling_with_gases = .false.
 
     ! Codes describing the gas model
-    integer :: i_gas_model = IGasModelIFSRRTMG
+    integer :: i_gas_model_sw = IGasModelIFSRRTMG
+    integer :: i_gas_model_lw = IGasModelIFSRRTMG
 
     ! Optics if i_gas_model==IGasModelMonochromatic.
     ! The wavelength to use for the Planck function in metres. If this
@@ -708,13 +709,14 @@ contains
          &  = [.false.,.false.,.false.,.false.,.false.,.false., &
          &     .false.,.false.,.false.,.false.,.false.,.false.]
     integer :: i_aerosol_type_map(NMaxAerosolTypes) ! More than 256 is an error
-
+    
     logical :: do_nearest_spectral_sw_albedo
     logical :: do_nearest_spectral_lw_emiss
     real(jprb) :: sw_albedo_wavelength_bound(NMaxAlbedoIntervals-1)
     real(jprb) :: lw_emiss_wavelength_bound( NMaxAlbedoIntervals-1)
     integer :: i_sw_albedo_index(NMaxAlbedoIntervals)
     integer :: i_lw_emiss_index (NMaxAlbedoIntervals)
+    integer :: i_gas_model
 
     integer :: iunit ! Unit number of namelist file
 
@@ -814,6 +816,8 @@ contains
     overhang_factor = this%overhang_factor
     encroachment_scaling = -1.0_jprb
     gas_model_name = '' !DefaultGasModelName
+    sw_gas_model_name = '' !DefaultGasModelName
+    lw_gas_model_name = '' !DefaultGasModelName
     liquid_model_name = '' !DefaultLiquidModelName
     ice_model_name = '' !DefaultIceModelName
     sw_solver_name = '' !DefaultSwSolverName
@@ -1013,10 +1017,20 @@ contains
     call get_enum_code(ice_model_name, IceModelName, &
          &            'ice_model_name', this%i_ice_model)
 
-    ! Determine gas optics model
+    ! Determine gas optics model(s) - firstly try the generic gas_model_name
+    i_gas_model = -1
     call get_enum_code(gas_model_name, GasModelName, &
-         &            'gas_model_name', this%i_gas_model)
-
+         &            'gas_model_name', i_gas_model)
+    if (i_gas_model > -1) then
+      this%i_gas_model_sw = i_gas_model
+      this%i_gas_model_lw = i_gas_model
+    end if
+    ! ...then the band-specific values
+    call get_enum_code(sw_gas_model_name, GasModelName, &
+         &            'sw_gas_model_name', this%i_gas_model_sw)
+    call get_enum_code(lw_gas_model_name, GasModelName, &
+         &            'lw_gas_model_name', this%i_gas_model_lw)
+   
     ! Determine solvers
     call get_enum_code(sw_solver_name, SolverName, &
          &            'sw_solver_name', this%i_solver_sw)
@@ -1054,14 +1068,14 @@ contains
       this%do_clouds = .false.
     end if
 
-    if (this%i_gas_model == IGasModelIFSRRTMG &
-         & .and. (this%use_general_cloud_optics &
-         &        .or. this%use_general_aerosol_optics)) then
-      if (this%do_sw .and. this%do_cloud_aerosol_per_sw_g_point) then
+    if (this%use_general_cloud_optics .or. this%use_general_aerosol_optics) then
+      if (this%do_sw .and. this%do_cloud_aerosol_per_sw_g_point &
+           &  .and. this%i_gas_model_sw == IGasModelIFSRRTMG) then
         write(nulout,'(a)') 'Warning: RRTMG SW only supports cloud/aerosol/surface optical properties per band, not per g-point'
         this%do_cloud_aerosol_per_sw_g_point = .false.
       end if
-      if (this%do_lw .and. this%do_cloud_aerosol_per_lw_g_point) then
+      if (this%do_lw .and. this%do_cloud_aerosol_per_lw_g_point &
+           &  .and. this%i_gas_model_lw == IGasModelIFSRRTMG) then
         write(nulout,'(a)') 'Warning: RRTMG LW only supports cloud/aerosol/surface optical properties per band, not per g-point'
         this%do_cloud_aerosol_per_lw_g_point = .false.
       end if
@@ -1127,7 +1141,7 @@ contains
     end if
 
     ! If ecCKD gas optics model is being used set relevant file names
-    if (this%i_gas_model == IGasModelECCKD) then
+    if (this%i_gas_model_sw == IGasModelECCKD .or. this%i_gas_model_lw == IGasModelECCKD) then
 
       ! This gas optics model usually used with general cloud and
       ! aerosol optics settings
@@ -1137,6 +1151,10 @@ contains
       if (.not. this%use_general_aerosol_optics) then
         write(nulout,'(a)') 'Warning: ecCKD gas optics model usually used with general aerosol optics'
       end if
+
+    end if
+
+    if (this%i_gas_model_sw == IGasModelECCKD) then
 
       if (len_trim(this%gas_optics_sw_override_file_name) > 0) then
         if (this%gas_optics_sw_override_file_name(1:1) == '/') then
@@ -1151,6 +1169,10 @@ contains
         this%gas_optics_sw_file_name = trim(this%directory_name) &
              &  // "/ecckd-1.4_sw_climate_rgb-32b_ckd-definition.nc"
       end if
+
+    end if
+
+    if (this%i_gas_model_lw == IGasModelECCKD) then
 
       if (len_trim(this%gas_optics_lw_override_file_name) > 0) then
         if (this%gas_optics_lw_override_file_name(1:1) == '/') then
@@ -1169,7 +1191,7 @@ contains
     end if
 
     if (this%use_spectral_solar_cycle) then
-      if (this%i_gas_model /= IGasModelECCKD) then
+      if (this%i_gas_model_sw /= IGasModelECCKD) then
         write(nulerr,'(a)') '*** Error: solar cycle only available with ecCKD gas optics model'
         call radiation_abort('Radiation configuration error')
       else
@@ -1277,12 +1299,19 @@ contains
       end if
     end if
 
-    ! In the monochromatic case we need to override the liquid, ice
-    ! and aerosol models to ensure compatibility
-    if (this%i_gas_model == IGasModelMonochromatic) then
+    if (this%i_gas_model_sw == IGasModelMonochromatic .or. this%i_gas_model_lw == IGasModelMonochromatic) then
+
+      if (this%i_gas_model_sw /= this%i_gas_model_lw) then
+        write(nulerr,'(a,i0)') '*** Error: Monochromatic gas optics model must be used in shortwave and longwave'
+        call radiation_abort('Radiation configuration error')
+      end if
+    
+      ! In the monochromatic case we need to override the liquid, ice
+      ! and aerosol models to ensure compatibility
       this%i_liq_model = ILiquidModelMonochromatic
       this%i_ice_model = IIceModelMonochromatic
       this%use_aerosols = .false.
+      
     end if
 
     ! McICA solver currently can't store full profiles of spectral fluxes
@@ -1391,8 +1420,10 @@ contains
            &   'do_save_radiative_properties', this%do_save_radiative_properties)
       call print_logical('  Saving spectral flux profiles', &
            &   'do_save_spectral_flux', this%do_save_spectral_flux)
-      call print_enum('  Gas model is', GasModelName, 'i_gas_model', &
-           &          this%i_gas_model)
+      call print_enum('  Shortwave gas model is', GasModelName, 'i_gas_model_sw', &
+           &          this%i_gas_model_sw)
+      call print_enum('  Longwave gas model is', GasModelName, 'i_gas_model_lw', &
+           &          this%i_gas_model_lw)
       call print_logical('  Aerosols are', 'use_aerosols', this%use_aerosols)
       if (this%use_aerosols) then
         call print_logical('  General aerosol optics', &
@@ -1480,7 +1511,7 @@ contains
         call print_enum('  Shortwave solver is', SolverName, &
              &          'i_solver_sw', this%i_solver_sw)
         
-        if (this%i_gas_model == IGasModelMonochromatic) then
+        if (this%i_gas_model_sw == IGasModelMonochromatic) then
           call print_real('  Shortwave atmospheric optical depth', &
                &   'mono_sw_total_od', this%mono_sw_total_od)
           call print_real('  Shortwave particulate single-scattering albedo', &
@@ -1501,7 +1532,7 @@ contains
         call print_enum('  Longwave solver is', SolverName, 'i_solver_lw', &
              &          this%i_solver_lw)
 
-        if (this%i_gas_model == IGasModelMonochromatic) then
+        if (this%i_gas_model_lw == IGasModelMonochromatic) then
           if (this%mono_lw_wavelength > 0.0_jprb) then
             call print_real('  Longwave effective wavelength (m)', &
                  &   'mono_lw_wavelength', this%mono_lw_wavelength)
