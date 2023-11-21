@@ -143,6 +143,9 @@ libifsrrtm: libifsaux
 libradiation: libifsrrtm libutilities libifsaux
 	cd radiation && $(MAKE)
 
+libecrad3d: libradiation libutilities libifsaux
+	cd ecrad3d && $(MAKE)
+
 driver: libifsaux libifsrrtm libutilities libradiation
 	cd driver && $(MAKE) driver
 
