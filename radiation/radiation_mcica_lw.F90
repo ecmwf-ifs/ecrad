@@ -18,6 +18,8 @@
 !   2017-07-12  R. Hogan  Call fast adding method if only clouds scatter
 !   2017-10-23  R. Hogan  Renamed single-character variables
 
+#include "ecrad_config.h"
+
 module radiation_mcica_lw
 
   public
@@ -124,8 +126,12 @@ contains
     ! Identify clear-sky layers
     logical :: is_clear_sky_layer(nlev)
 
-    ! Auxiliary for more efficient summation
+    ! Temporary storage for more efficient summation
+#ifdef DWD_REDUCTION_OPTIMIZATIONS
     real(jprb), dimension(nlev+1,2) :: sum_aux
+#else
+    real(jprb) :: sum_up, sum_dn
+#endif
 
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
@@ -181,15 +187,30 @@ contains
       end if
 
       ! Sum over g-points to compute broadband fluxes
-      sum_aux(:,:) = 0._jprb
-      do jg = 1, ng
-        do jlev = 1, nlev+1
+#ifdef DWD_REDUCTION_OPTIMIZATIONS
+      sum_aux(:,:) = 0.0_jprb
+      do jg = 1,ng
+        do jlev = 1,nlev+1
           sum_aux(jlev,1) = sum_aux(jlev,1) + flux_up_clear(jg,jlev)
           sum_aux(jlev,2) = sum_aux(jlev,2) + flux_dn_clear(jg,jlev)
         end do
       end do
       flux%lw_up_clear(jcol,:) = sum_aux(:,1)
       flux%lw_dn_clear(jcol,:) = sum_aux(:,2)
+#else
+      do jlev = 1,nlev+1
+        sum_up = 0.0_jprb
+        sum_dn = 0.0_jprb
+        !$omp simd reduction(+:sum_up, sum_dn)
+        do jg = 1,ng
+          sum_up = sum_up + flux_up_clear(jg,jlev)
+          sum_dn = sum_dn + flux_dn_clear(jg,jlev)
+        end do
+        flux%lw_up_clear(jcol,jlev) = sum_up
+        flux%lw_dn_clear(jcol,jlev) = sum_dn
+      end do
+#endif
+
       ! Store surface spectral downwelling fluxes
       flux%lw_dn_surf_clear_g(:,jcol) = flux_dn_clear(:,nlev+1)
 
@@ -318,6 +339,7 @@ contains
         end if
         
         ! Store overcast broadband fluxes
+#ifdef DWD_REDUCTION_OPTIMIZATIONS
         sum_aux(:,:) = 0._jprb
         do jg = 1, ng
           do jlev = 1, nlev+1
@@ -327,6 +349,19 @@ contains
         end do
         flux%lw_up(jcol,:) = sum_aux(:,1)
         flux%lw_dn(jcol,:) = sum_aux(:,2)
+#else
+        do jlev = 1,nlev+1
+          sum_up = 0.0_jprb
+          sum_dn = 0.0_jprb
+          !$omp simd reduction(+:sum_up, sum_dn)
+          do jg = 1,ng
+            sum_up = sum_up + flux_up(jg,jlev)
+            sum_dn = sum_dn + flux_dn(jg,jlev)
+          end do
+          flux%lw_up(jcol,jlev) = sum_up
+          flux%lw_dn(jcol,jlev) = sum_dn
+        end do
+#endif
 
         ! Cloudy flux profiles currently assume completely overcast
         ! skies; perform weighted average with clear-sky profile

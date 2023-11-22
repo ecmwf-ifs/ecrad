@@ -73,14 +73,13 @@ contains
 
     ! Gas and aerosol optical depth, single-scattering albedo and
     ! asymmetry factor at each shortwave g-point
-!    real(jprb), intent(in), dimension(istartcol:iendcol,nlev,config%n_g_sw) :: &
-    real(jprb), intent(in), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: &
-         &  od, ssa, g
+    real(jprb), intent(in), dimension(config%n_g_sw,nlev,istartcol:iendcol) &
+         &  :: od, ssa, g
 
     ! Cloud and precipitation optical depth, single-scattering albedo and
     ! asymmetry factor in each shortwave band
-    real(jprb), intent(in), dimension(config%n_bands_sw,nlev,istartcol:iendcol) :: &
-         &  od_cloud, ssa_cloud, g_cloud
+    real(jprb), intent(in), dimension(config%n_bands_sw,nlev,istartcol:iendcol) &
+         &  :: od_cloud, ssa_cloud, g_cloud
 
     ! Optical depth, single scattering albedo and asymmetry factor in
     ! each g-point of each cloudy region including gas, aerosol and
@@ -91,8 +90,8 @@ contains
     ! Direct and diffuse surface albedos, and the incoming shortwave
     ! flux into a plane perpendicular to the incoming radiation at
     ! top-of-atmosphere in each of the shortwave g points
-    real(jprb), intent(in), dimension(config%n_g_sw,istartcol:iendcol) :: &
-         &  albedo_direct, albedo_diffuse, incoming_sw
+    real(jprb), intent(in), dimension(config%n_g_sw,istartcol:iendcol) &
+         &  :: albedo_direct, albedo_diffuse, incoming_sw
 
     ! Output
     type(flux_type), intent(inout):: flux
@@ -165,6 +164,10 @@ contains
     ! Scattering optical depth of gas+aerosol and of cloud
     real(jprb) :: scat_od, scat_od_cloud
 
+    ! Temporaries to speed up summations
+    real(jprb) :: sum_dn_diff, sum_dn_dir, sum_up
+
+    ! Local cosine of solar zenith angle
     real(jprb) :: mu0
 
     integer :: jcol, jlev, jg, jreg, iband, jreg2, ng
@@ -443,15 +446,35 @@ contains
         flux%sw_up_toa_clear_g(:,jcol) = flux_up_clear
       end if
       
-      ! Store the TOA broadband fluxes
-      flux%sw_up(jcol,1) = sum(sum(flux_up,1))
-      flux%sw_dn(jcol,1) = mu0 * sum(sum(direct_dn,1))
+      ! Store the TOA broadband fluxes, noting that there is no
+      ! diffuse downwelling at TOA. The intrinsic "sum" command has
+      ! been found to be very slow; better performance is found on
+      ! x86-64 architecture with explicit loops and the "omp simd
+      ! reduction" directive.
+      sum_up     = 0.0_jprb
+      sum_dn_dir = 0.0_jprb
+      do jreg = 1,nregions
+        !$omp simd reduction(+:sum_up, sum_dn_dir)
+        do jg = 1,ng
+          sum_up     = sum_up     + flux_up(jg,jreg)
+          sum_dn_dir = sum_dn_dir + direct_dn(jg,jreg)
+        end do
+      end do
+      flux%sw_up(jcol,1) = sum_up
+      flux%sw_dn(jcol,1) = mu0 * sum_dn_dir
       if (allocated(flux%sw_dn_direct)) then
         flux%sw_dn_direct(jcol,1) = flux%sw_dn(jcol,1)
       end if
       if (config%do_clear) then
-        flux%sw_up_clear(jcol,1) = sum(flux_up_clear)
-        flux%sw_dn_clear(jcol,1) = mu0 * sum(direct_dn_clear)
+        sum_up     = 0.0_jprb
+        sum_dn_dir = 0.0_jprb
+        !$omp simd reduction(+:sum_up, sum_dn_dir)
+        do jg = 1,ng
+          sum_up     = sum_up     + flux_up_clear(jg)
+          sum_dn_dir = sum_dn_dir + direct_dn_clear(jg)
+        end do
+        flux%sw_up_clear(jcol,1) = sum_up
+        flux%sw_dn_clear(jcol,1) = mu0 * sum_dn_dir
         if (allocated(flux%sw_dn_direct_clear)) then
           flux%sw_dn_direct_clear(jcol,1) = flux%sw_dn_clear(jcol,1)
         end if
@@ -466,8 +489,7 @@ contains
         call indexed_sum(sum(direct_dn,2), &
              &           config%i_spec_from_reordered_g_sw, &
              &           flux%sw_dn_band(:,jcol,1))
-        flux%sw_dn_band(:,jcol,1) = &
-             &  mu0 * flux%sw_dn_band(:,jcol,1)
+        flux%sw_dn_band(:,jcol,1) = mu0 * flux%sw_dn_band(:,jcol,1)
         if (allocated(flux%sw_dn_direct_band)) then
           flux%sw_dn_direct_band(:,jcol,1) = flux%sw_dn_band(:,jcol,1)
         end if
@@ -548,24 +570,40 @@ contains
         end if ! Otherwise the fluxes in each region are the same so
                ! nothing to do
 
-        ! Store the broadband fluxes
-        flux%sw_up(jcol,jlev+1) = sum(sum(flux_up,1))
+        ! Store the broadband fluxes. The intrinsic "sum" command has
+        ! been found to be very slow; better performance is found on
+        ! x86-64 architecture with explicit loops and the "omp simd
+        ! reduction" directive.
+        sum_up      = 0.0_jprb
+        sum_dn_dir  = 0.0_jprb
+        sum_dn_diff = 0.0_jprb
+        do jreg = 1,nregions
+          !$omp simd reduction(+:sum_up, sum_dn_diff, sum_dn_dir)
+          do jg = 1,ng
+            sum_up      = sum_up      + flux_up(jg,jreg)
+            sum_dn_diff = sum_dn_diff + flux_dn(jg,jreg)
+            sum_dn_dir  = sum_dn_dir  + direct_dn(jg,jreg)
+          end do
+        end do
+        flux%sw_up(jcol,jlev+1) = sum_up
+        flux%sw_dn(jcol,jlev+1) = mu0 * sum_dn_dir + sum_dn_diff
         if (allocated(flux%sw_dn_direct)) then
-          flux%sw_dn_direct(jcol,jlev+1) = mu0 * sum(sum(direct_dn,1))
-          flux%sw_dn(jcol,jlev+1) &
-               &  = flux%sw_dn_direct(jcol,jlev+1) + sum(sum(flux_dn,1))
-        else
-          flux%sw_dn(jcol,jlev+1) = mu0 * sum(sum(direct_dn,1)) + sum(sum(flux_dn,1))   
+          flux%sw_dn_direct(jcol,jlev+1) = mu0 * sum_dn_dir
         end if
         if (config%do_clear) then
-          flux%sw_up_clear(jcol,jlev+1) = sum(flux_up_clear)
+          sum_up      = 0.0_jprb
+          sum_dn_dir  = 0.0_jprb
+          sum_dn_diff = 0.0_jprb
+          !$omp simd reduction(+:sum_up, sum_dn_diff, sum_dn_dir)
+          do jg = 1,ng
+            sum_up      = sum_up      + flux_up_clear(jg)
+            sum_dn_diff = sum_dn_diff + flux_dn_clear(jg)
+            sum_dn_dir  = sum_dn_dir  + direct_dn_clear(jg)
+          end do
+          flux%sw_up_clear(jcol,jlev+1) = sum_up
+          flux%sw_dn_clear(jcol,jlev+1) = mu0 * sum_dn_dir + sum_dn_diff
           if (allocated(flux%sw_dn_direct_clear)) then
-            flux%sw_dn_direct_clear(jcol,jlev+1) = mu0 * sum(direct_dn_clear)
-            flux%sw_dn_clear(jcol,jlev+1) &
-                 &  = flux%sw_dn_direct_clear(jcol,jlev+1) + sum(flux_dn_clear)
-          else
-            flux%sw_dn_clear(jcol,jlev+1) = mu0 * sum(direct_dn_clear) &
-                 &  + sum(flux_dn_clear)
+            flux%sw_dn_direct_clear(jcol,jlev+1) = mu0 * sum_dn_dir
           end if
         end if
 
@@ -604,7 +642,6 @@ contains
                  &           flux%sw_dn_clear_band(:,jcol,jlev+1))
           end if
         end if
-
       end do ! Final loop over levels
       
       ! Store surface spectral fluxes, if required (after the end of
