@@ -539,7 +539,7 @@ contains
     use parkind1,              only : jprb
     use radiation_pdf_sampler, only : pdf_sampler_type
     implicit none
-#if defined(__GFORTRAN__) || defined(__PGI) || defined(__NEC__)
+#if defined(__GFORTRAN__) || defined(__PGI) || defined(__NEC__) || defined(__INTEL_LLVM_COMPILER)
 #else
     !$omp declare simd(sample_from_pdf_simd) uniform(this) &
     !$omp linear(ref(fsd)) linear(ref(cdf))
