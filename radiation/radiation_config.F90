@@ -33,6 +33,8 @@
 ! files in this directory, please inform Robin Hogan.
 !
 
+#include "ecrad_config.h"
+
 module radiation_config
 
   use parkind1,                      only : jprb
@@ -201,7 +203,7 @@ module radiation_config
     ! Use a more vectorizable McICA cloud generator, at the expense of
     ! more random numbers being generated?  This is the default on NEC
     ! SX.
-#ifdef __SX__
+#ifdef DWD_VECTOR_OPTIMIZATIONS
     logical :: use_vectorizable_generator = .true.
 #else
     logical :: use_vectorizable_generator = .false.

@@ -20,6 +20,8 @@
 !   2021-01-20  R. Hogan  Added heating_rate_out_of_physical_bounds function
 !   2022-12-07  R. Hogan  Added top-of-atmosphere spectral output
 
+#include "ecrad_config.h"
+
 module radiation_flux
 
   use parkind1, only : jprb
@@ -116,7 +118,7 @@ module radiation_flux
   end type flux_type
 
 ! Added for DWD (2020)
-#ifdef __SX__
+#ifdef DWD_VECTOR_OPTIMIZATIONS
       logical, parameter :: use_indexed_sum_vec = .true.
 #else
       logical, parameter :: use_indexed_sum_vec = .false.
