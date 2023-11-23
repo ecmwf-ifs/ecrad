@@ -13,6 +13,8 @@
 ! Email:   r.j.hogan@ecmwf.int
 !
 
+#include "ecrad_config.h"
+
 module radiation_cloud_optics_data
 
   use parkind1, only : jprb

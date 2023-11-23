@@ -14,6 +14,8 @@
 ! License: see the COPYING file for details
 !
 
+#include "ecrad_config.h"
+
 module radiation_general_cloud_optics_data
 
   use parkind1, only : jprb

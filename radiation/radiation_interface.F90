@@ -176,8 +176,11 @@ contains
       call set_gas_units_mono(gas)
     elseif (config%i_gas_model_sw == IGasModelIFSRRTMG &
          &  .or. config%i_gas_model_lw == IGasModelIFSRRTMG) then
+      ! Convert to mass-mixing ratio for RRTMG; note that ecCKD can
+      ! work with this but performs an internal scaling
       call set_gas_units_ifs(gas)
     else
+      ! Use volume mixing ratio preferred by ecCKD
       call set_gas_units_ecckd(gas)
     end if
 
