@@ -74,7 +74,11 @@ contains
   subroutine read(this, file_name, iverbose)
 
     use yomhook,              only : lhook, dr_hook, jphook
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
     use easy_netcdf,          only : netcdf_file
+#endif
 
     class(aerosol_optics_description_type), intent(inout) :: this
     character(len=*), intent(in)              :: file_name
@@ -178,7 +182,6 @@ contains
   function get_index(this, code_str, lhydrophilic, ibin, optical_model_str)
     
     use yomhook,              only : lhook, dr_hook, jphook
-    use easy_netcdf,          only : netcdf_file
     use radiation_io,         only : nulout
 
     class(aerosol_optics_description_type), intent(in) :: this

@@ -126,9 +126,13 @@ contains
   ! "filename"
   subroutine read_ckd_model(this, filename, iverbose)
 
-    use easy_netcdf,  only : netcdf_file
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
+    use easy_netcdf,          only : netcdf_file
+#endif
     !use radiation_io, only : nulerr, radiation_abort
-    use yomhook,      only : lhook, dr_hook, jphook
+    use yomhook,              only : lhook, dr_hook, jphook
 
     class(ckd_model_type), intent(inout) :: this
     character(len=*),      intent(in)    :: filename
@@ -290,9 +294,13 @@ contains
   ! solar cycle and map to g-points
   subroutine read_spectral_solar_cycle(this, filename, iverbose, use_updated_solar_spectrum)
 
-    use easy_netcdf,  only : netcdf_file
-    use radiation_io, only : nulout, nulerr, radiation_abort
-    use yomhook,      only : lhook, dr_hook, jphook
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
+    use easy_netcdf,          only : netcdf_file
+#endif
+    use radiation_io,         only : nulout, nulerr, radiation_abort
+    use yomhook,              only : lhook, dr_hook, jphook
 
     ! Reference total solar irradiance (W m-2)
     real(jprb), parameter :: ReferenceTSI = 1361.0_jprb

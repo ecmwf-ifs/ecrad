@@ -84,7 +84,11 @@ contains
   ! file of the type used to describe an ecCKD model
   subroutine read_spectral_definition(this, file)
 
-    use easy_netcdf, only : netcdf_file
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
+    use easy_netcdf,          only : netcdf_file
+#endif
     use yomhook,     only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(inout) :: this
