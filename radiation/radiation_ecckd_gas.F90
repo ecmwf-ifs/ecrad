@@ -81,7 +81,11 @@ contains
   ! NetCDF file, identifying it with code i_gas_code
   subroutine read_ckd_gas(this, file, gas_name, i_gas_code)
 
-    use easy_netcdf, only : netcdf_file
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
+    use easy_netcdf,          only : netcdf_file
+#endif
 
     class(ckd_gas_type), intent(inout) :: this
     type(netcdf_file),   intent(inout) :: file

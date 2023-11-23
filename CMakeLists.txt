@@ -54,6 +54,10 @@ ecbuild_add_option(
     REQUIRED_PACKAGES "fiat"
 )
 
+if( HAVE_FIAT AND fiat_HAVE_MPI )
+    list( APPEND ECRAD_COMPILE_DEFINITIONS EASY_NETCDF_READ_MPI )
+endif()
+
 ecbuild_add_option(
     FEATURE OMP
     DEFAULT ON
