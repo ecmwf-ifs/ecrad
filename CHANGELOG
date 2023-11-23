@@ -18,6 +18,9 @@ version 1.6.1
 	  optimization options as preprocessor parameters
 	- Replaced slow "sum" intrinsic function in McICA and Tripleclouds
 	  solvers with optimized versions for x86-64 and DWD's NEC
+	- Enable different gas optics models for shortwave and longwave:
+	  namelist gas_model_name can still be used, or use
+	  sw_gas_model_name and lw_gas_model_name to specify separate models
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran

@@ -14,6 +14,7 @@ CHANGENAM = ../common/change_namelist.sh
 #CONFIG = configCY47R3.nam
 CONFIG = configCY49R1.nam
 CONFIG_ECCKD = configCY49R1_ecckd.nam
+CONFIG_MIXED = configCY49R1_mixed.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
@@ -110,6 +111,15 @@ test_ecckd_mcica:
 # ecCKD with Tripleclouds solver (default)
 test_ecckd_tc:
 	$(DRIVER) $(CONFIG_ECCKD) $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
+
+test_mixed_gas:
+	$(DRIVER) $(CONFIG_MIXED) $(INPUT).nc $(INPUT)_sw_ecckd_lw_ecckd_out.nc
+	$(CHANGENAM) $(CONFIG_MIXED) config_mix.nam lw_gas_model_name='"RRTMG-IFS"' do_cloud_aerosol_per_lw_g_point=false
+	$(DRIVER) config_mix.nam $(INPUT).nc $(INPUT)_sw_ecckd_lw_rrtmg_out.nc
+	$(CHANGENAM) $(CONFIG_MIXED) config_mix.nam sw_gas_model_name='"RRTMG-IFS"' do_cloud_aerosol_per_sw_g_point=false
+	$(DRIVER) config_mix.nam $(INPUT).nc $(INPUT)_sw_rrtmg_lw_ecckd_out.nc
+	$(CHANGENAM) $(CONFIG_MIXED) config_mix.nam sw_gas_model_name='"RRTMG-IFS"' lw_gas_model_name='"RRTMG-IFS"' do_cloud_aerosol_per_lw_g_point=false do_cloud_aerosol_per_sw_g_point=false
+	$(DRIVER) config_mix.nam $(INPUT).nc $(INPUT)_sw_rrtmg_lw_rrtmg_out.nc
 
 # ecCKD with no aerosols
 test_ecckd_noaer:

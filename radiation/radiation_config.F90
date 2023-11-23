@@ -704,6 +704,7 @@ contains
     character(511) :: gas_optics_sw_override_file_name, gas_optics_lw_override_file_name
     character(511) :: ssi_override_file_name
     character(63)  :: liquid_model_name, ice_model_name, gas_model_name
+    character(63)  :: sw_gas_model_name, lw_gas_model_name
     character(63)  :: sw_solver_name, lw_solver_name, overlap_scheme_name
     character(63)  :: sw_entrapment_name, sw_encroachment_name, cloud_pdf_shape_name
     character(len=511) :: cloud_type_name(NMaxCloudTypes) = ["","","","","","","","","","","",""]
@@ -729,7 +730,7 @@ contains
          &  do_save_spectral_flux, do_save_gpoint_flux, &
          &  do_surface_sw_spectral_flux, do_lw_derivatives, do_toa_spectral_flux, &
          &  do_lw_aerosol_scattering, do_lw_cloud_scattering, &
-         &  n_regions, directory_name, gas_model_name, &
+         &  n_regions, directory_name, gas_model_name, sw_gas_model_name, lw_gas_model_name, &
          &  ice_optics_override_file_name, liq_optics_override_file_name, &
          &  aerosol_optics_override_file_name, cloud_pdf_override_file_name, &
          &  gas_optics_sw_override_file_name, gas_optics_lw_override_file_name, &
