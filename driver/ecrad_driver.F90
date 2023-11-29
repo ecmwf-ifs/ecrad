@@ -47,6 +47,7 @@ program ecrad_driver
   use radiation_save,           only : save_fluxes, save_net_fluxes, &
        &                               save_inputs, save_sw_diagnostics, &
        &                               save_radiances
+  use radiation_general_cloud_optics, only : save_general_cloud_optics
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
@@ -194,6 +195,10 @@ program ecrad_driver
   
   if (driver_config%do_save_aerosol_optics) then
     call config%aerosol_optics%save('aerosol_optics.nc', iverbose=driver_config%iverbose)
+  end if
+
+  if (driver_config%do_save_cloud_optics .and. config%use_general_cloud_optics) then
+    call save_general_cloud_optics(config, 'hydrometeor_optics', iverbose=driver_config%iverbose)
   end if
 
   ! --------------------------------------------------------

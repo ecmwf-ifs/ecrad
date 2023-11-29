@@ -29,11 +29,11 @@ module radiation_general_cloud_optics_data
   type general_cloud_optics_type
     ! Band-specific (or g-point-specific) values as a look-up table
     ! versus effective radius dimensioned (nband,n_effective_radius)
-    
+
     ! Extinction coefficient per unit mass (m2 kg-1)
     real(jprb), allocatable, dimension(:,:) :: &
          &  mass_ext
-    
+
     ! Single-scattering albedo and asymmetry factor (dimensionless)
     real(jprb), allocatable, dimension(:,:) :: &
          &  ssa, asymmetry
@@ -43,18 +43,19 @@ module radiation_general_cloud_optics_data
     integer    :: n_effective_radius = 0
     real(jprb) :: effective_radius_0, d_effective_radius
 
-    ! Name of cloud/precip type (e.g. "liquid", "ice", "rain", "snow")
-    ! and the name of the optics scheme.  These two are used to
+    ! Name of cloud/precip type and scattering model
+    ! (e.g. "mie_droplet", "fu-muskatel_ice"). These are used to
     ! generate the name of the data file from which the coefficients
     ! are read.
-    character(len=511) :: type_name, scheme_name
-    
+    character(len=511) :: type_name
+
     ! Do we use bands or g-points?
     logical :: use_bands = .false.
 
    contains
      procedure :: setup => setup_general_cloud_optics
      procedure :: add_optical_properties
+     procedure :: save => save_general_cloud_optics_data
 
   end type general_cloud_optics_type
 
@@ -81,7 +82,7 @@ contains
     logical, intent(in), optional              :: use_bands, use_thick_averaging
     real(jprb), intent(in), optional           :: weighting_temperature ! K
     integer, intent(in), optional              :: iverbose
-    
+
     ! Spectral properties read from file, dimensioned (wavenumber,
     ! n_effective_radius)
     real(jprb), dimension(:,:), allocatable :: mass_ext, & ! m2 kg-1
@@ -182,7 +183,7 @@ contains
     this%mass_ext  = matmul(mapping, mass_ext)
     this%ssa       = matmul(mapping, mass_ext*ssa) / this%mass_ext
     this%asymmetry = matmul(mapping, mass_ext*ssa*asymmetry) / (this%mass_ext*this%ssa)
-    
+
     if (use_thick_averaging_local) then
       ! Thick averaging as described by Edwards and Slingo (1996),
       ! modifying only the single-scattering albedo
@@ -261,12 +262,12 @@ contains
          &  :: scat_od, &     ! Scattering optical depth of layer
          &     scat_asymmetry ! Scattering optical depth x asymmetry factor
 
-    real(jprb) :: od_local(ng)
+    real(jprb) :: od_local
 
     real(jprb) :: re_index, weight1, weight2
     integer :: ire
 
-    integer :: jcol, jlev
+    integer :: jcol, jlev, jg
 
     real(jphook) :: hook_handle
 
@@ -281,15 +282,18 @@ contains
             ire = int(re_index)
             weight2 = re_index - ire
             weight1 = 1.0_jprb - weight2
-            od_local = water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
-                 &                              +weight2*this%mass_ext(:,ire+1))
-            od(:,jlev,jcol) = od(:,jlev,jcol) + od_local
-            od_local = od_local * (weight1*this%ssa(:,ire) &
-                 &                +weight2*this%ssa(:,ire+1))
-            scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
-            scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
-                 & + od_local * (weight1*this%asymmetry(:,ire) &
-                 &              +weight2*this%asymmetry(:,ire+1))
+            do jg = 1, ng
+              od_local = water_path(jcol, jlev) * (weight1*this%mass_ext(jg,ire) &
+                 &                                +weight2*this%mass_ext(jg,ire+1))
+              od(jg,jlev,jcol) = od(jg,jlev,jcol) + od_local
+              od_local = od_local * (weight1*this%ssa(jg,ire) &
+                 &                  +weight2*this%ssa(jg,ire+1))
+              scat_od(jg,jlev,jcol) = scat_od(jg,jlev,jcol) + od_local
+              scat_asymmetry(jg,jlev,jcol) = scat_asymmetry(jg,jlev,jcol) &
+                 & + od_local * (weight1*this%asymmetry(jg,ire) &
+                 &              +weight2*this%asymmetry(jg,ire+1))
+            end do
+
           end if
         end do
       end do
@@ -298,7 +302,7 @@ contains
       do jcol = 1,ncol
         do jlev = 1,nlev
           if (water_path(jcol, jlev) > 0.0_jprb) then
-            re_index = max(1.0, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
+            re_index = max(1.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
                  &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
             ire = int(re_index)
             weight2 = re_index - ire
@@ -341,4 +345,68 @@ contains
 
   end function calc_planck_function_wavenumber
 
+  !---------------------------------------------------------------------
+  ! Save cloud optical properties in the named file
+  subroutine save_general_cloud_optics_data(this, file_name, iverbose)
+
+    use yomhook,     only : lhook, dr_hook, jphook
+    use easy_netcdf, only : netcdf_file
+
+    class(general_cloud_optics_type), intent(in) :: this
+    character(len=*),                 intent(in) :: file_name
+    integer,                optional, intent(in) :: iverbose
+
+    ! Object for output NetCDF file
+    type(netcdf_file) :: out_file
+
+    real(jprb) :: effective_radius(this%n_effective_radius)
+    integer :: ire
+    
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_general_cloud_optics_data:save',0,hook_handle)
+
+    ! Create the file
+    call out_file%create(trim(file_name), iverbose=iverbose)
+
+    ! Define dimensions
+    call out_file%define_dimension("band", size(this%mass_ext,1))
+    call out_file%define_dimension("effective_radius", this%n_effective_radius)
+
+    ! Put global attributes
+    call out_file%put_global_attributes( &
+         &   title_str="Optical properties of "//trim(this%type_name) &
+         &   //" hydrometeors using the spectral intervals of ecRad", &
+         &   source_str="ecRad offline radiation model")
+
+    ! Define variables
+    call out_file%define_variable("effective_radius", units_str="m", &
+         &  long_name="Effective radius", dim1_name="effective_radius")
+    call out_file%define_variable("mass_extinction_coefficient", units_str="m2 kg-1", &
+         &  long_name="Mass-extinction coefficient", &
+         &  dim2_name="effective_radius", dim1_name="band")
+    call out_file%define_variable("single_scattering_albedo", units_str="1", &
+         &  long_name="Single scattering albedo", &
+         &  dim2_name="effective_radius", dim1_name="band")
+    call out_file%define_variable("asymmetry_factor", units_str="1", &
+         &  long_name="Asymmetry factor", &
+         &  dim2_name="effective_radius", dim1_name="band")
+
+    ! Define effective radius
+    do ire = 1,this%n_effective_radius
+      effective_radius(ire) = this%effective_radius_0 + this%d_effective_radius*(ire-1)
+    end do
+    
+    ! Write variables
+    call out_file%put("effective_radius", effective_radius)
+    call out_file%put("mass_extinction_coefficient", this%mass_ext)
+    call out_file%put("single_scattering_albedo", this%ssa)
+    call out_file%put("asymmetry_factor", this%asymmetry)
+    
+    call out_file%close()
+
+    if (lhook) call dr_hook('radiation_general_cloud_optics_data:save',1,hook_handle)
+
+  end subroutine save_general_cloud_optics_data
+  
 end module radiation_general_cloud_optics_data

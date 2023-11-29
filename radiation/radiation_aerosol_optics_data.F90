@@ -35,7 +35,7 @@ module radiation_aerosol_optics_data
   ! tries to use this aerosol type. The user may specify that an
   ! aerosol type is to be ignored in the radiation calculation, in
   ! which case iclass will be set equal to AerosolClassIgnored.
-  enum, bind(c) 
+  enum, bind(c)
      enumerator IAerosolClassUndefined,   IAerosolClassIgnored, &
           &     IAerosolClassHydrophobic, IAerosolClassHydrophilic
   end enum
@@ -316,7 +316,7 @@ contains
 
     class(aerosol_optics_type), intent(inout) :: this
     integer,                    intent(in)    :: ntype
-    
+
     ! Allocate memory for mapping arrays
     this%ntype = ntype
     allocate(this%iclass(ntype))
@@ -397,6 +397,7 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Save aerosol optical properties in the named file
   subroutine save_aerosol_optics(this, file_name, iverbose)
 
     use yomhook,     only : lhook, dr_hook, jphook
@@ -542,7 +543,7 @@ contains
 
     if (.not. this%use_hydrophilic) then
       write(nulerr,'(a)') '*** Error: attempt to set hydrophilic aerosol type when no such types present'
-      call radiation_abort('Error setting up aerosols')      
+      call radiation_abort('Error setting up aerosols')
     end if
 
     if (itype < 1 .or. itype > this%ntype) then
@@ -635,7 +636,7 @@ contains
 
     !use yomhook,     only : lhook, dr_hook, jphook
 
-    class(aerosol_optics_type), intent(inout) :: this
+    class(aerosol_optics_type), intent(in)    :: this
     real(jprb),                 intent(in)    :: rh
     integer                                   :: calc_rh_index
     !real(jphook) :: hook_handle
@@ -686,7 +687,7 @@ contains
         write(nulout,'(i4,a)') jtype, ' is unused'
       end if
     end do
-    
+
   end subroutine print_description
 
 
@@ -696,10 +697,10 @@ contains
     character(len=*), intent(in)  :: str
     integer,          intent(in)  :: iline
     character(len=NMaxLineLength) :: line_str
-    
+
     integer :: istart, iend, i_start_new, ioffset, ilength, i_line_current
     logical :: is_fail
-    
+
     i_line_current = 1
     istart = 1
     iend = len(str)
@@ -717,7 +718,7 @@ contains
       end if
       i_line_current = i_line_current + 1
     end do
-    
+
     if (.not. is_fail) then
       ! Find index of last character
       ioffset = scan(str(istart:iend), new_line(' '))
@@ -726,17 +727,17 @@ contains
       else
         ilength = ioffset - 1
       end if
-      
+
       if (ilength > NMaxLineLength) then
         ilength = NMaxLineLength
       end if
       iend = istart + ilength - 1
-      
+
       line_str = str(istart:iend)
     else
       write(line_str,'(i0,a)') iline, ': <unknown>'
     end if
-    
+
   end function get_line
-  
+
 end module radiation_aerosol_optics_data

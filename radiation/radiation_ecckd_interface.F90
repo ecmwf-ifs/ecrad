@@ -222,7 +222,7 @@ contains
     ! Temperature at full levels (K)
     real(jprb) :: temperature_fl(istartcol:iendcol,nlev)
 
-    integer :: jcol
+    integer :: jcol, jlev, jg
 
     real(jphook) :: hook_handle
 
@@ -252,8 +252,14 @@ contains
       ! At this point od_sw = absorption optical depth and ssa_sw =
       ! rayleigh optical depth: convert to total optical depth and
       ! single-scattering albedo
-      od_sw = od_sw + ssa_sw
-      ssa_sw = ssa_sw / od_sw
+      do jcol = istartcol,iendcol
+        do jlev = 1, nlev
+          do jg = 1, config%n_g_sw
+            od_sw(jg,jlev,jcol)  = od_sw(jg,jlev,jcol) + ssa_sw(jg,jlev,jcol)
+            ssa_sw(jg,jlev,jcol) = ssa_sw(jg,jlev,jcol) / od_sw(jg,jlev,jcol)
+          end do
+        end do
+      end do
 
       if (present(incoming_sw)) then
         if (single_level%spectral_solar_cycle_multiplier == 0.0_jprb) then
@@ -285,6 +291,7 @@ contains
       call config%gas_optics_lw%calc_planck_function(iendcol+1-istartcol, &
            &  single_level%skin_temperature(istartcol:iendcol), &
            &  lw_emission(:,:))
+!NEC$ forced_collapse
       lw_emission = lw_emission * (1.0_jprb - lw_albedo)
 
     end if
