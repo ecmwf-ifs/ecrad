@@ -32,7 +32,8 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook, jphook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
-       &  calc_radiance_rates, calc_radiance_trans_source, lw_diffusivity
+       &  calc_radiance_rates, calc_radiance_trans_source, lw_diffusivity, &
+       &  calc_radiance_trans_source_exact
 
   implicit none
 
@@ -296,6 +297,12 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
       ! regions of the lowest layer, and convert to a flux (with PI)
       flux_up_surface = spread(surf_emission + PI*surf_albedo*radiance_profile(:,nlev+1),2,NREGION) &
            &          * spread(region_fracs(:,nlev),1,nspec)
+
+      ! NEW!!!
+      call calc_radiance_trans_source_exact(nspec, nlev, NREGION, mu, &
+           &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
+           &  flux_up_base, flux_dn_top, transmittance, source_up=source_up)
+      
       call calc_radiance_up(nspec, nlev, &
            &  ONE_OVER_PI, flux_up_surface, &
            &  transmittance, source_up, u_overlap, radiance_profile)
@@ -328,6 +335,12 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
            &  region_fracs, od, transmittance, &
            &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
            &  source_up=source_up)
+
+      ! NEW!!!
+      call calc_radiance_trans_source_exact(nspec, nlev, NREGION, mu, &
+           &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
+           &  flux_up_base, flux_dn_top, transmittance, source_up=source_up)
+
       call calc_radiance_up(nspec, nlev, &
            &  ONE_OVER_PI, flux_up_base(:,:,nlev), &
            &  transmittance, source_up, u_overlap, radiance_profile)
