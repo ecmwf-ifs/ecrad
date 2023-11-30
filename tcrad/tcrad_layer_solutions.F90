@@ -41,7 +41,9 @@ module tcrad_layer_solutions
   ! To avoid division by near-zero values use simpler formulae in the
   ! low optical depth regime
   real(jprb), parameter :: OD_THRESH_2STREAM = 1.0e-3_jprb
-  real(jprb), parameter :: OD_THRESH = 1.0e-3_jprb
+  !real(jprb), parameter :: OD_THRESH = 1.0e-3_jprb
+#warning(fixme)
+  real(jprb), parameter :: OD_THRESH = 1.0e-6_jprb
 
   integer(jpim), parameter :: MAX_GAUSS_LEGENDRE_POINTS = 8
 
@@ -1105,7 +1107,7 @@ contains
 
     ! Other working variables
     real(jprb) :: secant, factor, coeff, gamma1, gamma2, k_exponent, rt_factor
-    real(jprb) :: exponential
+    real(jprb) :: exponential, source_emission, c1_save, c2_save, ssa_local
     real(jprb) :: x_up, x_dn, y_both, p_same, p_opposite, planck_prime, c1, c2
     
     ! Maximum number of active regions in a layer (1 in a cloud-free layer)
@@ -1120,9 +1122,6 @@ contains
 
     secant = 1.0_jprb / mu
 
-    ! 0.5: half the scattering goes up and half down
-    factor = 0.5_jprb * 3.0_jprb * mu / lw_diffusivity
-
     do jlev = 1,nlev
 
       if (region_fracs(1,jlev) < 1.0_jprb) then
@@ -1136,11 +1135,11 @@ contains
         ! and also by the single-scattering co-albedo
         planck_top(:,1) = planck_hl(:,jlev) * region_fracs(1,jlev)
         planck_top(:,2:nreg) = spread(planck_hl(:,jlev),2,nreg-1) &
-             &  * (1.0_jprb - ssa(:,2:nreg,jlev)) &
+             &  * (1.0_jprb - 0.0_jprb*ssa(:,2:nreg,jlev)) &
              &  * spread(region_fracs(2:nreg,jlev),1,nspec)
         planck_base(:,1) = planck_hl(:,jlev+1) * region_fracs(1,jlev)
         planck_base(:,2:nreg) = spread(planck_hl(:,jlev+1),2,nreg-1) &
-             &  * (1.0_jprb - ssa(:,2:nreg,jlev)) &
+             &  * (1.0_jprb - 0.0_jprb*ssa(:,2:nreg,jlev)) &
              &  * spread(region_fracs(2:nreg,jlev),1,nspec)
       else
         ! Clear layer
@@ -1165,15 +1164,25 @@ contains
         ! Cloudy regions        
         do jreg = 1,max_reg
           do jspec = 1,nspec
+            if (jreg == 1) then
+              ssa_local = 0.0_jprb
+            else
+              ssa_local = ssa(jspec,jreg,jlev)
+            end if
+            
             if (i_two_stream_scheme == ITwoStreamElsasser) then
               ! See Fu et al. (1997), Eqs. 2.9 and 2.10
-              factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
+              if (jreg == 1) then
+                factor = 0
+              else
+                factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
+              end if
               gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))
               gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
             else
               ! See Meador & Weaver (1980), Table 1; Toon et al. (1989), Table 1
-              gamma1 = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
-              gamma2 = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+              gamma1 = 1.75_jprb - ssa_local*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
+              gamma2 = ssa_local*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
             end if
             k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
                  &  1.E-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
@@ -1183,21 +1192,35 @@ contains
             ! Phase function from downwelling flux to upwelling radiance (or up to down)
             p_opposite = 1.0_jprb - 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
             
-            if (od(jspec,jreg,jlev) > OD_THRESH) then
-              y_both = lw_diffusivity * (1.0_jprb * ssa(jspec,jreg,jlev)) &
+            !if (od(jspec,jreg,jlev) > OD_THRESH) then
+            ! FIX
+            if (od(jspec,jreg,jlev) > 0.0_jprb) then
+              y_both = lw_diffusivity * (1.0_jprb - ssa_local) &
                    &  / (k_exponent*k_exponent)
               planck_prime = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / od(jspec,jreg,jlev)
               x_up = y_both * ((gamma1+gamma2)*planck_top(jspec,jreg) + planck_prime)
               x_dn = y_both * ((gamma1+gamma2)*planck_top(jspec,jreg) - planck_prime)
               y_both = y_both * (gamma1+gamma2)*planck_prime
 
+              ! Direct emission only
               source_up(jspec,jreg,jlev) &
-                   &  = (0.5_jprb*ssa(jspec,jreg,jlev)*(p_same*x_up + p_opposite*x_dn) &
-                   &            + (1.0_jprb-ssa(jspec,jreg,jlev))*planck_top(jspec,jreg)) &
+                   &  = (0.0*0.5_jprb*ssa_local*(p_same*x_up + p_opposite*x_dn) &
+                   &           + (1.0_jprb-ssa_local)*planck_top(jspec,jreg)) &
                    &    * (1.0_jprb - transmittance(jspec,jreg,jlev)) &
-                   &  + (ssa(jspec,jreg,jlev)*y_both &
-                   &     + (1.0_jprb-ssa(jspec,jreg,jlev))*planck_prime) &
-                   &    * (mu - (mu + od(jspec,jreg,jlev)*transmittance(jspec,jreg,jlev)))
+                   &  + (0.0*ssa_local*y_both &
+                   &     + (1.0_jprb-ssa_local)*planck_prime) &
+                   &    * (mu - (mu + od(jspec,jreg,jlev))*transmittance(jspec,jreg,jlev))
+              source_emission=source_up(jspec,jreg,jlev)
+              ! Direct emission plus scattering from the part of the
+              ! fluxes due to internal emission and having a linear
+              ! structure
+              source_up(jspec,jreg,jlev) &
+                   &  = (0.5_jprb*ssa_local*(p_same*x_up + p_opposite*x_dn) &
+                   &           + (1.0_jprb-ssa_local)*planck_top(jspec,jreg)) &
+                   &    * (1.0_jprb - transmittance(jspec,jreg,jlev)) &
+                   &  + (ssa_local*y_both &
+                   &     + (1.0_jprb-ssa_local)*planck_prime) &
+                   &    * (mu - (mu + od(jspec,jreg,jlev))*transmittance(jspec,jreg,jlev))
 
               exponential = exp(-k_exponent*od(jspec,jreg,jlev))
               coeff = planck_prime / (gamma1+gamma2)
@@ -1208,16 +1231,21 @@ contains
                    &  - (planck_base(jspec,jreg)+coeff) + factor*(planck_top(jspec,jreg)-coeff))
               c2 = rt_factor * (flux_dn_top(jspec,jreg,jlev) - factor*flux_up_base(jspec,jreg,jlev) &
                    &  -(planck_top(jspec,jreg)-coeff) + factor*(planck_base(jspec,jreg)+coeff))
-
+              c1_save = c1
+              c2_save = c2
               ! Scaling factors...
               c1 = c1 * (exponential - transmittance(jspec,jreg,jlev)) / (1.0_jprb - k_exponent*mu)
               c2 = c2 * (1.0_jprb-exponential*transmittance(jspec,jreg,jlev))/(1.0_jprb+k_exponent*mu)
               
+              ! Scattering from the exponential part of the flux,
+              ! whether caused by external or internal sources
               source_up(jspec,jreg,jlev) = source_up(jspec,jreg,jlev) &
-                   &  + 0.5_jprb*ssa(jspec,jreg,jlev) &
-                   &  * (p_same     * ((gamma1+k_exponent)*c1 + gamma2*c2) &
-                   &    +p_opposite * ((gamma2*c1             + (gamma1+k_exponent)*c2)))
-                            
+                   &  + 0.5_jprb*ssa_local &
+                   &  * (p_same     * ((gamma1+k_exponent)*c1 +  gamma2*c2) &
+                   &    +p_opposite * ( gamma2*c1             + (gamma1+k_exponent)*c2))
+
+            else
+              source_up(jspec,jreg,jlev)=0.0_jprb
             end if
           end do
         end do

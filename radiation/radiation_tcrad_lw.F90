@@ -401,7 +401,8 @@ contains
                  &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
                  &         cloud_cover=flux%cloud_cover_lw(jcol), &
                  &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
-                 &         do_specular_surface=config%do_specular_surface)
+                 &         do_specular_surface=config%do_specular_surface, &
+                 &         do_exact_solution=config%use_tcrad_exact_solution)
           else
             call calc_radiance_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                  &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
@@ -409,7 +410,8 @@ contains
                  &         cloud%overlap_param(jcol,:), &
                  &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
                  &         cloud_cover=flux%cloud_cover_lw(jcol), &
-                 &         do_specular_surface=config%do_specular_surface)
+                 &         do_specular_surface=config%do_specular_surface, &
+                 &         do_exact_solution=config%use_tcrad_exact_solution)
           end if
         else
           if (config%do_3d_effects) then
@@ -420,7 +422,8 @@ contains
                  &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
                  &         cloud_cover=flux%cloud_cover_lw(jcol), &
                  &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
-                 &         do_specular_surface=config%do_specular_surface)
+                 &         do_specular_surface=config%do_specular_surface, &
+                 &         do_exact_solution=config%use_tcrad_exact_solution)
           else
             call calc_radiance_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                  &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
@@ -428,7 +431,8 @@ contains
                  &         cloud%overlap_param(jcol,:), &
                  &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
                  &         cloud_cover=flux%cloud_cover_lw(jcol), &
-                 &         do_specular_surface=config%do_specular_surface)
+                 &         do_specular_surface=config%do_specular_surface, &
+                 &         do_exact_solution=config%use_tcrad_exact_solution)
           end if
         end if
       else

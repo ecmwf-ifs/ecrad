@@ -27,7 +27,8 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
 #endif
      &  od_clear, od_cloud, ssa_cloud, asymmetry_cloud, &
      &  overlap_param, mu, radiance, cloud_cover, &
-     &  layer_thickness, inv_cloud_scale, do_specular_surface)
+     &  layer_thickness, inv_cloud_scale, do_specular_surface, &
+     &  do_exact_solution)
 
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook, jphook
@@ -108,6 +109,10 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! for microwave scattering by the sea surface.
   logical, intent(in), optional :: do_specular_surface
 
+  ! Use more accurate but slower calculation of radiance from flux
+  ! profile
+  logical, intent(in), optional :: do_exact_solution
+  
   ! Local variables
 
   ! Combined gas/aerosol/cloud optical depth in each region
@@ -174,6 +179,8 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! for microwave scattering by the sea surface.
   logical :: do_specular_surface_local
 
+  logical :: do_exact_solution_local
+
   ! Loop indices for region
   integer(jpim) :: jreg
 
@@ -191,6 +198,12 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     do_specular_surface_local = do_specular_surface
   else
     do_specular_surface_local = .false.
+  end if
+
+  if (present(do_exact_solution)) then
+    do_exact_solution_local = do_exact_solution
+  else
+    do_exact_solution_local = .false.
   end if
 
   ! Compute the wavelength-independent region fractions and
@@ -257,17 +270,16 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     ! first a downward directed radiance which is specularly reflected
     ! from the surface
 
-    ! Compute transmittance and source towards sensor and towards
-    ! surface
-    call calc_radiance_rates(nspec, nlev, NREGION, mu, &
-         &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
-         &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
-         &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
-         &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
-
     ! Compute surface radiance excluding 3D effects (not worth
     ! considering this detail in the downward pass)
     if (do_3d_effects) then
+      ! Compute transmittance and source towards sensor and towards
+      ! surface
+      call calc_radiance_rates(nspec, nlev, NREGION, mu, &
+           &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+           &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+           &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
       call calc_radiance_trans_source_3d(nspec, nlev, &
            &  mu, region_fracs, region_edge_area, od, &
            &  transmittance_mat, &
@@ -286,23 +298,31 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
            &  transmittance_mat, source_up, &
            &  u_overlap, radiance_profile)
     else
-      call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
-           &  region_fracs, od, transmittance, &
-           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
-           &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
-           &  source_up=source_up, source_dn=source_dn)
+      if (do_exact_solution_local) then
+        call calc_radiance_trans_source_exact(nspec, nlev, NREGION, mu, &
+             &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
+             &  flux_up_base, flux_dn_top, transmittance, source_up=source_up)
+      else
+        ! Compute transmittance and source towards sensor and towards
+        ! surface
+        call calc_radiance_rates(nspec, nlev, NREGION, mu, &
+             &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+             &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+             &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
+        call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
+             &  region_fracs, od, transmittance, &
+             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+             &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
+             &  source_up=source_up, source_dn=source_dn)
+      end if
       call calc_radiance_dn(nspec, nlev, &
            &  ONE_OVER_PI, transmittance, source_dn, v_overlap, radiance_profile)
       ! Reflect surface downward radiance upwards, spread into the
       ! regions of the lowest layer, and convert to a flux (with PI)
-      flux_up_surface = spread(surf_emission + PI*surf_albedo*radiance_profile(:,nlev+1),2,NREGION) &
+      flux_up_surface = spread(surf_emission &
+           &               + PI*surf_albedo*radiance_profile(:,nlev+1),2,NREGION) &
            &          * spread(region_fracs(:,nlev),1,nspec)
-
-      ! NEW!!!
-      call calc_radiance_trans_source_exact(nspec, nlev, NREGION, mu, &
-           &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
-           &  flux_up_base, flux_dn_top, transmittance, source_up=source_up)
-      
       call calc_radiance_up(nspec, nlev, &
            &  ONE_OVER_PI, flux_up_surface, &
            &  transmittance, source_up, u_overlap, radiance_profile)
@@ -314,13 +334,12 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     ! Upward directed radiance measured at top-of-atmosphere,
     ! Lambertian surface
 
-    ! Compute transmittance and source towards sensor
-    call calc_radiance_rates(nspec, nlev, NREGION, mu, &
-         &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
-         &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
-         &  rate_up_top=rate_up_top, rate_up_base=rate_up_base)
-
     if (do_3d_effects) then
+      ! Compute transmittance and source towards sensor
+      call calc_radiance_rates(nspec, nlev, NREGION, mu, &
+           &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+           &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base)
       call calc_radiance_trans_source_3d(nspec, nlev, &
            &  mu, region_fracs, region_edge_area, od, &
            &  transmittance_mat, &
@@ -331,16 +350,21 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
            &  transmittance_mat, source_up, &
            &  u_overlap, radiance_profile)
     else
-      call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
-           &  region_fracs, od, transmittance, &
-           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
-           &  source_up=source_up)
-
-      ! NEW!!!
-      call calc_radiance_trans_source_exact(nspec, nlev, NREGION, mu, &
-           &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
-           &  flux_up_base, flux_dn_top, transmittance, source_up=source_up)
-
+      if (do_exact_solution_local) then
+        call calc_radiance_trans_source_exact(nspec, nlev, NREGION, mu, &
+             &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
+             &  flux_up_base, flux_dn_top, transmittance, source_up=source_up)
+      else
+        ! Compute transmittance and source towards sensor
+        call calc_radiance_rates(nspec, nlev, NREGION, mu, &
+             &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+             &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base)
+        call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
+             &  region_fracs, od, transmittance, &
+             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+             &  source_up=source_up)
+      end if
       call calc_radiance_up(nspec, nlev, &
            &  ONE_OVER_PI, flux_up_base(:,:,nlev), &
            &  transmittance, source_up, u_overlap, radiance_profile)

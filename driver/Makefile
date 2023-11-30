@@ -1,6 +1,6 @@
 TEST_PROGRAMS = test_cloud_generator test_spartacus_math \
 	test_aerosol_optics_description test_random_number_generator \
-	test_fast_expm
+	test_fast_expm test_tcrad_radiance_source
 
 # In dependency order:
 SOURCES = ecrad_driver_read_input.F90 \

@@ -397,6 +397,11 @@ module radiation_config
     ! with ecRad's other longwave treatment)
     logical :: use_tcrad_eddington = .false.
 
+    ! Do we compute radiances from exact flux profile (the sum of two
+    ! exponentials and a linear term) or approximate as linear between
+    ! layer boundaries?
+    logical :: use_tcrad_exact_solution = .false.
+    
     ! Treat surface as specular reflector?  Only in microwave
     logical :: do_specular_surface = .false.
 
@@ -714,7 +719,7 @@ contains
     logical :: do_3d_effects, use_expm_everywhere, use_aerosols
     logical :: do_lw_side_emissivity, do_radiances
     integer :: n_angles_per_hemisphere_lw
-    logical :: do_specular_surface, use_tcrad_eddington
+    logical :: do_specular_surface, use_tcrad_eddington, use_tcrad_exact_solution
     logical :: use_general_cloud_optics, use_general_aerosol_optics
     logical :: do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug
     logical :: do_lw_aerosol_scattering, do_lw_cloud_scattering
@@ -763,6 +768,7 @@ contains
     namelist /radiation/ do_sw, do_lw, do_sw_direct, &
          &  do_3d_effects, do_lw_side_emissivity, do_clear, do_radiances, &
          &  n_angles_per_hemisphere_lw, do_specular_surface, use_tcrad_eddington, &
+         &  use_tcrad_exact_solution, &
          &  do_save_radiative_properties, sw_entrapment_name, sw_encroachment_name, &
          &  do_3d_lw_multilayer_effects, do_fu_lw_ice_optics_bug, &
          &  do_save_spectral_flux, do_save_gpoint_flux, &
@@ -811,6 +817,7 @@ contains
     do_lw_side_emissivity = this%do_lw_side_emissivity
     n_angles_per_hemisphere_lw = this%n_angles_per_hemisphere_lw
     use_tcrad_eddington = this%use_tcrad_eddington
+    use_tcrad_exact_solution = this%use_tcrad_exact_solution
     do_specular_surface = this%do_specular_surface
     do_clear = this%do_clear
     do_lw_aerosol_scattering = this%do_lw_aerosol_scattering
@@ -977,6 +984,7 @@ contains
     this%do_lw_side_emissivity = do_lw_side_emissivity
     this%n_angles_per_hemisphere_lw = n_angles_per_hemisphere_lw
     this%use_tcrad_eddington = use_tcrad_eddington
+    this%use_tcrad_exact_solution = use_tcrad_exact_solution
     this%do_specular_surface = do_specular_surface
     this%use_expm_everywhere = use_expm_everywhere
     this%use_aerosols = use_aerosols
@@ -1629,6 +1637,8 @@ contains
              &  this%n_angles_per_hemisphere_lw)
         call print_logical('    Use Eddington scheme', 'use_tcrad_eddington', &
              this%use_tcrad_eddington)
+        call print_logical('    Use exact solution', 'use_tcrad_exact_solution', &
+             this%use_tcrad_exact_solution)
         call print_logical('    Treat surface as specular reflector','do_specular_surface', &
              &             this%do_specular_surface)
         call print_logical('    3D effects are', 'do_3d_effects', &
