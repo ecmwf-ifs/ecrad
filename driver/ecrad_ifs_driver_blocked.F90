@@ -189,6 +189,15 @@ program ecrad_ifs_driver
   !     &   6.7e-07_jprb, 8.0e-07_jprb, 8.58e-07_jprb, 8.65e-07_jprb, 1.02e-06_jprb, &
   !     &   1.064e-06_jprb, 1.24e-06_jprb, 1.64e-06_jprb, 2.13e-06_jprb, 1.0e-05_jprb])
 
+  call yradiation%rad_config%read(file_name=file_name)
+
+  ! Setup aerosols
+  if (yradiation%rad_config%use_aerosols) then
+    yradiation%yrerad%naermacc = 1 ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
+  else
+    yradiation%yrerad%naermacc = 0
+  endif
+
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
   call setup_radiation_scheme(yradiation, .true., file_name=file_name)

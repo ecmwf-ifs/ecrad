@@ -169,6 +169,9 @@ contains
     ! and below the ground, both treated as single-region clear skies
     logical :: is_clear_sky_layer(0:nlev+1)
 
+    ! Temporaries to speed up summations
+    real(jprb) :: sum_dn, sum_up
+    
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
 
@@ -248,7 +251,7 @@ contains
         ! Scattering in clear-sky flux calculation
         call calc_ref_trans_lw(ng*nlev, &
              &  od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), &
-             &  planck_hl(:,1:jlev,jcol), planck_hl(:,2:jlev+1,jcol), &
+             &  planck_hl(:,1:nlev,jcol), planck_hl(:,2:nlev+1,jcol), &
              &  ref_clear, trans_clear, &
              &  source_up_clear, source_dn_clear)
         ! Use adding method to compute fluxes
@@ -260,11 +263,23 @@ contains
 
       if (config%do_clear) then
         ! Sum over g-points to compute broadband fluxes
-        flux%lw_up_clear(jcol,:) = sum(flux_up_clear,1)
-        flux%lw_dn_clear(jcol,:) = sum(flux_dn_clear,1)
+        do jlev = 1,nlev+1
+          sum_up = 0.0_jprb
+          sum_dn = 0.0_jprb
+          !$omp simd reduction(+:sum_up, sum_dn)
+          do jg = 1,ng
+            sum_up = sum_up + flux_up_clear(jg,jlev)
+            sum_dn = sum_dn + flux_dn_clear(jg,jlev)
+          end do
+          flux%lw_up_clear(jcol,jlev) = sum_up
+          flux%lw_dn_clear(jcol,jlev) = sum_dn
+        end do
+
         ! Store surface spectral downwelling fluxes / TOA upwelling
-        flux%lw_dn_surf_clear_g(:,jcol) = flux_dn_clear(:,nlev+1)
-        flux%lw_up_toa_clear_g (:,jcol) = flux_up_clear(:,1)
+        do jg = 1,ng
+          flux%lw_dn_surf_clear_g(jg,jcol) = flux_dn_clear(jg,nlev+1)
+          flux%lw_up_toa_clear_g (jg,jcol) = flux_up_clear(jg,1)
+        end do
         ! Save the spectral fluxes if required
         if (config%do_save_spectral_flux) then
           do jlev = 1,nlev+1
@@ -452,7 +467,12 @@ contains
             flux%lw_dn_band(:,jcol,jlev) = flux%lw_dn_clear_band(:,jcol,jlev)
           end if
         else
-          flux%lw_dn(jcol,:) = sum(flux_dn_clear(:,jlev))
+          sum_dn = 0.0_jprb
+          !$omp simd reduction(+:sum_dn)
+          do jg = 1,ng
+            sum_dn = sum_dn + flux_dn_clear(jg,jlev)
+          end do
+          flux%lw_dn(jcol,jlev) = sum_dn
           if (config%do_save_spectral_flux) then
             call indexed_sum(flux_dn_clear(:,jlev), &
                  &           config%i_spec_from_reordered_g_lw, &
@@ -469,7 +489,14 @@ contains
       flux_up(:,1) = total_source(:,1,i_cloud_top) &
            &  + total_albedo(:,1,i_cloud_top)*flux_dn_clear(:,i_cloud_top)
       flux_up(:,2:) = 0.0_jprb
-      flux%lw_up(jcol,i_cloud_top) = sum(flux_up(:,1))
+
+      sum_up = 0.0_jprb
+      !$omp simd reduction(+:sum_up)
+      do jg = 1,ng
+        sum_up = sum_up + flux_up(jg,1)
+      end do
+      flux%lw_up(jcol,i_cloud_top) = sum_up
+
       if (config%do_save_spectral_flux) then
         call indexed_sum(flux_up(:,1), &
              &           config%i_spec_from_reordered_g_lw, &
@@ -477,7 +504,12 @@ contains
       end if
       do jlev = i_cloud_top-1,1,-1
         flux_up(:,1) = trans_clear(:,jlev)*flux_up(:,1) + source_up_clear(:,jlev)
-        flux%lw_up(jcol,jlev) = sum(flux_up(:,1))
+        sum_up = 0.0_jprb
+        !$omp simd reduction(+:sum_up)
+        do jg = 1,ng
+          sum_up = sum_up + flux_up(jg,1)
+        end do
+        flux%lw_up(jcol,jlev) = sum_up
         if (config%do_save_spectral_flux) then
           call indexed_sum(flux_up(:,1), &
                &           config%i_spec_from_reordered_g_lw, &
@@ -527,8 +559,17 @@ contains
                ! nothing to do
 
         ! Store the broadband fluxes
-        flux%lw_up(jcol,jlev+1) = sum(sum(flux_up,1))
-        flux%lw_dn(jcol,jlev+1) = sum(sum(flux_dn,1))
+        sum_up = 0.0_jprb
+        sum_dn = 0.0_jprb
+        do jreg = 1,nregions
+          !$omp simd reduction(+:sum_up, sum_dn)
+          do jg = 1,ng
+            sum_up = sum_up + flux_up(jg,jreg)
+            sum_dn = sum_dn + flux_dn(jg,jreg)
+          end do
+        end do
+        flux%lw_up(jcol,jlev+1) = sum_up
+        flux%lw_dn(jcol,jlev+1) = sum_dn
 
         ! Save the spectral fluxes if required
         if (config%do_save_spectral_flux) then

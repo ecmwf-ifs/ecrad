@@ -149,7 +149,7 @@ libifsrrtm: libifsaux
 libtcrad:
 	cd tcrad && $(MAKE)
 
-libradiation: libutilities libifsaux
+libradiation: libifsrrtm libutilities libifsaux
 	cd radiation && $(MAKE)
 
 driver: libifsaux libifsrrtm libutilities libradiation

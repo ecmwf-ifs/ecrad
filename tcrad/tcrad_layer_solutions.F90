@@ -478,7 +478,7 @@ contains
 
   end subroutine calc_radiance_rates
 
-
+  
   !---------------------------------------------------------------------
   ! Compute the transmittance to a beam of radiation at a particular
   ! zenith angle cosine (mu), as well as optionally the source from
@@ -1032,5 +1032,202 @@ contains
 
   end subroutine calc_radiance_source
 
+
+  !---------------------------------------------------------------------
+  ! Calculate the transmittance of each layer and region along a path
+  ! with consine of zenith angle "mu", as well as (optionally) the
+  ! emission up from the top of the layer and down through its base,
+  ! computed neglecting 3D effects. This version uses an exact
+  ! solution to the two-stream equations, rather than the
+  ! calc_radiance_rates/calc_radiance_trans_source combination, which
+  ! assume a linear variation of fluxes with optical depth.
+  subroutine calc_radiance_trans_source_exact(nspec, nlev, nreg, &
+       &  mu, region_fracs, planck_hl, od, ssa, asymmetry, &
+       &  flux_up_base, flux_dn_top, &
+       &  transmittance, source_up, source_dn)
+    
+    use yomhook,  only           : lhook, dr_hook, jphook
+
+    ! Parameter
+    real(jprb), parameter :: PI = acos(-1.0_jprb)
+
+    ! Inputs
+
+    ! Number of spectral intervals, levels and regions
+    integer(jpim), intent(in) :: nspec, nlev, nreg
+
+    ! Cosine of the zenith angle (positive)
+    real(jprb) :: mu
+
+    ! Fraction of the gridbox occupied by each region (summing to 1)
+    ! at each level
+    real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
+
+    ! Planck function integrated over each spectral interval at each
+    ! half-level, in W m-2 (i.e. the flux emitted by a horizontal
+    ! black-body surface)
+    real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
+
+    ! Optical depth in each region and layer
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
+
+    ! Single scattering albedo in each cloudy region
+    real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa
+
+    ! Asymmetry factor of clouds
+    real(jprb), intent(in), dimension(nspec,nlev) :: asymmetry
+
+    ! Upward and downward fluxes at the top and base of each layer and
+    ! region, in Watts of power per square metre of the entire
+    ! gridbox, so the energy is scaled by the size of each region
+    real(jprb), intent(in), dimension(nspec,nreg,nlev) :: flux_up_base, flux_dn_top
+  
+    ! Outputs
+
+    ! Layer transmittance at the requested zenith angle
+    real(jprb), intent(out), dimension(nspec,nreg,nlev) :: transmittance
+
+    ! Optional outputs
+
+    ! Source term up from the top of the layer or down from its base,
+    ! in Watts of power per square metre of the entire gridbox, so the
+    ! energy is scaled by the size of each region. Since the user may
+    ! only require a radiance up or down, these output arguments are
+    ! optional.
+    real(jprb), intent(out), dimension(nspec,nreg,nlev), optional &
+         &  :: source_up, source_dn
+
+    ! Local variables
+
+    ! Working variables in W m-2
+    real(jprb), dimension(nspec,nreg) :: planck_top, planck_base
+    real(jprb), dimension(nspec,nreg) :: source_top, source_base
+
+    ! Other working variables
+    real(jprb) :: secant, factor, coeff, gamma1, gamma2, k_exponent, rt_factor
+    real(jprb) :: exponential
+    real(jprb) :: x_up, x_dn, y_both, p_same, p_opposite, planck_prime, c1, c2
+    
+    ! Maximum number of active regions in a layer (1 in a cloud-free layer)
+    integer(jpim) :: max_reg
+
+    ! Loop indices for level, spectral interval and region
+    integer(jpim) :: jlev, jspec, jreg
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('tcrad:calc_radiance_trans_source_exact',0,hook_handle)
+
+    secant = 1.0_jprb / mu
+
+    ! 0.5: half the scattering goes up and half down
+    factor = 0.5_jprb * 3.0_jprb * mu / lw_diffusivity
+
+    do jlev = 1,nlev
+
+      if (region_fracs(1,jlev) < 1.0_jprb) then
+        max_reg = nreg;
+      else
+        max_reg = 1;
+      end if
+
+      if (max_reg > 1) then
+        ! Cloudy layer: scale the Planck terms by the region fraction
+        ! and also by the single-scattering co-albedo
+        planck_top(:,1) = planck_hl(:,jlev) * region_fracs(1,jlev)
+        planck_top(:,2:nreg) = spread(planck_hl(:,jlev),2,nreg-1) &
+             &  * (1.0_jprb - ssa(:,2:nreg,jlev)) &
+             &  * spread(region_fracs(2:nreg,jlev),1,nspec)
+        planck_base(:,1) = planck_hl(:,jlev+1) * region_fracs(1,jlev)
+        planck_base(:,2:nreg) = spread(planck_hl(:,jlev+1),2,nreg-1) &
+             &  * (1.0_jprb - ssa(:,2:nreg,jlev)) &
+             &  * spread(region_fracs(2:nreg,jlev),1,nspec)
+      else
+        ! Clear layer
+        max_reg = 1
+        planck_top(:,1)  = planck_hl(:,jlev)
+        planck_base(:,1) = planck_hl(:,jlev+1)
+      end if
+
+      do jreg = 1,max_reg
+        ! Transmittance of the layer to a beam of radiation
+        transmittance(:,jreg,jlev) = exp(-od(:,jreg,jlev)*secant)
+      end do
+
+      if (present(source_up)) then
+        ! Compute the rate of energy emitted or scattered in the
+        ! upward direction mu at the top of the layer: first
+        ! the Planck emission for all regions...
+
+        ! Clear region
+
+
+        ! Cloudy regions        
+        do jreg = 1,max_reg
+          do jspec = 1,nspec
+            if (i_two_stream_scheme == ITwoStreamElsasser) then
+              ! See Fu et al. (1997), Eqs. 2.9 and 2.10
+              factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
+              gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))
+              gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
+            else
+              ! See Meador & Weaver (1980), Table 1; Toon et al. (1989), Table 1
+              gamma1 = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
+              gamma2 = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+            end if
+            k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
+                 &  1.E-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
+            
+            ! Phase functions from upwelling flux to upwelling radiance (or down to down)
+            p_same     = 1.0_jprb + 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
+            ! Phase function from downwelling flux to upwelling radiance (or up to down)
+            p_opposite = 1.0_jprb - 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
+            
+            if (od(jspec,jreg,jlev) > OD_THRESH) then
+              y_both = lw_diffusivity * (1.0_jprb * ssa(jspec,jreg,jlev)) &
+                   &  / (k_exponent*k_exponent)
+              planck_prime = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / od(jspec,jreg,jlev)
+              x_up = y_both * ((gamma1+gamma2)*planck_top(jspec,jreg) + planck_prime)
+              x_dn = y_both * ((gamma1+gamma2)*planck_top(jspec,jreg) - planck_prime)
+              y_both = y_both * (gamma1+gamma2)*planck_prime
+
+              source_up(jspec,jreg,jlev) &
+                   &  = (0.5_jprb*ssa(jspec,jreg,jlev)*(p_same*x_up + p_opposite*x_dn) &
+                   &            + (1.0_jprb-ssa(jspec,jreg,jlev))*planck_top(jspec,jreg)) &
+                   &    * (1.0_jprb - transmittance(jspec,jreg,jlev)) &
+                   &  + (ssa(jspec,jreg,jlev)*y_both &
+                   &     + (1.0_jprb-ssa(jspec,jreg,jlev))*planck_prime) &
+                   &    * (mu - (mu + od(jspec,jreg,jlev)*transmittance(jspec,jreg,jlev)))
+
+              exponential = exp(-k_exponent*od(jspec,jreg,jlev))
+              coeff = planck_prime / (gamma1+gamma2)
+              rt_factor = 1.0_jprb / (k_exponent + gamma1 + (k_exponent-gamma1) &
+                   &                  *exponential*exponential)
+              factor = exponential * gamma2 / (gamma1 + k_exponent)
+              c1 = rt_factor * (flux_up_base(jspec,jreg,jlev) - factor*flux_dn_top(jspec,jreg,jlev) &
+                   &  - (planck_base(jspec,jreg)+coeff) + factor*(planck_top(jspec,jreg)-coeff))
+              c2 = rt_factor * (flux_dn_top(jspec,jreg,jlev) - factor*flux_up_base(jspec,jreg,jlev) &
+                   &  -(planck_top(jspec,jreg)-coeff) + factor*(planck_base(jspec,jreg)+coeff))
+
+              ! Scaling factors...
+              c1 = c1 * (exponential - transmittance(jspec,jreg,jlev)) / (1.0_jprb - k_exponent*mu)
+              c2 = c2 * (1.0_jprb-exponential*transmittance(jspec,jreg,jlev))/(1.0_jprb+k_exponent*mu)
+              
+              source_up(jspec,jreg,jlev) = source_up(jspec,jreg,jlev) &
+                   &  + 0.5_jprb*ssa(jspec,jreg,jlev) &
+                   &  * (p_same     * ((gamma1+k_exponent)*c1 + gamma2*c2) &
+                   &    +p_opposite * ((gamma2*c1             + (gamma1+k_exponent)*c2)))
+                            
+            end if
+          end do
+        end do
+        
+      end if
+
+    end do
+
+    if (lhook) call dr_hook('tcrad:calc_radiance_trans_source_exact',1,hook_handle)
+
+  end subroutine calc_radiance_trans_source_exact
 
 end module tcrad_layer_solutions
