@@ -1107,7 +1107,7 @@ contains
 
     ! Other working variables
     real(jprb) :: secant, factor, coeff, gamma1, gamma2, k_exponent, rt_factor
-    real(jprb) :: exponential, source_emission, c1_save, c2_save, ssa_local
+    real(jprb) :: exponential, ssa_local
     real(jprb) :: x_up, x_dn, y_both, p_same, p_opposite, planck_prime, c1, c2
     
     ! Maximum number of active regions in a layer (1 in a cloud-free layer)
@@ -1202,15 +1202,6 @@ contains
               x_dn = y_both * ((gamma1+gamma2)*planck_top(jspec,jreg) - planck_prime)
               y_both = y_both * (gamma1+gamma2)*planck_prime
 
-              ! Direct emission only
-              source_up(jspec,jreg,jlev) &
-                   &  = (0.0*0.5_jprb*ssa_local*(p_same*x_up + p_opposite*x_dn) &
-                   &           + (1.0_jprb-ssa_local)*planck_top(jspec,jreg)) &
-                   &    * (1.0_jprb - transmittance(jspec,jreg,jlev)) &
-                   &  + (0.0*ssa_local*y_both &
-                   &     + (1.0_jprb-ssa_local)*planck_prime) &
-                   &    * (mu - (mu + od(jspec,jreg,jlev))*transmittance(jspec,jreg,jlev))
-              source_emission=source_up(jspec,jreg,jlev)
               ! Direct emission plus scattering from the part of the
               ! fluxes due to internal emission and having a linear
               ! structure
@@ -1231,8 +1222,6 @@ contains
                    &  - (planck_base(jspec,jreg)+coeff) + factor*(planck_top(jspec,jreg)-coeff))
               c2 = rt_factor * (flux_dn_top(jspec,jreg,jlev) - factor*flux_up_base(jspec,jreg,jlev) &
                    &  -(planck_top(jspec,jreg)-coeff) + factor*(planck_base(jspec,jreg)+coeff))
-              c1_save = c1
-              c2_save = c2
               ! Scaling factors...
               c1 = c1 * (exponential - transmittance(jspec,jreg,jlev)) / (1.0_jprb - k_exponent*mu)
               c2 = c2 * (1.0_jprb-exponential*transmittance(jspec,jreg,jlev))/(1.0_jprb+k_exponent*mu)
