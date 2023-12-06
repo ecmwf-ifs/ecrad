@@ -404,11 +404,13 @@ program ecrad_ifs_driver
 #endif
         end if
 
-        !$acc data copy(zrgp(:,:,ib)) &
+        !$acc data create(zrgp(:,:,ib)) &
 #ifdef BITIDENTITY_TESTING
         !$acc&     copyin(iseed(:,ib)) &
 #endif
         !$acc&
+
+        !$acc update device(zrgp(1:il,:,ib))
         ! Call the ECRAD radiation scheme
         call radiation_scheme &
              & (yradiation, &
@@ -453,6 +455,7 @@ program ecrad_ifs_driver
              &  iseed=iseed(:,ib) &
 #endif
              & )
+          !$acc update host(zrgp(1:il,:,ib))
           !$acc end data
       end do
       !$OMP END PARALLEL DO
