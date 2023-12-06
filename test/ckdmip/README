@@ -1,3 +1,5 @@
+*** BASIC TEST ***
+
 This file contains
 "ckdmip_evaluation1_concentrations_present_reduced.nc", the 50
 clear-sky atmospheric profiles of the CKDMIP "Evaluation-1" dataset
@@ -7,11 +9,39 @@ line-by-line fluxes in
 "ckdmip_evaluation1_sw_fluxes_present_reduced.nc".
 
 Type "make" in this directory to run ecRad on these profiles.  You
-will need the nco tools.
+will need the nco tools, because the shortwave calculation is
+performed five times for different solar zenith angles and the results
+are concatenated into one file.
 
 Then run the Matlab script "do_evaluate_ecrad.m" to evaluate the ecRad
 calculations against line-by-line, producing plots in the same style
 as Figs. 5 and 7 of Hogan and Matricardi (2020).
 
-Edit the gas_model_name in the config.nam file to change the gas
-optics model used by ecRad.
+By default the ecCKD gas optics is used: to use RRTMG, use instead
+"make GASMODEL=rrtmg", which uses the namelist file config-rrtmg.nam
+instead of config-ecckd.nam.  To use a different spectral
+configuration file with ecCKD, edit config-ecckd.nam.
+
+
+*** CKDMIP SCENARIOS ***
+
+To run ecRad on a wider range of CKDMIP scenarios, first download a
+selection of concentration files from the CKDMIP FTP site to the
+"concentrations" directory:
+
+  make download
+
+This also downloads the line-by-line reference fluxes to "lbl_fluxes".
+Then run ecRad on them using ecCKD gas optics with:
+
+  make scenarios
+
+This generates *_lw_fluxes_* and *_sw_fluxes_* files in the "fluxes"
+directory.
+
+Or with the following you can use RRTMG gas optics:
+
+  make GASMODEL=rrtmg scenarios
+
+You can clean up with "make clean" or delete any downloaded files with
+"make distclean".

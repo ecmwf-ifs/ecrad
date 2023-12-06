@@ -18,6 +18,8 @@
 ! Modifications
 !   2020-10-07  R. Hogan  Ensure iobj1 initialized in case of alpha_obj==0
 
+#include "ecrad_config.h"
+
 module radiation_cloud_cover
 
   use parkind1, only           : jprb
@@ -255,7 +257,7 @@ contains
            &  + (1.0_jprb - overlap_alpha) &
            &  * (frac(jlev)+frac(jlev+1)-frac(jlev)*frac(jlev+1))
 ! Added for DWD (2020)
-#ifdef __SX__
+#ifdef DWD_VECTOR_OPTIMIZATIONS
     end do
     do jlev = 1,nlev-1
 #endif

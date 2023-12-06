@@ -40,7 +40,6 @@ contains
          &                       IIceModelBaran2016, IIceModelBaran2017, &
          &                       IIceModelYi, &
          &                       ILiquidModelSOCRATES, ILiquidModelSlingo
-    use radiation_cloud_optics_data, only  : cloud_optics_type
     use radiation_ice_optics_fu, only    : NIceOpticsCoeffsFuSW, &
          &                                 NIceOpticsCoeffsFuLW
     use radiation_ice_optics_baran, only : NIceOpticsCoeffsBaran, &
@@ -214,7 +213,6 @@ contains
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type
     use radiation_constants, only         : AccelDueToGravity
-    use radiation_cloud_optics_data, only : cloud_optics_type
     use radiation_ice_optics_fu, only     : calc_ice_optics_fu_sw, &
          &                                  calc_ice_optics_fu_lw
     use radiation_ice_optics_baran, only  : calc_ice_optics_baran, &
@@ -373,6 +371,8 @@ contains
               if (.not. config%do_sw_delta_scaling_with_gases) then
                 call delta_eddington_scat_od(od_sw_liq, scat_od_sw_liq, g_sw_liq)
               end if
+              ! Originally delta-Eddington has been off in ecRad for
+              ! liquid clouds in the longwave, but it should be on
               !call delta_eddington_scat_od(od_lw_liq, scat_od_lw_liq, g_lw_liq)
 
             else

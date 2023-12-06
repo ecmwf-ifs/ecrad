@@ -397,6 +397,7 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Save aerosol optical properties in the named file
   subroutine save_aerosol_optics(this, file_name, iverbose)
 
     use yomhook,     only : lhook, dr_hook, jphook

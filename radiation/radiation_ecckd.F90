@@ -14,6 +14,8 @@
 ! License: see the COPYING file for details
 !
 
+#include "ecrad_config.h"
+
 module radiation_ecckd
 
   use parkind1, only : jprb
@@ -104,7 +106,7 @@ module radiation_ecckd
     procedure :: read_spectral_solar_cycle
 ! Vectorized version of the optical depth look-up performs better on
 ! NEC, but slower on x86
-#ifdef __SX__
+#ifdef DWD_VECTOR_OPTIMIZATIONS
     procedure :: calc_optical_depth => calc_optical_depth_ckd_model_vec
 #else
     procedure :: calc_optical_depth => calc_optical_depth_ckd_model

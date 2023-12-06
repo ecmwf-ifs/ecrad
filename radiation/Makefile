@@ -117,3 +117,5 @@ radiation_gas.o: radiation_gas_constants.o
 radiation_general_cloud_optics_data.o: radiation_spectral_definition.o
 
 radiation_general_cloud_optics.o: radiation_config.o radiation_cloud.o radiation_thermodynamics.o radiation_constants.o
+
+*.o: ecrad_config.h
