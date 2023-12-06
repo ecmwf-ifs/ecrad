@@ -380,10 +380,8 @@ contains
              &       + (1.0_jprb - total_cloud_cover)*flux%lw_dn_clear(jcol,jlev)
         end do
         ! Store surface spectral downwelling fluxes
-        do jg = 1, ng
-          flux%lw_dn_surf_g(jg,jcol) = total_cloud_cover*flux_dn(jg,nlev+1) &
-               &  + (1.0_jprb - total_cloud_cover)*flux%lw_dn_surf_clear_g(jg,jcol)
-        end do
+        flux%lw_dn_surf_g(:,jcol) = total_cloud_cover*flux_dn(:,nlev+1) &
+             &  + (1.0_jprb - total_cloud_cover)*flux%lw_dn_surf_clear_g(:,jcol)
 
         ! Compute the longwave derivatives needed by Hogan and Bozzo
         ! (2015) approximate radiation update scheme
