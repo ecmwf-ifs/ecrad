@@ -1159,52 +1159,54 @@ contains
         ! the Planck emission for all regions...
 
         ! Clear region
+        do jspec = 1,nspec
+          if (od(jspec,1,jlev) > OD_THRESH) then
+            planck_prime = (planck_base(jspec,1)-planck_top(jspec,1)) / od(jspec,1,jlev)
+            source_up(jspec,1,jlev) &
+                 &  = planck_top(jspec,1)-planck_base(jspec,1)*transmittance(jspec,1,jlev) &
+                 &     + planck_prime*mu*(1.0_jprb - transmittance(jspec,1,jlev))
+          else
+            ! At low optical depths the effective Planck function is
+            ! half the top and bottom values, and we avoid the
+            ! division by optical depth
+            source_up(jspec,1,jlev) = od(jspec,1,jlev) * 0.5_jprb &
+                 &  * (planck_base(jspec,1)+planck_top(jspec,1)) / mu
+          end if
+        end do
 
-
+        
         ! Cloudy regions        
-        do jreg = 1,max_reg
+        do jreg = 2,max_reg
           do jspec = 1,nspec
-            if (jreg == 1) then
-              ssa_local = 0.0_jprb
-            else
-              ssa_local = ssa(jspec,jreg,jlev)
-            end if
-            
-            if (i_two_stream_scheme == ITwoStreamElsasser) then
-              ! See Fu et al. (1997), Eqs. 2.9 and 2.10
-              if (jreg == 1) then
-                factor = 0
-              else
+            if (od(jspec,jreg,jlev) > OD_THRESH) then
+              if (i_two_stream_scheme == ITwoStreamElsasser) then
+                ! See Fu et al. (1997), Eqs. 2.9 and 2.10
                 factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
+                gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))
+                gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
+              else
+                ! See Meador & Weaver (1980), Table 1; Toon et al. (1989), Table 1
+                gamma1 = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
+                gamma2 = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
               end if
-              gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))
-              gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
-            else
-              ! See Meador & Weaver (1980), Table 1; Toon et al. (1989), Table 1
-              gamma1 = 1.75_jprb - ssa_local*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
-              gamma2 = ssa_local*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
-            end if
-            k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
-                 &  1.E-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
-            
-            ! Phase functions from upwelling flux to upwelling radiance (or down to down)
-            p_same     = 1.0_jprb + 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
-            ! Phase function from downwelling flux to upwelling radiance (or up to down)
-            p_opposite = 1.0_jprb - 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
-            
-            !if (od(jspec,jreg,jlev) > OD_THRESH) then
-            ! FIX
-            if (od(jspec,jreg,jlev) > 0.0_jprb) then
+              k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
+                   &  1.E-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
+              
+              ! Phase functions from upwelling flux to upwelling radiance (or down to down)
+              p_same     = 1.0_jprb + 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
+              ! Phase function from downwelling flux to upwelling radiance (or up to down)
+              p_opposite = 1.0_jprb - 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
+              
               planck_prime = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / od(jspec,jreg,jlev)
 
               ! Direct emission plus scattering from the part of the
               ! fluxes due to internal emission and having a linear
               ! structure
               source_up(jspec,jreg,jlev) &
-                   &  = 0.5_jprb*ssa_local*(1.0_jprb - transmittance(jspec,jreg,jlev)) &
+                   &  = 0.5_jprb*ssa(jspec,jreg,jlev)*(1.0_jprb - transmittance(jspec,jreg,jlev)) &
                    &    * planck_prime*(p_same-p_opposite)/(gamma1+gamma2) &
-                   &  + (planck_top(jspec,jreg)-planck_base(jspec,jreg)*transmittance(jspec,jreg,jlev) &
-                   &     + planck_prime*mu*(1.0_jprb - transmittance(jspec,jreg,jlev)))
+                   &  + planck_top(jspec,jreg)-planck_base(jspec,jreg)*transmittance(jspec,jreg,jlev) &
+                   &     + planck_prime*mu*(1.0_jprb - transmittance(jspec,jreg,jlev))
               
               exponential = exp(-k_exponent*od(jspec,jreg,jlev))
               coeff = planck_prime / (gamma1+gamma2)
@@ -1222,12 +1224,14 @@ contains
               ! Scattering from the exponential part of the flux,
               ! whether caused by external or internal sources
               source_up(jspec,jreg,jlev) = source_up(jspec,jreg,jlev) &
-                   &  + 0.5_jprb*ssa_local &
+                   &  + 0.5_jprb*ssa(jspec,jreg,jlev) &
                    &  * (p_same     * ((gamma1+k_exponent)*c1 +  gamma2*c2) &
                    &    +p_opposite * ( gamma2*c1             + (gamma1+k_exponent)*c2))
 
             else
-              source_up(jspec,jreg,jlev)=0.0_jprb
+              ! Low optical depth approximation: emission only
+              source_up(jspec,1,jlev) = ssa(jspec,jreg,jlev)*od(jspec,jreg,jlev) &
+                   &  * 0.5_jprb*(planck_base(jspec,jreg)+planck_top(jspec,jreg)) / mu
             end if
           end do
         end do
