@@ -1108,7 +1108,7 @@ contains
     ! Other working variables
     real(jprb) :: secant, factor, coeff, gamma1, gamma2, k_exponent, rt_factor
     real(jprb) :: exponential, ssa_local
-    real(jprb) :: x_up, x_dn, y_both, p_same, p_opposite, planck_prime, c1, c2
+    real(jprb) :: p_same, p_opposite, planck_prime, c1, c2
     
     ! Maximum number of active regions in a layer (1 in a cloud-free layer)
     integer(jpim) :: max_reg
@@ -1195,24 +1195,17 @@ contains
             !if (od(jspec,jreg,jlev) > OD_THRESH) then
             ! FIX
             if (od(jspec,jreg,jlev) > 0.0_jprb) then
-              y_both = lw_diffusivity * (1.0_jprb - ssa_local) &
-                   &  / (k_exponent*k_exponent)
               planck_prime = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / od(jspec,jreg,jlev)
-              x_up = y_both * ((gamma1+gamma2)*planck_top(jspec,jreg) + planck_prime)
-              x_dn = y_both * ((gamma1+gamma2)*planck_top(jspec,jreg) - planck_prime)
-              y_both = y_both * (gamma1+gamma2)*planck_prime
 
               ! Direct emission plus scattering from the part of the
               ! fluxes due to internal emission and having a linear
               ! structure
               source_up(jspec,jreg,jlev) &
-                   &  = (0.5_jprb*ssa_local*(p_same*x_up + p_opposite*x_dn) &
-                   &           + (1.0_jprb-ssa_local)*planck_top(jspec,jreg)) &
-                   &    * (1.0_jprb - transmittance(jspec,jreg,jlev)) &
-                   &  + (ssa_local*y_both &
-                   &     + (1.0_jprb-ssa_local)*planck_prime) &
-                   &    * (mu - (mu + od(jspec,jreg,jlev))*transmittance(jspec,jreg,jlev))
-
+                   &  = 0.5_jprb*ssa_local*(1.0_jprb - transmittance(jspec,jreg,jlev)) &
+                   &    * planck_prime*(p_same-p_opposite)/(gamma1+gamma2) &
+                   &  + (planck_top(jspec,jreg)-planck_base(jspec,jreg)*transmittance(jspec,jreg,jlev) &
+                   &     + planck_prime*mu*(1.0_jprb - transmittance(jspec,jreg,jlev)))
+              
               exponential = exp(-k_exponent*od(jspec,jreg,jlev))
               coeff = planck_prime / (gamma1+gamma2)
               rt_factor = 1.0_jprb / (k_exponent + gamma1 + (k_exponent-gamma1) &
