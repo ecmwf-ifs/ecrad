@@ -59,14 +59,16 @@ module radiation_config
   enum, bind(c) 
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
           &     ISolverSpartacus, ISolverTripleclouds, ISolverTcrad, &
+          &     ISolverTcradICA, &
           &     ISolverFlotsam, ISolverFlotsamICA
   end enum
-  character(len=*), parameter :: SolverName(0:7) = (/ 'Cloudless   ', &
+  character(len=*), parameter :: SolverName(0:8) = (/ 'Cloudless   ', &
        &                                              'Homogeneous ', &
        &                                              'McICA       ', &
        &                                              'SPARTACUS   ', &
        &                                              'Tripleclouds', &
        &                                              'TCRAD       ', &
+       &                                              'TCRADICA    ', &
        &                                              'FLOTSAM     ', &
        &                                              'FLOTSAMICA  ' /)
 
@@ -1178,7 +1180,8 @@ contains
          & .or. this%i_solver_lw == ISolverSPARTACUS &
          & .or. this%i_solver_sw == ISolverTripleclouds &
          & .or. this%i_solver_lw == ISolverTripleclouds &
-         & .or. this%i_solver_lw == ISolverTCRAD) &
+         & .or. this%i_solver_lw == ISolverTcrad &
+         & .or. this%i_solver_lw == ISolverTcradICA) &
          & .and. this%i_overlap_scheme /= IOverlapExponentialRandom) then
       write(nulerr,'(a)') '*** Error: SPARTACUS/Tripleclouds/TCRAD solvers can only do Exponential-Random overlap'
       call radiation_abort('Radiation configuration error')
@@ -1190,6 +1193,11 @@ contains
       write(nulout,'(a)') 'Warning: the SPARTACUS solver may be unstable in single precision'
     end if
 
+    if (this%i_solver_lw == ISolverTcradICA .and. this%do_3d_effects) then
+      write(nulerr,'(a)') '*** Error: TCRAD-ICA solver cannot do 3D effects'
+      call radiation_abort('Radiation configuration error')
+    end if
+    
     ! If ecCKD gas optics model is being used set relevant file names
     if (this%i_gas_model == IGasModelECCKD) then
 
@@ -1377,7 +1385,8 @@ contains
       this%is_homogeneous = .true.
     end if
 
-    if (this%i_solver_lw == ISolverTCRAD) then
+    if (this%i_solver_lw == ISolverTcrad &
+         &  .or. this%i_solver_lw == ISolverTcradICA) then
       if (this%use_tcrad_eddington) then
         call set_two_stream_scheme(ITwoStreamEddington)
       else
@@ -1630,7 +1639,8 @@ contains
           call print_real('    Overhang factor', &
                &   'overhang_factor', this%overhang_factor)
         end if
-      else if (this%i_solver_lw == ISolverTCRAD) then
+      else if (this%i_solver_lw == ISolverTcrad &
+           &   .or. this%i_solver_lw == ISolverTcradICA) then
         write(nulout, '(a)') '  TCRAD options:'
         call print_integer('    Number of regions', 'n_regions', this%nregions)
         call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &

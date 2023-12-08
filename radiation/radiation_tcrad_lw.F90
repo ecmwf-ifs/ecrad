@@ -29,7 +29,7 @@ contains
     use yomhook,  only           : lhook, dr_hook, jphook
 
 !    use radiation_io, only             : nulout
-    use radiation_config, only         : config_type, IPdfShapeGamma
+    use radiation_config, only         : config_type, IPdfShapeGamma, ISolverTcradICA
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type, indexed_sum_profile
@@ -101,7 +101,7 @@ contains
     ! Column loop index
     integer :: jcol
 
-    logical :: do_shadowing
+    logical :: do_shadowing, do_independent_columns
 
     real(jphook) :: hook_handle
 
@@ -123,6 +123,12 @@ contains
       do_shadowing = .false.
     end if
 
+    if (config%i_solver_lw == ISolverTcradICA) then
+      do_independent_columns = .true.
+    else
+      do_independent_columns = .false.
+    end if
+  
     do jcol = istartcol,iendcol
 
       if (config%do_clear) then
@@ -178,7 +184,8 @@ contains
                    &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
                    &         layer_thickness=layer_thickness, inv_cloud_scale_up=inv_cloud_separation_scale_up, &
                    &         inv_cloud_scale_dn=inv_cloud_separation_scale, &
-                   &         cloud_cover=flux%cloud_cover_lw(jcol))
+                   &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                   &         do_exact_solution=config%use_tcrad_exact_solution)
             else
               call calc_flux_2region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                    &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), &
@@ -187,7 +194,8 @@ contains
                    &         flux_up, flux_dn, &
                    &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
                    &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
-                   &         cloud_cover=flux%cloud_cover_lw(jcol))
+                   &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                   &         do_exact_solution=config%use_tcrad_exact_solution)
             end if
           else
             ! Two regions with scattering but without 3D effects
@@ -197,7 +205,9 @@ contains
                  &         cloud%overlap_param(jcol,:), &
                  &         flux_up, flux_dn, &
                  &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
-                 &         cloud_cover=flux%cloud_cover_lw(jcol))
+                 &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                 &         do_exact_solution=config%use_tcrad_exact_solution, &
+                 &         do_independent_columns=do_independent_columns)
           end if
         else
           if (config%do_3d_effects) then
@@ -211,7 +221,8 @@ contains
                    &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
                    &         layer_thickness=layer_thickness, inv_cloud_scale_up=inv_cloud_separation_scale_up, &
                    &         inv_cloud_scale_dn=inv_cloud_separation_scale, &
-                   &         cloud_cover=flux%cloud_cover_lw(jcol))
+                   &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                   &         do_exact_solution=config%use_tcrad_exact_solution)
             else
               call calc_flux_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                    &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
@@ -220,7 +231,8 @@ contains
                    &         flux_up, flux_dn, &
                    &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
                    &         layer_thickness=layer_thickness, inv_cloud_scale=inv_cloud_separation_scale, &
-                   &         cloud_cover=flux%cloud_cover_lw(jcol))
+                   &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                   &         do_exact_solution=config%use_tcrad_exact_solution)
             end if
           else
             ! Three regions with scattering but without 3D effects
@@ -230,7 +242,9 @@ contains
                  &         cloud%overlap_param(jcol,:), &
                  &         flux_up, flux_dn, &
                  &         n_angles_per_hem=config%n_angles_per_hemisphere_lw, &
-                 &         cloud_cover=flux%cloud_cover_lw(jcol))
+                 &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                 &         do_exact_solution=config%use_tcrad_exact_solution, &
+                 &         do_independent_columns=do_independent_columns)
           end if
         end if
       else

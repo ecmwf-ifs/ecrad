@@ -266,3 +266,109 @@ subroutine calc_overlap_matrices(nlev, &
   
 end subroutine calc_overlap_matrices
   
+
+!---------------------------------------------------------------------
+! Configure the region fractions and overlap matrices to represent
+! NREGION independent columns such that the total cloud cover is
+! according to exponential-random overlap
+subroutine calc_independent_column_overlap(nlev, &
+     &     frac, overlap_param, region_fracs, od_scaling, &
+     &     u_overlap, v_overlap, cloud_cover)
+  
+  use parkind1,     only : jprb
+  use yomhook,      only : lhook, dr_hook, jphook
+
+  ! Number of levels and regions
+  integer,  intent(in) :: nlev
+
+  ! Cloud fraction, i.e. the fraction of the gridbox assigned to all
+  ! regions numbered 2 and above (region 1 is clear sky)
+  real(jprb), intent(in), dimension(:)  :: frac ! (nlev)
+  
+  ! The overlap "alpha" overlap parameter of Hogan & Illingworth
+  real(jprb), intent(in), dimension(:)  :: overlap_param  ! (nlev-1)
+
+  ! Area fraction of each region: region 1 is clear sky, and 2+ are
+  ! the cloudy regions (only one or two cloudy regions are supported)
+  real(jprb), intent(out), dimension(1:NREGION,nlev)  :: region_fracs
+
+  ! Optical depth scaling for the cloudy regions
+  real(jprb), intent(out) :: od_scaling(2:NREGION,nlev)
+
+  ! Output overlap matrices
+  real(jprb), intent(out), dimension(NREGION,NREGION,nlev+1) &
+       &  :: u_overlap, v_overlap
+  
+  ! The diagnosed cloud cover is an optional output
+  real(jprb), intent(out), optional :: cloud_cover
+
+  real(jprb) :: cloud_cover_local, clear_cover, pair_cloud_cover
+
+  integer :: jlev, jreg
+
+  real(jphook) :: hook_handle
+
+  if (lhook) call dr_hook('tcrad:calc_independent_column_overlap',0,hook_handle)
+
+  ! Compute cloud cover using exponential-random rules
+  clear_cover = 1.0_jprb - frac(1)
+  do jlev = 1,nlev-1
+    pair_cloud_cover = overlap_param(jlev)*max(frac(jlev),frac(jlev+1)) &
+         &  + (1.0_jprb - overlap_param(jlev)*(frac(jlev)+frac(jlev+1)-frac(jlev)*frac(jlev+1)))
+    if (frac(jlev) > 1.0_jprb-epsilon(1.0_jprb)*10.0_jprb) then
+      clear_cover = 0.0_jprb
+    else
+      clear_cover = clear_cover * (1.0_jprb - pair_cloud_cover) / (1.0_jprb - frac(jlev))
+    end if
+  end do
+  cloud_cover_local = 1.0_jprb - clear_cover
+
+  ! Copy to output, if requested
+  if (present(cloud_cover)) then
+    cloud_cover = cloud_cover_local
+  end if
+
+  do jlev = 1,nlev
+    region_fracs(1,jlev) = clear_cover
+#if NUM_REGIONS == 2
+    region_fracs(2,jlev) = cloud_cover_local
+#else
+    region_fracs(2:NREGION,jlev) = cloud_cover_local/(NREGION-1.0_jprb)
+#endif
+    od_scaling(2:NREGION,jlev)   = frac(jlev) / max(cloud_cover, epsilon(1.0_jprb))
+  end do
+
+  u_overlap = 0.0_jprb
+  v_overlap = 0.0_jprb
+  
+  ! Treat outer space as a clear-sky layer
+  u_overlap(1,1:NREGION,1) = 1.0_jprb
+  v_overlap(1,1,1) = clear_cover
+#if NUM_REGIONS == 2
+  v_overlap(2,1,1) = cloud_cover_local
+#else
+  ! Partition cloud cover equally between two cloudy columns
+  v_overlap(2:NREGION,1,1) = cloud_cover_local/(NREGION-1.0_jprb)
+#endif
+
+  ! When not at the top and bottom of the atmosphere, use the identity
+  ! matrix
+  do jlev = 2,nlev
+    do jreg = 1,NREGION
+      u_overlap(jreg,jreg,jlev)  = 1.0_jprb
+      v_overlap(jreg,jreg,jlev)  = 1.0_jprb
+    end do
+  end do
+
+  ! Treat surface as a clear-sky layer
+  u_overlap(1,1,nlev+1) = clear_cover
+#if NUM_REGIONS == 2
+  u_overlap(2,1,nlev+1) = cloud_cover_local
+#else
+  u_overlap(2:NREGION,1,nlev+1) = cloud_cover_local/(NREGION-1.0_jprb)
+#endif
+  v_overlap(1,1:NREGION,nlev+1) = 1.0_jprb
+
+  if (lhook) call dr_hook('tcrad:calc_independent_column_overlap',1,hook_handle)
+
+end subroutine calc_independent_column_overlap
