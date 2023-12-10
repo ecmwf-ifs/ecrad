@@ -314,7 +314,7 @@ subroutine calc_independent_column_overlap(nlev, &
   clear_cover = 1.0_jprb - frac(1)
   do jlev = 1,nlev-1
     pair_cloud_cover = overlap_param(jlev)*max(frac(jlev),frac(jlev+1)) &
-         &  + (1.0_jprb - overlap_param(jlev)*(frac(jlev)+frac(jlev+1)-frac(jlev)*frac(jlev+1)))
+         &  + (1.0_jprb - overlap_param(jlev))*(frac(jlev)+frac(jlev+1)-frac(jlev)*frac(jlev+1))
     if (frac(jlev) > 1.0_jprb-epsilon(1.0_jprb)*10.0_jprb) then
       clear_cover = 0.0_jprb
     else

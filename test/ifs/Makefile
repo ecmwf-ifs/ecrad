@@ -10,10 +10,9 @@ CHANGENAM = ../common/change_namelist.sh
 # Integrated Forecasting System (IFS)
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
-#CONFIG = configCY47R1.nam
-#CONFIG = configCY47R3.nam
 CONFIG = configCY49R1.nam
-CONFIG_ECCKD = configCY49R1_ecckd.nam
+CONFIG_ECCKD = configCY49R1.nam
+CONFIG_DISORT = configDISORT.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
@@ -66,11 +65,49 @@ test_tripleclouds:
 		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
 	$(DRIVER) config_tc.nam $(INPUT).nc $(INPUT)_tc_out.nc
 
+# DISORT solver with cloud filling the gridbox homogeneously
+test_disort:
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=2 n_angles_per_hemisphere_sw=2 do_save_radiative_properties=true
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort_out.nc
+test_disort_n:
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=1 n_angles_per_hemisphere_sw=1
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort1ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=2 n_angles_per_hemisphere_sw=2
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort2ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=3 n_angles_per_hemisphere_sw=3
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort3ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=4 n_angles_per_hemisphere_sw=4
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort4ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=5 n_angles_per_hemisphere_sw=5
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort5ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=6 n_angles_per_hemisphere_sw=6
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort6ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=7 n_angles_per_hemisphere_sw=7
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort7ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=8 n_angles_per_hemisphere_sw=8
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort8ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=16 n_angles_per_hemisphere_sw=16
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort16ang_out.nc
+
 # Longwave scattering; since 46R1 this is the default
 test_lwscat:
 	$(CHANGENAM) $(CONFIG) config_lwscat.nam \
 		do_lw_cloud_scattering="true"
 	$(DRIVER) config_lwscat.nam $(INPUT).nc $(INPUT)_lwscat_out.nc
+test_homogeneous:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_hom.nam \
+		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"' do_save_radiative_properties=true
+	$(DRIVER) config_hom.nam $(INPUT).nc $(INPUT)_hom_out.nc
 
 # 3D radiative transfer
 test_spartacus:

@@ -25,7 +25,14 @@ module radiation_general_cloud_optics_data
 #ifdef FLOTSAM
 #include <flotsam.inc>
 #endif
-  
+
+  ! Enumerators for defining how the phase function shape is to be
+  ! characterized: phase function only, Legendre polynomials or
+  ! FLOTSAM decomposition
+  enum, bind(c) 
+     enumerator IPhaseFuncAsymmetry, IPhaseFuncLegendre, IPhaseFuncFLOTSAM
+  end enum
+
   !---------------------------------------------------------------------
   ! This type holds the configuration information to compute optical
   ! properties for a particular type of cloud or hydrometeor in one of
@@ -36,10 +43,14 @@ module radiation_general_cloud_optics_data
 
     ! Extinction coefficient per unit mass (m2 kg-1)
     real(jprb), allocatable, dimension(:,:) :: mass_ext
+ 
+    ! Single-scattering albedo (dimensionless)
+    real(jprb), allocatable, dimension(:,:) :: ssa
 
-    ! Single-scattering albedo and asymmetry factor (dimensionless)
-    real(jprb), allocatable, dimension(:,:) :: ssa, asymmetry
-
+    ! Phase function description for DISORT, dimensioned
+    ! (nband,n_effective_radius,ncomponent), or just asymmetry factor
+    real(jprb), allocatable, dimension(:,:,:) :: pf
+    
     ! Support for RTTOV-style look-up table using water content and
     ! temperature, rather than effective radius; here the look-up
     ! tables are dimensioned (nband, n_water_content, n_temperature)
@@ -47,6 +58,8 @@ module radiation_general_cloud_optics_data
          &  :: mass_ext_wct, ssa_wct, asymmetry_wct
     
 #ifdef FLOTSAM
+    ! Phase function description for FLOTSAM
+    
     ! Scattering angle (radians)
     real(jprb), allocatable, dimension(:)     :: scattering_angle
     ! Phase function, dimensioned (nangle,nband,n_effective_radius) 
@@ -76,6 +89,12 @@ module radiation_general_cloud_optics_data
     ! are read.
     character(len=511) :: type_name
 
+    ! Phase function mode (asymmetry factor, Legendre or FLOTSAM)
+    integer :: pf_mode = IPhaseFuncAsymmetry
+    
+    ! Number of phase-function components
+    integer :: n_pf_components = 1
+    
     ! Do we use bands or g-points?
     logical :: use_bands = .false.
 
@@ -103,26 +122,33 @@ contains
   subroutine setup_general_cloud_optics(this, file_name, specdef, &
        &                                use_bands, use_thick_averaging, &
        &                                weighting_temperature, &
-       &                                iverbose)
+       &                                iverbose, pf_mode, n_pf_components)
 
     use yomhook,                       only : lhook, dr_hook, jphook
     use easy_netcdf,                   only : netcdf_file
-    use radiation_spectral_definition, only : spectral_definition_type
+    use radiation_constants,           only : Pi
     use radiation_io,                  only : nulout, nulerr, radiation_abort
     use radiation_constants,           only : Pi
+    use radiation_spectral_definition, only : spectral_definition_type
 
-    class(general_cloud_optics_type), intent(inout)    :: this
+    class(general_cloud_optics_type), intent(inout), target :: this
     character(len=*), intent(in)               :: file_name
     type(spectral_definition_type), intent(in) :: specdef
     logical, intent(in), optional              :: use_bands, use_thick_averaging
     real(jprb), intent(in), optional           :: weighting_temperature ! K
     integer, intent(in), optional              :: iverbose
+    integer, intent(in), optional              :: pf_mode
+    integer, intent(in), optional              :: n_pf_components
 
     ! Spectral properties read from file, dimensioned (wavenumber,
     ! n_effective_radius)
     real(jprb), dimension(:,:), allocatable :: mass_ext, & ! m2 kg-1
          &                                     ssa, asymmetry
 
+    ! Asymmetry factor after averaging, dimensioned (band,
+    ! n_effective_radius)
+    real(jprb), dimension(:,:), allocatable :: asymmetry_band
+    
     ! Reflectance of an infinitely thick cloud, needed for thick
     ! averaging
     real(jprb), dimension(:,:), allocatable :: ref_inf
@@ -137,8 +163,9 @@ contains
     ! dimensioned (ngpoint,nwav)
     real(jprb), dimension(:,:), allocatable :: mapping
 
-    ! Scattering phase function
+    ! Scattering phase function and scattering angles
     real(jprb), dimension(:,:,:), allocatable :: phase_function, phase_function_band
+    real(jprb), dimension(:), allocatable :: scattering_angle
 
     ! The NetCDF file containing the coefficients
     type(netcdf_file)  :: file
@@ -149,10 +176,9 @@ contains
     integer    :: nwav ! Number of wavenumbers describing cloud
     integer    :: nang ! Number of angles describing phase function
     integer    :: nband! Number of bands (or g points)
-    integer    :: n_pf_components ! Number of phase-function components for FLOTSAM
+    integer    :: n_pf_components_flotsam ! Number of phase-function components for FLOTSAM
     integer    :: istatus ! Return code from flotsam calls
-
-    integer    :: jband, jwav ! Loop indices
+    integer    :: jband, jwav, jang, jre ! Loop indices
 
     logical    :: use_bands_local, use_thick_averaging_local
 
@@ -200,6 +226,24 @@ contains
     ! Read the band-specific coefficients
     call file%get('mass_extinction_coefficient', mass_ext)
     call file%get('single_scattering_albedo', ssa)
+
+    if (present(pf_mode)) then
+      this%pf_mode = pf_mode
+      this%n_pf_components = n_pf_components
+      if (pf_mode /= IPhaseFuncAsymmetry) then
+        if (file%exists('phase_function')) then
+          call file%get('scattering_angle', scattering_angle)
+          scattering_angle = scattering_angle * (Pi/180.0_jprb)
+          nang  = size(scattering_angle)
+          call file%get('phase_function',   phase_function)
+        else
+          write(nulerr, '(a,a)') '*** Error: phase_function not present in ', &
+               &  trim(file_name)
+          call radiation_abort('Radiation configuration error')
+        end if
+      end if
+    end if
+
     call file%get('asymmetry_factor', asymmetry)
 
 #ifdef FLOTSAM
@@ -244,9 +288,59 @@ contains
     ! Thin averaging
     this%mass_ext  = matmul(mapping, mass_ext)
     this%ssa       = matmul(mapping, mass_ext*ssa) / this%mass_ext
-    this%asymmetry = matmul(mapping, mass_ext*ssa*asymmetry) / (this%mass_ext*this%ssa)
+    nband = size(this%mass_ext,1)
+    allocate(this%pf(nband,nre,this%n_pf_components))
+    
+    asymmetry_band = matmul(mapping, mass_ext*ssa*asymmetry) / (this%mass_ext*this%ssa)
+    
+    if (this%pf_mode /= IPhaseFuncAsymmetry) then
+      ! Spectral averaging of phase function, weighted by scattering
+      ! coefficient
+      allocate(phase_function_band(nang,nband,this%n_effective_radius))
+      phase_function_band = 0.0_jprb
+      do jre = 1,nre
+        do jwav = 1,nwav
+          do jband = 1,nband
+            phase_function_band(:,jband,jre) = phase_function_band(:,jband,jre) &
+                 &  + mapping(jband,jwav) * mass_ext(jwav,jre) * ssa(jwav,jre) &
+                 &    * phase_function(:,jwav,jre)
+          end do
+        end do
+      end do
+      do jang = 1,nang
+        phase_function_band(jang,:,:) = phase_function_band(jang,:,:) / (this%mass_ext*this%ssa)
+      end do
 
-    if (use_thick_averaging_local) then
+!#define OVERRIDE_PHASE_FUNCTION 1
+#ifndef OVERRIDE_PHASE_FUNCTION
+      call legendre_decomposition(nang, scattering_angle, phase_function_band, &
+           &                      n_pf_components, this%pf)
+#else
+      ! Provide instead a simple delta-Eddington two-stream phase
+      ! function
+      !this%pf = 0.0_jprb
+      !this%pf(:,:,1) = asymmetry_band ! Already delta-Eddington'ed
+
+      ! Remove Delta-Eddington, then fix the subsequent terms to be
+      ! equal to g^2 so that all numbers of streams result in
+      ! delta-Eddington
+      this%pf(:,:,1) = asymmetry_band/(1.0_jprb-asymmetry_band)
+      this%pf(:,:,2) = this%pf(:,:,1)*this%pf(:,:,1)
+      do jang = 2,n_pf_components
+         this%pf(:,:,jang) = this%pf(:,:,2)
+      end do
+
+      ! Remove Delta-Eddington
+      !this%pf(:,:,1) = asymmetry_band/(1.0_jprb-asymmetry_band)
+      !do jang = 2,n_pf_components
+        ! Henyey-Greenstein
+      !  this%pf(:,:,jang) = this%pf(:,:,jang-1)*this%pf(:,:,1)
+      !end do
+#endif
+      if (use_thick_averaging_local) then
+        write(nulout,'(a)') 'Warning: thick averaging not performed when using Legendre decomposition' 
+      end if
+    else if (use_thick_averaging_local) then
       ! Thick averaging as described by Edwards and Slingo (1996),
       ! modifying only the single-scattering albedo
       allocate(ref_inf(nwav, nre))
@@ -258,7 +352,7 @@ contains
       this%ssa = matmul(mapping, ref_inf)
       ! Eq. 19 of Edwards and Slingo (1996)
       this%ssa = 4.0_jprb * this%ssa / ((1.0_jprb + this%ssa)**2 &
-           &  - this%asymmetry * (1.0_jprb - this%ssa)**2)
+           &  - asymmetry_band * (1.0_jprb - this%ssa)**2)
 
       deallocate(ref_inf)
     end if
@@ -273,8 +367,8 @@ contains
 !#define ANALYSE_ALL_PHASE_FUNCTIONS 1
 #ifdef ANALYSE_ALL_PHASE_FUNCTIONS
       allocate(this%phase_function(nang,nwav,this%n_effective_radius))
-      n_pf_components = flotsam_n_phase_function_components()
-      allocate(this%phase_function_components(n_pf_components,nwav,this%n_effective_radius))
+      n_pf_components_flotsam = flotsam_n_phase_function_components()
+      allocate(this%phase_function_components(n_pf_components_flotsam,nwav,this%n_effective_radius))
       istatus = flotsam_analyse_phase_functions(nwav*this%n_effective_radius, nang, &
            &  this%scattering_angle, phase_function, 4.0_jprb*Pi, &
            &  this%phase_function, this%phase_function_components)
@@ -297,8 +391,8 @@ contains
         end do
       end do
       allocate(this%phase_function(nang,nband,this%n_effective_radius))
-      n_pf_components = flotsam_n_phase_function_components()
-      allocate(this%phase_function_components(n_pf_components,nband,this%n_effective_radius))
+      n_pf_components_flotsam = flotsam_n_phase_function_components()
+      allocate(this%phase_function_components(n_pf_components_flotsam,nband,this%n_effective_radius))
       istatus = flotsam_analyse_phase_functions(nband*this%n_effective_radius, nang, &
            &  this%scattering_angle, phase_function_band, 4.0_jprb*Pi, &
            &  this%phase_function, this%phase_function_components)
@@ -308,8 +402,14 @@ contains
     deallocate(mapping)
 
     ! Revert back to unscaled quantities
-    call revert_delta_eddington(this%mass_ext, this%ssa, this%asymmetry)
+    call revert_delta_eddington(this%mass_ext, this%ssa, asymmetry_band)
 
+    if (this%pf_mode == IPhaseFuncAsymmetry) then
+      this%pf(:,:,1) = asymmetry_band
+    end if
+    
+    deallocate(asymmetry_band)  
+    
     if (iverb >= 2) then
       write(nulout,'(a,a)') '  File: ', trim(file_name)
       if (present(weighting_temperature)) then
@@ -333,9 +433,14 @@ contains
            &  int(specdef%max_wavenumber()), ' cm-1'
 #ifdef FLOTSAM
       if (allocated(this%phase_function)) then
-        write(nulout,'(a,i0)') '  Phase function angles: ', nang
+        write(nulout,'(a,i0)') '  Phase function angles for FLOTSAM: ', nang
       end if
 #endif
+      if (this%pf_mode == IPhaseFuncAsymmetry) then
+        write(nulout,'(a)') '  Phase function represented by asymmetry factor'
+      else if (this%pf_mode == IPhaseFuncLegendre) then
+        write(nulout,'(a,i0,a)') '  Phase function represented by ', this%n_pf_components, ' Legendre terms'
+      end if
     end if
 
     if (lhook) call dr_hook('radiation_general_cloud_optics_data:setup',1,hook_handle)
@@ -525,7 +630,7 @@ contains
   subroutine add_optical_properties(this, ng, nlev, ncol, &
        &                            cloud_fraction, &
        &                            water_path, effective_radius, &
-       &                            od, scat_od, scat_asymmetry, &
+       &                            od, scat_od, scat_pf, &
        &                            layer_depth, temperature_fl)
 
     use yomhook, only : lhook, dr_hook, jphook
@@ -545,8 +650,9 @@ contains
     real(jprb), intent(inout), dimension(ng,nlev,ncol) &
          &  :: od             ! Optical depth of layer
     real(jprb), intent(inout), dimension(ng,nlev,ncol), optional &
-         &  :: scat_od, &     ! Scattering optical depth of layer
-         &     scat_asymmetry ! Scattering optical depth x asymmetry factor
+         &  :: scat_od        ! Scattering optical depth of layer
+    real(jprb), intent(inout), dimension(ng,nlev,ncol,this%n_pf_components), optional &
+         &  :: scat_pf        ! Scattering optical depth x phase function component
 
     ! Layer thickness (m), full-level temperature (K)
     real(jprb), intent(in), optional :: layer_depth(ncol,nlev)
@@ -570,7 +676,7 @@ contains
     ! Interpolation indices to first of the two points
     integer :: ire, iwc, it
 
-    integer :: jcol, jlev, jg
+    integer :: jcol, jlev, jg, jcomp
 
     real(jphook) :: hook_handle
 
@@ -594,9 +700,13 @@ contains
               od_local = od_local * (weight1*this%ssa(:,ire) &
                    &                +weight2*this%ssa(:,ire+1))
               scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
-              scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
-                   & + od_local * (weight1*this%asymmetry(:,ire) &
-                   &              +weight2*this%asymmetry(:,ire+1))
+              ! Loop over components describing the phase function
+              ! (might be just asymmetry factor)
+              do jcomp = 1,this%n_pf_components
+                scat_pf(:,jlev,jcol,jcomp) = scat_pf(:,jlev,jcol,jcomp) &
+                     & + od_local * (weight1*this%pf(:,ire,jcomp) &
+                     &              +weight2*this%pf(:,ire+1,jcomp))
+              end do
             end if
           end do
         end do
@@ -648,7 +758,7 @@ contains
                    &                +weight_t2*(weight_wc1*this%ssa_wct(:,iwc,it+1) &
                    &                           +weight_wc2*this%ssa_wct(:,iwc+1,it+1)))
               scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
-              scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
+              scat_pf(:,jlev,jcol,1) = scat_pf(:,jlev,jcol,1) &
                    & + od_local * (weight_t1*(weight_wc1*this%asymmetry_wct(:,iwc,it) &
                    &                         +weight_wc2*this%asymmetry_wct(:,iwc+1,it)) &
                    &              +weight_t2*(weight_wc1*this%asymmetry_wct(:,iwc,it+1) &
@@ -800,6 +910,68 @@ contains
   end function calc_planck_function_wavenumber
 
   !---------------------------------------------------------------------
+  ! Perform a Legendre decomposition of the scattering phase function
+  subroutine legendre_decomposition(nang, scattering_angle, pf_in, n_pf_components, pf)
+    integer,    intent(in)  :: nang
+    real(jprb), intent(in)  :: scattering_angle(:) ! radians
+    real(jprb), intent(in)  :: pf_in(:,:,:)
+    integer,    intent(in)  :: n_pf_components
+    real(jprb), intent(out) :: pf(:,:,:)
+
+    real(jprb) :: cos_ang(nang)
+    real(jprb) :: weight(nang-1)
+    real(jprb) :: p0_legendre(nang)
+    real(jprb) :: p1_legendre(nang)
+    real(jprb) :: p_legendre(nang)
+    real(jprb) :: normalization_factor
+    
+    integer :: jc, ja
+
+    ! There are two ways of expressing a phase function with Legendre
+    ! polynomials Pn(mu): the unnormalized way:
+    !   p(mu) = Sum[ c_n*Pn(mu) ]
+    ! or the DISORT way:
+    !   p(mu) = Sum[ g_n*(2*n+1)*Pn(mu) ]
+    ! In the DISORT way the weights g_n lie between -1 and 1, and g_1
+    ! is equal to the asymmetry factor. In the unnormalized way the
+    ! decomposition is a little simpler but coefficient c_1 is three
+    ! times the asymmety factor.
+    logical, parameter :: use_disort_normalization = .true.
+    
+    cos_ang = cos(scattering_angle)
+    weight  = cos_ang(1:nang-1)-cos_ang(2:nang)
+    
+    p0_legendre = 1.0_jprb
+    p1_legendre = cos_ang;
+
+    pf = 0.0_jprb
+    
+    do jc = 1,n_pf_components
+      if (jc == 1) then
+        p_legendre = cos_ang
+      else
+        p_legendre = ((2.0_jprb*jc + 1.0_jprb)*cos_ang*p1_legendre - jc*p0_legendre) / (jc+1.0_jprb)
+        p0_legendre = p1_legendre
+        p1_legendre = p_legendre
+      end if
+      if (use_disort_normalization) then
+        normalization_factor = 1.0_jprb
+      else
+        normalization_factor = 2.0_jprb*jc + 1.0_jprb
+      end if
+      do ja = 1,nang-1
+        ! Note that the factor of 0.25 here is because we are
+        ! averaging over two points (a factor of a half) and we are
+        ! integrating over mu in the range -1 to 1 (another factor of
+        ! a half required)
+        pf(:,:,jc) = pf(:,:,jc) + weight(ja)*normalization_factor*0.25_jprb &
+             &  * (p_legendre(ja)*pf_in(ja,:,:) + p_legendre(ja+1)*pf_in(ja+1,:,:))
+      end do
+    end do
+    
+  end subroutine legendre_decomposition
+
+  !---------------------------------------------------------------------
   ! Save cloud optical properties in the named file
   subroutine save_general_cloud_optics_data(this, file_name, iverbose)
 
@@ -842,9 +1014,11 @@ contains
     call out_file%define_variable("single_scattering_albedo", units_str="1", &
          &  long_name="Single scattering albedo", &
          &  dim2_name="effective_radius", dim1_name="band")
-    call out_file%define_variable("asymmetry_factor", units_str="1", &
+    if (this%pf_mode == IPhaseFuncAsymmetry) then
+      call out_file%define_variable("asymmetry_factor", units_str="1", &
          &  long_name="Asymmetry factor", &
          &  dim2_name="effective_radius", dim1_name="band")
+    end if
 
     ! Define effective radius
     do ire = 1,this%n_effective_radius
@@ -855,7 +1029,9 @@ contains
     call out_file%put("effective_radius", effective_radius)
     call out_file%put("mass_extinction_coefficient", this%mass_ext)
     call out_file%put("single_scattering_albedo", this%ssa)
-    call out_file%put("asymmetry_factor", this%asymmetry)
+    if (this%pf_mode == IPhaseFuncAsymmetry) then
+      call out_file%put("asymmetry_factor", this%pf(:,:,1))
+    end if
     
     call out_file%close()
 

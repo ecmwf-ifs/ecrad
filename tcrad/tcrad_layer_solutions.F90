@@ -38,17 +38,16 @@ module tcrad_layer_solutions
   ! longwave radiation.
   real(jprb) :: lw_diffusivity = 1.66_jprb ! Elsasser default
 
-  ! To avoid division by near-zero values use simpler formulae in the
-  ! low optical depth regime
-  real(jprb), parameter :: OD_THRESH_2STREAM = 1.0e-3_jprb
-  real(jprb), parameter :: OD_THRESH = 1.0e-3_jprb
-!#warning(fixme)
-  !real(jprb), parameter :: OD_THRESH = 1.0e-6_jprb
-
 #ifdef PARKIND1_SINGLE
-  real(jprb), parameter :: MIN_K_SQUARED = 1.0e-6_jprb
+  ! To avoid division by near-zero values use simpler formulae in the
+  ! low optical depth regime.
+  real(jprb), parameter :: OD_THRESH_2STREAM = 1.0e-4_jprb
+  real(jprb), parameter :: OD_THRESH         = 1.0e-4_jprb
+  real(jprb), parameter :: MIN_K_SQUARED     = 1.0e-6_jprb
 #else
-  real(jprb), parameter :: MIN_K_SQUARED = 1.0e-12_jprb
+  real(jprb), parameter :: OD_THRESH_2STREAM = 1.0e-7_jprb
+  real(jprb), parameter :: OD_THRESH         = 1.0e-7_jprb
+  real(jprb), parameter :: MIN_K_SQUARED     = 1.0e-12_jprb
 #endif
   
   integer(jpim), parameter :: MAX_GAUSS_LEGENDRE_POINTS = 8
@@ -1049,6 +1048,13 @@ contains
   ! solution to the two-stream equations, rather than the
   ! calc_radiance_rates/calc_radiance_trans_source combination, which
   ! assume a linear variation of fluxes with optical depth.
+
+  ! WARNING: this routine does not work perfectly in single precision:
+  ! if you run in an independent column configuration in which the
+  ! high cloud-free stratosphere is being used as a cloudy region, the
+  ! OD_THESH value becomes important, and the higher value for
+  ! stability required in single precision is too high for accuracy.
+
   subroutine calc_radiance_trans_source_exact(nspec, nlev, nreg, &
        &  mu, region_fracs, planck_hl, od, ssa, asymmetry, &
        &  flux_up_base, flux_dn_top, &

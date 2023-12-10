@@ -59,7 +59,7 @@ contains
          &  od_cloud, ssa_cloud
 
     ! Phase function components of cloud
-    real(jprb), intent(in) :: pf_cloud(config%n_g_sw,nlev,istartcol:iendcol,config%n_sw_pf)
+    real(jprb), intent(in) :: pf_cloud(config%n_g_sw,nlev,istartcol:iendcol,config%n_pf_sw)
 
     ! Direct and diffuse surface albedos, and the incoming shortwave
     ! flux into a plane perpendicular to the incoming radiation at

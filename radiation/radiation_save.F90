@@ -887,7 +887,7 @@ contains
        &  incoming_sw, &
        &  od_lw, ssa_lw, g_lw, &
        &  od_sw, ssa_sw, g_sw, &
-       &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+       &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
        &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
 
     use radiation_config,        only : config_type
@@ -910,13 +910,13 @@ contains
     ! gases and aerosols at each shortwave g-point
     real(jprb), intent(in), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: od_sw, ssa_sw, g_sw
 
-    ! Layer optical depth and single scattering albedo hydrometeors in
-    ! each shortwave band
+    ! Layer optical depth and single scattering albedo of
+    ! hydrometeors in each shortwave band
     real(jprb), intent(in), dimension(config%n_bands_sw,nlev,istartcol:iendcol)   :: &
          &  od_sw_cloud, ssa_sw_cloud
 
-    ! Phase function components, or asymmetry factor if n_sw_pf=1
-    real(jprb), intent(in) :: pf_sw_cloud(config%n_bands_sw,nlev,istartcol:iendcol,config%n_sw_pf)
+    ! Phase function components, or asymmetry factor if n_pf_sw=1
+    real(jprb), intent(in) :: pf_sw_cloud(config%n_bands_sw,nlev,istartcol:iendcol,config%n_pf_sw)
 
     ! Direct and diffuse surface albedo, and the incoming shortwave
     ! flux into a plane perpendicular to the incoming radiation at
@@ -924,21 +924,24 @@ contains
     real(jprb), intent(in), dimension(config%n_g_sw,istartcol:iendcol) &
          &  :: sw_albedo_direct, sw_albedo_diffuse, incoming_sw
 
-    ! Layer optical depth, single scattering albedo and asymmetry factor of
-    ! gases and aerosols at each longwave g-point, where the latter
-    ! two variables are only defined if aerosol longwave scattering is
-    ! enabled (otherwise both are treated as zero).
+    ! Layer optical depth, single scattering albedo and asymmetry
+    ! factor of gases and aerosols at each longwave g-point, where the
+    ! latter two variables are only defined if aerosol longwave
+    ! scattering is enabled (otherwise both are treated as zero).
     real(jprb), intent(in), dimension(config%n_g_lw,nlev,istartcol:iendcol) :: od_lw
     real(jprb), intent(in), dimension(config%n_g_lw_if_scattering,nlev,istartcol:iendcol) :: &
          &  ssa_lw, g_lw
 
-    ! Layer optical depth, single scattering albedo and asymmetry factor of
-    ! hydrometeors in each longwave band, where the latter two
-    ! variables are only defined if hydrometeor longwave scattering is
-    ! enabled (otherwise both are treated as zero).
+    ! Layer optical depth, single scattering albedo and asymmetry
+    ! factor (or phase function components) of hydrometeors in each
+    ! longwave band, where the latter two variables are only defined
+    ! if hydrometeor longwave scattering is enabled (otherwise both
+    ! are treated as zero).
     real(jprb), intent(in), dimension(config%n_bands_lw,nlev,istartcol:iendcol) :: od_lw_cloud
     real(jprb), intent(in), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol) :: &
-         &  ssa_lw_cloud, g_lw_cloud
+         &  ssa_lw_cloud
+    real(jprb), intent(in), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol,config%n_pf_lw) :: &
+         &  pf_lw_cloud
 
     ! The Planck function (emitted flux from a black body) at half
     ! levels and at the surface at each longwave g-point
@@ -955,8 +958,8 @@ contains
     ! Object for output NetCDF file
     type(netcdf_file) :: out_file
 
-    integer :: jcol, jcomp
-
+    integer :: jcol, jcomp ! Loop indices
+    
     n_col_local = iendcol + 1 - istartcol
 
     ! Alas the NetCDF library is not thread-safe for writing, so we
@@ -977,8 +980,11 @@ contains
     ! Define dimensions
     !    call out_file%define_dimension("column", n_col_local)
     call out_file%define_dimension("column", 0) ! "Unlimited" dimension
-    if (config%n_sw_pf > 1) then
-      call out_file%define_dimension("pf_sw", config%n_sw_pf)
+    if (config%n_pf_sw > 1) then
+      call out_file%define_dimension("pf_sw", config%n_pf_sw)
+    end if
+    if (config%n_pf_lw > 1) then
+      call out_file%define_dimension("pf_lw", config%n_pf_lw)
     end if
     call out_file%define_dimension("level", nlev)
     call out_file%define_dimension("half_level", nlev+1)
@@ -1068,9 +1074,15 @@ contains
           call out_file%define_variable("ssa_lw_cloud", &
                &  dim3_name="column", dim2_name="level", dim1_name="band_lw", &
                &  units_str="1", long_name="Cloud longwave single scattering albedo")
-          call out_file%define_variable("asymmetry_lw_cloud", &
-               &  dim3_name="column", dim2_name="level", dim1_name="band_lw", &
-               &  units_str="1", long_name="Cloud longwave asymmetry factor")
+          if (config%n_pf_lw > 1) then
+            call out_file%define_variable("phase_function_components_lw_cloud", &
+                 &  dim4_name="column", dim3_name="pf_lw", dim2_name="level", dim1_name="band_lw", &
+                 &  units_str="1", long_name="Cloud longwave phase-function components")
+          else
+            call out_file%define_variable("asymmetry_lw_cloud", &
+                 &  dim3_name="column", dim2_name="level", dim1_name="band_lw", &
+                 &  units_str="1", long_name="Cloud longwave asymmetry factor")
+          end if
         end if
       end if ! do_clouds
     end if ! do_lw
@@ -1104,7 +1116,7 @@ contains
         call out_file%define_variable("ssa_sw_cloud", &
              &  dim3_name="column", dim2_name="level", dim1_name="band_sw", &
              &  units_str="1", long_name="Cloud shortwave single scattering albedo")
-        if (config%n_sw_pf > 1) then
+        if (config%n_pf_sw > 1) then
           call out_file%define_variable("phase_function_components_sw_cloud", &
                &  dim4_name="column", dim3_name="pf_sw", dim2_name="level", dim1_name="band_sw", &
                &  units_str="1", long_name="Cloud shortwave phase-function components")
@@ -1170,7 +1182,16 @@ contains
         call out_file%put("od_lw_cloud", od_lw_cloud)
         if (config%do_lw_cloud_scattering) then
           call out_file%put("ssa_lw_cloud", ssa_lw_cloud)
-          call out_file%put("asymmetry_lw_cloud", g_lw_cloud)
+          if (config%n_pf_lw > 1) then
+            do jcol = istartcol,iendcol
+              do jcomp = 1,config%n_pf_lw
+                call out_file%put("phase_function_components_lw_cloud", &
+                     &  pf_lw_cloud(:,:,jcol,jcomp), jcomp, jcol-istartcol+1, do_transp=.false.)
+              end do
+            end do
+          else
+            call out_file%put("asymmetry_lw_cloud", pf_lw_cloud(:,:,:,1))
+          end if
         end if
       end if
     end if
@@ -1185,9 +1206,9 @@ contains
       if (config%do_clouds) then
         call out_file%put("od_sw_cloud", od_sw_cloud)
         call out_file%put("ssa_sw_cloud", ssa_sw_cloud)
-        if (config%n_sw_pf > 1) then
+        if (config%n_pf_sw > 1) then
           do jcol = istartcol,iendcol
-            do jcomp = 1,config%n_sw_pf
+            do jcomp = 1,config%n_pf_sw
               call out_file%put("phase_function_components_sw_cloud", &
                    &  pf_sw_cloud(:,:,jcol,jcomp), jcomp, jcol-istartcol+1, do_transp=.false.)
             end do
