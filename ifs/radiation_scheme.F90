@@ -85,6 +85,7 @@ USE RADIATION_AEROSOL,        ONLY : AEROSOL_TYPE
 USE RADIATION_FLUX,           ONLY : FLUX_TYPE
 USE RADIATION_INTERFACE,      ONLY : RADIATION, SET_GAS_UNITS
 USE RADIATION_SAVE,           ONLY : SAVE_INPUTS, SAVE_FLUXES
+USE NVTX
 
 IMPLICIT NONE
 
@@ -275,6 +276,7 @@ ASSOCIATE(YRERAD    =>YRADIATION%YRERAD, &
      &    TROP_BG_AER_MASS_EXT=>YRADIATION%TROP_BG_AER_MASS_EXT, &
      &    STRAT_BG_AER_MASS_EXT=>YRADIATION%STRAT_BG_AER_MASS_EXT)
 ! Allocate memory in radiation objects
+call nvtxStartRange("allocate")
 CALL SINGLE_LEVEL%ALLOCATE(KLON, YRERAD%NSW, YRERAD%NLWEMISS, &
      &                     USE_SW_ALBEDO_DIRECT=.TRUE.)
 CALL THERMODYNAMICS%ALLOCATE(KLON, KLEV, USE_H2O_SAT=.TRUE.)
@@ -286,6 +288,9 @@ ELSE
   CALL AEROSOL%ALLOCATE(KLON, 1, KLEV, 6) ! Tegen climatology
 ENDIF
 CALL FLUX%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
+call nvtxEndRange
+
+call nvtxStartRange("thermodynamics setup")
 
 ! Set thermodynamic profiles: simply copy over the half-level
 ! pressure and temperature
@@ -335,6 +340,9 @@ ENDDO
 ! Alternative approximate version using temperature and pressure from
 ! the thermodynamics structure
 CALL thermodynamics%calc_saturation_wrt_liquid(KIDIA, KFDIA)
+call nvtxEndRange
+
+call nvtxStartRange("single level setup")
 
 ! Set single-level fileds
 SINGLE_LEVEL%SOLAR_IRRADIANCE              = PSOLAR_IRRADIANCE
@@ -395,6 +403,9 @@ IF (YRERAD%NSOLARSPECTRUM == 1) THEN
        &  = (/  1.0, 1.0, 1.0, 1.0478, 1.0404, 1.0317, 1.0231, &
        &        1.0054, 0.98413, 0.99863, 0.99907, 0.90589, 0.92213, 1.0 /)
 ENDIF
+call nvtxEndRange
+
+call nvtxStartRange("cloud setup")
 
 ! Set cloud fields
 DO JLEV = 1,KLEV
@@ -497,7 +508,9 @@ ENDIF
 ! Compute the dry mass of each layer neglecting humidity effects, in
 ! kg m-2, needed to scale some of the aerosol inputs
 CALL THERMODYNAMICS%GET_LAYER_MASS(KIDIA,KFDIA,ZLAYER_MASS)
+call nvtxEndRange
 
+call nvtxStartRange("aerosol setup")
 ! Copy over aerosol mass mixing ratio
 IF (YRERAD%NAERMACC == 1) THEN
 
@@ -563,6 +576,9 @@ ELSE
 
 ENDIF
 
+call nvtxEndRange
+
+call nvtxStartRange("gas setup")
 ! Insert gas mixing ratios
 CALL GAS%PUT(IH2O,    IMASSMIXINGRATIO, PQ)
 CALL GAS%PUT(ICO2,    IMASSMIXINGRATIO, PCO2)
@@ -578,6 +594,7 @@ CALL GAS%PUT_WELL_MIXED(IO2, IVOLUMEMIXINGRATIO, 0.20944_JPRB)
 ! Ensure the units of the gas mixing ratios are what is required by
 ! the gas absorption model
 CALL SET_GAS_UNITS(RAD_CONFIG, GAS)
+call nvtxEndRange
 
 #ifdef _OPENACC
   !$ACC DATA &
@@ -607,8 +624,10 @@ CALL SET_GAS_UNITS(RAD_CONFIG, GAS)
 !     &           iverbose=2)
 
 ! Call radiation scheme
+call nvtxStartRange("radiation")
 CALL RADIATION(KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,&
      &  SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, FLUX)
+call nvtxEndRange
 
 #ifdef _OPENACC
   call flux%update_host()
@@ -659,6 +678,7 @@ IF (N_OUTPUT_FLUXES < YRERAD%NDUMPINPUTS) THEN
 !$OMP END CRITICAL
 ENDIF
 
+call nvtxStartRange("compute fluxes")
 ! Compute required output fluxes
 ! First the net fluxes
 PFLUX_SW(KIDIA:KFDIA,:) = FLUX%SW_DN(KIDIA:KFDIA,:) - FLUX%SW_UP(KIDIA:KFDIA,:)
@@ -733,6 +753,9 @@ DO JLEV=1,KLEV+1
     ENDIF
   ENDDO
 ENDDO
+call nvtxEndRange
+
+call nvtxStartRange("cleanup")
 
 #ifdef _OPENACC
 call rad_config%delete_device()
@@ -751,6 +774,8 @@ CALL GAS%DEALLOCATE
 CALL YLCLOUD%DEALLOCATE
 CALL AEROSOL%DEALLOCATE
 CALL FLUX%DEALLOCATE
+
+call nvtxEndRange
 
 END ASSOCIATE
 

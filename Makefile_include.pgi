@@ -16,7 +16,7 @@ WARNFLAGS = -Minform=inform
 BASICFLAGS = -module ../mod
 DEBUGFLAGS = -g
 OMPFLAG = -mp
-LDFLAGS += -L$(NVIDIA_DIR)/Linux_x86_64/22.11/math_libs/lib64/
+LDFLAGS += -L$(NVIDIA_DIR)/Linux_x86_64/22.11/math_libs/lib64/ -lnvhpcwrapnvtx
 
 ifdef GPU
 OMPFLAG +=  -acc=verystrict -gpu=cc80

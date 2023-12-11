@@ -65,6 +65,7 @@ program ecrad_ifs_driver
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
   use ifs_blocking
+  use nvtx
 
   implicit none
 
@@ -381,6 +382,7 @@ program ecrad_ifs_driver
   tstart = omp_get_wtime()
 #endif
   do jrepeat = 1,driver_config%nrepeat
+     call nvtxStartRange("ecrad_it")
 
 !    if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
@@ -460,6 +462,7 @@ program ecrad_ifs_driver
 !           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
 
 !    end if
+     call nvtxEndRange
 
   end do
 
