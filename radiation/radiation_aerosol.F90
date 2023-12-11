@@ -235,13 +235,13 @@ contains
 
     class(aerosol_type), intent(inout) :: this
 
-    !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
-    !$ACC ENTER DATA CREATE(this%od_sw) IF(allocated(this%od_sw))
-    !$ACC ENTER DATA CREATE(this%ssa_sw) IF(allocated(this%ssa_sw))
-    !$ACC ENTER DATA CREATE(this%g_sw) IF(allocated(this%g_sw))
-    !$ACC ENTER DATA CREATE(this%od_lw) IF(allocated(this%od_lw))
-    !$ACC ENTER DATA CREATE(this%ssa_lw) IF(allocated(this%ssa_lw))
-    !$ACC ENTER DATA CREATE(this%g_lw) IF(allocated(this%g_lw))
+    !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%od_sw) IF(allocated(this%od_sw)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%ssa_sw) IF(allocated(this%ssa_sw)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%g_sw) IF(allocated(this%g_sw)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
 
   end subroutine create_device
 
@@ -251,13 +251,13 @@ contains
 
     class(aerosol_type), intent(inout) :: this
 
-    !$ACC UPDATE HOST(this%mixing_ratio) IF(allocated(this%mixing_ratio))
-    !$ACC UPDATE HOST(this%od_sw) IF(allocated(this%od_sw))
-    !$ACC UPDATE HOST(this%ssa_sw) IF(allocated(this%ssa_sw))
-    !$ACC UPDATE HOST(this%g_sw) IF(allocated(this%g_sw))
-    !$ACC UPDATE HOST(this%od_lw) IF(allocated(this%od_lw))
-    !$ACC UPDATE HOST(this%ssa_lw) IF(allocated(this%ssa_lw))
-    !$ACC UPDATE HOST(this%g_lw) IF(allocated(this%g_lw))
+    !$ACC UPDATE HOST(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    !$ACC UPDATE HOST(this%od_sw) IF(allocated(this%od_sw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%ssa_sw) IF(allocated(this%ssa_sw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%g_sw) IF(allocated(this%g_sw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
 
   end subroutine update_host
 
@@ -267,13 +267,13 @@ contains
 
     class(aerosol_type), intent(inout) :: this
 
-    !$ACC UPDATE DEVICE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
-    !$ACC UPDATE DEVICE(this%od_sw) IF(allocated(this%od_sw))
-    !$ACC UPDATE DEVICE(this%ssa_sw) IF(allocated(this%ssa_sw))
-    !$ACC UPDATE DEVICE(this%g_sw) IF(allocated(this%g_sw))
-    !$ACC UPDATE DEVICE(this%od_lw) IF(allocated(this%od_lw))
-    !$ACC UPDATE DEVICE(this%ssa_lw) IF(allocated(this%ssa_lw))
-    !$ACC UPDATE DEVICE(this%g_lw) IF(allocated(this%g_lw))
+    !$ACC UPDATE DEVICE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%od_sw) IF(allocated(this%od_sw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%ssa_sw) IF(allocated(this%ssa_sw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%g_sw) IF(allocated(this%g_sw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
 
   end subroutine update_device
 
@@ -283,13 +283,13 @@ contains
 
     class(aerosol_type), intent(inout) :: this
 
-    !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
-    !$ACC EXIT DATA DELETE(this%od_sw) IF(allocated(this%od_sw))
-    !$ACC EXIT DATA DELETE(this%ssa_sw) IF(allocated(this%ssa_sw))
-    !$ACC EXIT DATA DELETE(this%g_sw) IF(allocated(this%g_sw))
-    !$ACC EXIT DATA DELETE(this%od_lw) IF(allocated(this%od_lw))
-    !$ACC EXIT DATA DELETE(this%ssa_lw) IF(allocated(this%ssa_lw))
-    !$ACC EXIT DATA DELETE(this%g_lw) IF(allocated(this%g_lw))
+    !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%od_sw) IF(allocated(this%od_sw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%ssa_sw) IF(allocated(this%ssa_sw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%g_sw) IF(allocated(this%g_sw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
 
   end subroutine delete_device
 #endif

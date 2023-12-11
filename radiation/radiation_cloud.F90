@@ -382,13 +382,12 @@ contains
       ! !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1) IF(LLACC)
     ! end if
 
-    !$ACC DATA PRESENT(this, thermodynamics, decorrelation_length) IF(LLACC)
-    !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1) IF(LLACC)
+    !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1)
     if (thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1)) then
       ! Pressure is increasing with index (order of layers is
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
       ! don't take the logarithm of the first pressure in each column.
-      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1) IF(LLACC)
+      !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
       !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
         this%overlap_param(jcol,1) = exp(-(R_over_g/decorrelation_length(jcol)) &
@@ -413,7 +412,7 @@ contains
        ! Pressure is decreasing with index (order of layers is surface
        ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
        ! don't take the logarithm of the last pressure in each column.
-      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1) IF(LLACC)
+      !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
       !$ACC LOOP SEQ
       do jlev = 1,nlev-2
         !$ACC LOOP GANG(STATIC:1) VECTOR
@@ -434,8 +433,6 @@ contains
       end do
       !$ACC END PARALLEL
     end if
-
-    !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
 
@@ -877,17 +874,17 @@ contains
 
     class(cloud_type), intent(inout) :: this
 
-    !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
-    !$ACC ENTER DATA CREATE(this%effective_radius) IF(allocated(this%effective_radius))
-    !$ACC ENTER DATA COPYIN(this%q_liq) IF(allocated(this%q_liq))
-    !$ACC ENTER DATA COPYIN(this%re_liq) IF(allocated(this%re_liq))
-    !$ACC ENTER DATA COPYIN(this%q_ice) IF(allocated(this%q_ice))
-    !$ACC ENTER DATA COPYIN(this%re_ice) IF(allocated(this%re_ice))
-    !$ACC ENTER DATA CREATE(this%fraction) IF(allocated(this%fraction))
-    !$ACC ENTER DATA CREATE(this%overlap_param) IF(allocated(this%overlap_param))
-    !$ACC ENTER DATA CREATE(this%fractional_std) IF(allocated(this%fractional_std))
-    !$ACC ENTER DATA CREATE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size))
-    !$ACC ENTER DATA CREATE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size))
+    !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%effective_radius) IF(allocated(this%effective_radius)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%q_liq) IF(allocated(this%q_liq)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%re_liq) IF(allocated(this%re_liq)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%q_ice) IF(allocated(this%q_ice)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%re_ice) IF(allocated(this%re_ice)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%fraction) IF(allocated(this%fraction)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%overlap_param) IF(allocated(this%overlap_param)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
 
   end subroutine create_device
   !---------------------------------------------------------------------
@@ -896,13 +893,13 @@ contains
 
     class(cloud_type), intent(inout) :: this
 
-    !$ACC UPDATE HOST(this%mixing_ratio) IF(allocated(this%mixing_ratio))
-    !$ACC UPDATE HOST(this%effective_radius) IF(allocated(this%effective_radius))
-    !$ACC UPDATE HOST(this%fraction) IF(allocated(this%fraction))
-    !$ACC UPDATE HOST(this%overlap_param) IF(allocated(this%overlap_param))
-    !$ACC UPDATE HOST(this%fractional_std) IF(allocated(this%fractional_std))
-    !$ACC UPDATE HOST(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size))
-    !$ACC UPDATE HOST(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size))
+    !$ACC UPDATE HOST(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    !$ACC UPDATE HOST(this%effective_radius) IF(allocated(this%effective_radius)) ASYNC(1)
+    !$ACC UPDATE HOST(this%fraction) IF(allocated(this%fraction)) ASYNC(1)
+    !$ACC UPDATE HOST(this%overlap_param) IF(allocated(this%overlap_param)) ASYNC(1)
+    !$ACC UPDATE HOST(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
+    !$ACC UPDATE HOST(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
+    !$ACC UPDATE HOST(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
 
   end subroutine update_host
 
@@ -913,17 +910,17 @@ use openacc,       only : acc_attach
 
     class(cloud_type), intent(inout) :: this
 
-    !$ACC UPDATE DEVICE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
-    !$ACC UPDATE DEVICE(this%effective_radius) IF(allocated(this%effective_radius))
+    !$ACC UPDATE DEVICE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%effective_radius) IF(allocated(this%effective_radius)) ASYNC(1)
     CALL acc_attach(this%q_liq)
     CALL acc_attach(this%q_ice)
     CALL acc_attach(this%re_liq)
     CALL acc_attach(this%re_ice)
-    !$ACC UPDATE DEVICE(this%fraction) IF(allocated(this%fraction))
-    !$ACC UPDATE DEVICE(this%overlap_param) IF(allocated(this%overlap_param))
-    !$ACC UPDATE DEVICE(this%fractional_std) IF(allocated(this%fractional_std))
-    !$ACC UPDATE DEVICE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size))
-    !$ACC UPDATE DEVICE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size))
+    !$ACC UPDATE DEVICE(this%fraction) IF(allocated(this%fraction)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%overlap_param) IF(allocated(this%overlap_param)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
 
   end subroutine update_device
 
@@ -931,17 +928,17 @@ use openacc,       only : acc_attach
 
     class(cloud_type), intent(inout) :: this
 
-    !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
-    !$ACC EXIT DATA DELETE(this%effective_radius) IF(allocated(this%effective_radius))
-    !$ACC EXIT DATA DELETE(this%q_liq) IF(allocated(this%q_liq))
-    !$ACC EXIT DATA DELETE(this%re_liq) IF(allocated(this%re_liq))
-    !$ACC EXIT DATA DELETE(this%q_ice) IF(allocated(this%q_ice))
-    !$ACC EXIT DATA DELETE(this%re_ice) IF(allocated(this%re_ice))
-    !$ACC EXIT DATA DELETE(this%fraction) IF(allocated(this%fraction))
-    !$ACC EXIT DATA DELETE(this%overlap_param) IF(allocated(this%overlap_param))
-    !$ACC EXIT DATA DELETE(this%fractional_std) IF(allocated(this%fractional_std))
-    !$ACC EXIT DATA DELETE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size))
-    !$ACC EXIT DATA DELETE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size))
+    !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%effective_radius) IF(allocated(this%effective_radius)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%q_liq) IF(allocated(this%q_liq)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%re_liq) IF(allocated(this%re_liq)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%q_ice) IF(allocated(this%q_ice)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%re_ice) IF(allocated(this%re_ice)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%fraction) IF(allocated(this%fraction)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%overlap_param) IF(allocated(this%overlap_param)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
 
   end subroutine delete_device
 #endif

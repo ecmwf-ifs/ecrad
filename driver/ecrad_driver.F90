@@ -417,8 +417,8 @@ program ecrad_driver
   call flux%delete_device()
 #endif
 
+  !$ACC WAIT(1)
   !$ACC END DATA
-  !$ACC WAIT
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()

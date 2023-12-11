@@ -291,7 +291,7 @@ CALL FLUX%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
 call nvtxEndRange
 
 #ifdef _OPENACC
-!$ACC DATA COPYIN(yradiation, single_level, thermodynamics, gas, aerosol, ylcloud, flux)
+!$ACC DATA COPYIN(yradiation, single_level, thermodynamics, gas, aerosol, ylcloud, flux) ASYNC(1)
 call rad_config%create_device()
 call single_level%create_device()
 call thermodynamics%create_device()
@@ -313,11 +313,11 @@ call flux%create_device()
 !$ACC         PFLUX_DIR, PFLUX_DIR_CLEAR, PFLUX_DIR_INTO_SUN, &
 !$ACC         PFLUX_UV, PFLUX_PAR, PFLUX_PAR_CLEAR, PFLUX_SW_DN_TOA, &
 !$ACC         PEMIS_OUT, PLWDERIVATIVE) &
-!$ACC NO_CREATE(PSWDIRECTBAND, PSWDIFFUSEBAND, PRE_LIQ)
+!$ACC NO_CREATE(PSWDIRECTBAND, PSWDIFFUSEBAND, PRE_LIQ) ASYNC(1)
 
 
 call nvtxStartRange("thermodynamics setup")
-!$ACC PARALLEL DEFAULT(PRESENT)
+!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
 ! Set thermodynamic profiles: simply copy over the half-level
 ! pressure and temperature
 !$ACC LOOP GANG VECTOR
@@ -374,9 +374,9 @@ call nvtxStartRange("single level setup")
 
 ! Set single-level fileds
 SINGLE_LEVEL%SOLAR_IRRADIANCE              = PSOLAR_IRRADIANCE
-!$ACC UPDATE DEVICE(SINGLE_LEVEL%SOLAR_IRRADIANCE)
+!$ACC UPDATE DEVICE(SINGLE_LEVEL%SOLAR_IRRADIANCE) ASYNC(1)
 
-!$ACC PARALLEL DEFAULT(PRESENT)
+!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
 !$ACC LOOP GANG VECTOR
 DO JLON = KIDIA,KFDIA
   SINGLE_LEVEL%COS_SZA(JLON)          = PMU0(JLON)
@@ -424,7 +424,7 @@ call single_level%init_seed_simple(kidia, kfdia, lacc=.true.)
 ! Added for bit-identity validation against ecrad standalone:
 ! Overwrite seed with user-specified values
 if (present(iseed)) then
-  !$ACC PARALLEL DEFAULT(PRESENT)
+  !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
   !$ACC LOOP GANG VECTOR
   DO JLON = KIDIA,KFDIA
     single_level%iseed(jlon) = iseed(jlon)
@@ -439,14 +439,14 @@ IF (YRERAD%NSOLARSPECTRUM == 1) THEN
   SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING &
        &  = (/  1.0, 1.0, 1.0, 1.0478, 1.0404, 1.0317, 1.0231, &
        &        1.0054, 0.98413, 0.99863, 0.99907, 0.90589, 0.92213, 1.0 /)
-  !$ACC ENTER DATA COPYIN(SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING)
+  !$ACC ENTER DATA COPYIN(SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING) ASYNC(1)
 ENDIF
 call nvtxEndRange
 
 call nvtxStartRange("cloud setup")
 
 ! Set cloud fields
-!$ACC PARALLEL DEFAULT(PRESENT)
+!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
 !$ACC LOOP GANG VECTOR COLLAPSE(2)
 DO JLEV = 1,KLEV
   DO JLON = KIDIA,KFDIA
@@ -459,7 +459,7 @@ ENDDO
 
 ! Compute effective radii and convert to metres
 IF (PRESENT(PRE_LIQ)) THEN
-  !$ACC PARALLEL DEFAULT(PRESENT)
+  !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
   !$ACC LOOP GANG VECTOR COLLAPSE(2)
   DO JLEV = 1,KLEV
     DO JLON = KIDIA,KFDIA
@@ -473,7 +473,7 @@ CALL LIQUID_EFFECTIVE_RADIUS(YRERAD, &
      &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_LIQUID, PQ_RAIN, &
      &  PLAND_SEA_MASK, PCCN_LAND, PCCN_SEA, &
      &  ZRE_LIQUID_UM) !, PPERT=PPERT)
-!$ACC PARALLEL DEFAULT(PRESENT)
+!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
 !$ACC LOOP GANG VECTOR COLLAPSE(2)
 DO JLEV = 1,KLEV
   DO JLON = KIDIA,KFDIA
@@ -484,7 +484,7 @@ ENDDO
 ENDIF
 
 IF (PRESENT(PRE_ICE)) THEN
-  !$ACC PARALLEL DEFAULT(PRESENT)
+  !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
   !$ACC LOOP GANG VECTOR COLLAPSE(2)
   DO JLEV = 1,KLEV
     DO JLON = KIDIA,KFDIA
@@ -496,7 +496,7 @@ ELSE
 CALL ICE_EFFECTIVE_RADIUS(YRERAD, KIDIA, KFDIA, KLON, KLEV, &
      &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PGEMU, &
      &  ZRE_ICE_UM) !, PPERT=PPERT)
-!$ACC PARALLEL DEFAULT(PRESENT)
+!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
 !$ACC LOOP GANG VECTOR COLLAPSE(2)
 DO JLEV = 1,KLEV
   DO JLON = KIDIA,KFDIA
@@ -523,7 +523,7 @@ CALL CLOUD_OVERLAP_DECORR_LEN(KIDIA,KFDIA,KLON, &
 !       &                       ISTARTCOL=JLON, IENDCOL=JLON)
 ! ENDDO
 ! Or we can call the routine on all columns at once
-!$ACC PARALLEL DEFAULT(PRESENT)
+!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
 !$ACC LOOP GANG VECTOR
 DO JLON = KIDIA,KFDIA
   ZDECORR_LEN_KM(JLON) = 1000.0_JPRB*ZDECORR_LEN_KM(JLON)
@@ -545,7 +545,6 @@ if(present(PCLOUD_OVERLAP)) then
   ENDDO
   !$ACC END PARALLEL
 endif
-!$ACC WAIT
 
 ! Cloud water content fractional standard deviation is configurable
 ! from namelist NAERAD but must be globally constant. Before it was
@@ -725,7 +724,7 @@ ENDIF
 call nvtxStartRange("compute fluxes")
 ! Compute required output fluxes
 ! First the net fluxes
-!$ACC PARALLEL DEFAULT(PRESENT)
+!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
 !$ACC LOOP GANG VECTOR COLLAPSE(2)
 DO JLEV=1,KLEV+1
   DO JLON=KIDIA,KFDIA
@@ -830,6 +829,8 @@ call ylcloud%delete_device()
 call flux%delete_device()
 !$ACC END DATA
 #endif
+
+!$ACC WAIT(1)
 
 CALL SINGLE_LEVEL%DEALLOCATE
 CALL THERMODYNAMICS%DEALLOCATE

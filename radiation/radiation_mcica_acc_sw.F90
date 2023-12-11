@@ -168,7 +168,7 @@ contains
     !$ACC             cum_cloud_cover, pair_cloud_cover, cum_product, ibegin, iend) &
     !$ACC     PRESENT(config, single_level, cloud, od, ssa, g, od_cloud, &
     !$ACC             ssa_cloud, g_cloud, albedo_direct, albedo_diffuse, &
-    !$ACC             incoming_sw, flux)
+    !$ACC             incoming_sw, flux) ASYNC(1)
 
     ng = config%n_g_sw
 
@@ -567,7 +567,6 @@ contains
     end do ! Loop over levels
     !$ACC END PARALLEL
 
-    !$ACC WAIT
     !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_mcica_acc_sw:solver_mcica_acc_sw',1,hook_handle)

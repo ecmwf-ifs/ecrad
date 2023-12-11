@@ -220,7 +220,7 @@ contains
       allocate(this%iseed(istartcol:iendcol))
     end if
 
-    !$ACC PARALLEL DEFAULT(PRESENT) IF(llacc)
+    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(llacc)
     !$ACC LOOP GANG VECTOR
     do jcol = istartcol,iendcol
       this%iseed(jcol) = jcol
@@ -269,9 +269,7 @@ contains
 
     if (lhook) call dr_hook('radiation_single_level:get_albedos',0,hook_handle)
 
-    !$ACC DATA CREATE(sw_albedo_band, lw_albedo_band) &
-    !$ACC     PRESENT(this, config, sw_albedo_direct, sw_albedo_diffuse, &
-    !$ACC             lw_albedo)
+    !$ACC DATA CREATE(sw_albedo_band, lw_albedo_band) ASYNC(1)
 
     if (config%do_sw) then
       ! Albedos/emissivities are stored in single_level in their own
@@ -296,7 +294,7 @@ contains
           call radiation_abort()
         end if
 
-        !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+        !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP SEQ
         do jband = 1,config%n_bands_sw
         !$ACC LOOP GANG(STATIC:1) VECTOR
@@ -455,7 +453,7 @@ contains
         lw_albedo = 1.0_jprb - transpose(this%lw_emissivity(istartcol:iendcol, &
              &  config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw)))
 #else
-        !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+        !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jg = 1,config%n_g_lw
@@ -524,28 +522,28 @@ contains
 
     class(single_level_type), intent(inout) :: this
 
-    !$ACC ENTER DATA CREATE(this%cos_sza) &
+    !$ACC ENTER DATA CREATE(this%cos_sza) ASYNC(1) &
     !$ACC   IF(allocated(this%cos_sza))
 
-    !$ACC ENTER DATA CREATE(this%skin_temperature) &
+    !$ACC ENTER DATA CREATE(this%skin_temperature) ASYNC(1) &
     !$ACC   IF(allocated(this%skin_temperature))
 
-    !$ACC ENTER DATA CREATE(this%sw_albedo) &
+    !$ACC ENTER DATA CREATE(this%sw_albedo) ASYNC(1) &
     !$ACC   IF(allocated(this%sw_albedo))
 
-    !$ACC ENTER DATA CREATE(this%sw_albedo_direct) &
+    !$ACC ENTER DATA CREATE(this%sw_albedo_direct) ASYNC(1) &
     !$ACC   IF(allocated(this%sw_albedo_direct))
 
-    !$ACC ENTER DATA CREATE(this%lw_emissivity) &
+    !$ACC ENTER DATA CREATE(this%lw_emissivity) ASYNC(1) &
     !$ACC   IF(allocated(this%lw_emissivity))
 
-    !$ACC ENTER DATA CREATE(this%lw_emission) &
+    !$ACC ENTER DATA CREATE(this%lw_emission) ASYNC(1) &
     !$ACC   IF(allocated(this%lw_emission))
 
-    !$ACC ENTER DATA CREATE(this%spectral_solar_scaling) &
+    !$ACC ENTER DATA CREATE(this%spectral_solar_scaling) ASYNC(1) &
     !$ACC   IF(allocated(this%spectral_solar_scaling))
 
-    !$ACC ENTER DATA CREATE(this%iseed) &
+    !$ACC ENTER DATA CREATE(this%iseed) ASYNC(1) &
     !$ACC   IF(allocated(this%iseed))
 
   end subroutine create_device
@@ -556,28 +554,28 @@ contains
 
     class(single_level_type), intent(inout) :: this
 
-    !$ACC UPDATE HOST(this%cos_sza) &
+    !$ACC UPDATE HOST(this%cos_sza) ASYNC(1) &
     !$ACC   IF(allocated(this%cos_sza))
 
-    !$ACC UPDATE HOST(this%skin_temperature) &
+    !$ACC UPDATE HOST(this%skin_temperature) ASYNC(1) &
     !$ACC   IF(allocated(this%skin_temperature))
 
-    !$ACC UPDATE HOST(this%sw_albedo) &
+    !$ACC UPDATE HOST(this%sw_albedo) ASYNC(1) &
     !$ACC   IF(allocated(this%sw_albedo))
 
-    !$ACC UPDATE HOST(this%sw_albedo_direct) &
+    !$ACC UPDATE HOST(this%sw_albedo_direct) ASYNC(1) &
     !$ACC   IF(allocated(this%sw_albedo_direct))
 
-    !$ACC UPDATE HOST(this%lw_emissivity) &
+    !$ACC UPDATE HOST(this%lw_emissivity) ASYNC(1) &
     !$ACC   IF(allocated(this%lw_emissivity))
 
-    !$ACC UPDATE HOST(this%lw_emission) &
+    !$ACC UPDATE HOST(this%lw_emission) ASYNC(1) &
     !$ACC   IF(allocated(this%lw_emission))
 
-    !$ACC UPDATE HOST(this%spectral_solar_scaling) &
+    !$ACC UPDATE HOST(this%spectral_solar_scaling) ASYNC(1) &
     !$ACC   IF(allocated(this%spectral_solar_scaling))
 
-    !$ACC UPDATE HOST(this%iseed) &
+    !$ACC UPDATE HOST(this%iseed) ASYNC(1) &
     !$ACC   IF(allocated(this%iseed))
 
   end subroutine update_host
@@ -588,28 +586,28 @@ contains
 
     class(single_level_type), intent(inout) :: this
 
-    !$ACC UPDATE DEVICE(this%cos_sza) &
+    !$ACC UPDATE DEVICE(this%cos_sza) ASYNC(1) &
     !$ACC   IF(allocated(this%cos_sza))
 
-    !$ACC UPDATE DEVICE(this%skin_temperature) &
+    !$ACC UPDATE DEVICE(this%skin_temperature) ASYNC(1) &
     !$ACC   IF(allocated(this%skin_temperature))
 
-    !$ACC UPDATE DEVICE(this%sw_albedo) &
+    !$ACC UPDATE DEVICE(this%sw_albedo) ASYNC(1) &
     !$ACC   IF(allocated(this%sw_albedo))
 
-    !$ACC UPDATE DEVICE(this%sw_albedo_direct) &
+    !$ACC UPDATE DEVICE(this%sw_albedo_direct) ASYNC(1) &
     !$ACC   IF(allocated(this%sw_albedo_direct))
 
-    !$ACC UPDATE DEVICE(this%lw_emissivity) &
+    !$ACC UPDATE DEVICE(this%lw_emissivity) ASYNC(1) &
     !$ACC   IF(allocated(this%lw_emissivity))
 
-    !$ACC UPDATE DEVICE(this%lw_emission) &
+    !$ACC UPDATE DEVICE(this%lw_emission) ASYNC(1) &
     !$ACC   IF(allocated(this%lw_emission))
 
-    !$ACC UPDATE DEVICE(this%spectral_solar_scaling) &
+    !$ACC UPDATE DEVICE(this%spectral_solar_scaling) ASYNC(1) &
     !$ACC   IF( allocated(this%spectral_solar_scaling))
 
-    !$ACC UPDATE DEVICE(this%iseed) &
+    !$ACC UPDATE DEVICE(this%iseed) ASYNC(1) &
     !$ACC   IF(allocated(this%iseed))
 
   end subroutine update_device
@@ -620,28 +618,28 @@ contains
 
     class(single_level_type), intent(inout) :: this
 
-    !$ACC EXIT DATA DELETE(this%cos_sza) &
+    !$ACC EXIT DATA DELETE(this%cos_sza) ASYNC(1) &
     !$ACC   IF(allocated(this%cos_sza))
 
-    !$ACC EXIT DATA DELETE(this%skin_temperature) &
+    !$ACC EXIT DATA DELETE(this%skin_temperature) ASYNC(1) &
     !$ACC   IF(allocated(this%skin_temperature))
 
-    !$ACC EXIT DATA DELETE(this%sw_albedo) &
+    !$ACC EXIT DATA DELETE(this%sw_albedo) ASYNC(1) &
     !$ACC   IF(allocated(this%sw_albedo))
 
-    !$ACC EXIT DATA DELETE(this%sw_albedo_direct) &
+    !$ACC EXIT DATA DELETE(this%sw_albedo_direct) ASYNC(1) &
     !$ACC   IF(allocated(this%sw_albedo_direct))
 
-    !$ACC EXIT DATA DELETE(this%lw_emissivity) &
+    !$ACC EXIT DATA DELETE(this%lw_emissivity) ASYNC(1) &
     !$ACC   IF(allocated(this%lw_emissivity))
 
-    !$ACC EXIT DATA DELETE(this%lw_emission) &
+    !$ACC EXIT DATA DELETE(this%lw_emission) ASYNC(1) &
     !$ACC   IF(allocated(this%lw_emission))
 
-    !$ACC EXIT DATA DELETE(this%spectral_solar_scaling) &
+    !$ACC EXIT DATA DELETE(this%spectral_solar_scaling) ASYNC(1) &
     !$ACC   IF(allocated(this%spectral_solar_scaling))
 
-    !$ACC EXIT DATA DELETE(this%iseed) &
+    !$ACC EXIT DATA DELETE(this%iseed) ASYNC(1) &
     !$ACC   IF(allocated(this%iseed))
 
   end subroutine delete_device

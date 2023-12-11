@@ -2208,30 +2208,30 @@ contains
   subroutine create_device(this)
     class(config_type), intent(inout) :: this
 
-    !$ACC ENTER DATA COPYIN(this%g_frac_sw) IF(allocated(this%g_frac_sw))
-    !$ACC ENTER DATA COPYIN(this%g_frac_lw) IF(allocated(this%g_frac_lw))
-    !$ACC ENTER DATA COPYIN(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
-    !$ACC ENTER DATA COPYIN(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw))
-    !$ACC ENTER DATA COPYIN(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights))
-    !$ACC ENTER DATA COPYIN(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights))
-    !$ACC ENTER DATA COPYIN(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw))
-    !$ACC ENTER DATA COPYIN(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw))
-    !$ACC ENTER DATA COPYIN(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw))
-    !$ACC ENTER DATA COPYIN(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw))
-    !$ACC ENTER DATA COPYIN(this%i_spec_from_reordered_g_lw) IF(allocated(this%i_spec_from_reordered_g_lw))
-    !$ACC ENTER DATA COPYIN(this%i_spec_from_reordered_g_sw) IF(allocated(this%i_spec_from_reordered_g_sw))
+    !$ACC ENTER DATA COPYIN(this%g_frac_sw) IF(allocated(this%g_frac_sw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%g_frac_lw) IF(allocated(this%g_frac_lw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%i_spec_from_reordered_g_lw) IF(allocated(this%i_spec_from_reordered_g_lw)) ASYNC(1)
+    !$ACC ENTER DATA COPYIN(this%i_spec_from_reordered_g_sw) IF(allocated(this%i_spec_from_reordered_g_sw)) ASYNC(1)
 
     ! NB: ckd_model_type not yet implemented
 
-    !$ACC ENTER DATA COPYIN(this%cloud_optics)
+    !$ACC ENTER DATA COPYIN(this%cloud_optics) ASYNC(1)
     call this%cloud_optics%create_device()
 
     ! NB: general_cloud_optics_type not yet implemented
 
-    !$ACC ENTER DATA COPYIN(this%aerosol_optics)
+    !$ACC ENTER DATA COPYIN(this%aerosol_optics) ASYNC(1)
     call this%aerosol_optics%create_device()
 
-    !$ACC ENTER DATA COPYIN(this%pdf_sampler)
+    !$ACC ENTER DATA COPYIN(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%create_device()
 
   end subroutine create_device
@@ -2239,30 +2239,30 @@ contains
   subroutine update_host(this)
     class(config_type), intent(inout) :: this
 
-    !$ACC UPDATE HOST(this%g_frac_sw) IF(allocated(this%g_frac_sw))
-    !$ACC UPDATE HOST(this%g_frac_lw) IF(allocated(this%g_frac_lw))
-    !$ACC UPDATE HOST(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
-    !$ACC UPDATE HOST(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw))
-    !$ACC UPDATE HOST(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights))
-    !$ACC UPDATE HOST(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights))
-    !$ACC UPDATE HOST(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw))
-    !$ACC UPDATE HOST(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw))
-    !$ACC UPDATE HOST(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw))
-    !$ACC UPDATE HOST(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw))
-    !$ACC UPDATE HOST(this%i_spec_from_reordered_g_lw) IF(allocated(this%i_spec_from_reordered_g_lw))
-    !$ACC UPDATE HOST(this%i_spec_from_reordered_g_sw) IF(allocated(this%i_spec_from_reordered_g_sw))
+    !$ACC UPDATE HOST(this%g_frac_sw) IF(allocated(this%g_frac_sw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%g_frac_lw) IF(allocated(this%g_frac_lw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights)) ASYNC(1)
+    !$ACC UPDATE HOST(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%i_spec_from_reordered_g_lw) IF(allocated(this%i_spec_from_reordered_g_lw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%i_spec_from_reordered_g_sw) IF(allocated(this%i_spec_from_reordered_g_sw)) ASYNC(1)
 
     ! NB: ckd_model_type not yet implemented
 
-    !$ACC UPDATE HOST(this%cloud_optics)
+    !$ACC UPDATE HOST(this%cloud_optics) ASYNC(1)
     call this%cloud_optics%update_host()
 
     ! NB: general_cloud_optics_type not yet implemented
 
-    !$ACC UPDATE HOST(this%aerosol_optics)
+    !$ACC UPDATE HOST(this%aerosol_optics) ASYNC(1)
     call this%aerosol_optics%update_host()
 
-    !$ACC UPDATE HOST(this%pdf_sampler)
+    !$ACC UPDATE HOST(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%update_host()
 
   end subroutine update_host
@@ -2270,18 +2270,18 @@ contains
   subroutine update_device(this)
     class(config_type), intent(inout) :: this
 
-    !$ACC UPDATE DEVICE(this%g_frac_sw) IF(allocated(this%g_frac_sw))
-    !$ACC UPDATE DEVICE(this%g_frac_lw) IF(allocated(this%g_frac_lw))
-    !$ACC UPDATE DEVICE(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
-    !$ACC UPDATE DEVICE(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw))
-    !$ACC UPDATE DEVICE(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights))
-    !$ACC UPDATE DEVICE(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights))
-    !$ACC UPDATE DEVICE(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw))
-    !$ACC UPDATE DEVICE(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw))
-    !$ACC UPDATE DEVICE(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw))
-    !$ACC UPDATE DEVICE(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw))
-    !$ACC UPDATE DEVICE(this%i_spec_from_reordered_g_lw) IF(allocated(this%i_spec_from_reordered_g_lw))
-    !$ACC UPDATE DEVICE(this%i_spec_from_reordered_g_sw) IF(allocated(this%i_spec_from_reordered_g_sw))
+    !$ACC UPDATE DEVICE(this%g_frac_sw) IF(allocated(this%g_frac_sw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%g_frac_lw) IF(allocated(this%g_frac_lw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%i_spec_from_reordered_g_lw) IF(allocated(this%i_spec_from_reordered_g_lw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%i_spec_from_reordered_g_sw) IF(allocated(this%i_spec_from_reordered_g_sw)) ASYNC(1)
 
     ! NB: ckd_model_type not yet implemented
 
@@ -2301,30 +2301,30 @@ contains
   subroutine delete_device(this)
     class(config_type), intent(inout) :: this
 
-    !$ACC EXIT DATA DELETE(this%g_frac_sw) IF(allocated(this%g_frac_sw))
-    !$ACC EXIT DATA DELETE(this%g_frac_lw) IF(allocated(this%g_frac_lw))
-    !$ACC EXIT DATA DELETE(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
-    !$ACC EXIT DATA DELETE(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw))
-    !$ACC EXIT DATA DELETE(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights))
-    !$ACC EXIT DATA DELETE(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights))
-    !$ACC EXIT DATA DELETE(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw))
-    !$ACC EXIT DATA DELETE(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw))
-    !$ACC EXIT DATA DELETE(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw))
-    !$ACC EXIT DATA DELETE(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw))
-    !$ACC EXIT DATA DELETE(this%i_spec_from_reordered_g_lw) IF(allocated(this%i_spec_from_reordered_g_lw))
-    !$ACC EXIT DATA DELETE(this%i_spec_from_reordered_g_sw) IF(allocated(this%i_spec_from_reordered_g_sw))
+    !$ACC EXIT DATA DELETE(this%g_frac_sw) IF(allocated(this%g_frac_sw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%g_frac_lw) IF(allocated(this%g_frac_lw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%i_spec_from_reordered_g_lw) IF(allocated(this%i_spec_from_reordered_g_lw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%i_spec_from_reordered_g_sw) IF(allocated(this%i_spec_from_reordered_g_sw)) ASYNC(1)
 
     ! NB: ckd_model_type not yet implemented
 
-    !$ACC EXIT DATA DELETE(this%cloud_optics)
+    !$ACC EXIT DATA DELETE(this%cloud_optics) ASYNC(1)
     call this%cloud_optics%delete_device()
 
     ! NB: general_cloud_optics_type not yet implemented
 
-    !$ACC EXIT DATA DELETE(this%aerosol_optics)
+    !$ACC EXIT DATA DELETE(this%aerosol_optics) ASYNC(1)
     call this%aerosol_optics%delete_device()
 
-    !$ACC EXIT DATA DELETE(this%pdf_sampler)
+    !$ACC EXIT DATA DELETE(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%delete_device()
 
   end subroutine delete_device

@@ -179,7 +179,7 @@ contains
     !$ACC             sample_val, frac, frac_std, overlap_param, cum_cloud_cover, &
     !$ACC             pair_cloud_cover, cum_product, ibegin, iend) &
     !$ACC     PRESENT(config, single_level, cloud, od, ssa, g, od_cloud, ssa_cloud, &
-    !$ACC             g_cloud, planck_hl, emission, albedo, flux)
+    !$ACC             g_cloud, planck_hl, emission, albedo, flux) ASYNC(1)
 
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
@@ -562,7 +562,6 @@ contains
     end do
     !$ACC END PARALLEL
 
-    !$ACC WAIT
     !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_mcica_acc_lw:solver_mcica_acc_lw',1,hook_handle)

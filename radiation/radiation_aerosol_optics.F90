@@ -592,7 +592,8 @@ contains
       !$ACC   PRESENT(thermodynamics, thermodynamics%h2o_sat_liq, thermodynamics%pressure_hl, &
       !$ACC           aerosol, aerosol%mixing_ratio, ssa_sw, ssa_lw, od_sw, od_lw, g_sw, g_lw, gas, &
       !$ACC           config, config%aerosol_optics, config%aerosol_optics%iclass, config%aerosol_optics%itype, &
-      !$ACC           config%aerosol_optics%mass_ext_sw_phobic, config%aerosol_optics%mass_ext_lw_phobic)
+      !$ACC           config%aerosol_optics%mass_ext_sw_phobic, config%aerosol_optics%mass_ext_lw_phobic) &
+      !$ACC   ASYNC(1)
 
 
       istartlev = lbound(aerosol%mixing_ratio,2)
@@ -606,7 +607,7 @@ contains
       end if
 
       ! Set variables to zero that may not have been previously
-      !$ACC PARALLEL DEFAULT(NONE)
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jcol = istartcol,iendcol
         do jlev = 1,nlev

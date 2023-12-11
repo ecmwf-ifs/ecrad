@@ -277,13 +277,8 @@ contains
 
     associate(ho => config%cloud_optics)
 
-      !$ACC DATA PRESENT (config, thermodynamics, thermodynamics%pressure_hl, &
-      !$ACC              cloud, cloud%fraction, cloud%q_liq, cloud%q_ice, &
-      !$ACC              cloud%re_liq, cloud%re_ice) &
-      !$ACC      PRESENT(od_lw_cloud, g_lw_cloud, ssa_lw_cloud, od_sw_cloud, g_sw_cloud, ssa_sw_cloud)
-
       ! Array-wise assignment
-      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+      !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
       !$ACC LOOP GANG COLLAPSE(2)
       do jcol=istartcol, iendcol
         do jlev=1, nlev
@@ -306,12 +301,12 @@ contains
       end do
       !$ACC END PARALLEL
 
-      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-      !$ACC LOOP GANG VECTOR COLLAPSE(2) &
-      !$ACC   PRIVATE(od_lw_liq, scat_od_lw_liq, g_lw_liq, od_lw_ice, scat_od_lw_ice, g_lw_ice) &
-      !$ACC   PRIVATE(od_sw_liq, scat_od_sw_liq, g_sw_liq, od_sw_ice, scat_od_sw_ice, g_sw_ice) &
-      !$ACC   PRIVATE(lwp_in_cloud, iwp_in_cloud, factor, temperature)
+      !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
+      !$ACC LOOP SEQ
       do jlev = 1,nlev
+        !$ACC LOOP GANG VECTOR &
+        !$ACC PRIVATE(od_lw_liq, scat_od_lw_liq, g_lw_liq, od_lw_ice, scat_od_lw_ice, g_lw_ice)  &
+        !$ACC PRIVATE(od_sw_liq, scat_od_sw_liq, g_sw_liq, od_sw_ice, scat_od_sw_ice, g_sw_ice)
         do jcol = istartcol,iendcol
           ! Only do anything if cloud is present (assume that
           ! cloud%crop_cloud_fraction has already been called)
@@ -528,9 +523,7 @@ contains
         end do ! Loop over column
       end do ! Loop over level
 
-      !$ACC END PARALLEL
-      !$ACC WAIT
-      !$ACC END DATA ! PRESENT
+     !$ACC END PARALLEL
 
     end associate
 

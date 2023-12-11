@@ -445,7 +445,7 @@ contains
         sf = sf * this%scale_factor(igas)
 
         if (sf /= 1.0_jprb) then
-          !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(llacc)
+          !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jlev = 1,this%nlev
             do jcol = 1,this%ncol
@@ -722,7 +722,7 @@ contains
     class(gas_type), intent(inout) :: this
 
     !$ACC ENTER DATA CREATE(this%mixing_ratio) &
-    !$ACC   IF(allocated(this%mixing_ratio))
+    !$ACC   IF(allocated(this%mixing_ratio)) ASYNC(1)
 
   end subroutine create_device
 
@@ -733,7 +733,7 @@ contains
     class(gas_type), intent(inout) :: this
 
     !$ACC UPDATE HOST(this%mixing_ratio) &
-    !$ACC   IF(allocated(this%mixing_ratio))
+    !$ACC   IF(allocated(this%mixing_ratio)) ASYNC(1)
 
   end subroutine update_host
 
@@ -744,7 +744,7 @@ contains
     class(gas_type), intent(inout) :: this
 
     !$ACC UPDATE DEVICE(this%mixing_ratio) &
-    !$ACC   IF(allocated(this%mixing_ratio))
+    !$ACC   IF(allocated(this%mixing_ratio)) ASYNC(1)
 
   end subroutine update_device
 
@@ -755,7 +755,7 @@ contains
     class(gas_type), intent(inout) :: this
 
     !$ACC EXIT DATA DELETE(this%mixing_ratio) &
-    !$ACC   IF(allocated(this%mixing_ratio))
+    !$ACC   IF(allocated(this%mixing_ratio)) ASYNC(1)
 
   end subroutine delete_device
 #endif

@@ -529,8 +529,6 @@ contains
     endif
 #endif
 
-    !$ACC DATA PRESENT(config, this)
-
     if (config%do_sw .and. config%do_surface_sw_spectral_flux) then
 
       if (use_indexed_sum_vec) then
@@ -546,7 +544,7 @@ contains
                &  + this%sw_dn_direct_surf_band(:,jcol)
         end do
       else
-        !$ACC PARALLEL DEFAULT(NONE) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
+        !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
         !$ACC   VECTOR_LENGTH(32*((config%n_g_sw-1)/32+1)) ASYNC(1)
         !$ACC LOOP GANG
         do jcol = istartcol,iendcol
@@ -577,7 +575,7 @@ contains
                  &  + this%sw_dn_direct_surf_clear_band(:,jcol)
           end do
         else
-          !$ACC PARALLEL DEFAULT(NONE) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
+          !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC   VECTOR_LENGTH(32*(config%n_g_sw-1)/32+1) ASYNC(1)
           !$ACC LOOP GANG
           do jcol = istartcol,iendcol
@@ -600,7 +598,7 @@ contains
     ! Fluxes in bands required for canopy radiative transfer
     if (config%do_sw .and. config%do_canopy_fluxes_sw) then
       if (config%use_canopy_full_spectrum_sw) then
-        !$ACC PARALLEL DEFAULT(NONE)
+        !$ACC PARALLEL DEFAULT(PRESENT)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jg = 1,config%n_g_sw
@@ -618,7 +616,7 @@ contains
                &               config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
                &               this%sw_dn_diffuse_surf_canopy, istartcol, iendcol)
         else
-          !$ACC PARALLEL DEFAULT(NONE) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
+          !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC   VECTOR_LENGTH(32*(config%n_g_sw-1)/32+1) ASYNC(1)
           !$ACC LOOP GANG
           do jcol = istartcol,iendcol
@@ -636,7 +634,7 @@ contains
         ! this%sw_dn_[direct_]surf_band to be defined, i.e.
         ! config%do_surface_sw_spectral_flux == .true.
         nalbedoband = size(config%sw_albedo_weights,1)
-        !$ACC PARALLEL DEFAULT(NONE) &
+        !$ACC PARALLEL DEFAULT(PRESENT) &
         !$ACC     PRESENT(this%sw_dn_diffuse_surf_canopy, this%sw_dn_direct_surf_canopy, &
         !$ACC             config%sw_albedo_weights)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
@@ -680,9 +678,9 @@ contains
     end if ! do_canopy_fluxes_sw
 
     if (config%do_lw .and. config%do_canopy_fluxes_lw) then
-      !$ACC DATA CREATE(lw_dn_surf_band)
+      !$ACC DATA CREATE(lw_dn_surf_band) ASYNC(1)
       if (config%use_canopy_full_spectrum_lw) then
-        !$ACC PARALLEL DEFAULT(NONE)
+        !$ACC PARALLEL DEFAULT(PRESENT)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jg = 1,config%n_g_lw
@@ -697,7 +695,7 @@ contains
                &               this%lw_dn_surf_canopy, istartcol, iendcol)
         else
 #ifdef _OPENACC
-          !$ACC PARALLEL DEFAULT(NONE) &
+          !$ACC PARALLEL DEFAULT(PRESENT) &
           !$ACC    NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC    VECTOR_LENGTH(32*(config%n_g_lw-1)/32+1) ASYNC(1)
           !$ACC LOOP GANG
@@ -730,7 +728,7 @@ contains
                &               config%i_band_from_reordered_g_lw, &
                &               lw_dn_surf_band, istartcol, iendcol)
         else
-          !$ACC PARALLEL DEFAULT(NONE) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
+          !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC   VECTOR_LENGTH(32*(config%n_g_lw-1)/32+1) ASYNC(1)
           !$ACC LOOP GANG
           do jcol = istartcol,iendcol
@@ -741,7 +739,7 @@ contains
           !$ACC END PARALLEL
         end if
         nalbedoband = size(config%lw_emiss_weights,1)
-        !$ACC PARALLEL DEFAULT(NONE) PRESENT(this%lw_dn_surf_canopy, config%lw_emiss_weights)
+        !$ACC PARALLEL DEFAULT(PRESENT) PRESENT(this%lw_dn_surf_canopy, config%lw_emiss_weights)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jalbedoband = 1,nalbedoband
@@ -766,8 +764,6 @@ contains
       end if
       !$ACC END DATA
     end if
-
-    !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',1,hook_handle)
 
@@ -1078,52 +1074,52 @@ contains
 
     class(flux_type), intent(inout) :: this
 
-    !$ACC ENTER DATA CREATE(this%lw_up) IF(allocated(this%lw_up))
-    !$ACC ENTER DATA CREATE(this%lw_dn) IF(allocated(this%lw_dn))
-    !$ACC ENTER DATA CREATE(this%lw_up_clear) IF(allocated(this%lw_up_clear))
-    !$ACC ENTER DATA CREATE(this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
-    !$ACC ENTER DATA CREATE(this%sw_up) IF(allocated(this%sw_up))
-    !$ACC ENTER DATA CREATE(this%sw_dn) IF(allocated(this%sw_dn))
-    !$ACC ENTER DATA CREATE(this%sw_up_clear) IF(allocated(this%sw_up_clear))
-    !$ACC ENTER DATA CREATE(this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
-    !$ACC ENTER DATA CREATE(this%lw_up_band) IF(allocated(this%lw_up_band))
-    !$ACC ENTER DATA CREATE(this%lw_dn_band) IF(allocated(this%lw_dn_band))
-    !$ACC ENTER DATA CREATE(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
-    !$ACC ENTER DATA CREATE(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
-    !$ACC ENTER DATA CREATE(this%sw_up_band) IF(allocated(this%sw_up_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_band) IF(allocated(this%sw_dn_band))
-    !$ACC ENTER DATA CREATE(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
-    !$ACC ENTER DATA CREATE(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
-    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
-    !$ACC ENTER DATA CREATE(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
-    !$ACC ENTER DATA CREATE(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
-    !$ACC ENTER DATA CREATE(this%lw_derivatives) IF(allocated(this%lw_derivatives))
-    !$ACC ENTER DATA CREATE(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
-    !$ACC ENTER DATA CREATE(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
-    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
-    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
-    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
-    !$ACC ENTER DATA CREATE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
-    !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
-    !$ACC ENTER DATA CREATE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
-    !$ACC ENTER DATA CREATE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
-    !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
-    !$ACC ENTER DATA CREATE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
-    !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
-    !$ACC ENTER DATA CREATE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
-    !$ACC ENTER DATA CREATE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
-    !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
+    !$ACC ENTER DATA CREATE(this%lw_up) IF(allocated(this%lw_up)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_dn) IF(allocated(this%lw_dn)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_up_clear) IF(allocated(this%lw_up_clear)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_dn_clear) IF(allocated(this%lw_dn_clear)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_up) IF(allocated(this%sw_up)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn) IF(allocated(this%sw_dn)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_up_clear) IF(allocated(this%sw_up_clear)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_clear) IF(allocated(this%sw_dn_clear)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct) IF(allocated(this%sw_dn_direct)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_up_band) IF(allocated(this%lw_up_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_dn_band) IF(allocated(this%lw_dn_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_up_band) IF(allocated(this%sw_up_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_band) IF(allocated(this%sw_dn_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_derivatives) IF(allocated(this%lw_derivatives)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 
 
   end subroutine create_device
@@ -1133,52 +1129,52 @@ contains
 
     class(flux_type), intent(inout) :: this
 
-    !$ACC UPDATE HOST(this%lw_up) IF(allocated(this%lw_up))
-    !$ACC UPDATE HOST(this%lw_dn) IF(allocated(this%lw_dn))
-    !$ACC UPDATE HOST(this%lw_up_clear) IF(allocated(this%lw_up_clear))
-    !$ACC UPDATE HOST(this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
-    !$ACC UPDATE HOST(this%sw_up) IF(allocated(this%sw_up))
-    !$ACC UPDATE HOST(this%sw_dn) IF(allocated(this%sw_dn))
-    !$ACC UPDATE HOST(this%sw_up_clear) IF(allocated(this%sw_up_clear))
-    !$ACC UPDATE HOST(this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
-    !$ACC UPDATE HOST(this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
-    !$ACC UPDATE HOST(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
-    !$ACC UPDATE HOST(this%lw_up_band) IF(allocated(this%lw_up_band))
-    !$ACC UPDATE HOST(this%lw_dn_band) IF(allocated(this%lw_dn_band))
-    !$ACC UPDATE HOST(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
-    !$ACC UPDATE HOST(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
-    !$ACC UPDATE HOST(this%sw_up_band) IF(allocated(this%sw_up_band))
-    !$ACC UPDATE HOST(this%sw_dn_band) IF(allocated(this%sw_dn_band))
-    !$ACC UPDATE HOST(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
-    !$ACC UPDATE HOST(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
-    !$ACC UPDATE HOST(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
-    !$ACC UPDATE HOST(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
-    !$ACC UPDATE HOST(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
-    !$ACC UPDATE HOST(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
-    !$ACC UPDATE HOST(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
-    !$ACC UPDATE HOST(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
-    !$ACC UPDATE HOST(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
-    !$ACC UPDATE HOST(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
-    !$ACC UPDATE HOST(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
-    !$ACC UPDATE HOST(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
-    !$ACC UPDATE HOST(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
-    !$ACC UPDATE HOST(this%lw_derivatives) IF(allocated(this%lw_derivatives))
-    !$ACC UPDATE HOST(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
-    !$ACC UPDATE HOST(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
-    !$ACC UPDATE HOST(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
-    !$ACC UPDATE HOST(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
-    !$ACC UPDATE HOST(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
-    !$ACC UPDATE HOST(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
-    !$ACC UPDATE HOST(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
-    !$ACC UPDATE HOST(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
-    !$ACC UPDATE HOST(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
-    !$ACC UPDATE HOST(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
-    !$ACC UPDATE HOST(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
-    !$ACC UPDATE HOST(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
-    !$ACC UPDATE HOST(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
-    !$ACC UPDATE HOST(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
-    !$ACC UPDATE HOST(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
-    !$ACC UPDATE HOST(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
+    !$ACC UPDATE HOST(this%lw_up) IF(allocated(this%lw_up)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_dn) IF(allocated(this%lw_dn)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_up_clear) IF(allocated(this%lw_up_clear)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_dn_clear) IF(allocated(this%lw_dn_clear)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_up) IF(allocated(this%sw_up)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn) IF(allocated(this%sw_dn)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_up_clear) IF(allocated(this%sw_up_clear)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_clear) IF(allocated(this%sw_dn_clear)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct) IF(allocated(this%sw_dn_direct)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_up_band) IF(allocated(this%lw_up_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_dn_band) IF(allocated(this%lw_dn_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_up_band) IF(allocated(this%sw_up_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_band) IF(allocated(this%sw_dn_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy)) ASYNC(1)
+    !$ACC UPDATE HOST(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_derivatives) IF(allocated(this%lw_derivatives)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 
   end subroutine update_host
 
@@ -1188,52 +1184,52 @@ contains
 
     class(flux_type), intent(inout) :: this
 
-    !$ACC UPDATE DEVICE(this%lw_up) IF(allocated(this%lw_up))
-    !$ACC UPDATE DEVICE(this%lw_dn) IF(allocated(this%lw_dn))
-    !$ACC UPDATE DEVICE(this%lw_up_clear) IF(allocated(this%lw_up_clear))
-    !$ACC UPDATE DEVICE(this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
-    !$ACC UPDATE DEVICE(this%sw_up) IF(allocated(this%sw_up))
-    !$ACC UPDATE DEVICE(this%sw_dn) IF(allocated(this%sw_dn))
-    !$ACC UPDATE DEVICE(this%sw_up_clear) IF(allocated(this%sw_up_clear))
-    !$ACC UPDATE DEVICE(this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
-    !$ACC UPDATE DEVICE(this%lw_up_band) IF(allocated(this%lw_up_band))
-    !$ACC UPDATE DEVICE(this%lw_dn_band) IF(allocated(this%lw_dn_band))
-    !$ACC UPDATE DEVICE(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
-    !$ACC UPDATE DEVICE(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
-    !$ACC UPDATE DEVICE(this%sw_up_band) IF(allocated(this%sw_up_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_band) IF(allocated(this%sw_dn_band))
-    !$ACC UPDATE DEVICE(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
-    !$ACC UPDATE DEVICE(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
-    !$ACC UPDATE DEVICE(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
-    !$ACC UPDATE DEVICE(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
-    !$ACC UPDATE DEVICE(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
-    !$ACC UPDATE DEVICE(this%lw_derivatives) IF(allocated(this%lw_derivatives))
-    !$ACC UPDATE DEVICE(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
-    !$ACC UPDATE DEVICE(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
-    !$ACC UPDATE DEVICE(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
-    !$ACC UPDATE DEVICE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
-    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
-    !$ACC UPDATE DEVICE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
-    !$ACC UPDATE DEVICE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
-    !$ACC UPDATE DEVICE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
-    !$ACC UPDATE DEVICE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
-    !$ACC UPDATE DEVICE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
-    !$ACC UPDATE DEVICE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
-    !$ACC UPDATE DEVICE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
-    !$ACC UPDATE DEVICE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
-    !$ACC UPDATE DEVICE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
-    !$ACC UPDATE DEVICE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
+    !$ACC UPDATE DEVICE(this%lw_up) IF(allocated(this%lw_up)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_dn) IF(allocated(this%lw_dn)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_up_clear) IF(allocated(this%lw_up_clear)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_dn_clear) IF(allocated(this%lw_dn_clear)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_up) IF(allocated(this%sw_up)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn) IF(allocated(this%sw_dn)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_up_clear) IF(allocated(this%sw_up_clear)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_clear) IF(allocated(this%sw_dn_clear)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct) IF(allocated(this%sw_dn_direct)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_up_band) IF(allocated(this%lw_up_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_dn_band) IF(allocated(this%lw_dn_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_up_band) IF(allocated(this%sw_up_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_band) IF(allocated(this%sw_dn_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_derivatives) IF(allocated(this%lw_derivatives)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 
   end subroutine update_device
 
@@ -1243,52 +1239,52 @@ contains
 
     class(flux_type), intent(inout) :: this
 
-    !$ACC EXIT DATA DELETE(this%lw_up) IF(allocated(this%lw_up))
-    !$ACC EXIT DATA DELETE(this%lw_dn) IF(allocated(this%lw_dn))
-    !$ACC EXIT DATA DELETE(this%lw_up_clear) IF(allocated(this%lw_up_clear))
-    !$ACC EXIT DATA DELETE(this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
-    !$ACC EXIT DATA DELETE(this%sw_up) IF(allocated(this%sw_up))
-    !$ACC EXIT DATA DELETE(this%sw_dn) IF(allocated(this%sw_dn))
-    !$ACC EXIT DATA DELETE(this%sw_up_clear) IF(allocated(this%sw_up_clear))
-    !$ACC EXIT DATA DELETE(this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
-    !$ACC EXIT DATA DELETE(this%lw_up_band) IF(allocated(this%lw_up_band))
-    !$ACC EXIT DATA DELETE(this%lw_dn_band) IF(allocated(this%lw_dn_band))
-    !$ACC EXIT DATA DELETE(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
-    !$ACC EXIT DATA DELETE(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
-    !$ACC EXIT DATA DELETE(this%sw_up_band) IF(allocated(this%sw_up_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_band) IF(allocated(this%sw_dn_band))
-    !$ACC EXIT DATA DELETE(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
-    !$ACC EXIT DATA DELETE(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
-    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
-    !$ACC EXIT DATA DELETE(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
-    !$ACC EXIT DATA DELETE(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
-    !$ACC EXIT DATA DELETE(this%lw_derivatives) IF(allocated(this%lw_derivatives))
-    !$ACC EXIT DATA DELETE(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
-    !$ACC EXIT DATA DELETE(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
-    !$ACC EXIT DATA DELETE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
-    !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
-    !$ACC EXIT DATA DELETE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
-    !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
-    !$ACC EXIT DATA DELETE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
-    !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
-    !$ACC EXIT DATA DELETE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
-    !$ACC EXIT DATA DELETE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
-    !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
+    !$ACC EXIT DATA DELETE(this%lw_up) IF(allocated(this%lw_up)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_dn) IF(allocated(this%lw_dn)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_up_clear) IF(allocated(this%lw_up_clear)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_dn_clear) IF(allocated(this%lw_dn_clear)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_up) IF(allocated(this%sw_up)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn) IF(allocated(this%sw_dn)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_up_clear) IF(allocated(this%sw_up_clear)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_clear) IF(allocated(this%sw_dn_clear)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct) IF(allocated(this%sw_dn_direct)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_up_band) IF(allocated(this%lw_up_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_dn_band) IF(allocated(this%lw_dn_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_up_band) IF(allocated(this%sw_up_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_band) IF(allocated(this%sw_dn_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_derivatives) IF(allocated(this%lw_derivatives)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 
   end subroutine delete_device
 #endif

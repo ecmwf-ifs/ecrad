@@ -229,7 +229,7 @@ contains
     nlev  = ubound(this%pressure_hl,2) - 1
     inv_g = 1.0_jprb / AccelDueToGravity
 
-    !$ACC PARALLEL DEFAULT(PRESENT)
+    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(inv_g)
     DO jl=istartcol, iendcol
       DO jk=1, nlev
@@ -391,19 +391,19 @@ contains
 
     class(thermodynamics_type), intent(inout) :: this
 
-    !$ACC ENTER DATA CREATE(this%pressure_hl) &
+    !$ACC ENTER DATA CREATE(this%pressure_hl) ASYNC(1) &
     !$ACC   IF(allocated(this%pressure_hl))
 
-    !$ACC ENTER DATA CREATE(this%temperature_hl) &
+    !$ACC ENTER DATA CREATE(this%temperature_hl) ASYNC(1) &
     !$ACC   IF(allocated(this%temperature_hl))
 
-    !$ACC ENTER DATA CREATE(this%pressure_fl) &
+    !$ACC ENTER DATA CREATE(this%pressure_fl) ASYNC(1) &
     !$ACC   IF(allocated(this%pressure_fl))
 
-    !$ACC ENTER DATA CREATE(this%temperature_fl) &
+    !$ACC ENTER DATA CREATE(this%temperature_fl) ASYNC(1) &
     !$ACC   IF(allocated(this%temperature_fl))
 
-    !$ACC ENTER DATA CREATE(this%h2o_sat_liq) &
+    !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1) &
     !$ACC   IF(allocated(this%h2o_sat_liq))
 
   end subroutine create_device
@@ -417,16 +417,16 @@ contains
     !$ACC UPDATE HOST(this%pressure_hl) &
     !$ACC   IF(allocated(this%pressure_hl))
 
-    !$ACC UPDATE HOST(this%temperature_hl) &
+    !$ACC UPDATE HOST(this%temperature_hl) ASYNC(1) &
     !$ACC   IF(allocated(this%temperature_hl))
 
-    !$ACC UPDATE HOST(this%pressure_fl) &
+    !$ACC UPDATE HOST(this%pressure_fl) ASYNC(1) &
     !$ACC   IF(allocated(this%pressure_fl))
 
-    !$ACC UPDATE HOST(this%temperature_fl) &
+    !$ACC UPDATE HOST(this%temperature_fl) ASYNC(1) &
     !$ACC   IF(allocated(this%temperature_fl))
 
-    !$ACC UPDATE HOST(this%h2o_sat_liq) &
+    !$ACC UPDATE HOST(this%h2o_sat_liq) ASYNC(1) &
     !$ACC   IF(allocated(this%h2o_sat_liq))
 
   end subroutine update_host
@@ -437,19 +437,19 @@ contains
 
     class(thermodynamics_type), intent(inout) :: this
 
-    !$ACC UPDATE DEVICE(this%pressure_hl) &
+    !$ACC UPDATE DEVICE(this%pressure_hl) ASYNC(1) &
     !$ACC   IF(allocated(this%pressure_hl))
 
-    !$ACC UPDATE DEVICE(this%temperature_hl) &
+    !$ACC UPDATE DEVICE(this%temperature_hl) ASYNC(1) &
     !$ACC   IF(allocated(this%temperature_hl))
 
-    !$ACC UPDATE DEVICE(this%pressure_fl) &
+    !$ACC UPDATE DEVICE(this%pressure_fl) ASYNC(1) &
     !$ACC   IF(allocated(this%pressure_fl))
 
-    !$ACC UPDATE DEVICE(this%temperature_fl) &
+    !$ACC UPDATE DEVICE(this%temperature_fl) ASYNC(1) &
     !$ACC   IF(allocated(this%temperature_fl))
 
-    !$ACC UPDATE DEVICE(this%h2o_sat_liq) &
+    !$ACC UPDATE DEVICE(this%h2o_sat_liq) ASYNC(1) &
     !$ACC   IF(allocated(this%h2o_sat_liq))
 
   end subroutine update_device
@@ -460,19 +460,19 @@ contains
 
     class(thermodynamics_type), intent(inout) :: this
 
-    !$ACC EXIT DATA DELETE(this%pressure_hl) &
+    !$ACC EXIT DATA DELETE(this%pressure_hl) ASYNC(1) &
     !$ACC   IF(allocated(this%pressure_hl))
 
-    !$ACC EXIT DATA DELETE(this%temperature_hl) &
+    !$ACC EXIT DATA DELETE(this%temperature_hl) ASYNC(1) &
     !$ACC   IF(allocated(this%temperature_hl))
 
-    !$ACC EXIT DATA DELETE(this%pressure_fl) &
+    !$ACC EXIT DATA DELETE(this%pressure_fl) ASYNC(1) &
     !$ACC   IF(allocated(this%pressure_fl))
 
-    !$ACC EXIT DATA DELETE(this%temperature_fl) &
+    !$ACC EXIT DATA DELETE(this%temperature_fl) ASYNC(1) &
     !$ACC   IF(allocated(this%temperature_fl))
 
-    !$ACC EXIT DATA DELETE(this%h2o_sat_liq) &
+    !$ACC EXIT DATA DELETE(this%h2o_sat_liq) ASYNC(1) &
     !$ACC   IF(allocated(this%h2o_sat_liq))
 
   end subroutine delete_device
