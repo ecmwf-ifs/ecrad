@@ -38,7 +38,76 @@ $(LIBRAD): $(OBJECTS)
 %.o: %.F90
 	$(FC) $(FCFLAGS) -c $<
 
+ifdef GPU
+# Name of the inline library (a directory):
+inlib_name:= ecrad.il
+
+
+# Additional compiler flags enabling the inline library usage:
+
+# List of source files and functions that should be inlined
+inlib_SOURCES:=
+inlib_FUNCTIONS:=
+
+inlib_SOURCES+=radiation_random_numbers.F90
+inlib_FUNCTIONS+=initialize_acc uniform_distribution_acc
+
+inlib_SOURCES+=radiation_lw_derivatives.F90
+inlib_FUNCTIONS+=calc_lw_derivatives_ica2 modify_lw_derivatives_ica
+
+inlib_SOURCES+=radiation_adding_ica_lw.F90
+inlib_FUNCTIONS+=adding_ica_lw fast_adding_ica_lw calc_fluxes_no_scattering_lw
+
+inlib_SOURCES+=radiation_adding_ica_sw.F90
+inlib_FUNCTIONS+=adding_ica_sw
+
+inlib_SOURCES+=radiation_cloud_generator_acc.F90
+inlib_FUNCTIONS+=cloud_generator_acc
+
+inlib_SOURCES+=radiation_two_stream.F90
+inlib_FUNCTIONS+=calc_ref_trans_sw calc_ref_trans_lw calc_reflectance_transmittance_sw calc_no_scattering_transmittance_lw calc_two_stream_gammas_sw
+
+, := ,
+inlib_FUNCTIONS:=$(subst $(eval) ,$(,),$(foreach f,$(inlib_FUNCTIONS),name:$(f)))
+inlib_extract_FCFLAGS:= -Mextract=lib:$(inlib_name),reshape,$(inlib_FUNCTIONS)
+inlib_inline_FCFLAGS:= -Minline=lib:$(inlib_name),reshape,$(inlib_FUNCTIONS) -Mneginfo=inline
+
+########################################
+
+# Object files that correspond to the source files in $(inlib_SOURCES):
+inlib_OBJS:= $(inlib_SOURCES:.F90=.o)
+
+# List of objects that are generated using the inline library, but not part of the inline library
+ifneq ($(strip $(inlib_OBJS)),)
+consumer_objs:= $(shell grep $(foreach obj,$(inlib_OBJS),-e ":.*\s$(obj)\b") Makefile_deps | cut -d ':' -f 1 | sort | uniq)
+consumer_objs:= $(filter-out $(inlib_OBJS),$(consumer_objs))
+
+# Pattern- and target-specific assignments are propagated to the prerequisites
+# and override the global assignments. Therefore, we introduce the following
+# match-anything pattern assignments to prevent that (the eval/value combination
+# is required to keep the original global values of the variables without
+# changing their flavors, i.e. keep them recursively expanded):
+${eval %: FCFLAGS= $(value FCFLAGS)}
+
+# Target-specific variables for objects that use the inline library:
+$(consumer_objs): FCFLAGS+= $(inlib_inline_FCFLAGS)
+
+# All object that can be built with the inline library depend on it:
+$(consumer_objs): $(inlib_name)
+
+radiation_mcica_acc_lw.o: FCFLAGS += -gpu=maxregcount:96
+radiation_mcica_acc_sw.o: FCFLAGS += -gpu=maxregcount:96
+endif
+
+# The inline library generation rule. Note that the source files are provided
+# to the compiler in the topological order. We also have to delete the partially
+# generated library if the compiler fails:
+$(inlib_name): $(inlib_OBJS) $(inlib_SOURCES)
+	rm -rf $@ && $(FC) $(FCFLAGS) $(inlib_extract_FCFLAGS) $(inlib_SOURCES)
+endif
+
 clean:
 	rm -f *.o $(LIBRAD)
+	rm -rf $(inlib_name)
 
 include Makefile_deps
