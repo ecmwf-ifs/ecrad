@@ -14,4 +14,4 @@ $(LIBUTILITIES): $(OBJECTS)
 clean:
 	rm -f *.o $(LIBUTILITIES)
 
-easy_netcdf.o: radiation_io.o
+include Makefile_deps

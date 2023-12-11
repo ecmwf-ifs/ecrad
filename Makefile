@@ -48,11 +48,11 @@ endif
 # then the SPARTACUS shortwave solver will write data to fort.101 and
 # fort.102
 ifdef PRINT_ENTRAPMENT_DATA
-CPPFLAGS += -DPRINT_ENTRAPMENT_DATA 
+CPPFLAGS += -DPRINT_ENTRAPMENT_DATA
 endif
 # For backwards compatibility we allow the following as well
 ifdef PRINT_ENCROACHMENT_DATA
-CPPFLAGS += -DPRINT_ENTRAPMENT_DATA 
+CPPFLAGS += -DPRINT_ENTRAPMENT_DATA
 endif
 # Allow the capability to write NetCDF4/HDF5 files, provided the code
 # is compiled against the NetCDF4 library
@@ -107,17 +107,17 @@ help:
 
 ifndef FIATDIR
 build: directories libifsaux libdummydrhook libutilities libifsrrtm \
-	libradiation driver ifsdriver symlinks
+	libradiation alldrivers symlinks
 libradiation libutilities: libdummydrhook
 else
 # Note that if we are using Dr Hook from the fiat library we don't
 # want to create mod/yomhook.mod as this can sometimes be found before
 # the one in the fiat directory leading to an error at link stage
 build: directories libifsaux libutilities libifsrrtm libradiation \
-	driver ifsdriver symlinks
+	alldrivers symlinks
 endif
 
-# git cannot store empty directories so they may need to be created 
+# git cannot store empty directories so they may need to be created
 directories: mod lib
 mod:
 	mkdir -p mod
@@ -149,6 +149,9 @@ libifsrrtm: libifsaux
 
 libradiation: libifsrrtm libutilities libifsaux
 	cd radiation && $(MAKE)
+
+alldrivers: libifsaux libifsrrtm libutilities libradiation libifs
+	cd driver && $(MAKE) all
 
 driver: libifsaux libifsrrtm libutilities libradiation
 	cd driver && $(MAKE) driver

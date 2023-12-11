@@ -24,10 +24,4 @@ clean:
 
 .PHONY: deps includes clean-deps
 
-liquid_effective_radius.o: yoerdu.o
-radiation_scheme.o: radiation_setup.o
-radiation_setup.o: yoephy.o
-cloud_overlap_decorr_len.o: yoecld.o
-cos_sza.o ice_effective_radius.o liquid_effective_radius.o radiation_scheme.o radiation_setup.o: yoerad.o
-yoerad.o: yoe_spectral_planck.o
-satur.o: yoethf.o
+include Makefile_deps

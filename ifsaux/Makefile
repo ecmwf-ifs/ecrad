@@ -22,7 +22,6 @@ includes:
 clean:
 	rm -f *.o $(LIBIFSAUX)
 
-yomlun_ifsaux.o yomhook.o random_numbers_mix.o yomcst.o yomtag.o mpl_module.o yomdyncore.o: parkind1.o
-abor1.o yomlun.o : yomlun_ifsaux.o
+include Makefile_deps
 
 .PHONY: deps includes
