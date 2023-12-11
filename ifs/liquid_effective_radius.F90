@@ -57,7 +57,7 @@ REAL(KIND=JPRB),   INTENT(IN) :: PCLOUD_FRAC(KLON,KLEV)
 REAL(KIND=JPRB),   INTENT(IN) :: PQ_LIQ(KLON,KLEV)       ! (kg/kg)
 REAL(KIND=JPRB),   INTENT(IN) :: PQ_RAIN(KLON,KLEV)      ! (kg/kg)
 
-! *** Single-level variables 
+! *** Single-level variables
 REAL(KIND=JPRB),   INTENT(IN) :: PLAND_FRAC(KLON)        ! 1=land, 0=sea
 REAL(KIND=JPRB),   INTENT(IN) :: PCCN_LAND(KLON)
 REAL(KIND=JPRB),   INTENT(IN) :: PCCN_SEA(KLON)
@@ -103,12 +103,16 @@ IRADLP=YDERAD%NRADLP
 SELECT CASE(IRADLP)
 CASE(0)
   ! Very old parameterization as a function of pressure, used in ERA-15
+  !$ACC KERNELS DEFAULT(NONE) PRESENT(PRE_UM, PPRESSURE)
   PRE_UM(KIDIA:KFDIA,:) = 10.0_JPRB&
        &  + (100000.0_JPRB-PPRESSURE(KIDIA:KFDIA,:))*3.5_JPRB
-  
+  !$ACC END KERNELS
+
 CASE(1)
   ! Simple distinction between land (10um) and ocean (13um) by Zhang
   ! and Rossow
+  !$ACC PARALLEL DEFAULT(NONE) PRESENT(PRE_UM, PLAND_FRAC)
+  !$ACC LOOP GANG VECTOR
   DO JL = KIDIA,KFDIA
     IF (PLAND_FRAC(JL) < 0.5_JPRB) THEN
       PRE_UM(JL,:) = 13.0_JPRB
@@ -116,9 +120,14 @@ CASE(1)
       PRE_UM(JL,:) = 10.0_JPRB
     ENDIF
   ENDDO
-  
+  !$ACC END PARALLEL
+
 CASE(2)
   ! Martin et al. (JAS 1994)
+  !$ACC PARALLEL DEFAULT(NONE) PRESENT(PLAND_FRAC, YDERAD, PCCN_SEA, PCCN_LAND, &
+  !$ACC     PQ_LIQ, PQ_RAIN, PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PRE_UM)
+  !$ACC LOOP GANG VECTOR PRIVATE(ZCCN, ZSPECTRAL_DISPERSION, ZNTOT_CM3, ZRATIO, &
+  !$ACC     ZAIR_DENSITY_GM3, ZLWC_GM3, ZRWC_GM3, ZRAIN_RATIO, ZWOOD_FACTOR, ZRE_CUBED)
   DO JL = KIDIA,KFDIA
     ! First compute the cloud droplet concentration
     IF (PLAND_FRAC(JL) < 0.5_JPRB) THEN
@@ -134,9 +143,9 @@ CASE(2)
       ZNTOT_CM3 = -1.15E-03_JPRB*ZCCN*ZCCN + 0.963_JPRB*ZCCN + 5.30_JPRB
     ELSE
       ! Land case
-      IF (YDERAD%LCCNL) THEN 
+      IF (YDERAD%LCCNL) THEN
         ZCCN=PCCN_LAND(JL)
-      ELSE  
+      ELSE
         ZCCN=YDERAD%RCCNLND
       ENDIF
       ZSPECTRAL_DISPERSION = 0.69_JPRB
@@ -144,9 +153,10 @@ CASE(2)
       ! land
       ZNTOT_CM3 = -2.10E-04_JPRB*ZCCN*ZCCN + 0.568_JPRB*ZCCN - 27.9_JPRB
     ENDIF
-    
+
     ZRATIO = (0.222_JPRB/ZSPECTRAL_DISPERSION)**0.333_JPRB
-    
+
+    !$ACC LOOP SEQ
     DO JK = 1,KLEV
 
       ! Only consider cloudy regions
@@ -160,7 +170,7 @@ CASE(2)
         ! fraction
         ZLWC_GM3 = ZAIR_DENSITY_GM3 * PQ_LIQ(JL,JK)  / PCLOUD_FRAC(JL,JK)
         ZRWC_GM3 = ZAIR_DENSITY_GM3 * PQ_RAIN(JL,JK) / PCLOUD_FRAC(JL,JK)
-      
+
         ! Wood's (2000, eq. 19) adjustment to Martin et al's
         ! parameterization
         IF (ZLWC_GM3 > REPSCW) THEN
@@ -170,7 +180,7 @@ CASE(2)
         ELSE
           ZWOOD_FACTOR = 1.0_JPRB
         ENDIF
-      
+
         ! g m-3 and cm-3 units cancel out with density of water
         ! 10^6/(1000*1000); need a factor of 10^6 to convert to
         ! microns and cubed root is factor of 100 which appears in
@@ -193,9 +203,10 @@ CASE(2)
       ENDIF
 
     ENDDO
-    
+
   ENDDO
-  
+  !$ACC END PARALLEL
+
 CASE DEFAULT
   WRITE(NULERR,'(A,I0,A)') 'LIQUID EFFECTIVE RADIUS OPTION IRADLP=',IRADLP,' NOT AVAILABLE'
   CALL ABOR1('ERROR IN LIQUID_EFFECTIVE_RADIUS')
@@ -204,5 +215,5 @@ END SELECT
 ! -------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('LIQUID_EFFECTIVE_RADIUS',1,ZHOOK_HANDLE)
-  
+
 END SUBROUTINE LIQUID_EFFECTIVE_RADIUS

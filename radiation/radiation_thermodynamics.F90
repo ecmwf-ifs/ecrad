@@ -91,7 +91,6 @@ contains
 
     allocate(this%pressure_hl(ncol,nlev+1))
     allocate(this%temperature_hl(ncol,nlev+1))
-    ! !$ACC ENTER DATA CREATE(this%pressure_hl, this%temperature_hl) ASYNC(1)
 
     use_h2o_sat_local = .false.
     if (present(use_h2o_sat)) then
@@ -106,12 +105,10 @@ contains
     if (this%rrtm_pass_temppres_fl) then
       allocate(this%pressure_fl(ncol,nlev))
       allocate(this%temperature_fl(ncol,nlev))
-      ! !$ACC ENTER DATA CREATE(this%pressure_fl, this%temperature_fl) ASYNC(1)
     end if
 
     if (use_h2o_sat_local) then
       allocate(this%h2o_sat_liq(ncol,nlev))
-      ! !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1)
     end if
 
     if (lhook) call dr_hook('radiation_thermodynamics:allocate',1,hook_handle)
@@ -132,23 +129,18 @@ contains
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',0,hook_handle)
 
     if (allocated(this%pressure_hl)) then
-      ! !$ACC EXIT DATA DELETE(this%pressure_hl) WAIT(1)
       deallocate(this%pressure_hl)
     end if
     if (allocated(this%temperature_hl)) then
-      ! !$ACC EXIT DATA DELETE(this%temperature_hl) WAIT(1)
       deallocate(this%temperature_hl)
     end if
-if (allocated(this%pressure_fl)) then
-      ! !$ACC EXIT DATA DELETE(this%pressure_fl) WAIT(1)
+    if (allocated(this%pressure_fl)) then
       deallocate(this%pressure_fl)
     end if
     if (allocated(this%temperature_fl)) then
-      ! !$ACC EXIT DATA DELETE(this%temperature_fl) WAIT(1)
       deallocate(this%temperature_fl)
     end if
     if (allocated(this%h2o_sat_liq)) then
-      ! !$ACC EXIT DATA DELETE(this%h2o_sat_liq) WAIT(1)
       deallocate(this%h2o_sat_liq)
     end if
 
@@ -159,12 +151,15 @@ if (allocated(this%pressure_fl)) then
 
   !---------------------------------------------------------------------
   ! Calculate approximate saturation with respect to liquid
-  subroutine calc_saturation_wrt_liquid(this,istartcol,iendcol)
+  subroutine calc_saturation_wrt_liquid(this,istartcol,iendcol, lacc)
 
     use yomhook,  only : lhook, dr_hook, jphook
 
     class(thermodynamics_type), intent(inout) :: this
     integer, intent(in)                       :: istartcol, iendcol
+    logical, intent(in)                       :: lacc
+
+    logical :: llacc
 
     ! Pressure and temperature at full levels
     real(jprb) :: pressure, temperature
@@ -179,16 +174,22 @@ if (allocated(this%pressure_fl)) then
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',0,hook_handle)
 
+    !if (present(lacc)) then
+        llacc = lacc
+    !else
+    !    llacc = .false.
+    !endif
+
     ncol = size(this%pressure_hl,1)
     nlev = size(this%pressure_hl,2) - 1
 
     if (.not. allocated(this%h2o_sat_liq)) then
+      ! only required in non blocked mode
       allocate(this%h2o_sat_liq(ncol,nlev))
-      ! !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1)
-    end if
+    endif
 
-    ! !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
-    ! !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(pressure, temperature, e_sat)
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1) IF(llacc)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(pressure, temperature, e_sat)
     do jlev = 1,nlev
        do jcol = istartcol,iendcol
           pressure = 0.5 * (this%pressure_hl(jcol,jlev)+this%pressure_hl(jcol,jlev+1))
@@ -199,7 +200,7 @@ if (allocated(this%pressure_fl)) then
           this%h2o_sat_liq(jcol,jlev) = min(1.0_jprb, 0.622_jprb * e_sat / pressure)
        end do
     end do
-    ! !$ACC END PARALLEL
+    !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',1,hook_handle)
 
@@ -228,10 +229,17 @@ if (allocated(this%pressure_fl)) then
     nlev  = ubound(this%pressure_hl,2) - 1
     inv_g = 1.0_jprb / AccelDueToGravity
 
-    layer_mass(istartcol:iendcol,1:nlev) &
-         &  = ( this%pressure_hl(istartcol:iendcol,2:nlev+1) &
-         &     -this%pressure_hl(istartcol:iendcol,1:nlev  )  ) &
+    !$ACC PARALLEL DEFAULT(PRESENT)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(inv_g)
+    DO jl=istartcol, iendcol
+      DO jk=1, nlev
+        layer_mass(jl,jk) &
+            &  = ( this%pressure_hl(jl,jk+1) &
+            &     -this%pressure_hl(jl,jk  )  ) &
          &  * inv_g
+      END DO
+    END DO
+    !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',1,hook_handle)
 

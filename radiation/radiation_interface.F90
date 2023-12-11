@@ -55,7 +55,7 @@ contains
     use radiation_general_cloud_optics, only :  setup_general_cloud_optics
     use radiation_aerosol_optics, only :  setup_aerosol_optics
 
-    
+
     type(config_type), intent(inout) :: config
 
     real(jphook) :: hook_handle
@@ -87,7 +87,7 @@ contains
       call radiation_abort('Radiation configuration error')
     end if
 
-    
+
     ! Whether or not the "radiation" subroutine needs ssa_lw and g_lw
     ! arrays depends on whether longwave scattering by aerosols is to
     ! be included.  If not, one of the array dimensions will be set to
@@ -139,7 +139,7 @@ contains
     if (config%use_aerosols) then
       if (config%i_gas_model_sw == IGasModelMonochromatic) then
 !        call setup_aerosol_optics_mono(config)
-      else 
+      else
         call setup_aerosol_optics(config)
       end if
     end if
@@ -164,7 +164,7 @@ contains
   ! model.  This subroutine simply passes the gas object on to the
   ! module of the currently active gas model.
   subroutine set_gas_units(config, gas)
-    
+
     use radiation_config
     use radiation_gas,             only : gas_type
     use radiation_monochromatic,   only : set_gas_units_mono  => set_gas_units
@@ -173,6 +173,7 @@ contains
 
     type(config_type), intent(in)    :: config
     type(gas_type),    intent(inout) :: gas
+    logical, optional, intent(in) :: lacc
 
     if (config%i_gas_model_sw == IGasModelMonochromatic) then
       call set_gas_units_mono(gas)
@@ -180,7 +181,7 @@ contains
          &  .or. config%i_gas_model_lw == IGasModelIFSRRTMG) then
       ! Convert to mass-mixing ratio for RRTMG; note that ecCKD can
       ! work with this but performs an internal scaling
-      call set_gas_units_ifs(gas)
+      call set_gas_units_ifs(gas, lacc=lacc)
     else
       ! Use volume mixing ratio preferred by ecCKD
       call set_gas_units_ecckd(gas)
@@ -230,7 +231,7 @@ contains
     use radiation_homogeneous_lw, only : solver_homogeneous_lw
     use radiation_save,           only : save_radiative_properties
 
-    ! Treatment of gas and hydrometeor optics 
+    ! Treatment of gas and hydrometeor optics
     use radiation_monochromatic,  only : &
          &   gas_optics_mono         => gas_optics, &
          &   cloud_optics_mono       => cloud_optics, &
@@ -383,12 +384,12 @@ contains
                &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
         elseif (config%use_general_cloud_optics) then
           call general_cloud_optics(nlev, istartcol, iendcol, &
-               &  config, thermodynamics, cloud, & 
+               &  config, thermodynamics, cloud, &
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
         else
           call cloud_optics(nlev, istartcol, iendcol, &
-               &  config, thermodynamics, cloud, & 
+               &  config, thermodynamics, cloud, &
                &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
         end if
@@ -397,11 +398,11 @@ contains
       if (config%use_aerosols) then
         if (config%i_gas_model_sw == IGasModelMonochromatic) then
 !          call add_aerosol_optics_mono(nlev,istartcol,iendcol, &
-!               &  config, thermodynamics, gas, aerosol, & 
+!               &  config, thermodynamics, gas, aerosol, &
 !               &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
         else
           call add_aerosol_optics(nlev,istartcol,iendcol, &
-               &  config, thermodynamics, gas, aerosol, & 
+               &  config, thermodynamics, gas, aerosol, &
                &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
         end if
       else
@@ -465,7 +466,7 @@ contains
 #endif
           ! Compute fluxes using the McICA longwave solver
           call solver_mcica_lw(nlev,istartcol,iendcol, &
-               &  config, single_level, cloud, & 
+               &  config, single_level, cloud, &
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
                &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
 #ifdef _OPENACC
@@ -474,25 +475,25 @@ contains
         else if (config%i_solver_lw == ISolverMcICAACC) then
           ! Compute fluxes using the McICA ACC longwave solver
           call solver_mcica_acc_lw(nlev,istartcol,iendcol, &
-               &  config, single_level, cloud, & 
+               &  config, single_level, cloud, &
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
                &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
         else if (config%i_solver_lw == ISolverSPARTACUS) then
           ! Compute fluxes using the SPARTACUS longwave solver
           call solver_spartacus_lw(nlev,istartcol,iendcol, &
-               &  config, thermodynamics, cloud, & 
+               &  config, thermodynamics, cloud, &
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  planck_hl, lw_emission, lw_albedo, flux)
         else if (config%i_solver_lw == ISolverTripleclouds) then
           ! Compute fluxes using the Tripleclouds longwave solver
           call solver_tripleclouds_lw(nlev,istartcol,iendcol, &
-               &  config, cloud, & 
+               &  config, cloud, &
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  planck_hl, lw_emission, lw_albedo, flux)
         elseif (config%i_solver_lw == ISolverHomogeneous) then
           ! Compute fluxes using the homogeneous solver
           call solver_homogeneous_lw(nlev,istartcol,iendcol, &
-               &  config, cloud, & 
+               &  config, cloud, &
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
                &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
         else
@@ -517,7 +518,7 @@ contains
 #endif
           ! Compute fluxes using the McICA shortwave solver
           call solver_mcica_sw(nlev,istartcol,iendcol, &
-               &  config, single_level, cloud, & 
+               &  config, single_level, cloud, &
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
@@ -527,28 +528,28 @@ contains
         else if (config%i_solver_sw == ISolverMcICAACC) then
           ! Compute fluxes using the McICA ACC shortwave solver
           call solver_mcica_acc_sw(nlev,istartcol,iendcol, &
-               &  config, single_level, cloud, & 
+               &  config, single_level, cloud, &
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         else if (config%i_solver_sw == ISolverSPARTACUS) then
           ! Compute fluxes using the SPARTACUS shortwave solver
           call solver_spartacus_sw(nlev,istartcol,iendcol, &
-               &  config, single_level, thermodynamics, cloud, & 
+               &  config, single_level, thermodynamics, cloud, &
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         else if (config%i_solver_sw == ISolverTripleclouds) then
           ! Compute fluxes using the Tripleclouds shortwave solver
           call solver_tripleclouds_sw(nlev,istartcol,iendcol, &
-               &  config, single_level, cloud, & 
+               &  config, single_level, cloud, &
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
         elseif (config%i_solver_sw == ISolverHomogeneous) then
           ! Compute fluxes using the homogeneous solver
           call solver_homogeneous_sw(nlev,istartcol,iendcol, &
-               &  config, single_level, cloud, & 
+               &  config, single_level, cloud, &
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
@@ -567,7 +568,7 @@ contains
       call flux%calc_toa_spectral    (config, istartcol, iendcol)
 
     end if
-    
+
     !$ACC WAIT
     !$ACC END DATA
 
@@ -584,7 +585,7 @@ contains
   ! module to avoid circular dependencies.
   subroutine radiation_reverse(ncol, nlev, istartcol, iendcol, config, &
        &  single_level, thermodynamics, gas, cloud, aerosol, flux)
- 
+
     use parkind1, only : jprb
 
     use radiation_io,             only : nulout, nulerr, radiation_abort
@@ -666,7 +667,7 @@ contains
         cloud_rev%fractional_std(istartcol:iendcol,:) &
              &  = cloud%fractional_std(istartcol:iendcol,nlev:1:-1)
       else
-        cloud_rev%fractional_std(istartcol:iendcol,:) = 0.0_jprb       
+        cloud_rev%fractional_std(istartcol:iendcol,:) = 0.0_jprb
       end if
       if (allocated(cloud%inv_cloud_effective_size)) then
         cloud_rev%inv_cloud_effective_size(istartcol:iendcol,:) &

@@ -290,7 +290,7 @@ program ecrad_driver
 
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call...
-  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
+  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol,lacc=.false.)
 
   ! ...or alternatively use the "satur" function in the IFS (requires
   ! adding -lifs to the linker command line) but note that this

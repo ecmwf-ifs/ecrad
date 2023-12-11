@@ -270,7 +270,7 @@ program ecrad_ifs_driver
   call file%close()
 
   ! Convert gas units to mass-mixing ratio
-  call gas%set_units(IMassMixingRatio)
+  call gas%set_units(IMassMixingRatio, lacc=.false.)
 
   ! Compute seed from skin temperature residual
   !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
@@ -404,6 +404,11 @@ program ecrad_ifs_driver
 #endif
         end if
 
+        !$acc data copy(zrgp(:,:,ib)) &
+#ifdef BITIDENTITY_TESTING
+        !$acc&     copyin(iseed(:,ib)) &
+#endif
+        !$acc&
         ! Call the ECRAD radiation scheme
         call radiation_scheme &
              & (yradiation, &
@@ -448,6 +453,7 @@ program ecrad_ifs_driver
              &  iseed=iseed(:,ib) &
 #endif
              & )
+          !$acc end data
       end do
       !$OMP END PARALLEL DO
 

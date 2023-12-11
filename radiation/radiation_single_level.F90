@@ -135,30 +135,23 @@ contains
     end if
 
     allocate(this%cos_sza(ncol))
-    ! !$ACC ENTER DATA CREATE(this%cos_sza) ASYNC(1)
 
     if (this%is_simple_surface) then
       allocate(this%skin_temperature(ncol))
-      ! !$ACC ENTER DATA CREATE(this%skin_temperature) ASYNC(1)
     else
       allocate(this%lw_emission(ncol, nemisbands))
-      ! !$ACC ENTER DATA CREATE(this%lw_emission) ASYNC(1)
     end if
     allocate(this%lw_emissivity(ncol, nemisbands))
-    ! !$ACC ENTER DATA CREATE(this%lw_emissivity) ASYNC(1)
 
     allocate(this%sw_albedo(ncol, nalbedobands))
-    ! !$ACC ENTER DATA CREATE(this%sw_albedo) ASYNC(1)
 
     if (present(use_sw_albedo_direct)) then
       if (use_sw_albedo_direct) then
         allocate(this%sw_albedo_direct(ncol, nalbedobands))
-        ! !$ACC ENTER DATA CREATE(this%sw_albedo_direct) ASYNC(1)
       end if
     end if
 
     allocate(this%iseed(ncol))
-      ! !$ACC ENTER DATA CREATE(this%iseed) ASYNC(1)
 
     if (lhook) call dr_hook('radiation_single_level:allocate',1,hook_handle)
 
@@ -178,35 +171,27 @@ contains
     if (lhook) call dr_hook('radiation_single_level:deallocate',0,hook_handle)
 
     if (allocated(this%cos_sza)) then
-      ! !$ACC EXIT DATA DELETE(this%cos_sza) WAIT(1)
       deallocate(this%cos_sza)
     end if
     if (allocated(this%skin_temperature)) then
-      ! !$ACC EXIT DATA DELETE(this%skin_temperature) WAIT(1)
       deallocate(this%skin_temperature)
     end if
     if (allocated(this%sw_albedo)) then
-      ! !$ACC EXIT DATA DELETE(this%sw_albedo) WAIT(1)
       deallocate(this%sw_albedo)
     end if
     if (allocated(this%sw_albedo_direct)) then
-      ! !$ACC EXIT DATA DELETE(this%sw_albedo_direct) WAIT(1)
       deallocate(this%sw_albedo_direct)
     end if
     if (allocated(this%lw_emissivity)) then
-      ! !$ACC EXIT DATA DELETE(this%lw_emissivity) WAIT(1)
       deallocate(this%lw_emissivity)
     end if
     if (allocated(this%lw_emission)) then
-      ! !$ACC EXIT DATA DELETE(this%lw_emission) WAIT(1)
       deallocate(this%lw_emission)
     end if
     if (allocated(this%spectral_solar_scaling)) then
-      ! !$ACC EXIT DATA DELETE(this%spectral_solar_scaling) WAIT(1)
       deallocate(this%spectral_solar_scaling)
     end if
     if (allocated(this%iseed)) then
-      ! !$ACC EXIT DATA DELETE(this%iseed) WAIT(1)
       deallocate(this%iseed)
     end if
 
@@ -217,25 +202,30 @@ contains
 
   !---------------------------------------------------------------------
   ! Unimaginative initialization of random-number seeds
-  subroutine init_seed_simple(this, istartcol, iendcol)
+  subroutine init_seed_simple(this, istartcol, iendcol, lacc)
     class(single_level_type), intent(inout) :: this
     integer, intent(in)                     :: istartcol, iendcol
+    logical, intent(in)                     :: lacc
 
     integer :: jcol
+    logical :: llacc
+
+    !if (present(lacc)) then
+        llacc = lacc
+    !else
+    !    llacc = .false.
+    !endif
 
     if (.not. allocated(this%iseed)) then
       allocate(this%iseed(istartcol:iendcol))
-      ! !$ACC ENTER DATA CREATE(this%iseed)
     end if
 
-    ! !$ACC PARALLEL DEFAULT(PRESENT)
-    ! !$ACC LOOP GANG VECTOR
+    !$ACC PARALLEL DEFAULT(PRESENT) IF(llacc)
+    !$ACC LOOP GANG VECTOR
     do jcol = istartcol,iendcol
       this%iseed(jcol) = jcol
     end do
-    ! !$ACC END PARALLEL
-
-    ! !$ACC UPDATE HOST(this%iseed)
+    !$ACC END PARALLEL
 
   end subroutine init_seed_simple
 

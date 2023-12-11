@@ -73,7 +73,7 @@ REAL(KIND=JPRB) :: ZAIR_DENSITY_GM3 ! Air density in g m-3
 
 REAL(KIND=JPRB) :: ZTEMPERATURE_C   ! Temperature, degrees Celcius
 REAL(KIND=JPRB) :: ZAIWC, ZBIWC     ! Factors in empirical relationship
-REAL(KIND=JPRB) :: ZDEFAULT_RE_UM   ! Default effective radius in microns 
+REAL(KIND=JPRB) :: ZDEFAULT_RE_UM   ! Default effective radius in microns
 REAL(KIND=JPRB) :: ZDIAMETER_UM     ! Effective diameter in microns
 
 ! Min effective diameter in microns; may vary with latitude
@@ -96,10 +96,14 @@ IF (LHOOK) CALL DR_HOOK('ICE_EFFECTIVE_RADIUS',0,ZHOOK_HANDLE)
 SELECT CASE(YDERAD%NRADIP)
 CASE(0)
   ! Ice effective radius fixed at 40 microns
-  PRE_UM(KIDIA:KFDIA,:) = 40.0_JPRB  
+  !$ACC KERNELS
+  PRE_UM(KIDIA:KFDIA,:) = 40.0_JPRB
+  !$ACC END KERNELS
 
 CASE(1,2)
   ! Ice effective radius from Liou and Ou (1994)
+  !$ACC PARALLEL DEFAULT(NONE) PRESENT(PRE_UM, PTEMPERATURE, YDERAD)
+  !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ZTEMPERATURE_C)
   DO JK = 1,KLEV
     DO JL = KIDIA,KFDIA
       ! Convert Kelvin to Celcius, preventing positive numbers
@@ -119,6 +123,7 @@ CASE(1,2)
       ENDIF
     ENDDO
   ENDDO
+  !$ACC END PARALLEL
 
 CASE(3)
   ! Ice effective radius = f(T,IWC) from Sun and Rikus (1999), revised
@@ -129,18 +134,29 @@ CASE(3)
   ! effective diameter to effective radius.
   ZDEFAULT_RE_UM = 80.0_JPRB * YDERAD%RRE2DE
 
+  !$ACC DATA CREATE(ZMIN_DIAMETER_UM)
+
   ! Minimum effective diameter may vary with latitude
   IF (YDERAD%NMINICE == 0) THEN
     ! Constant effective diameter
+    !$ACC KERNELS DEFAULT(NONE) PRESENT(YDERAD)
     ZMIN_DIAMETER_UM(KIDIA:KFDIA) = YDERAD%RMINICE
+    !$ACC END KERNELS
   ELSE
     ! Ice effective radius varies with latitude, smaller at poles
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(YDERAD, PGEMU)
+    !$ACC LOOP GANG VECTOR
     DO JL = KIDIA,KFDIA
       ZMIN_DIAMETER_UM(JL) = 20.0_JPRB + (YDERAD%RMINICE - 20.0_JPRB)&
            &                          * COS(ASIN(PGEMU(JL)))
     ENDDO
+    !$ACC END PARALLEL
   ENDIF
 
+  !$ACC PARALLEL DEFAULT(NONE) PRESENT(PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PPRESSURE, PTEMPERATURE, &
+  !$ACC     ZMIN_DIAMETER_UM, YDERAD, PRE_UM)
+  !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ZAIR_DENSITY_GM3, ZIWC_INCLOUD_GM3, ZTEMPERATURE_C, &
+  !$ACC     ZAIWC, ZBIWC, ZDIAMETER_UM)
   DO JK = 1,KLEV
     DO JL = KIDIA,KFDIA
       IF (PCLOUD_FRAC(JL,JK) > 0.001_JPRB&
@@ -162,7 +178,10 @@ CASE(3)
       ENDIF
     ENDDO
   ENDDO
-  
+  !$ACC END PARALLEL
+
+  !$ACC END DATA
+
 CASE DEFAULT
   WRITE(NULERR,'(A,I0,A)') 'ICE EFFECTIVE RADIUS OPTION NRADLP=',YDERAD%NRADIP,' NOT AVAILABLE'
   CALL ABOR1('ERROR IN ICE_EFFECTIVE_RADIUS')
@@ -172,5 +191,5 @@ END SELECT
 ! -------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('ICE_EFFECTIVE_RADIUS',1,ZHOOK_HANDLE)
-  
+
 END SUBROUTINE ICE_EFFECTIVE_RADIUS

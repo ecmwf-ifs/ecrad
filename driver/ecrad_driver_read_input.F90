@@ -200,7 +200,7 @@ contains
 #endif
 
       ! Simple initialization of the seeds for the Monte Carlo scheme
-      call single_level%init_seed_simple(1,ncol)
+      call single_level%init_seed_simple(1,ncol,lacc=.false.)
       ! Overwrite with user-specified values if available
       if (file%exists('iseed')) then
         call file%get('iseed', single_level%iseed)
@@ -285,9 +285,9 @@ contains
                &  driver_config%fractional_std_override
         end if
         call cloud%create_fractional_std(ncol, nlev, &
-             &  driver_config%fractional_std_override)
+             &  driver_config%fractional_std_override, lacc=.false.)
       else if (.not. allocated(cloud%fractional_std)) then
-        call cloud%create_fractional_std(ncol, nlev, 0.0_jprb)
+        call cloud%create_fractional_std(ncol, nlev, 0.0_jprb, lacc=.false.)
         if (driver_config%iverbose >= 1) then
           write(nulout,'(a)') 'Warning: cloud optical depth fractional standard deviation set to zero'
         end if

@@ -150,18 +150,19 @@ contains
 
   !---------------------------------------------------------------------
   ! Scale gas mixing ratios according to required units
-  subroutine set_gas_units(gas)
+  subroutine set_gas_units(gas, lacc)
 
     use radiation_gas, only : gas_type, IVolumeMixingRatio
     use yomhook,       only : lhook, dr_hook, jphook
     
     type(gas_type),    intent(inout) :: gas
+    logical, intent(in), optional :: lacc
 
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ecckd_interface:set_gas_units',0,hook_handle)
 
-    call gas%set_units(IVolumeMixingRatio)
+    call gas%set_units(IVolumeMixingRatio, lacc=lacc)
 
     if (lhook) call dr_hook('radiation_ecckd_interface:set_gas_units',1,hook_handle)
 

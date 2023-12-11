@@ -172,19 +172,18 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio(:,:)
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
-    logical,    optional, intent(in)    :: lacc
+    logical,    intent(in)    :: lacc
 
-    integer :: i1, i2, jc, jk
     logical :: llacc
-
+    integer :: i1, i2, jc, jk
 
     real(jphook) :: hook_handle
 
-    if (present(lacc)) then
+    !if (present(lacc)) then
       llacc = lacc
-    else
-      llacc = .false.
-    endif
+    !else
+    !  llacc = .false.
+    !endif
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
@@ -237,9 +236,9 @@ contains
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
-    !$ACC UPDATE DEVICE(this%is_present(igas), this%iunits(igas), this%is_well_mixed(igas)) IF(LLACC)
+    !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) IF(llacc)
 
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, mixing_ratio) ASYNC(1) IF(LLACC)
+    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
       do jc = i1,i2
@@ -252,7 +251,7 @@ contains
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
-    !$ACC UPDATE DEVICE(this%scale_factor(igas)) IF(LLACC)
+    !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
 
@@ -274,18 +273,18 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol, iendcol
-    logical,    optional, intent(in)    :: lacc
+    logical,    intent(in)    :: lacc
 
     real(jphook) :: hook_handle
 
-    integer :: i1, i2, jc, jk
     logical :: llacc
+    integer :: i1, i2, jc, jk
 
-    if (present(lacc)) then
+    !if (present(lacc)) then
       llacc = lacc
-    else
-      llacc = .false.
-    endif
+    !else
+    !  llacc = .false.
+    !endif
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
@@ -337,7 +336,7 @@ contains
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
-    !$ACC UPDATE DEVICE(this%is_present(igas), this%iunits(igas), this%is_well_mixed(igas)) IF(LLACC)
+    !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) if(LLACC)
 
     !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
@@ -352,7 +351,7 @@ contains
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
-    !$ACC UPDATE DEVICE(this%scale_factor(igas)) IF(LLACC)
+    !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(LLACC)
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',1,hook_handle)
 
@@ -415,11 +414,11 @@ contains
     real(jprb) :: new_sf
     logical :: llacc
 
-    if (present(lacc)) then
+    !if (present(lacc)) then
       llacc = lacc
-    else
-      llacc = .false.
-    endif
+    !else
+    !  llacc = .false.
+    !endif
 
     if (present(scale_factor)) then
       ! "sf" is the scaling to be applied now to the numbers (and may
@@ -445,21 +444,21 @@ contains
         end if
         sf = sf * this%scale_factor(igas)
 
-        !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, this%mixing_ratio, igas, this%iunits, this%scale_factor) ASYNC(1) IF(LLACC)
         if (sf /= 1.0_jprb) then
+          !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(llacc)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jlev = 1,this%nlev
             do jcol = 1,this%ncol
               this%mixing_ratio(jcol,jlev,igas) = this%mixing_ratio(jcol,jlev,igas) * sf
             enddo
           enddo
+          !$ACC END PARALLEL
         end if
-        !$ACC END PARALLEL
         ! Store the new units and scale factor for this gas inside the
         ! gas object
         this%iunits(igas) = iunits
         this%scale_factor(igas) = new_sf
-        !$ACC UPDATE DEVICE(this%iunits(igas), this%scale_factor(igas)) IF(LLACC)
+        !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
       end if
     else
       do jg = 1,this%ntype

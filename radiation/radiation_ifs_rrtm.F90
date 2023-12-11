@@ -204,8 +204,9 @@ contains
 
     use radiation_gas,           only : gas_type, IMassMixingRatio
     type(gas_type),    intent(inout) :: gas
+    logical, optional, intent(in)    :: lacc
 
-    call gas%set_units(IMassMixingRatio)
+    call gas%set_units(IMassMixingRatio, lacc=lacc)
 
   end subroutine set_gas_units
 

@@ -261,7 +261,7 @@ program ecrad_ifs_driver
   call file%close()
 
   ! Convert gas units to mass-mixing ratio
-  call gas%set_units(IMassMixingRatio)
+  call gas%set_units(IMassMixingRatio, lacc=.false.)
 
   ! Compute seed from skin temperature residual
   !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &

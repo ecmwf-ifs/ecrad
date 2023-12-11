@@ -133,11 +133,8 @@ contains
     else
       this%ntype = 2
     end if
-    ! !$ACC UPDATE DEVICE(this%ntype)
     allocate(this%mixing_ratio(ncol,nlev,this%ntype))
     allocate(this%effective_radius(ncol,nlev,this%ntype))
-    ! !$ACC ENTER DATA CREATE(this%mixing_ratio) ASYNC(1)
-    ! !$ACC ENTER DATA CREATE(this%effective_radius) ASYNC(1)
     nullify(this%q_liq)
     nullify(this%q_ice)
     nullify(this%re_liq)
@@ -148,27 +145,16 @@ contains
       this%q_ice  => this%mixing_ratio(:,:,2)
       this%re_liq => this%effective_radius(:,:,1)
       this%re_ice => this%effective_radius(:,:,2)
-! #ifdef _OPENACC
-!       CALL acc_attach(this%q_liq)
-!       CALL acc_attach(this%q_ice)
-!       CALL acc_attach(this%re_liq)
-!       CALL acc_attach(this%re_ice)
-! #endif
     end if
 
     allocate(this%fraction(ncol,nlev))
     allocate(this%overlap_param(ncol,nlev-1))
     allocate(this%fractional_std(ncol,nlev))
     allocate(this%inv_cloud_effective_size(ncol,nlev))
-    ! !$ACC ENTER DATA CREATE(this%fraction) ASYNC(1)
-    ! !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1)
-    ! !$ACC ENTER DATA CREATE(this%fractional_std) ASYNC(1)
-    ! !$ACC ENTER DATA CREATE(this%inv_cloud_effective_size) ASYNC(1)
 
     if (present(use_inhom_effective_size)) then
       if (use_inhom_effective_size) then
         allocate(this%inv_inhom_effective_size(ncol,nlev))
-        ! !$ACC ENTER DATA CREATE(this%inv_inhom_effective_size) ASYNC(1)
       end if
     end if
 
@@ -194,14 +180,6 @@ contains
     nullify(this%re_liq)
     nullify(this%re_ice)
 
-    ! !$ACC EXIT DATA DELETE(this%mixing_ratio) ASYNC(1) IF(allocated(this%mixing_ratio))
-    ! !$ACC EXIT DATA DELETE(this%effective_radius) ASYNC(1) IF(allocated(this%effective_radius))
-    ! !$ACC EXIT DATA DELETE(this%fraction) ASYNC(1) IF(allocated(this%fraction))
-    ! !$ACC EXIT DATA DELETE(this%overlap_param) ASYNC(1) IF(allocated(this%overlap_param))
-    ! !$ACC EXIT DATA DELETE(this%fractional_std) ASYNC(1) IF(allocated(this%fractional_std))
-    ! !$ACC EXIT DATA DELETE(this%inv_cloud_effective_size) ASYNC(1) IF(allocated(this%inv_cloud_effective_size))
-    ! !$ACC EXIT DATA DELETE(this%inv_inhom_effective_size) ASYNC(1) IF(allocated(this%inv_inhom_effective_size))
-    ! !$ACC WAIT
     if (allocated(this%mixing_ratio))     deallocate(this%mixing_ratio)
     if (allocated(this%effective_radius)) deallocate(this%effective_radius)
     if (allocated(this%fraction))         deallocate(this%fraction)
@@ -236,7 +214,7 @@ contains
     type(thermodynamics_type), intent(in)    :: thermodynamics
     real(jprb),                intent(in)    :: decorrelation_length ! m
     integer,         optional, intent(in)    :: istartcol, iendcol
-    logical, optional, intent(in) :: lacc
+    logical, intent(in) :: lacc
 
     ! Ratio of gas constant for dry air to acceleration due to gravity
     real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
@@ -260,11 +238,11 @@ contains
     ncol = size(thermodynamics%pressure_hl,dim=1)
     nlev = size(thermodynamics%pressure_hl,dim=2)-1
 
-    if (present(lacc)) then
+    !if (present(lacc)) then
         llacc = lacc
-    else
-        llacc = .false.
-    endif
+    !else
+    !    llacc = .false.
+    !endif
 
     if (present(istartcol)) then
       i1 = istartcol
@@ -369,7 +347,7 @@ contains
     type(thermodynamics_type), intent(in)    :: thermodynamics
     integer,                   intent(in)    :: istartcol, iendcol
     real(jprb),                intent(in)    :: decorrelation_length(istartcol:iendcol) ! m
-    logical, intent(in), optional :: lacc
+    logical, intent(in) :: lacc
 
     ! Ratio of gas constant for dry air to acceleration due to gravity
     real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
@@ -384,25 +362,25 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',0,hook_handle)
 
-    if (present(lacc)) then
+    !if (present(lacc)) then
         llacc = lacc
-    else
-        llacc = .false.
-    endif
+    !else
+    !    llacc = .false.
+    !endif
 
     ! Pressure at half-levels, pressure_hl, is defined at nlev+1
     ! points
     ncol = size(thermodynamics%pressure_hl,dim=1)
     nlev = size(thermodynamics%pressure_hl,dim=2)-1
 
-    if (.not. allocated(this%overlap_param)) then
+    ! if (.not. allocated(this%overlap_param)) then
       ! If pressure is of size (ncol,nlev+1) then overlap_param is of
       ! size (ncol,nlev-1), since overlap parameter is only defined here
       ! for interfaces between model layers, not for the interface to
       ! space or the surface
-      allocate(this%overlap_param(ncol, nlev-1))
-      !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1) IF(LLACC)
-    end if
+      ! allocate(this%overlap_param(ncol, nlev-1))
+      ! !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1) IF(LLACC)
+    ! end if
 
     !$ACC DATA PRESENT(this, thermodynamics, decorrelation_length) IF(LLACC)
     !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1) IF(LLACC)
@@ -558,31 +536,30 @@ contains
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     real(jprb),        intent(in)    :: frac_std
-    logical, intent(in), optional :: lacc
+    logical, intent(in) :: lacc
 
     integer :: jcol, jlev
     logical :: llacc
 
     real(jphook) :: hook_handle
 
-    if (present(lacc)) then
+    !if (present(lacc)) then
         llacc = lacc
-    else
-        llacc = .false.
-    endif
+    !else
+    !    llacc = .false.
+    !endif
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',0,hook_handle)
 
-    if (allocated(this%fractional_std)) then
-      !$ACC EXIT DATA DELETE(this%fractional_std) WAIT(1) IF(LLACC)
-      !$ACC WAIT ! ACCWA (nvhpc 22.7, nvhpc 22.5) crashes otherwise
-       deallocate(this%fractional_std)
-    end if
+    ! if (allocated(this%fractional_std)) then
+       ! !$ACC EXIT DATA DELETE(this%fractional_std) WAIT(1) IF(LLACC)
+       ! deallocate(this%fractional_std)
+    ! end if
 
-    allocate(this%fractional_std(ncol, nlev))
-    !$ACC ENTER DATA CREATE(this%fractional_std) ASYNC(1) IF(LLACC)
+    ! allocate(this%fractional_std(ncol, nlev))
+    ! !$ACC ENTER DATA CREATE(this%fractional_std) ASYNC(1) IF(LLACC)
 
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1) IF(LLACC)
+    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jlev = 1, nlev
       do jcol = 1, ncol
@@ -822,7 +799,7 @@ contains
 
     nlev = size(this%fraction,2)
 
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, this%mixing_ratio) CREATE(sum_mixing_ratio) ASYNC(1)
+    !$ACC PARALLEL DEFAULT(PRESENT) CREATE(sum_mixing_ratio) ASYNC(1)
     !$ACC LOOP SEQ
     do jlev = 1,nlev
       !$ACC LOOP GANG(STATIC:1) VECTOR
@@ -902,14 +879,10 @@ contains
 
     !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$ACC ENTER DATA CREATE(this%effective_radius) IF(allocated(this%effective_radius))
-    CALL acc_attach(this%q_liq)
-    CALL acc_attach(this%q_ice)
-    CALL acc_attach(this%re_liq)
-    CALL acc_attach(this%re_ice)
-!    !$ACC ENTER DATA CREATE(this%q_liq) IF(allocated(this%q_liq))
-!    !$ACC ENTER DATA CREATE(this%re_liq) IF(allocated(this%re_liq))
-!    !$ACC ENTER DATA CREATE(this%q_ice) IF(allocated(this%q_ice))
-!    !$ACC ENTER DATA CREATE(this%re_ice) IF(allocated(this%re_ice))
+    !$ACC ENTER DATA COPYIN(this%q_liq) IF(allocated(this%q_liq))
+    !$ACC ENTER DATA COPYIN(this%re_liq) IF(allocated(this%re_liq))
+    !$ACC ENTER DATA COPYIN(this%q_ice) IF(allocated(this%q_ice))
+    !$ACC ENTER DATA COPYIN(this%re_ice) IF(allocated(this%re_ice))
     !$ACC ENTER DATA CREATE(this%fraction) IF(allocated(this%fraction))
     !$ACC ENTER DATA CREATE(this%overlap_param) IF(allocated(this%overlap_param))
     !$ACC ENTER DATA CREATE(this%fractional_std) IF(allocated(this%fractional_std))
