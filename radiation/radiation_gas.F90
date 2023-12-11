@@ -456,9 +456,11 @@ contains
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
-        this%iunits(igas) = iunits
-        this%scale_factor(igas) = new_sf
-        !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
+        if (iunits /= this%iunits(igas) .or. new_sf /= this%scale_factor(igas)) then
+          this%iunits(igas) = iunits
+          this%scale_factor(igas) = new_sf
+          !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
+        endif
       end if
     else
       do jg = 1,this%ntype
