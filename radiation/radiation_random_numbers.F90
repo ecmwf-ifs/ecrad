@@ -312,7 +312,7 @@ contains
     integer(kind=jpim), intent(in)      :: iseed
     integer,            intent(in)      :: jseed
 
-    real(kind=jprb), intent(out) :: istate
+    integer(kind=jpib), intent(out) :: istate
 
     !$ACC ROUTINE SEQ
     
@@ -332,7 +332,7 @@ contains
   ! assigned.
   function uniform_distribution_acc(istate) result(randnum)
 
-    real(kind=jprb), intent(inout) :: istate
+    integer(kind=jpib), intent(inout) :: istate
     real(kind=jprb)   :: randnum
 
     !$ACC ROUTINE SEQ

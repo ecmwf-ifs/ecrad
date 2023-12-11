@@ -47,7 +47,7 @@ contains
     &  cum_cloud_cover, &
     &  pair_cloud_cover)
 
-    use parkind1,                 only : jprb
+    use parkind1,                 only : jprb, jpib
     use radiation_random_numbers, only : initialize_acc, uniform_distribution_acc
 
     implicit none
@@ -132,7 +132,7 @@ contains
     real(jprb) :: wfsd, wcdf
 
     ! local variable for the acc rng
-    real(kind=jprb) :: istate
+    integer(kind=jpib) :: istate
 
     !$ACC ROUTINE WORKER
 
