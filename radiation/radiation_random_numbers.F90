@@ -307,12 +307,12 @@ contains
   ! Note that this function is not used but manually inlined as the compiler didnot succed.
   ! The seperate function stays in the code, so that hopefully, when the
   ! compiler issue is fixed, it can be used instead of the manual inline.
-  pure function initialize_acc(iseed, jseed) result(istate)
+  subroutine initialize_acc(istate, iseed, jseed)
 
     integer(kind=jpim), intent(in)      :: iseed
     integer,            intent(in)      :: jseed
 
-    real(kind=jprb) :: istate
+    real(kind=jprb), intent(out) :: istate
 
     !$ACC ROUTINE SEQ
     
@@ -323,7 +323,7 @@ contains
     ! One warmup of the C++ minstd_rand algorithm
     istate = mod(IMinstdA * istate, IMinstdM)
 
-  end function initialize_acc
+  end subroutine initialize_acc
 
   !---------------------------------------------------------------------
   ! Populate vector "randnum" with pseudo-random numbers; if rannum is

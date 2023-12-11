@@ -48,7 +48,7 @@ contains
     &  pair_cloud_cover)
 
     use parkind1,                 only : jprb
-    use radiation_random_numbers, only : initialize_acc, uniform_distribution_acc, IMinstdA0, IMinstdA, IMinstdM
+    use radiation_random_numbers, only : initialize_acc, uniform_distribution_acc
 
     implicit none
 
@@ -146,14 +146,7 @@ contains
           od_scaling(jg,jlev) = 0.0_jprb
         end do
 
-        ! begin manuel inline of istate = initialize_acc(iseed, jg)
-        istate = REAL(ABS(iseed),jprb)
-        ! Use a modified (and vectorized) C++ minstd_rand0 algorithm to populate the state
-        istate = nint(mod( istate*jg*(1._jprb-0.05_jprb*jg+0.005_jprb*jg**2)*IMinstdA0, IMinstdM))
-
-        ! One warmup of the C++ minstd_rand algorithm
-        istate = mod(IMinstdA * istate, IMinstdM)
-        ! end manuel inline of istate = initialize_acc(iseed, jg)
+        call initialize_acc(istate, iseed, jg)
         rand_top = uniform_distribution_acc(istate)
 
         ! Find the cloud top height corresponding to the current
