@@ -104,7 +104,6 @@ contains
     call this%deallocate()
 
     allocate(this%mixing_ratio(ncol, nlev, NMaxGases))
-    ! !$ACC ENTER DATA CREATE(this%mixing_ratio) ASYNC(1)
 
     ! !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
     ! !$ACC LOOP GANG VECTOR COLLAPSE(3)
@@ -119,7 +118,6 @@ contains
 
     this%ncol = ncol
     this%nlev = nlev
-    ! !$ACC UPDATE DEVICE(this%ncol, this%nlev) ASYNC(1)
 
     if (lhook) call dr_hook('radiation_gas:allocate',1,hook_handle)
 
@@ -139,8 +137,7 @@ contains
     if (lhook) call dr_hook('radiation_gas:deallocate',0,hook_handle)
 
     if (allocated(this%mixing_ratio)) then
-      ! !$ACC EXIT DATA DELETE(this%mixing_ratio) WAIT(1)
-      deallocate(this%mixing_ratio)
+       deallocate(this%mixing_ratio)
     end if
 
     this%iunits = 0
