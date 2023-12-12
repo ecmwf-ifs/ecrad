@@ -92,6 +92,7 @@ contains
   subroutine allocate_gas(this, ncol, nlev)
 
     use yomhook, only : lhook, dr_hook, jphook
+    use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type), intent(inout) :: this
     integer,         intent(in)    :: ncol, nlev
@@ -101,12 +102,15 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:allocate',0,hook_handle)
 
-    call this%deallocate()
+    if (allocated(this%mixing_ratio)) then
+      write(nulerr,'(a)') 'mixing ratio already allocated'
+      call radiation_abort()
+    endif
 
     allocate(this%mixing_ratio(ncol, nlev, NMaxGases))
 
-    ! !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
-    ! !$ACC LOOP GANG VECTOR COLLAPSE(3)
+    ! for openacc, this is done during create_device
+#ifndef _OPENACC
     do jgas = 1,NMaxGases
       do jlev = 1, nlev
         do jcol = 1,ncol
@@ -114,7 +118,7 @@ contains
         end do
       end do
     end do
-    ! !$ACC END PARALLEL
+#endif
 
     this%ncol = ncol
     this%nlev = nlev
@@ -722,6 +726,10 @@ contains
 
     !$ACC ENTER DATA CREATE(this%mixing_ratio) &
     !$ACC   IF(allocated(this%mixing_ratio)) ASYNC(1)
+
+    !$ACC KERNELS DEFAULT(PRESENT) ASYNC(1)
+    this%mixing_ratio(:,:,:) = 0.0_jprb
+    !$ACC END KERNELS
 
   end subroutine create_device
 

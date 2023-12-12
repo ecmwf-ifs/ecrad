@@ -122,6 +122,9 @@ contains
       allocate(this%od_lw (config%n_bands_lw,istartlev:iendlev,ncol))
       allocate(this%ssa_lw(config%n_bands_lw,istartlev:iendlev,ncol))
       allocate(this%g_lw  (config%n_bands_lw,istartlev:iendlev,ncol))
+
+      ! for openacc, this is done during create_device
+#ifndef _OPENACC
       ! If longwave scattering by aerosol is not to be represented,
       ! then the user may wish to just provide absorption optical
       ! depth in od_lw, in which case we must set the following two
@@ -140,6 +143,7 @@ contains
         end do
       end do
       ! !$ACC END PARALLEL
+#endif
     end if
 
     if (lhook) call dr_hook('radiation_aerosol:allocate_direct',1,hook_handle)
@@ -230,6 +234,19 @@ contains
     !$ACC ENTER DATA CREATE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
+#ifndef _OPENACC
+    ! (note that both should always be allocated)
+    if (allocated(this%ssa_lw) .or. allocated(this%g_lw)) then
+      ! If longwave scattering by aerosol is not to be represented,
+      ! then the user may wish to just provide absorption optical
+      ! depth in od_lw, in which case we must set the following two
+      ! variables to zero
+      !$ACC KERNELS DEFAULT(PRESENT) ASYNC(1)
+      this%ssa_lw(:,:,:) = 0.0_jprb
+      this%g_lw(:,:,:) = 0.0_jprb
+      !$ACC END KERNELS
+    endif
+#endif
 
   end subroutine create_device
 
