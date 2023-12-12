@@ -445,7 +445,8 @@ contains
         end if
 
         if (config%do_radiances) then
-          if (config%i_solver_lw == ISolverTcrad) then
+          if (config%i_solver_lw == ISolverTcrad &
+               &  .or. config%i_solver_lw == ISolverTcradICA) then
             ! Compute radiances using the TCRAD longwave solver
             call radiance_solver_tcrad_lw(nlev,istartcol,iendcol, &
                  &  config, thermodynamics, &

@@ -25,7 +25,7 @@ module tcrad_layer_solutions
   ! +/-1/1.66; or Eddington: radiance field assumed to be
   ! L(mu)=L0+mu*L1.
   enum, bind(c)
-    enumerator ITwoStreamElsasser, ITwoStreamEddington
+    enumerator ITwoStreamElsasser, ITwoStreamEddington, ITwoStreamLegendre
   end enum
 
   ! Two stream scheme currently in use 
@@ -71,6 +71,9 @@ contains
       ! Elsasser (1942)
       i_two_stream_scheme = ITwoStreamElsasser
       lw_diffusivity = 1.66_jprb
+    else if (i_two_stream_scheme /= ITwoStreamLegendre) then
+      i_two_stream_scheme = ITwoStreamLegendre
+      lw_diffusivity = 2.0_jprb
     end if
     
   end subroutine set_two_stream_scheme
@@ -265,7 +268,9 @@ contains
         do jreg = 2,nreg
           ! Scattering solution
           do jspec = 1,nspec
-            if (i_two_stream_scheme == ITwoStreamElsasser) then
+            if (i_two_stream_scheme /= ITwoStreamEddington) then
+              ! Both Elsasser and Legendre schemes use these formulae,
+              ! but with different values for lw_diffusivity
               ! See Fu et al. (1997), Eqs. 2.9 and 2.10
               factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
               gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))
@@ -1204,7 +1209,7 @@ contains
       do jreg = 2,max_reg
         do jspec = 1,nspec
           if (od(jspec,jreg,jlev) > OD_THRESH) then
-            if (i_two_stream_scheme == ITwoStreamElsasser) then
+            if (i_two_stream_scheme /= ITwoStreamEddington) then
               ! See Fu et al. (1997), Eqs. 2.9 and 2.10
               factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
               gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))

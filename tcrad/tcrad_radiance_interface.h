@@ -28,7 +28,7 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
      &  od_clear, od_cloud, ssa_cloud, asymmetry_cloud, &
      &  overlap_param, mu, radiance, cloud_cover, &
      &  layer_thickness, inv_cloud_scale, do_specular_surface, &
-     &  do_exact_solution)
+     &  do_exact_solution, do_independent_columns)
 
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook, jphook
@@ -113,6 +113,9 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! profile
   logical, intent(in), optional :: do_exact_solution
   
+  ! Configure overlap matrices to do independent columns
+  logical, intent(in), optional :: do_independent_columns
+
   ! Local variables
 
   ! Combined gas/aerosol/cloud optical depth in each region
@@ -179,7 +182,7 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! for microwave scattering by the sea surface.
   logical :: do_specular_surface_local
 
-  logical :: do_exact_solution_local
+  logical :: do_exact_solution_local, do_independent_columns_local
 
   ! Loop indices for region
   integer(jpim) :: jreg
@@ -206,28 +209,39 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     do_exact_solution_local = .false.
   end if
 
-  ! Compute the wavelength-independent region fractions and
-  ! optical-depth scalings
-  call calc_region_properties(nlev, cloud_fraction, &
-#if NUM_REGIONS == 3
-       &  .true., fractional_std, &
-#endif
-       &  region_fracs, &
-       &  od_scaling, cloud_fraction_threshold)
+  if (present(do_independent_columns)) then
+    do_independent_columns_local = do_independent_columns
+  else
+    do_independent_columns_local = .false.
+  end if
 
+  if (do_independent_columns_local) then
+    call calc_independent_column_overlap(nlev, &
+         &     cloud_fraction, overlap_param, region_fracs, od_scaling, &
+         &     u_overlap, v_overlap, cloud_cover)
+  else
+    ! Compute the wavelength-independent region fractions and
+    ! optical-depth scalings
+    call calc_region_properties(nlev, cloud_fraction, &
+#if NUM_REGIONS == 3
+         &  .true., fractional_std, &
+#endif
+         &  region_fracs, &
+         &  od_scaling, cloud_fraction_threshold)
+    ! Compute wavelength-independent overlap matrices u_overlap and
+    ! v_overlap
+    call calc_overlap_matrices(nlev, &
+         &  region_fracs, overlap_param, &
+         &  u_overlap, v_overlap, &
+         &  0.5_jprb, &
+         &  cloud_fraction_threshold, &
+         &  cloud_cover)
+  end if
+  
   if (do_3d_effects) then
     call calc_region_edge_areas(nlev, region_fracs, layer_thickness, &
          &                      inv_cloud_scale, region_edge_area)
   end if
-
-  ! Compute wavelength-independent overlap matrices u_overlap and
-  ! v_overlap
-  call calc_overlap_matrices(nlev, &
-       &  region_fracs, overlap_param, &
-       &  u_overlap, v_overlap, &
-       &  0.5_jprb, &
-       &  cloud_fraction_threshold, &
-       &  cloud_cover)
 
   ! Average gas and cloud properties noting that: (1) region 1 is
   ! cloud-free so we copy over the gas optical depth; (2) gases only

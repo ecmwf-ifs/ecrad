@@ -1220,7 +1220,7 @@ contains
     use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulout, nulerr, radiation_abort
     use tcrad_layer_solutions, only : set_two_stream_scheme, &
-         &                            ITwoStreamEddington, ITwoStreamElsasser
+         &                            ITwoStreamEddington, ITwoStreamElsasser, ITwoStreamLegendre
     
     class(config_type), intent(inout)         :: this
 
@@ -1470,6 +1470,7 @@ contains
         call set_two_stream_scheme(ITwoStreamEddington)
       else
         call set_two_stream_scheme(ITwoStreamElsasser)
+        !call set_two_stream_scheme(ITwoStreamLegendre)
       end if
     end if
 

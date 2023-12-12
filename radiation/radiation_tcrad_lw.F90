@@ -311,7 +311,7 @@ contains
     use yomhook,  only           : lhook, dr_hook, jphook
 
 !    use radiation_io, only             : nulout
-    use radiation_config, only         : config_type, IPdfShapeGamma
+    use radiation_config, only         : config_type, IPdfShapeGamma, ISolverTcradICA
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type, indexed_sum
@@ -378,7 +378,9 @@ contains
     real(jprb), dimension(config%n_g_lw) :: spectral_radiance
 
     integer :: jcol
-
+    
+    logical :: do_independent_columns
+    
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_tcrad_lw:radiance_solver_tcrad_lw',0,hook_handle)
@@ -389,6 +391,12 @@ contains
       g_cloud_regrid   = 0.0_jprb
     end if
 
+    if (config%i_solver_lw == ISolverTcradICA) then
+      do_independent_columns = .true.
+    else
+      do_independent_columns = .false.
+    end if
+  
     do jcol = istartcol,iendcol
 
       ! If we do 3D effects then we need to provide the layer
@@ -425,7 +433,8 @@ contains
                  &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
                  &         cloud_cover=flux%cloud_cover_lw(jcol), &
                  &         do_specular_surface=config%do_specular_surface, &
-                 &         do_exact_solution=config%use_tcrad_exact_solution)
+                 &         do_exact_solution=config%use_tcrad_exact_solution, &
+                 &         do_independent_columns=do_independent_columns)
           end if
         else
           if (config%do_3d_effects) then
@@ -446,7 +455,8 @@ contains
                  &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
                  &         cloud_cover=flux%cloud_cover_lw(jcol), &
                  &         do_specular_surface=config%do_specular_surface, &
-                 &         do_exact_solution=config%use_tcrad_exact_solution)
+                 &         do_exact_solution=config%use_tcrad_exact_solution, &
+                 &         do_independent_columns=do_independent_columns)
           end if
         end if
       else
