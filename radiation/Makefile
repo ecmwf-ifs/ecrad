@@ -95,7 +95,6 @@ $(consumer_objs): FCFLAGS+= $(inlib_inline_FCFLAGS)
 # All object that can be built with the inline library depend on it:
 $(consumer_objs): $(inlib_name)
 
-radiation_cloud_generator_acc.o: FCFLAGS += -gpu=maxregcount:96
 radiation_mcica_acc_lw.o: FCFLAGS += -gpu=maxregcount:96
 radiation_mcica_acc_sw.o: FCFLAGS += -gpu=maxregcount:96
 endif
