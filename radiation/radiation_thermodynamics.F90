@@ -157,7 +157,7 @@ contains
 
     class(thermodynamics_type), intent(inout) :: this
     integer, intent(in)                       :: istartcol, iendcol
-    logical, intent(in)                       :: lacc
+    logical, optional, intent(in)             :: lacc
 
     logical :: llacc
 
@@ -174,11 +174,11 @@ contains
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',0,hook_handle)
 
-    !if (present(lacc)) then
+    if (present(lacc)) then
         llacc = lacc
-    !else
-    !    llacc = .false.
-    !endif
+    else
+        llacc = .false.
+    endif
 
     ncol = size(this%pressure_hl,1)
     nlev = size(this%pressure_hl,2) - 1

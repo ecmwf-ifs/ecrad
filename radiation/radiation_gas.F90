@@ -173,18 +173,18 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio(:,:)
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
-    logical,    intent(in)    :: lacc
+    logical,    optional, intent(in)    :: lacc
 
     logical :: llacc
     integer :: i1, i2, jc, jk
 
     real(jphook) :: hook_handle
 
-    !if (present(lacc)) then
+    if (present(lacc)) then
       llacc = lacc
-    !else
-    !  llacc = .false.
-    !endif
+    else
+      llacc = .false.
+    endif
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
@@ -274,18 +274,18 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol, iendcol
-    logical,    intent(in)    :: lacc
+    logical,    optional, intent(in)    :: lacc
 
     real(jphook) :: hook_handle
 
     logical :: llacc
     integer :: i1, i2, jc, jk
 
-    !if (present(lacc)) then
+    if (present(lacc)) then
       llacc = lacc
-    !else
-    !  llacc = .false.
-    !endif
+    else
+      llacc = .false.
+    endif
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
@@ -415,11 +415,11 @@ contains
     real(jprb) :: new_sf
     logical :: llacc
 
-    !if (present(lacc)) then
+    if (present(lacc)) then
       llacc = lacc
-    !else
-    !  llacc = .false.
-    !endif
+    else
+      llacc = .false.
+    endif
 
     if (present(scale_factor)) then
       ! "sf" is the scaling to be applied now to the numbers (and may

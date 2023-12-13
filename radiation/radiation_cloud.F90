@@ -214,7 +214,7 @@ contains
     type(thermodynamics_type), intent(in)    :: thermodynamics
     real(jprb),                intent(in)    :: decorrelation_length ! m
     integer,         optional, intent(in)    :: istartcol, iendcol
-    logical, intent(in) :: lacc
+    logical, optional, intent(in) :: lacc
 
     ! Ratio of gas constant for dry air to acceleration due to gravity
     real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
@@ -238,11 +238,11 @@ contains
     ncol = size(thermodynamics%pressure_hl,dim=1)
     nlev = size(thermodynamics%pressure_hl,dim=2)-1
 
-    !if (present(lacc)) then
+    if (present(lacc)) then
         llacc = lacc
-    !else
-    !    llacc = .false.
-    !endif
+    else
+        llacc = .false.
+    endif
 
     if (present(istartcol)) then
       i1 = istartcol
@@ -347,7 +347,7 @@ contains
     type(thermodynamics_type), intent(in)    :: thermodynamics
     integer,                   intent(in)    :: istartcol, iendcol
     real(jprb),                intent(in)    :: decorrelation_length(istartcol:iendcol) ! m
-    logical, intent(in) :: lacc
+    logical, optional, intent(in) :: lacc
 
     ! Ratio of gas constant for dry air to acceleration due to gravity
     real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
@@ -362,11 +362,11 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',0,hook_handle)
 
-    !if (present(lacc)) then
+    if (present(lacc)) then
         llacc = lacc
-    !else
-    !    llacc = .false.
-    !endif
+    else
+        llacc = .false.
+    endif
 
     ! Pressure at half-levels, pressure_hl, is defined at nlev+1
     ! points
@@ -533,18 +533,18 @@ contains
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     real(jprb),        intent(in)    :: frac_std
-    logical, intent(in) :: lacc
+    logical, optional, intent(in) :: lacc
 
     integer :: jcol, jlev
     logical :: llacc
 
     real(jphook) :: hook_handle
 
-    !if (present(lacc)) then
+    if (present(lacc)) then
         llacc = lacc
-    !else
-    !    llacc = .false.
-    !endif
+    else
+        llacc = .false.
+    endif
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',0,hook_handle)
 

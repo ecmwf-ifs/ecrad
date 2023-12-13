@@ -205,16 +205,16 @@ contains
   subroutine init_seed_simple(this, istartcol, iendcol, lacc)
     class(single_level_type), intent(inout) :: this
     integer, intent(in)                     :: istartcol, iendcol
-    logical, intent(in)                     :: lacc
+    logical, optional, intent(in)           :: lacc
 
     integer :: jcol
     logical :: llacc
 
-    !if (present(lacc)) then
+    if (present(lacc)) then
         llacc = lacc
-    !else
-    !    llacc = .false.
-    !endif
+    else
+        llacc = .false.
+    endif
 
     if (.not. allocated(this%iseed)) then
       allocate(this%iseed(istartcol:iendcol))
