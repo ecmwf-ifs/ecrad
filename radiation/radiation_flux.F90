@@ -20,6 +20,8 @@
 !   2021-01-20  R. Hogan  Added heating_rate_out_of_physical_bounds function
 !   2022-12-07  R. Hogan  Added top-of-atmosphere spectral output
 
+#include "ecrad_config.h"
+
 module radiation_flux
 
   use parkind1, only : jprb
@@ -106,17 +108,29 @@ module radiation_flux
      real(jprb), allocatable, dimension(:,:) :: &
           &  lw_derivatives
 
+     ! if do_radiances==true then instead of storing fluxes we store
+     ! radiances in one particular direction per profile, either per
+     ! band or per g-point, dimensioned (nspec,ncol)
+     real(jprb), allocatable, dimension(:,:) :: sw_radiance_band
+     real(jprb), allocatable, dimension(:,:) :: lw_radiance_band
+     real(jprb), allocatable, dimension(:,:) :: sw_radiance_clear_band
+
+     ! Is lw_radiance_band actually a brightness temperature (in K)?
+     logical :: is_brightness_temperature = .false.
+
    contains
      procedure :: allocate   => allocate_flux_type
      procedure :: deallocate => deallocate_flux_type
+     procedure :: allocate_radiances_only
      procedure :: calc_surface_spectral
      procedure :: calc_toa_spectral
      procedure :: out_of_physical_bounds
      procedure :: heating_rate_out_of_physical_bounds
+     procedure :: convert_radiance_to_brightness_temperature
   end type flux_type
 
 ! Added for DWD (2020)
-#ifdef __SX__
+#ifdef DWD_VECTOR_OPTIMIZATIONS
       logical, parameter :: use_indexed_sum_vec = .true.
 #else
       logical, parameter :: use_indexed_sum_vec = .false.
@@ -371,6 +385,16 @@ contains
       deallocate(this%lw_derivatives)
     end if
 
+    if (allocated(this%lw_radiance_band)) then
+      deallocate(this%lw_radiance_band)
+    end if
+    if (allocated(this%sw_radiance_band)) then
+      deallocate(this%sw_radiance_band)
+    end if
+    if (allocated(this%sw_radiance_clear_band)) then
+      deallocate(this%sw_radiance_clear_band)
+    end if
+
     if (allocated(this%lw_dn_surf_g))               deallocate(this%lw_dn_surf_g)
     if (allocated(this%lw_dn_surf_clear_g))         deallocate(this%lw_dn_surf_clear_g)
     if (allocated(this%sw_dn_diffuse_surf_g))       deallocate(this%sw_dn_diffuse_surf_g)
@@ -388,6 +412,64 @@ contains
 
   end subroutine deallocate_flux_type
   
+
+
+  !---------------------------------------------------------------------
+  ! Allocate radiances only
+  subroutine allocate_radiances_only(this, config, istartcol, iendcol)
+
+    use yomhook,          only : lhook, dr_hook, jphook
+    use radiation_io,     only : nulerr, radiation_abort
+    use radiation_config, only : config_type
+
+    integer, intent(in)             :: istartcol, iendcol
+    class(flux_type), intent(inout) :: this
+    type(config_type), intent(in)   :: config
+
+    real(jphook)                    :: hook_handle
+
+    if (lhook) call dr_hook('radiation_flux:allocate_radiances_only',0,hook_handle)
+
+    ! Allocate longwave arrays
+    if (config%do_lw) then
+      if (config%n_spec_lw > 0) then
+        allocate(this%lw_radiance_band(config%n_spec_lw,istartcol:iendcol))
+      else
+        allocate(this%lw_radiance_band(config%n_bands_lw,istartcol:iendcol))
+      end if
+    end if
+
+    ! Allocate short arrays
+    if (config%do_sw) then
+      if (config%n_spec_sw > 0) then
+        allocate(this%sw_radiance_band(config%n_spec_sw,istartcol:iendcol))
+        allocate(this%sw_radiance_clear_band(config%n_spec_sw,istartcol:iendcol))
+      else
+        allocate(this%sw_radiance_band(config%n_bands_sw,istartcol:iendcol))
+        allocate(this%sw_radiance_clear_band(config%n_bands_sw,istartcol:iendcol))
+      end if
+    end if
+
+    if (.not. allocated(this%cloud_cover_lw)) then
+      ! Allocate cloud cover array
+      allocate(this%cloud_cover_lw(istartcol:iendcol))
+      ! Some solvers may not write to cloud cover, so we initialize to
+      ! an unphysical value
+      this%cloud_cover_lw = -1.0_jprb
+    end if
+
+    if (.not. allocated(this%cloud_cover_sw)) then
+      ! Allocate cloud cover array
+      allocate(this%cloud_cover_sw(istartcol:iendcol))
+      ! Some solvers may not write to cloud cover, so we initialize to
+      ! an unphysical value
+      this%cloud_cover_sw = -1.0_jprb
+    end if
+
+    if (lhook) call dr_hook('radiation_flux:allocate_radiances_only',1,hook_handle)
+
+  end subroutine allocate_radiances_only
+
 
   !---------------------------------------------------------------------
   ! Calculate surface downwelling fluxes in each band using the
@@ -569,6 +651,27 @@ contains
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',1,hook_handle)
 
   end subroutine calc_surface_spectral
+
+  !---------------------------------------------------------------------
+  ! Convert lw_radiance_band to a brightness temperature, using the
+  ! Planck mapping contained in the ckd_model definition
+  subroutine convert_radiance_to_brightness_temperature(this, ncol, ckd_model)
+    
+    use radiation_ecckd, only : ckd_model_type
+
+    class(flux_type),     intent(inout) :: this
+    integer,              intent(in)    :: ncol
+    type(ckd_model_type), intent(in)    :: ckd_model
+
+    real(jprb) :: bt(ckd_model%spectral_def%nband,ncol)
+
+    if (.not. this%is_brightness_temperature) then
+      call ckd_model%calc_brightness_temperature(ncol, this%lw_radiance_band, bt)
+      this%lw_radiance_band = bt
+      this%is_brightness_temperature = .true.
+    end if
+
+  end subroutine convert_radiance_to_brightness_temperature
 
 
   !---------------------------------------------------------------------

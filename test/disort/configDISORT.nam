@@ -1,0 +1,60 @@
+! Configuration namelists for ECRAD radiation code
+!
+! The following namelist controls the behaviour of the driver routine,
+! including parallelization options and overriding numbers read from
+! the NetCDF input file
+!
+! This version matches the expected configuration of ECMWF IFS Cycle
+! 47R1: compared to 46R1, the surface shortwave albedo and longwave
+! emissivity mappings are specified
+!
+&radiation_driver
+do_parallel              = true,   ! Use OpenMP parallelization?
+nblocksize               = 1024,      ! Number of columns to process per thread
+! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
+iverbose    	   	= 3,
+lw_emissivity = 1.0,
+sw_albedo = 0.05,
+vmr_suffix_str = '_mole_fraction_fl',
+do_write_double_precision = true,
+h2o_scaling = 1.0,
+q_ice_scaling = 50.0,
+q_liquid_scaling = 2.5,
+/
+!
+! The following namelist controls the behaviour of the SPARTACUS
+! radiation code
+!
+&radiation
+do_sw			= false,           ! Compute shortwave fluxes?
+do_lw			= true,           ! Compute longwave fluxes?
+do_clear		= true,           ! Compute clear-sky fluxes?
+directory_name		= "../../data",      ! Location of configuration files
+sw_solver_name          = "DISORT",
+lw_solver_name          = "DISORT",
+iverbose    	   	= 1, 
+iverbosesetup  	   	= 3, 
+use_aerosols		= false,           ! Include aerosols in radiation calculations?
+do_save_spectral_flux   = false,           ! Save spectral fluxes in output file?
+do_save_gpoint_flux     = true,           ! Save fluxes per g-point in output file?
+do_lw_derivatives       = false,            ! Hogan-Bozzo style derivatives for approx updates
+!gas_model_name          = "RRTMG-IFS",     ! Gas model
+gas_model_name          = "ECCKD",     ! Gas model
+do_save_radiative_properties = true,
+do_surface_sw_spectral_flux = false,
+do_lw_aerosol_scattering = false,
+do_lw_cloud_scattering = true,
+n_angles_per_hemisphere_sw = 1,
+n_angles_per_hemisphere_lw = 1,
+lw_quadrature_name = 'Legendre',
+use_thick_cloud_spectral_averaging(1) = false,
+use_thick_cloud_spectral_averaging(2) = false,
+cloud_type_name(1) = '/perm/parr/radiation_data/mie_droplet_scattering_pf.nc',
+cloud_type_name(2) = '/perm/parr/radiation_data/baum-general-habit-mixture_ice_scattering_pf.nc',
+!lw_quadrature_name = 'Jacobi',
+i_quadrature_power_lw = 5,
+!
+! SURFACE ALBEDO AND EMISSIVITY
+do_nearest_spectral_sw_albedo = true,
+do_nearest_spectral_lw_emiss = true,
+/

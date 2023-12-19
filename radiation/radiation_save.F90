@@ -25,7 +25,7 @@ module radiation_save
   ! Save final fluxes and save intermediate radiative properties
   public :: save_fluxes, save_radiative_properties, save_inputs
   ! Save net fluxes IFS style, where upwelling fluxes are actually net down
-  public :: save_net_fluxes
+  public :: save_net_fluxes, save_radiances
 
 contains
 
@@ -711,6 +711,172 @@ contains
   
 
   !---------------------------------------------------------------------
+  ! Save radiances in "flux" to NetCDF file_name, plus
+  ! cos_sensor_zenith_angle from single_level object
+  subroutine save_radiances(file_name, config, single_level, flux, &
+       &                    iverbose, is_hdf5_file, experiment_name)
+
+    use yomhook,                  only : lhook, dr_hook, jphook
+
+    use easy_netcdf
+
+    use radiation_io,             only : nulout
+    use radiation_config,         only : config_type, IGasModelMonochromatic
+    use radiation_single_level,   only : single_level_type
+    use radiation_flux,           only : flux_type
+
+    character(len=*),           intent(in) :: file_name
+    type(config_type),          intent(in) :: config
+    type(single_level_type),    intent(in) :: single_level
+    type(flux_type),            intent(in) :: flux
+    integer,          optional, intent(in) :: iverbose
+    logical,          optional, intent(in) :: is_hdf5_file
+    character(len=*), optional, intent(in) :: experiment_name
+
+    type(netcdf_file)                      :: out_file
+    integer                                :: ncol, n_bands_lw, n_bands_sw
+    character(10), parameter               :: default_lw_units_str = 'W m-2 sr-1'
+    character(10), parameter               :: default_sw_units_str = 'W m-2 sr-1'
+    character(10)                          :: lw_units_str, sw_units_str
+    integer                                :: i_local_verbose
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_save:save_radiances',0,hook_handle)
+    
+    if (present(iverbose)) then
+      i_local_verbose = iverbose
+    else
+      i_local_verbose = config%iverbose
+    end if
+
+    lw_units_str = default_lw_units_str
+    sw_units_str = default_sw_units_str
+
+    ncol = size(single_level%cos_sensor_zenith_angle)
+
+    ! Open the file
+    call out_file%create(trim(file_name), iverbose=i_local_verbose, is_hdf5_file=is_hdf5_file)
+    
+    ! Define dimensions
+    call out_file%define_dimension("column", ncol)
+
+    if (config%do_lw) then
+      n_bands_lw = size(flux%lw_radiance_band,1)
+      call out_file%define_dimension("band_lw", n_bands_lw)
+    end if
+    if (config%do_sw) then
+      n_bands_sw = size(flux%sw_radiance_band,1)
+      call out_file%define_dimension("band_sw", n_bands_sw)
+    end if
+
+   ! Put global attributes
+    call out_file%put_global_attributes( &
+         &   title_str="Radiances from the ecRad offline radiation model", &
+         &   references_str="Hogan, R. J., and A. Bozzo, 2018: A flexible and efficient radiation " &
+         &   //"scheme for the ECMWF model. J. Adv. Modeling Earth Sys., 10, 1990–2008", &
+         &   source_str="ecRad offline radiation model")
+
+    ! Save "experiment" global attribute if present and not empty
+    if (present(experiment_name)) then
+      if (experiment_name /= " ") then
+        call out_file%put_global_attribute("experiment", experiment_name)
+      end if
+    end if
+
+    ! Define variables
+    call out_file%define_variable("cos_sensor_zenith_angle", &
+         &  dim1_name="column", units_str="1", &
+         &  long_name="Cosine of the sensor zenith angle")
+
+    if (config%do_lw) then
+
+      ! if (.not. config%do_save_spectral_flux) then
+      !   call out_file%define_variable("wavenumber1_lw", &
+      !        &  dim1_name="band_lw", units_str="cm-1", &
+      !        &  long_name="Lower wavenumber of longwave band")
+      !   call out_file%define_variable("wavenumber2_lw", &
+      !        &  dim1_name="band_lw", units_str="cm-1", &
+      !        &  long_name="Upper wavenumber of longwave band")
+      ! end if
+
+      if (flux%is_brightness_temperature) then
+        call out_file%define_variable("brightness_temperature_lw_band", &
+             &  dim2_name="column", dim1_name="band_lw", &
+             &  units_str="K", long_name="Brightness temperature")
+      else
+        call out_file%define_variable("radiance_lw_band", &
+             &  dim2_name="column", dim1_name="band_lw", &
+             &  units_str=trim(lw_units_str), long_name="Thermal radiance")
+      end if
+      call out_file%define_variable("cloud_cover_lw", &
+           &  dim1_name="column", units_str="1", &
+           &  long_name="Total cloud cover diagnosed by longwave solver", &
+           &  standard_name="cloud_area_fraction")
+
+    end if
+
+    if (config%do_sw) then
+
+      if (.not. config%do_save_spectral_flux) then
+        call out_file%define_variable("wavenumber1_sw", &
+             &  dim1_name="band_sw", units_str="cm-1", &
+             &  long_name="Lower wavenumber of shortwave band")
+        call out_file%define_variable("wavenumber2_sw", &
+             &  dim1_name="band_sw", units_str="cm-1", &
+             &  long_name="Upper wavenumber of shortwave band")
+      end if
+
+      call out_file%define_variable("radiance_sw_band", &
+           &  dim2_name="column", dim1_name="band_sw",&
+           &  units_str=trim(sw_units_str), long_name="Solar radiance")
+
+      if (config%do_clear) then
+        call out_file%define_variable("radiance_sw_clear_band", &
+             &  dim2_name="column", dim1_name="band_sw", &
+             &  units_str=trim(sw_units_str), long_name="Clear-sky solar radiance")
+      end if
+
+    end if
+
+    ! Write variables
+    call out_file%put("cos_sensor_zenith_angle", single_level%cos_sensor_zenith_angle)
+    
+    if (config%do_lw) then
+      !if (.not. config%do_save_spectral_flux) then
+      !  call out_file%put("wavenumber1_lw", config%gas_optics_lw%spectral_def%wavenumber1_band)
+      !  call out_file%put("wavenumber2_lw", config%gas_optics_lw%spectral_def%wavenumber2_band)
+      !end if
+
+      if (flux%is_brightness_temperature) then
+        call out_file%put("brightness_temperature_lw_band", flux%lw_radiance_band)
+      else
+        call out_file%put("radiance_lw_band", flux%lw_radiance_band)
+      end if
+      call out_file%put("cloud_cover_lw",   flux%cloud_cover_lw)
+    end if
+
+    if (config%do_sw) then
+      if (.not. config%do_save_spectral_flux) then
+        call out_file%put("wavenumber1_sw", config%gas_optics_sw%spectral_def%wavenumber1_band)
+        call out_file%put("wavenumber2_sw", config%gas_optics_sw%spectral_def%wavenumber2_band)
+      end if
+
+      call out_file%put("radiance_sw_band", flux%sw_radiance_band)
+      if (config%do_clear) then
+        call out_file%put("radiance_sw_clear_band", flux%sw_radiance_clear_band)
+      end if
+    end if
+
+    ! Close file
+    call out_file%close()
+
+    if (lhook) call dr_hook('radiation_save:save_radiances',1,hook_handle)
+
+  end subroutine save_radiances
+
+
+  !---------------------------------------------------------------------
   ! Save intermediate radiative properties, specifically the
   ! scattering and absorption properties at each g-point/band
   subroutine save_radiative_properties(file_name, nlev, &
@@ -721,8 +887,8 @@ contains
        &  incoming_sw, &
        &  od_lw, ssa_lw, g_lw, &
        &  od_sw, ssa_sw, g_sw, &
-       &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-       &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+       &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
+       &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
 
     use radiation_config,        only : config_type
     use radiation_single_level,  only : single_level_type
@@ -744,10 +910,13 @@ contains
     ! gases and aerosols at each shortwave g-point
     real(jprb), intent(in), dimension(config%n_g_sw,nlev,istartcol:iendcol) :: od_sw, ssa_sw, g_sw
 
-   ! Layer optical depth, single scattering albedo and asymmetry factor of
+    ! Layer optical depth and single scattering albedo of
     ! hydrometeors in each shortwave band
     real(jprb), intent(in), dimension(config%n_bands_sw,nlev,istartcol:iendcol)   :: &
-         &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud
+         &  od_sw_cloud, ssa_sw_cloud
+
+    ! Phase function components, or asymmetry factor if n_pf_sw=1
+    real(jprb), intent(in) :: pf_sw_cloud(config%n_bands_sw,nlev,istartcol:iendcol,config%n_pf_sw)
 
     ! Direct and diffuse surface albedo, and the incoming shortwave
     ! flux into a plane perpendicular to the incoming radiation at
@@ -755,21 +924,24 @@ contains
     real(jprb), intent(in), dimension(config%n_g_sw,istartcol:iendcol) &
          &  :: sw_albedo_direct, sw_albedo_diffuse, incoming_sw
 
-    ! Layer optical depth, single scattering albedo and asymmetry factor of
-    ! gases and aerosols at each longwave g-point, where the latter
-    ! two variables are only defined if aerosol longwave scattering is
-    ! enabled (otherwise both are treated as zero).
+    ! Layer optical depth, single scattering albedo and asymmetry
+    ! factor of gases and aerosols at each longwave g-point, where the
+    ! latter two variables are only defined if aerosol longwave
+    ! scattering is enabled (otherwise both are treated as zero).
     real(jprb), intent(in), dimension(config%n_g_lw,nlev,istartcol:iendcol) :: od_lw
     real(jprb), intent(in), dimension(config%n_g_lw_if_scattering,nlev,istartcol:iendcol) :: &
          &  ssa_lw, g_lw
 
-    ! Layer optical depth, single scattering albedo and asymmetry factor of
-    ! hydrometeors in each longwave band, where the latter two
-    ! variables are only defined if hydrometeor longwave scattering is
-    ! enabled (otherwise both are treated as zero).
+    ! Layer optical depth, single scattering albedo and asymmetry
+    ! factor (or phase function components) of hydrometeors in each
+    ! longwave band, where the latter two variables are only defined
+    ! if hydrometeor longwave scattering is enabled (otherwise both
+    ! are treated as zero).
     real(jprb), intent(in), dimension(config%n_bands_lw,nlev,istartcol:iendcol) :: od_lw_cloud
     real(jprb), intent(in), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol) :: &
-         &  ssa_lw_cloud, g_lw_cloud
+         &  ssa_lw_cloud
+    real(jprb), intent(in), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol,config%n_pf_lw) :: &
+         &  pf_lw_cloud
 
     ! The Planck function (emitted flux from a black body) at half
     ! levels and at the surface at each longwave g-point
@@ -786,6 +958,8 @@ contains
     ! Object for output NetCDF file
     type(netcdf_file) :: out_file
 
+    integer :: jcol, jcomp ! Loop indices
+    
     n_col_local = iendcol + 1 - istartcol
 
     ! Alas the NetCDF library is not thread-safe for writing, so we
@@ -806,6 +980,12 @@ contains
     ! Define dimensions
     !    call out_file%define_dimension("column", n_col_local)
     call out_file%define_dimension("column", 0) ! "Unlimited" dimension
+    if (config%n_pf_sw > 1) then
+      call out_file%define_dimension("pf_sw", config%n_pf_sw)
+    end if
+    if (config%n_pf_lw > 1) then
+      call out_file%define_dimension("pf_lw", config%n_pf_lw)
+    end if
     call out_file%define_dimension("level", nlev)
     call out_file%define_dimension("half_level", nlev+1)
     if (config%do_clouds) then
@@ -847,6 +1027,11 @@ contains
       call out_file%define_variable("cos_solar_zenith_angle", &
            &  dim1_name="column", units_str="1", &
            &  long_name="Cosine of the solar zenith angle")
+      if (allocated(single_level%scattering_angle)) then
+        call out_file%define_variable("scattering_angle", &
+             &  dim1_name="column", units_str="radians", &
+             &  long_name="Scattering angle between sun and sensor")
+      end if
     end if
 
     if (config%do_clouds) then
@@ -889,9 +1074,15 @@ contains
           call out_file%define_variable("ssa_lw_cloud", &
                &  dim3_name="column", dim2_name="level", dim1_name="band_lw", &
                &  units_str="1", long_name="Cloud longwave single scattering albedo")
-          call out_file%define_variable("asymmetry_lw_cloud", &
-               &  dim3_name="column", dim2_name="level", dim1_name="band_lw", &
-               &  units_str="1", long_name="Cloud longwave asymmetry factor")
+          if (config%n_pf_lw > 1) then
+            call out_file%define_variable("phase_function_components_lw_cloud", &
+                 &  dim4_name="column", dim3_name="pf_lw", dim2_name="level", dim1_name="band_lw", &
+                 &  units_str="1", long_name="Cloud longwave phase-function components")
+          else
+            call out_file%define_variable("asymmetry_lw_cloud", &
+                 &  dim3_name="column", dim2_name="level", dim1_name="band_lw", &
+                 &  units_str="1", long_name="Cloud longwave asymmetry factor")
+          end if
         end if
       end if ! do_clouds
     end if ! do_lw
@@ -925,9 +1116,15 @@ contains
         call out_file%define_variable("ssa_sw_cloud", &
              &  dim3_name="column", dim2_name="level", dim1_name="band_sw", &
              &  units_str="1", long_name="Cloud shortwave single scattering albedo")
-        call out_file%define_variable("asymmetry_sw_cloud", &
-             &  dim3_name="column", dim2_name="level", dim1_name="band_sw", &
-             &  units_str="1", long_name="Cloud shortwave asymmetry factor")
+        if (config%n_pf_sw > 1) then
+          call out_file%define_variable("phase_function_components_sw_cloud", &
+               &  dim4_name="column", dim3_name="pf_sw", dim2_name="level", dim1_name="band_sw", &
+               &  units_str="1", long_name="Cloud shortwave phase-function components")
+        else
+          call out_file%define_variable("asymmetry_sw_cloud", &
+               &  dim3_name="column", dim2_name="level", dim1_name="band_sw", &
+               &  units_str="1", long_name="Cloud shortwave asymmetry factor")
+        end if
       end if
     end if
    
@@ -963,6 +1160,9 @@ contains
 
     if (config%do_sw) then
       call out_file%put("cos_solar_zenith_angle", single_level%cos_sza(istartcol:iendcol))
+      if (allocated(single_level%scattering_angle)) then
+        call out_file%put("scattering_angle", single_level%scattering_angle(istartcol:iendcol))
+      end if
       call out_file%put("sw_albedo", sw_albedo_diffuse, do_transp=.false.)
       call out_file%put("sw_albedo_direct", sw_albedo_direct, do_transp=.false.)
     end if
@@ -982,7 +1182,16 @@ contains
         call out_file%put("od_lw_cloud", od_lw_cloud)
         if (config%do_lw_cloud_scattering) then
           call out_file%put("ssa_lw_cloud", ssa_lw_cloud)
-          call out_file%put("asymmetry_lw_cloud", g_lw_cloud)
+          if (config%n_pf_lw > 1) then
+            do jcol = istartcol,iendcol
+              do jcomp = 1,config%n_pf_lw
+                call out_file%put("phase_function_components_lw_cloud", &
+                     &  pf_lw_cloud(:,:,jcol,jcomp), jcomp, jcol-istartcol+1, do_transp=.false.)
+              end do
+            end do
+          else
+            call out_file%put("asymmetry_lw_cloud", pf_lw_cloud(:,:,:,1))
+          end if
         end if
       end if
     end if
@@ -997,7 +1206,16 @@ contains
       if (config%do_clouds) then
         call out_file%put("od_sw_cloud", od_sw_cloud)
         call out_file%put("ssa_sw_cloud", ssa_sw_cloud)
-        call out_file%put("asymmetry_sw_cloud", g_sw_cloud)
+        if (config%n_pf_sw > 1) then
+          do jcol = istartcol,iendcol
+            do jcomp = 1,config%n_pf_sw
+              call out_file%put("phase_function_components_sw_cloud", &
+                   &  pf_sw_cloud(:,:,jcol,jcomp), jcomp, jcol-istartcol+1, do_transp=.false.)
+            end do
+          end do
+        else
+          call out_file%put("asymmetry_sw_cloud", pf_sw_cloud(:,:,:,1))
+        end if
       end if
     end if
     

@@ -14,6 +14,8 @@
 ! License: see the COPYING file for details
 !
 
+#include "ecrad_config.h"
+
 module radiation_ecckd
 
   use parkind1, only : jprb
@@ -104,13 +106,14 @@ module radiation_ecckd
     procedure :: read_spectral_solar_cycle
 ! Vectorized version of the optical depth look-up performs better on
 ! NEC, but slower on x86
-#ifdef __SX__
+#ifdef DWD_VECTOR_OPTIMIZATIONS
     procedure :: calc_optical_depth => calc_optical_depth_ckd_model_vec
 #else
     procedure :: calc_optical_depth => calc_optical_depth_ckd_model
 #endif
     procedure :: print => print_ckd_model
     procedure :: calc_planck_function
+    procedure :: calc_brightness_temperature
     procedure :: calc_incoming_sw
 !    procedure :: deallocate => deallocate_ckd_model
 
@@ -895,6 +898,54 @@ contains
 
   end subroutine calc_planck_function
   
+  !---------------------------------------------------------------------
+  ! Calculate the brightness temperature in each band given the
+  ! radiances
+  subroutine calc_brightness_temperature(this, nt, radiance, bt)
+
+    real(jprb), parameter :: PI = acos(-1.0_jprb)
+
+    class(ckd_model_type), intent(in)  :: this
+    integer,    intent(in)  :: nt
+    ! Radiance in W m-2 sr-1
+    real(jprb), intent(in)  :: radiance(this%spectral_def%nband,nt)
+    ! Brightness temperature in K
+    real(jprb), intent(out) :: bt(this%spectral_def%nband,nt)
+
+    real(jprb) :: planck_lut(this%nplanck)
+
+    real(jprb) :: weight2
+    integer :: ibound2
+    integer :: jband, jt, jplanck
+
+    do jband = 1,this%spectral_def%nband
+      ! Create look-up table of Planck function (in W m-2 sr-1)
+      ! integrated over band
+      planck_lut = sum(this%planck_function,1, &
+           &  spread(this%spectral_def%i_band_number==jband,2,this%nplanck)) / PI
+      do jt = 1,nt
+        ibound2 = 0
+        ! Could use findloc if have Fortran-2008 support
+        do jplanck = 1,this%nplanck
+          if (planck_lut(jplanck) > radiance(jband,jt)) then
+            ibound2 = jplanck
+            exit
+          end if
+        end do
+        if (ibound2 == 0) then
+          ibound2 = this%nplanck
+        else if (ibound2 == 1) then
+          ibound2 = 2
+        end if
+        weight2 = (radiance(jband,jt)-planck_lut(ibound2-1)) &
+             &  / (planck_lut(ibound2) - planck_lut(ibound2-1))
+        bt(jband,jt) = this%temperature1_planck &
+             &  + (real(ibound2-2,jprb)+weight2) * this%d_temperature_planck
+      end do
+    end do
+
+  end subroutine calc_brightness_temperature
+
 
   !---------------------------------------------------------------------
   ! Return the spectral solar irradiance integrated over each g point

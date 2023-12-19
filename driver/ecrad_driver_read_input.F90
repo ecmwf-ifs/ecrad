@@ -18,13 +18,15 @@ module ecrad_driver_read_input
   
 contains
 
+  ! --------------------------------------------------------
+  ! Read a netCDF file containing input fields for ecRad
   subroutine read_input(file, config, driver_config, ncol, nlev, &
        &          single_level, thermodynamics, &
        &          gas, cloud, aerosol)
 
     use parkind1,                 only : jprb, jpim
     use radiation_io,             only : nulout
-    use radiation_config,         only : config_type, ISolverSPARTACUS
+    use radiation_config,         only : config_type, ISolverSPARTACUS, ISolverTCRAD
     use ecrad_driver_config,      only : driver_config_type
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
@@ -46,6 +48,8 @@ contains
     type(gas_type),            intent(inout) :: gas
     type(cloud_type),  target, intent(inout) :: cloud
     type(aerosol_type),        intent(inout) :: aerosol
+
+    real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
 
     ! Number of columns and levels of input data
     integer, intent(out) :: ncol, nlev
@@ -71,6 +75,9 @@ contains
     ! ecRad structure
     real(jprb), allocatable, dimension(:,:) :: prop_2d
 
+    ! Longitude and latitude (degrees)
+    real(jprb), allocatable, dimension(:) :: latitude, longitude
+
     integer :: jgas               ! Loop index for reading gases
     integer :: irank              ! Dimensions of gas data
 
@@ -78,6 +85,8 @@ contains
     ! cloud size came from namelist parameters in the first place, yes
     ! if it came from the NetCDF file in the first place
     logical :: is_cloud_size_scalable
+
+    integer :: jcol
 
     ! The following calls read in the data, allocating memory for 1D and
     ! 2D arrays.  The program will stop if any variables are not found.
@@ -108,6 +117,17 @@ contains
         end if
     end if
 
+    ! Solar and sensor geometry can either be provided directly, or
+    ! computed from the longitude and latitude of the sun, the sensor
+    ! and the column - here we load the longitude and latitude of the
+    ! column, if provided
+    if (file%exists('latitude')) then
+      call file%get('latitude', latitude)
+    end if
+    if (file%exists('longitude')) then
+      call file%get('longitude', longitude)
+    end if
+
     ! Configure the amplitude of the spectral variations in solar
     ! output associated with the 11-year solar cycle: +1.0 means solar
     ! maximum, -1.0 means solar minimum, 0.0 means use the mean solar
@@ -133,6 +153,16 @@ contains
         write(nulout,'(a,g10.3)') '  Overriding cosine of the solar zenith angle with ', &
              &  driver_config%cos_sza_override
       end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%solar_latitude > -200.0_jprb &
+         &   .and. driver_config%solar_longitude > -400.0_jprb) then
+      ! Compute solar zenith angle from longitude and latitude of sun
+      ! and column
+      allocate(single_level%cos_sza(ncol))
+      single_level%cos_sza &
+           &  = sin(driver_config%solar_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &  + cos(driver_config%solar_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &  * cos((longitude - driver_config%solar_longitude)*PI_OVER_180)
     else if (file%exists('cos_solar_zenith_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('cos_solar_zenith_angle',single_level%cos_sza)
@@ -147,14 +177,114 @@ contains
       stop
     end if
 
+    if (driver_config%cos_sensor_zenith_angle_override >= -1.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%cos_sensor_zenith_angle(ncol))
+      single_level%cos_sensor_zenith_angle = driver_config%cos_sensor_zenith_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding cosine of the sensor zenith angle with ', &
+             &  driver_config%cos_sensor_zenith_angle_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%sensor_latitude > -200.0_jprb &
+         &   .and. driver_config%sensor_longitude > -400.0_jprb) then
+      ! Compute sensor zenith angle from longitude and latitude of
+      ! sensor and column
+      allocate(single_level%cos_sensor_zenith_angle(ncol))
+      single_level%cos_sensor_zenith_angle &
+           &  = sin(driver_config%sensor_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &  + cos(driver_config%sensor_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &  * cos((longitude - driver_config%sensor_longitude)*PI_OVER_180)
+    else if (file%exists('cos_sensor_zenith_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('cos_sensor_zenith_angle',single_level%cos_sensor_zenith_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: cos_sensor_zenith_angle not provided'
+      stop
+    end if
+
+    if (driver_config%solar_azimuth_angle_override >= -9.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%solar_azimuth_angle(ncol))
+      single_level%solar_azimuth_angle = driver_config%solar_azimuth_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding solar azimuth angle with ', &
+             &  driver_config%solar_azimuth_angle_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%solar_latitude > -200.0_jprb &
+         &   .and. driver_config%solar_longitude > -400.0_jprb) then
+      ! Compute solar azimuth angle from longitude and latitude of sun
+      ! and column
+      allocate(single_level%solar_azimuth_angle(ncol))
+      single_level%solar_azimuth_angle = calc_azimuth(driver_config%solar_latitude, &
+           &  driver_config%solar_longitude, latitude, longitude)
+
+    else if (file%exists('solar_azimuth_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('solar_azimuth_angle',single_level%solar_azimuth_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: solar_azimuth_angle not provided'
+      stop
+    end if
+
+    if (driver_config%sensor_azimuth_angle_override >= -9.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%sensor_azimuth_angle(ncol))
+      single_level%sensor_azimuth_angle = driver_config%sensor_azimuth_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding sensor azimuth angle with ', &
+             &  driver_config%sensor_azimuth_angle_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%sensor_latitude > -200.0_jprb &
+         &   .and. driver_config%sensor_longitude > -400.0_jprb) then
+      ! Compute sensor azimuth angle from longitude and latitude of sensor
+      ! and column
+      allocate(single_level%sensor_azimuth_angle(ncol))
+      single_level%sensor_azimuth_angle = calc_azimuth(driver_config%sensor_latitude, &
+           &  driver_config%sensor_longitude, latitude, longitude)
+    else if (file%exists('sensor_azimuth_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('sensor_azimuth_angle',single_level%sensor_azimuth_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: sensor_azimuth_angle not provided'
+      stop
+    end if
+
+#ifdef FLOTSAM
+    if (config%do_sw .and. config%do_radiances) then
+      call single_level%calc_scattering_angle()
+    end if
+#endif
+
+    if (file%exists('u_wind_10m')) then
+      call file%get('u_wind_10m', single_level%u_wind_10m)
+    end if
+    if (file%exists('v_wind_10m')) then
+      call file%get('v_wind_10m', single_level%v_wind_10m)
+    end if
+    if (file%exists('sea_fraction')) then
+      call file%get('sea_fraction', single_level%sea_fraction)
+    end if
+
     if (config%do_clouds) then
 
       ! --------------------------------------------------------
       ! Read cloud properties needed by most solvers
       ! --------------------------------------------------------
 
-      ! Read cloud descriptors with dimensions (ncol, nlev)
-      call file%get('cloud_fraction',cloud%fraction)
+      if (driver_config%cloud_fraction_override >= 0.0_jprb) then
+        allocate(cloud%fraction(ncol,nlev))
+        cloud%fraction = driver_config%cloud_fraction_override
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3)') '  Overriding cloud fraction with ', &
+               &  driver_config%cloud_fraction_override
+        end if
+      else
+        ! Read cloud descriptors with dimensions (ncol, nlev)
+        call file%get('cloud_fraction',cloud%fraction)
+      end if
 
       ! Fractional standard deviation of in-cloud water content
       if (file%exists('fractional_std')) then
@@ -288,7 +418,9 @@ contains
       ! --------------------------------------------------------
 
       if (config%i_solver_sw == ISolverSPARTACUS &
-           &  .or.   config%i_solver_lw == ISolverSPARTACUS) then
+           &  .or.   config%i_solver_lw == ISolverSPARTACUS &
+           &  .or. (config%i_solver_lw == ISolverTCRAD &
+           &        .and. config%do_3d_effects)) then
 
         ! 3D radiative effects are governed by the length of cloud
         ! edge per area of gridbox, which is characterized by the
@@ -352,8 +484,16 @@ contains
                &  driver_config%cloud_separation_scale_power, &
                &  driver_config%cloud_inhom_separation_factor)
           
+        else if (file%exists('inv_cloud_effective_size_up_lw') &
+             &  .and. file%exists('inv_cloud_effective_size_dn_lw')) then
+          ! (3a) NetCDF file contains cloud effective size
+          ! In TCRAD we have the possibility of separate upward and
+          ! downward effective sizes
+          call file%get('inv_cloud_effective_size_up_lw', cloud%inv_cloud_effective_size_up_lw)
+          call file%get('inv_cloud_effective_size_dn_lw', cloud%inv_cloud_effective_size_dn_lw)
+
         else if (file%exists('inv_cloud_effective_size')) then
-          ! (3) NetCDF file contains cloud effective size
+          ! (3b) NetCDF file contains cloud effective size
 
           is_cloud_size_scalable = .true.
 
@@ -375,7 +515,7 @@ contains
               write(nulout,'(a)') 'Warning: ...this is unlikely to be accurate for cloud fraction near one'
             end if
           end if
-          
+
         else if (file%exists('inv_cloud_effective_separation')) then
           ! (4) Alternative way to specify cloud scale
 
@@ -619,6 +759,39 @@ contains
     call gas%scale(ICCL4,   driver_config%ccl4_scaling,   driver_config%iverbose >= 2)
     call gas%scale(INO2,    driver_config%no2_scaling,    driver_config%iverbose >= 2)
 
+
+!    do jcol = 1,ncol
+!      write(101,*) latitude(jcol), longitude(jcol), driver_config%solar_latitude, driver_config%solar_longitude, &
+!           &  driver_config%sensor_latitude, driver_config%sensor_longitude, single_level%cos_sza(jcol), &
+!           &  single_level%cos_sensor_zenith_angle(jcol), single_level%solar_azimuth_angle(jcol), &
+!           &  single_level%sensor_azimuth_angle(jcol), single_level%scattering_angle(jcol)
+!    end do
+
   end subroutine read_input
+
+  ! --------------------------------------------------------
+  ! Compute the azimuth between a point (sun or sensor) and an
+  ! atmospheric column, where the first two arguments are the latitude
+  ! and longitude of the point in degrees, and the last two are the
+  ! same but for the column
+  elemental function calc_azimuth(pt_lat_deg, pt_lon_deg, col_lat_deg, col_lon_deg)
+
+    use parkind1,                 only : jprb, jpim
+
+    real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
+
+    real(jprb), intent(in) :: pt_lat_deg, pt_lon_deg, col_lat_deg, col_lon_deg
+
+    real(jprb) :: calc_azimuth
+
+    real(jprb) :: sx, sy
+    
+    sx = cos(pt_lat_deg * PI_OVER_180) * sin((pt_lon_deg-col_lon_deg) * PI_OVER_180)
+    sy = cos(col_lat_deg * PI_OVER_180) * sin(pt_lat_deg * PI_OVER_180) &
+         &  - sin(col_lat_deg * PI_OVER_180) * cos(pt_lat_deg * PI_OVER_180) &
+         &  * cos((pt_lon_deg-col_lon_deg) * PI_OVER_180)
+    calc_azimuth = atan2(-sx, -sy)
+
+  end function calc_azimuth
 
 end module ecrad_driver_read_input

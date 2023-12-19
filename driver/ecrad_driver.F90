@@ -45,7 +45,8 @@ program ecrad_driver
   use radiation_aerosol,        only : aerosol_type
   use radiation_flux,           only : flux_type
   use radiation_save,           only : save_fluxes, save_net_fluxes, &
-       &                               save_inputs, save_sw_diagnostics
+       &                               save_inputs, save_sw_diagnostics, &
+       &                               save_radiances
   use radiation_general_cloud_optics, only : save_general_cloud_optics
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
@@ -286,7 +287,11 @@ program ecrad_driver
   ! Allocate memory for the flux profiles, which may include arrays
   ! of dimension n_bands_sw/n_bands_lw, so must be called after
   ! setup_radiation
-  call flux%allocate(config, 1, ncol, nlev)
+  if (config%do_radiances) then
+    call flux%allocate_radiances_only(config, 1, ncol)
+  else
+    call flux%allocate(config, 1, ncol, nlev)
+  end if
   
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -355,8 +360,16 @@ program ecrad_driver
 
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
-  ! Store the fluxes in the output file
-  if (.not. driver_config%do_save_net_fluxes) then
+  if (config%do_radiances) then
+    ! Store radiances (or brightness temperatures) in the output file
+    if (driver_config%do_save_brightness_temperature) then
+      call flux%convert_radiance_to_brightness_temperature(ncol, config%gas_optics_lw)
+    end if
+
+    call save_radiances(file_name, config, single_level, flux, &
+         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+         &   experiment_name=driver_config%experiment_name)
+  else if (.not. driver_config%do_save_net_fluxes) then
     call save_fluxes(file_name, config, thermodynamics, flux, &
          &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
          &   experiment_name=driver_config%experiment_name, &

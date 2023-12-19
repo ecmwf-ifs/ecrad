@@ -35,7 +35,7 @@ contains
     use yomhook,          only : lhook, dr_hook, jphook
 
     use radiation_io,     only : nulout
-    use radiation_config, only : config_type, NMaxCloudTypes
+    use radiation_config, only : config_type, NMaxCloudTypes, SolverPhaseFuncMode
     use radiation_spectral_definition, only : SolarReferenceTemperature, &
          &                                    TerrestrialReferenceTemperature
 
@@ -106,7 +106,8 @@ contains
              &  use_bands=(.not. config%do_cloud_aerosol_per_sw_g_point), &
              &  use_thick_averaging=config%use_thick_cloud_spectral_averaging(jtype), &
              &  weighting_temperature=SolarReferenceTemperature, &
-             &  iverbose=config%iverbosesetup)
+             &  iverbose=config%iverbosesetup, &
+             &  pf_mode=SolverPhaseFuncMode(config%i_solver_sw), n_pf_components=config%n_pf_sw)
         config%cloud_optics_sw(jtype)%type_name = trim(config%cloud_type_name(jtype))
       end if
 
@@ -119,7 +120,8 @@ contains
              &  use_bands=(.not. config%do_cloud_aerosol_per_lw_g_point), &
              &  use_thick_averaging=config%use_thick_cloud_spectral_averaging(jtype), &
              &  weighting_temperature=TerrestrialReferenceTemperature, &
-             &  iverbose=config%iverbosesetup)
+             &  iverbose=config%iverbosesetup, &
+             &  pf_mode=SolverPhaseFuncMode(config%i_solver_lw), n_pf_components=config%n_pf_lw)
         config%cloud_optics_lw(jtype)%type_name = trim(config%cloud_type_name(jtype))
       end if
 
@@ -132,44 +134,65 @@ contains
   !---------------------------------------------------------------------
   ! Compute cloud optical properties
   subroutine general_cloud_optics(nlev,istartcol,iendcol, &
-       &  config, thermodynamics, cloud, & 
-       &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
-       &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+       &  config, single_level, thermodynamics, cloud, &  
+       &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
+       &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud)
 
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook, jphook
 
-    use radiation_io,     only : nulout
-    use radiation_config, only : config_type
+    use radiation_io,     only : nulout, nulerr, radiation_abort
+    use radiation_config, only : config_type, SolverPhaseFuncMode, ICloudScalingCover, &
+         &                       ICloudScalingOne, ICloudScalingFraction, IPhaseFuncAsymmetry
+    use radiation_single_level, only      : single_level_type
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type
+    use radiation_cloud_cover, only       : cloud_cover
     use radiation_constants, only         : AccelDueToGravity
     !use radiation_general_cloud_optics_data, only : general_cloud_optics_type
+    use radiation_constants, only        : Pi, GasConstantDryAir, &
+         &                                 AccelDueToGravity
 
     integer, intent(in) :: nlev               ! number of model levels
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
     type(config_type), intent(in), target :: config
+    type(single_level_type), intent(in)   :: single_level
     type(thermodynamics_type),intent(in)  :: thermodynamics
     type(cloud_type),   intent(in)        :: cloud
 
-    ! Layer optical depth, single scattering albedo and g factor of
-    ! clouds in each longwave band, where the latter two
+    ! Ratio of gas constant for dry air to acceleration due to gravity
+    real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
+
+    ! Layer optical depth, single scattering albedo and asymmetry
+    ! factor of clouds in each longwave band, where the latter two
     ! variables are only defined if cloud longwave scattering is
     ! enabled (otherwise both are treated as zero).
     real(jprb), dimension(config%n_bands_lw,nlev,istartcol:iendcol), intent(out) :: &
          &   od_lw_cloud
     real(jprb), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol), &
-         &   intent(out) :: ssa_lw_cloud, g_lw_cloud
+         &   intent(out) :: ssa_lw_cloud
+        real(jprb), dimension(config%n_bands_lw_if_scattering,nlev,istartcol:iendcol,config%n_pf_lw), &
+         &   intent(out) :: pf_lw_cloud
 
-    ! Layer optical depth, single scattering albedo and g factor of
-    ! clouds in each shortwave band
+    ! Layer optical depth, single scattering albedo and phase function
+    ! components (usually asymmetry factor) of clouds in each
+    ! shortwave band
     real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol), intent(out) :: &
-         &   od_sw_cloud, ssa_sw_cloud, g_sw_cloud
+         &   od_sw_cloud, ssa_sw_cloud
+    real(jprb), dimension(config%n_bands_sw,nlev,istartcol:iendcol,config%n_pf_sw), &
+         &   intent(out) :: pf_sw_cloud
 
     ! In-cloud water path of one cloud type (kg m-2)
     real(jprb), dimension(istartcol:iendcol,nlev) :: water_path
 
-    integer :: jtype, jcol, jlev
+    ! Layer thickness (m), full-level temperature (K)
+    real(jprb), dimension(istartcol:iendcol,nlev) :: layer_depth, temperature_fl
+    
+    ! Cloud cover
+    real(jprb) :: cld_cover
+
+    ! Loop indices
+    integer :: jtype, jcol, jlev, jcomp, jg
 
     real(jphook) :: hook_handle
 
@@ -183,55 +206,102 @@ contains
     od_lw_cloud  = 0.0_jprb
     od_sw_cloud  = 0.0_jprb
     ssa_sw_cloud = 0.0_jprb
-    g_sw_cloud   = 0.0_jprb
+    pf_sw_cloud  = 0.0_jprb
     if (config%do_lw_cloud_scattering) then
       ssa_lw_cloud = 0.0_jprb
-      g_lw_cloud   = 0.0_jprb
+      pf_lw_cloud  = 0.0_jprb
     end if
 
+    ! The following is from the hydrostatic equation and ideal gas
+    ! law: dz = dp * R * T / (p * g)
+    do jlev = 1,nlev
+      do jcol = istartcol,iendcol
+        temperature_fl(jcol,jlev) &
+             &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev) &
+             &              + thermodynamics%temperature_hl(jcol,jlev+1))
+        layer_depth(jcol,jlev) = R_over_g &
+             &  * (thermodynamics%pressure_hl(jcol,jlev+1) &
+             &     - thermodynamics%pressure_hl(jcol,jlev)) &
+             &  * (thermodynamics%temperature_hl(jcol,jlev) &
+             &     + thermodynamics%temperature_hl(jcol,jlev+1)) &
+             &  / (thermodynamics%pressure_hl(jcol,jlev) &
+             &     + thermodynamics%pressure_hl(jcol,jlev+1))
+      end do
+    end do
+    
     ! Loop over cloud types
     do jtype = 1,config%n_cloud_types
       ! Compute in-cloud water path
-      if (config%is_homogeneous) then
+      if (config%cloud_scaling_mode == ICloudScalingOne) then
         water_path = cloud%mixing_ratio(istartcol:iendcol,:,jtype) &
              &  *  (thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
              &     -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
              &  * (1.0_jprb / AccelDueToGravity)
-      else
+      else if (config%cloud_scaling_mode == ICloudScalingFraction) then
         water_path = cloud%mixing_ratio(istartcol:iendcol,:,jtype) &
              &  *  (thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
              &     -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
              &  * (1.0_jprb / (AccelDueToGravity &
              &                 * max(config%cloud_fraction_threshold, &
              &                       cloud%fraction(istartcol:iendcol,:))))
+      else if (config%cloud_scaling_mode == ICloudScalingCover) then
+        do jcol = istartcol,iendcol
+          cld_cover = cloud_cover(nlev, config%i_overlap_scheme, &
+               &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), config%use_beta_overlap)
+          water_path(jcol,:) = cloud%mixing_ratio(jcol,:,jtype) &
+               &  *  (thermodynamics%pressure_hl(jcol, 2:nlev+1) &
+               &     -thermodynamics%pressure_hl(jcol, 1:nlev)) &
+               &  * (1.0_jprb / (AccelDueToGravity &
+               &                 * max(config%cloud_fraction_threshold, cld_cover)))
+        end do
+      else
+        write(nulerr,*) '*** Error: Unable to compute in-cloud water content for scaling mode ', &
+             &          config%cloud_scaling_mode
+        call radiation_abort()
       end if
 
       ! Add optical properties to the cumulative total for the
       ! longwave and shortwave
       if (config%do_lw) then
-        ! For the moment, we use ssa_lw_cloud and g_lw_cloud as
+        ! For the moment, we use ssa_lw_cloud and pf_lw_cloud as
         ! containers for scattering optical depth and scattering
-        ! coefficient x asymmetry factor, then scale after
+        ! coefficient x phase function components (usually asymmetry
+        ! factor), then scale after
         if (config%do_lw_cloud_scattering) then
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
                &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
-               &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud)
+               &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, layer_depth, temperature_fl)
         else
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
                &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
-               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud)
+               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud, &
+               &  layer_depth, temperature_fl)
         end if
       end if
       
       if (config%do_sw) then
-        ! For the moment, we use ssa_sw_cloud and g_sw_cloud as
-        ! containers for scattering optical depth and scattering
-        ! coefficient x asymmetry factor, then scale after
-        call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
-             &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
-             &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
-             &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+        ! For the moment, we use ssa_sw_cloud and pf_sw_cloud
+        ! (normally containing asymmetry factor) as containers for
+        ! scattering optical depth and scattering coefficient x
+        ! asymmetry factor, then scale after
+#ifdef FLOTSAM
+        if (config%n_pf_sw > 1) then
+          call config%cloud_optics_sw(jtype)%add_optical_properties_flotsam(config%n_bands_sw, nlev, &
+               &  iendcol+1-istartcol, config%n_pf_sw, cloud%fraction(istartcol:iendcol,:), &
+               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
+               &  single_level%scattering_angle(istartcol:iendcol), &
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud) ! layer depth & temperature_fl not needed
+        else
+#endif
+          call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
+               &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
+               &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
+               &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud(:,:,:,1), &
+               &  layer_depth, temperature_fl)
+#ifdef FLOTSAM
+        end if
+#endif
       end if
     end do
 
@@ -242,12 +312,16 @@ contains
           if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
             ! Note that original cloud optics does not do
             ! delta-Eddington scaling for liquid clouds in longwave
-            call delta_eddington_extensive(od_lw_cloud(:,jlev,jcol), &
-                 &  ssa_lw_cloud(:,jlev,jcol), g_lw_cloud(:,jlev,jcol))
-            
-            ! Scale to get asymmetry factor and single scattering albedo
-            g_lw_cloud(:,jlev,jcol) = g_lw_cloud(:,jlev,jcol) &
-                 &  / max(ssa_lw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+            if (SolverPhaseFuncMode(config%i_solver_lw) == IPhaseFuncAsymmetry) then
+              call delta_eddington_extensive(od_lw_cloud(:,jlev,jcol), &
+                   &  ssa_lw_cloud(:,jlev,jcol), pf_lw_cloud(:,jlev,jcol,1))
+            end if
+            ! Scale to get phase function components (usually
+            ! asymmetry factor) and single scattering albedo
+            do jcomp = 1,config%n_pf_lw
+              pf_lw_cloud(:,jlev,jcol,jcomp) = pf_lw_cloud(:,jlev,jcol,jcomp) &
+                   &  / max(ssa_lw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+            end do
             ssa_lw_cloud(:,jlev,jcol) = ssa_lw_cloud(:,jlev,jcol) &
                  &  / max(od_lw_cloud(:,jlev,jcol),  1.0e-15_jprb)
           end if
@@ -257,12 +331,13 @@ contains
     
     ! Scale the combined shortwave optical properties
     if (config%do_sw) then
-      if (.not. config%do_sw_delta_scaling_with_gases) then
+      if (.not. config%do_sw_delta_scaling_with_gases &
+           &  .and. SolverPhaseFuncMode(config%i_solver_sw) == IPhaseFuncAsymmetry) then
         do jcol = istartcol, iendcol
           do jlev = 1,nlev
             if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
               call delta_eddington_extensive(od_sw_cloud(:,jlev,jcol), &
-                   &  ssa_sw_cloud(:,jlev,jcol), g_sw_cloud(:,jlev,jcol))
+                   &  ssa_sw_cloud(:,jlev,jcol), pf_sw_cloud(:,jlev,jcol,1))
             end if
           end do
         end do
@@ -271,9 +346,12 @@ contains
       do jcol = istartcol, iendcol
         do jlev = 1,nlev
           if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
-            ! Scale to get asymmetry factor and single scattering albedo
-            g_sw_cloud(:,jlev,jcol) = g_sw_cloud(:,jlev,jcol) &
-                 &  / max(ssa_sw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+            ! Scale to get phase function components (usually
+            ! asymmetry factor) and single scattering albedo
+            do jcomp = 1,config%n_pf_sw
+              pf_sw_cloud(:,jlev,jcol,jcomp) = pf_sw_cloud(:,jlev,jcol,jcomp) &
+                   &  / max(ssa_sw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+            end do
             ssa_sw_cloud(:,jlev,jcol) = ssa_sw_cloud(:,jlev,jcol) &
                  &  / max(od_sw_cloud(:,jlev,jcol),  1.0e-15_jprb)
           end if

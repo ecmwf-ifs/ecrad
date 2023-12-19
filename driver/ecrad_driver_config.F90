@@ -44,12 +44,19 @@ module ecrad_driver_config
      real(jprb) :: sw_albedo_override
      real(jprb) :: lw_emissivity_override
      real(jprb) :: q_liq_scaling, q_ice_scaling
-     real(jprb) :: cloud_fraction_scaling
+     real(jprb) :: cloud_fraction_scaling, cloud_fraction_override
      real(jprb) :: overlap_decorr_length_scaling
      real(jprb) :: skin_temperature_override ! K
      real(jprb) :: solar_irradiance_override ! W m-2
      real(jprb) :: solar_cycle_multiplier_override
      real(jprb) :: cos_sza_override
+     real(jprb) :: cos_sensor_zenith_angle_override
+     real(jprb) :: solar_azimuth_angle_override  ! radians
+     real(jprb) :: sensor_azimuth_angle_override ! radians
+     real(jprb) :: solar_latitude    ! degrees
+     real(jprb) :: solar_longitude   ! degrees
+     real(jprb) :: sensor_latitude   ! degrees
+     real(jprb) :: sensor_longitude  ! degrees
      real(jprb) :: cloud_inhom_separation_factor  = 1.0_jprb
      real(jprb) :: cloud_separation_scale_surface = -1.0_jprb
      real(jprb) :: cloud_separation_scale_toa     = -1.0_jprb
@@ -118,6 +125,9 @@ module ecrad_driver_config
      ! files?
      logical :: do_write_hdf5 = .false.
 
+     ! Do we convert longwave radiances to brightness temperatures?
+     logical :: do_save_brightness_temperature
+
      ! Do we write fluxes in double precision?
      logical :: do_write_double_precision = .false.
 
@@ -163,10 +173,15 @@ contains
     real(jprb) :: sw_albedo
     real(jprb) :: lw_emissivity
     real(jprb) :: q_liquid_scaling, q_ice_scaling
-    real(jprb) :: cloud_fraction_scaling
+    real(jprb) :: cloud_fraction_scaling, cloud_fraction
     real(jprb) :: overlap_decorr_length_scaling
     real(jprb) :: skin_temperature
     real(jprb) :: cos_solar_zenith_angle
+    real(jprb) :: cos_sensor_zenith_angle
+    real(jprb) :: solar_azimuth_angle
+    real(jprb) :: sensor_azimuth_angle
+    real(jprb) :: solar_latitude, solar_longitude ! degrees
+    real(jprb) :: sensor_latitude, sensor_longitude ! degrees
     real(jprb) :: solar_irradiance_override
     real(jprb) :: solar_cycle_multiplier_override
     real(jprb) :: cloud_inhom_separation_factor
@@ -197,6 +212,7 @@ contains
     logical :: do_save_inputs, do_save_aerosol_optics, do_save_net_fluxes, &
          &  do_save_cloud_optics, do_ignore_inhom_effective_size, &
          &  do_correct_unphysical_inputs, do_write_hdf5, &
+         &  do_save_brightness_temperature, &
          &  do_write_double_precision
     integer :: nrepeat
 
@@ -218,10 +234,15 @@ contains
          &  high_inv_effective_size, middle_inv_effective_size, &
          &  low_inv_effective_size, cloud_inhom_separation_factor, &
          &  effective_size_scaling, cos_solar_zenith_angle, &
+         &  cos_sensor_zenith_angle, &
+         &  solar_azimuth_angle, sensor_azimuth_angle, &
+         &  solar_latitude, solar_longitude, &
+         &  sensor_latitude, sensor_longitude, &
          &  lw_emissivity, q_liquid_scaling, q_ice_scaling, &
          &  istartcol, iendcol, solar_irradiance_override, &
          &  solar_cycle_multiplier_override, &
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
+         &  cloud_fraction, &
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
          &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
          &  do_save_aerosol_optics, do_save_net_fluxes, do_save_cloud_optics, &
@@ -231,7 +252,7 @@ contains
          &  ch4_scaling, o2_scaling, cfc11_scaling, cfc12_scaling, &
          &  hcfc22_scaling, no2_scaling, n2o_scaling, ccl4_scaling, &
          &  vmr_suffix_str, experiment_name, do_write_double_precision, &
-         &  sw_diag_wavelength_bound, sw_diag_file_name
+         &  sw_diag_wavelength_bound, sw_diag_file_name, do_save_brightness_temperature
 
     ! Default values
     do_parallel = .true.
@@ -255,10 +276,18 @@ contains
     q_liquid_scaling = -1.0_jprb
     q_ice_scaling = -1.0_jprb
     cloud_fraction_scaling = -1.0_jprb
+    cloud_fraction = -1.0_jprb
     overlap_decorr_length_scaling = -1.0_jprb
     skin_temperature = -1.0_jprb
     cos_solar_zenith_angle = -1.0_jprb
+    cos_sensor_zenith_angle = -2.0_jprb
+    solar_azimuth_angle = -10.0_jprb
+    sensor_azimuth_angle = -10.0_jprb
     solar_irradiance_override = -1.0_jprb
+    solar_latitude = -500.0_jprb
+    solar_longitude = -500.0_jprb
+    sensor_latitude = -500.0_jprb
+    sensor_longitude = -500.0_jprb
     solar_cycle_multiplier_override = -2.0e6_jprb
     cloud_inhom_separation_factor = 1.0_jprb
     cloud_separation_scale_toa = -1.0_jprb
@@ -283,6 +312,7 @@ contains
     nrepeat = 1
     do_correct_unphysical_inputs = .false.
     do_write_hdf5 = .false.
+    do_save_brightness_temperature = .false.
     do_write_double_precision = .false.
     experiment_name = ''
     sw_diag_wavelength_bound = this%sw_diag_wavelength_bound
@@ -367,9 +397,17 @@ contains
     this%q_liq_scaling = q_liquid_scaling
     this%q_ice_scaling = q_ice_scaling
     this%cloud_fraction_scaling = cloud_fraction_scaling
+    this%cloud_fraction_override = cloud_fraction
     this%overlap_decorr_length_scaling = overlap_decorr_length_scaling
     this%skin_temperature_override = skin_temperature
     this%cos_sza_override = cos_solar_zenith_angle
+    this%cos_sensor_zenith_angle_override = cos_sensor_zenith_angle
+    this%solar_azimuth_angle_override = solar_azimuth_angle
+    this%sensor_azimuth_angle_override = sensor_azimuth_angle
+    this%solar_latitude = solar_latitude
+    this%solar_longitude = solar_longitude
+    this%sensor_latitude = sensor_latitude
+    this%sensor_longitude = sensor_longitude
     this%solar_irradiance_override = solar_irradiance_override
     this%solar_cycle_multiplier_override = solar_cycle_multiplier_override
     this%cloud_inhom_separation_factor = cloud_inhom_separation_factor
@@ -378,6 +416,7 @@ contains
     this%cloud_separation_scale_power = cloud_separation_scale_power
     this%do_correct_unphysical_inputs = do_correct_unphysical_inputs
     this%do_write_hdf5  = do_write_hdf5
+    this%do_save_brightness_temperature = do_save_brightness_temperature
     this%do_write_double_precision = do_write_double_precision
     this%h2o_scaling    = h2o_scaling
     this%co2_scaling    = co2_scaling

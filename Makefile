@@ -61,12 +61,18 @@ $(info *** Building with NetCDF4/HDF5 support)
 CPPFLAGS += -DNC_NETCDF4
 endif
 
+ifdef FLOTSAM_DIR
+FLOTSAM_INCLUDE = -DFLOTSAM -I$(FLOTSAM_DIR)/include
+FLOTSAM_LIB = -L$(FLOTSAM_DIR)/lib -L$(FLOTSAM_DIR)/lib64 -Wl,-rpath,$(FLOTSAM_DIR)/lib -Wl,-rpath,$(FLOTSAM_DIR)/lib64 -lflotsam
+export FLOTSAM_DIR
+endif
+
 # Consolidate flags
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
-	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
-export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
-	-lifsrrtm -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+	$(OPTFLAGS) $(DEBUGFLAGS) $(FLOTSAM_INCLUDE) $(NETCDF_INCLUDE) $(OMPFLAG)
+export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities -ltcrad \
+	-lifsrrtm -ldisort -lifsaux $(FCLIBS) $(FLOTSAM_LIB) $(NETCDF_LIB) $(OMPFLAG)
 
 # Do we include Dr Hook from ECMWF's fiat library?
 ifdef FIATDIR
@@ -99,14 +105,14 @@ help:
 	@echo "  clean                Remove all compiled files"
 
 ifndef FIATDIR
-build: directories libifsaux libdummydrhook libutilities libifsrrtm \
-	libradiation driver ifsdriver symlinks
+build: directories libifsaux libdummydrhook libdisort libutilities libifsrrtm \
+	libtcrad libradiation driver ifsdriver symlinks
 libradiation libutilities: libdummydrhook
 else
 # Note that if we are using Dr Hook from the fiat library we don't
 # want to create mod/yomhook.mod as this can sometimes be found before
 # the one in the fiat directory leading to an error at link stage
-build: directories libifsaux libutilities libifsrrtm libradiation \
+build: directories libifsaux libdisort libutilities libifsrrtm libtcrad libradiation \
 	driver ifsdriver symlinks
 endif
 
@@ -134,11 +140,17 @@ libifsaux:
 libdummydrhook: libifsaux
 	cd drhook && $(MAKE) dummy
 
+libdisort:
+	cd disort && $(MAKE)
+
 libutilities: libifsaux
 	cd utilities && $(MAKE)
 
 libifsrrtm: libifsaux
 	cd ifsrrtm && $(MAKE)
+
+libtcrad:
+	cd tcrad && $(MAKE)
 
 libradiation: libifsrrtm libutilities libifsaux
 	cd radiation && $(MAKE)
@@ -159,7 +171,7 @@ symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
 	cd practical && ln -s ../data
 
-test: test_ifs test_i3rc test_ckdmip
+test: test_ifs test_i3rc test_ckdmip test_disort
 
 test_ifs: driver
 	cd test/ifs && $(MAKE) test
@@ -170,22 +182,28 @@ test_i3rc: driver
 test_ckdmip:
 	cd test/ckdmip && $(MAKE) test
 
+test_disort:
+	cd test/disort && $(MAKE) test
+
 clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks
 
 clean-tests:
 	cd test/ifs && $(MAKE) clean
 	cd test/i3rc && $(MAKE) clean
 	cd test/ckdmip && $(MAKE) clean
+	cd test/disort && $(MAKE) clean
 
 clean-toplevel:
 	cd radiation && $(MAKE) clean
 	cd driver && $(MAKE) clean
+	cd tcrad && $(MAKE) clean
 
 clean-utilities:
 	cd ifsaux && $(MAKE) clean
 	cd utilities && $(MAKE) clean
 	cd ifsrrtm && $(MAKE) clean
 	cd drhook && $(MAKE) clean
+	cd disort && $(MAKE) clean
 	cd ifs && $(MAKE) clean
 
 clean-mods:
@@ -198,5 +216,6 @@ clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: all build help deps clean-deps libifsaux libdummydrhook libutilities libifsrrtm \
+	libtcrad libdisort \
 	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver \
 	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks

@@ -14,6 +14,13 @@ version 1.6.1
 	  (general cloud optics only)
 	- Increased security value in single-precision SW
 	  reflectance-transmittance calculation from 1e-12 to 1e-6
+	- Added radiation/ecrad_config.h file to provide site-specific
+	  optimization options as preprocessor parameters
+	- Replaced slow "sum" intrinsic function in McICA and Tripleclouds
+	  solvers with optimized versions for x86-64 and DWD's NEC
+	- Added use_tcrad_exact_solution which computes radiances from an
+	  exact analytic description of the flux profile consistent with the
+	  two-stream equations
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
@@ -36,6 +43,7 @@ version 1.6.0 (27 April 2023)
 version 1.5.1 (8 December 2022)
 	- Added Makefile_include.intel_atos to match compiler options on
 	  ECMWF supercomputer, plus "-heap-arrays" which is necessary for
+	  the Intel compiler
 	- Fix occasional crash in single-precision fast_expm_exchange_3
 	  for shortwave SPARTACUS entrapment
 	- Fixed radiation_random_numbers.F90 in single precision
@@ -74,6 +82,15 @@ version 1.5.1 (8 December 2022)
 	  default. Test with "make test_ecckd_diag" in test/ifs.
 	- do_toa_spectral_flux namelist option stores top-of-atmosphere
 	  spectral flux diagnostics per band
+	- Added Tripleclouds Radiance (TCRAD) capability including both
+	  flux and radiance solvers, including Eddington and two-stream
+	  modes
+	- Added capability to read cloud optical properties a function of
+	  water content (kg m-3) and temperature, rather than effective
+	  radius, useful for RTTOV comparisons
+	- Override cloud fraction with
+	  driver_config%cloud_fraction_override, useful for files with no
+	  cloud fraction variable
 
 version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description

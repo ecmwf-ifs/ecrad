@@ -10,16 +10,25 @@
 ! This simple program tests the functioning of the matrix operations
 ! in the radiation_matrix module
 
+#define DO_TWO_REGIONS 1
+
 program test_spartacus_math
 
   use parkind1
   use radiation_matrix
+#ifdef DO_TWO_REGIONS
+  use tcrad_2region_solver, only : expm_tridiagonal, inv_tridiagonal
+#else
+  use tcrad_3region_solver, only : expm_tridiagonal, inv_tridiagonal
+#endif
 
   implicit none
 
-  integer, parameter :: n = 10, m = 3
+  integer, parameter :: n = 10
 
-  real(jprb), dimension(n,m,m) :: A, B, C
+  integer, parameter :: m = 2
+
+  real(jprb), dimension(n,m,m) :: A, Asave, B, C, expA
   real(jprb), dimension(n,m) :: v, w
 
   ! Terms in exchange matrix
@@ -27,10 +36,11 @@ program test_spartacus_math
 
   integer :: j
 
-  A = -1.0_jprb
-  A(:,1,1) = 10.0_jprb
-  A(:,2,2) = 5.0_jprb
-  A(:,2,1) = -0.5_jprb
+  A = 0.0_jprb
+  A(:,1,1) = -2.0_jprb
+  A(:,2,2) = -3.0_jprb
+  A(:,2,1) = 0.5_jprb
+  A(:,1,2) = 0.5_jprb
 
   B = 2.0_jprb
   B(:,1,1) = -1.4_jprb
@@ -40,8 +50,12 @@ program test_spartacus_math
   v(:,2) = 3.0_jprb
   if (m == 3) then
      v(:,m) = -1.5_jprb
-     A(:,m,m) = 4.5
+     A(:,m,m) = -6.0
+     A(:,2,3) = 0.5
+     A(:,3,2) = 0.5
   end if
+
+  Asave = A
 
   write(*,*) 'A ='
   do j = 1,m
@@ -89,6 +103,24 @@ program test_spartacus_math
 
   if (m == 2) then
 
+    A=Asave
+
+    call inv_tridiagonal(n,A,expA)
+
+    write(*,*) 'inv(A) = '
+    do j = 1,m
+      write(*,*) expA(1,j,:)
+    end do
+
+    A=Asave
+
+    call expm_tridiagonal(n,A,expA)
+
+    write(*,*) 'expm_tridiagonal(A) = '
+    do j = 1,m
+      write(*,*) expA(1,j,:)
+    end do
+
     call fast_expm_exchange(n,n,aa,bb,A)
     
     write(*,*) 'fast_expm(A) = '
@@ -102,6 +134,8 @@ program test_spartacus_math
     A(:,1,2) = bb
     A(:,2,2) = -bb
     
+    A = Asave
+
     call expm(n,n,m,A,IMatrixPatternDense)
     
     write(*,*) 'expm(A) = '
@@ -132,9 +166,11 @@ program test_spartacus_math
     A(:,2,1) = aa
     A(:,1,2) = bb
     A(:,2,2) = -bb-cc
-    A(:,3,2) = cc
-    A(:,2,3) = dd
-    A(:,3,3) = -dd
+    if (m == 3) then
+      A(:,3,2) = cc
+      A(:,2,3) = dd
+      A(:,3,3) = -dd
+    end if
     
     call expm(n,n,m,A,IMatrixPatternDense)
     
@@ -148,6 +184,43 @@ program test_spartacus_math
     call fast_expm_exchange(n,n,aa,aa,aa,aa,A)
     
     write(*,*) 'expm(zeros) = '
+    do j = 1,m
+      write(*,*) A(1,j,:)
+    end do
+
+    A = Asave
+
+!    A(:,1,1) = -1000_jprb
+!    A(:,2,2) = -2000_jprb
+!    A(:,3,3) = -3000_jprb
+
+    if (m == 3) then
+      A(:,3,1) = 0.0_jprb
+      A(:,1,3) = 0.0_jprb
+    end if
+
+    write(*,*) 'A = '
+    do j = 1,m
+      write(*,*) A(1,j,:)
+    end do
+
+    call expm_tridiagonal(n,A,expA)
+
+    write(*,*) 'expm3x3tridiag(A) = '
+    do j = 1,m
+      write(*,*) expA(1,j,:)
+    end do
+
+    call inv_tridiagonal(n,A,expA)
+
+    write(*,*) 'inv(A) = '
+    do j = 1,m
+      write(*,*) expA(1,j,:)
+    end do
+
+    call expm(n,n,m,A,IMatrixPatternDense)
+    
+    write(*,*) 'expm(A) = '
     do j = 1,m
       write(*,*) A(1,j,:)
     end do
