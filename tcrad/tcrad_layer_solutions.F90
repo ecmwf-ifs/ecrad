@@ -25,7 +25,8 @@ module tcrad_layer_solutions
   ! +/-1/1.66; or Eddington: radiance field assumed to be
   ! L(mu)=L0+mu*L1.
   enum, bind(c)
-    enumerator ITwoStreamElsasser, ITwoStreamEddington, ITwoStreamLegendre
+    enumerator ITwoStreamElsasser, ITwoStreamEddington, ITwoStreamLegendre, &
+         &  ITwoStreamHybrid, ITwoStreamScaledWiscombeGrams
   end enum
 
   ! Two stream scheme currently in use 
@@ -38,6 +39,10 @@ module tcrad_layer_solutions
   ! longwave radiation.
   real(jprb) :: lw_diffusivity = 1.66_jprb ! Elsasser default
 
+  ! Optionally have a different diffusivity in cloud, where radiation
+  ! tends to be more isotropic
+  real(jprb), private :: lw_diffusivity_cloud = 1.66_jprb
+  
 #ifdef PARKIND1_SINGLE
   ! To avoid division by near-zero values use simpler formulae in the
   ! low optical depth regime.
@@ -62,18 +67,34 @@ contains
     integer(jpim), intent(in) :: i_scheme
 
     ! Only overwrite global module variables if they need changing
-    if (i_scheme == ITwoStreamEddington &
-         .and. i_two_stream_scheme /= ITwoStreamEddington) then
+    if (i_scheme == ITwoStreamEddington .and. i_two_stream_scheme /= ITwoStreamEddington) then
       ! Toon et al. (1989), Table 1
       i_two_stream_scheme = ITwoStreamEddington
       lw_diffusivity = 2.0_jprb
-    else if (i_two_stream_scheme /= ITwoStreamElsasser) then
-      ! Elsasser (1942)
+      lw_diffusivity_cloud = 2.0_jprb
+    else if (i_scheme == ITwoStreamElsasser .and. i_two_stream_scheme /= ITwoStreamElsasser) then
+      ! Elsasser (1942): "Quadrature" from Toon et al.'s Table 1 but
+      ! with alternative diffusivity
       i_two_stream_scheme = ITwoStreamElsasser
       lw_diffusivity = 1.66_jprb
-    else if (i_two_stream_scheme /= ITwoStreamLegendre) then
+      lw_diffusivity_cloud = 1.66_jprb
+    else if (i_scheme == ITwoStreamLegendre .and. i_two_stream_scheme /= ITwoStreamLegendre) then
+      ! Hemispheric mean from Toon et al.'s Table 1
       i_two_stream_scheme = ITwoStreamLegendre
       lw_diffusivity = 2.0_jprb
+      lw_diffusivity_cloud = 2.0_jprb
+    else if (i_scheme == ITwoStreamHybrid .and. i_two_stream_scheme /= ITwoStreamHybrid) then
+      ! Hybrid between Elsasser (which is best for propagation in
+      ! clear skies) and Legendre (which is arguably better for
+      ! scattering in cloudy skies)
+      i_two_stream_scheme = ITwoStreamHybrid
+      lw_diffusivity = 1.66_jprb
+      lw_diffusivity_cloud = 2.0_jprb
+    else if (i_scheme == ITwoStreamScaledWiscombeGrams &
+         &  .and. i_two_stream_scheme /= ITwoStreamScaledWiscombeGrams) then
+      i_two_stream_scheme = ITwoStreamScaledWiscombeGrams
+      lw_diffusivity = 1.66_jprb
+      lw_diffusivity_cloud = 2.0_jprb
     end if
     
   end subroutine set_two_stream_scheme
@@ -268,17 +289,23 @@ contains
         do jreg = 2,nreg
           ! Scattering solution
           do jspec = 1,nspec
-            if (i_two_stream_scheme /= ITwoStreamEddington) then
-              ! Both Elsasser and Legendre schemes use these formulae,
-              ! but with different values for lw_diffusivity
-              ! See Fu et al. (1997), Eqs. 2.9 and 2.10
-              factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
-              gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))
-              gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
-            else
+            if (i_two_stream_scheme == ITwoStreamEddington) then
               ! See Meador & Weaver (1980), Table 1; Toon et al. (1989), Table 1
               gamma1 = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
               gamma2 = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+            else if (i_two_stream_scheme == ITwoStreamScaledWiscombeGrams) then
+              ! Wiscombe-Grams backscatter fraction applied to
+              ! de-scaled asymmety factor
+              factor = 0.5_jprb * (1.0_jprb-0.75_jprb*asymmetry(jspec,jlev)/(1.0_jprb-asymmetry(jspec,jlev)))
+              gamma1 = lw_diffusivity_cloud * (1.0_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb-factor))
+              gamma2 = lw_diffusivity_cloud * ssa(jspec,jreg,jlev) * factor
+            else
+              ! Both Elsasser and Legendre schemes use these formulae,
+              ! but with different values for lw_diffusivity_cloud
+              ! See Fu et al. (1997), Eqs. 2.9 and 2.10
+              factor = (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev)
+              gamma1 = lw_diffusivity_cloud - factor*(1.0_jprb + asymmetry(jspec,jlev))
+              gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
             end if
 
             k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
@@ -291,6 +318,10 @@ contains
               ! Meador & Weaver (1980) Eq. 25
               reflectance(jspec,jreg,jlev) = gamma2 &
                    &  * (1.0_jprb - exponential2) * reftrans_factor
+              ! Eddington scheme can produce negative reflectances!
+              !if (reflectance(jspec,jreg,jlev) < 0.0_jprb) then
+              !  print *,'WARNING REFLECTANCE=', reflectance(jspec,jreg,jlev)
+              !end if
               ! Meador & Weaver (1980) Eq. 26
               transmittance(jspec,jreg,jlev) = 2.0_jprb * k_exponent &
                    &  * exponential * reftrans_factor
@@ -410,7 +441,7 @@ contains
     secant = 1.0_jprb / mu
 
     ! 0.5: half the scattering goes up and half down
-    factor = 0.5_jprb * 3.0_jprb * mu / lw_diffusivity
+    factor = 0.5_jprb * 3.0_jprb * mu / lw_diffusivity_cloud
 
     do jlev = 1,nlev
 
@@ -927,7 +958,7 @@ contains
     secant = 1.0_jprb / mu
 
     ! 0.5: half the scattering goes up and half down
-    factor = 0.5_jprb * 3.0_jprb * mu / lw_diffusivity
+    factor = 0.5_jprb * 3.0_jprb * mu / lw_diffusivity_cloud
 
     do jlev = 1,nlev
 
@@ -1209,23 +1240,31 @@ contains
       do jreg = 2,max_reg
         do jspec = 1,nspec
           if (od(jspec,jreg,jlev) > OD_THRESH) then
-            if (i_two_stream_scheme /= ITwoStreamEddington) then
-              ! See Fu et al. (1997), Eqs. 2.9 and 2.10
-              factor = (lw_diffusivity * 0.5_jprb) * ssa(jspec,jreg,jlev)
-              gamma1 = lw_diffusivity - factor*(1.0_jprb + asymmetry(jspec,jlev))
-              gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
-            else
+            if (i_two_stream_scheme == ITwoStreamEddington) then
               ! See Meador & Weaver (1980), Table 1; Toon et al. (1989), Table 1
               gamma1 = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
               gamma2 = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+            else if (i_two_stream_scheme == ITwoStreamScaledWiscombeGrams) then
+              ! Wiscombe-Grams backscatter fraction applied to
+              ! de-scaled asymmety factor
+              factor = 0.5_jprb * (1.0_jprb-0.75_jprb*asymmetry(jspec,jlev)/(1.0_jprb-asymmetry(jspec,jlev)))
+              gamma1 = lw_diffusivity_cloud * (1.0_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb-factor))
+              gamma2 = lw_diffusivity_cloud * ssa(jspec,jreg,jlev) * factor
+            else
+              ! See Fu et al. (1997), Eqs. 2.9 and 2.10; also
+              ! "Quadrature" from Toon et al. (1989) Table 1 but with
+              ! generalized diffusivity
+              factor = (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev)
+              gamma1 = lw_diffusivity_cloud - factor*(1.0_jprb + asymmetry(jspec,jlev))
+              gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
             end if
             k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
                  &  MIN_K_SQUARED)) ! Eq 18 of Meador & Weaver (1980)
               
             ! Phase functions from upwelling flux to upwelling radiance (or down to down)
-            p_same     = 1.0_jprb + 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
+            p_same     = 1.0_jprb + 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity_cloud
             ! Phase function from downwelling flux to upwelling radiance (or up to down)
-            p_opposite = 1.0_jprb - 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity
+            p_opposite = 1.0_jprb - 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity_cloud
 
             ! Compute the coefficients, c1 and c2, of the exponentials
             ! describing the analytic profile of upwelling and
