@@ -13,7 +13,7 @@ set -e
 
 EXT="___"
 
-set -- $(echo $@ | tr -s ' ' '\n' | sort | xargs)
+set -- $(echo $@ | tr -s ' ' '\n' | sort -V | xargs)
 FILES=$(echo $@ | tr -s ' ' '\n' | sed 's/\.F90$/.o/g' | sort)
 while [ "$1" ]
 do
@@ -21,7 +21,7 @@ do
     #echo "Checking $1"
     #echo "files: $FILES" | xargs
     #echo "deps: $DEPS" | xargs
-    DEPS=$(join <(echo "$DEPS") <(echo "$FILES") | sort -n | uniq | xargs)
+    DEPS=$(join <(echo "$DEPS") <(echo "$FILES") | sort -V | uniq | xargs)
     #echo "filtered: $DEPS" | xargs
     if [ "$DEPS" ]; then
         echo $1 | awk -F. '{print $1"'".o: $DEPS"'"}'

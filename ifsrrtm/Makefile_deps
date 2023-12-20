@@ -1,11 +1,4 @@
 modify_wv_continuum.o: yoesrta16.o yoesrta17.o yoesrta18.o yoesrta19.o yoesrta20.o yoesrta21.o yoesrta22.o yoesrta23.o yoesrta29.o
-rrtm_cmbgb10.o: yoerrta10.o yoerrtftr.o yoerrto10.o yoerrtrwt.o
-rrtm_cmbgb11.o: yoerrta11.o yoerrtftr.o yoerrto11.o yoerrtrwt.o
-rrtm_cmbgb12.o: yoerrta12.o yoerrtftr.o yoerrto12.o yoerrtrwt.o
-rrtm_cmbgb13.o: yoerrta13.o yoerrtftr.o yoerrto13.o yoerrtrwt.o
-rrtm_cmbgb14.o: yoerrta14.o yoerrtftr.o yoerrto14.o yoerrtrwt.o
-rrtm_cmbgb15.o: yoerrta15.o yoerrtftr.o yoerrto15.o yoerrtrwt.o
-rrtm_cmbgb16.o: yoerrta16.o yoerrtftr.o yoerrto16.o yoerrtrwt.o
 rrtm_cmbgb1.o: yoerrta1.o yoerrtftr.o yoerrto1.o yoerrtrwt.o
 rrtm_cmbgb2.o: yoerrta2.o yoerrtftr.o yoerrto2.o yoerrtrwt.o
 rrtm_cmbgb3.o: yoerrta3.o yoerrtftr.o yoerrto3.o yoerrtrwt.o
@@ -15,15 +8,15 @@ rrtm_cmbgb6.o: yoerrta6.o yoerrtftr.o yoerrto6.o yoerrtrwt.o
 rrtm_cmbgb7.o: yoerrta7.o yoerrtftr.o yoerrto7.o yoerrtrwt.o
 rrtm_cmbgb8.o: yoerrta8.o yoerrtftr.o yoerrto8.o yoerrtrwt.o
 rrtm_cmbgb9.o: yoerrta9.o yoerrtftr.o yoerrto9.o yoerrtrwt.o
+rrtm_cmbgb10.o: yoerrta10.o yoerrtftr.o yoerrto10.o yoerrtrwt.o
+rrtm_cmbgb11.o: yoerrta11.o yoerrtftr.o yoerrto11.o yoerrtrwt.o
+rrtm_cmbgb12.o: yoerrta12.o yoerrtftr.o yoerrto12.o yoerrtrwt.o
+rrtm_cmbgb13.o: yoerrta13.o yoerrtftr.o yoerrto13.o yoerrtrwt.o
+rrtm_cmbgb14.o: yoerrta14.o yoerrtftr.o yoerrto14.o yoerrtrwt.o
+rrtm_cmbgb15.o: yoerrta15.o yoerrtftr.o yoerrto15.o yoerrtrwt.o
+rrtm_cmbgb16.o: yoerrta16.o yoerrtftr.o yoerrto16.o yoerrtrwt.o
 rrtm_gas_optical_depth.o: parrrtm.o yoerrtm.o
 rrtm_init_140gp.o: parrrtm.o yoerrtbg2.o yoerrtftr.o yoerrtm.o yoerrtrwt.o yoerrtwn.o
-rrtm_kgb10.o: yoerrto10.o
-rrtm_kgb11.o: yoerrto11.o
-rrtm_kgb12.o: yoerrto12.o
-rrtm_kgb13.o: yoerrto13.o
-rrtm_kgb14.o: yoerrto14.o
-rrtm_kgb15.o: yoerrto15.o
-rrtm_kgb16.o: yoerrto16.o
 rrtm_kgb1.o: yoerrto1.o
 rrtm_kgb2.o: yoerrto2.o
 rrtm_kgb3.o: yoerrto3.o
@@ -33,15 +26,15 @@ rrtm_kgb6.o: yoerrto6.o
 rrtm_kgb7.o: yoerrto7.o
 rrtm_kgb8.o: yoerrto8.o
 rrtm_kgb9.o: yoerrto9.o
+rrtm_kgb10.o: yoerrto10.o
+rrtm_kgb11.o: yoerrto11.o
+rrtm_kgb12.o: yoerrto12.o
+rrtm_kgb13.o: yoerrto13.o
+rrtm_kgb14.o: yoerrto14.o
+rrtm_kgb15.o: yoerrto15.o
+rrtm_kgb16.o: yoerrto16.o
 rrtm_prepare_gases.o: parrrtm.o
 rrtm_setcoef_140gp.o: parrrtm.o yoerrtrf.o
-rrtm_taumol10.o: parrrtm.o yoerrta10.o yoerrtm.o yoerrtwn.o
-rrtm_taumol11.o: parrrtm.o yoerrta11.o yoerrtm.o yoerrtwn.o
-rrtm_taumol12.o: parrrtm.o yoerrta12.o yoerrtm.o yoerrtrf.o yoerrtwn.o
-rrtm_taumol13.o: parrrtm.o yoerrta13.o yoerrtm.o yoerrtrf.o yoerrtwn.o
-rrtm_taumol14.o: parrrtm.o yoerrta14.o yoerrtm.o yoerrtwn.o
-rrtm_taumol15.o: parrrtm.o yoerrta15.o yoerrtm.o yoerrtrf.o yoerrtwn.o
-rrtm_taumol16.o: parrrtm.o yoerrta16.o yoerrtm.o yoerrtrf.o yoerrtwn.o
 rrtm_taumol1.o: parrrtm.o yoerrta1.o yoerrtm.o yoerrtwn.o
 rrtm_taumol2.o: parrrtm.o yoerrta2.o yoerrtm.o yoerrtwn.o
 rrtm_taumol3.o: parrrtm.o yoerrta3.o yoerrtm.o yoerrtrf.o yoerrtwn.o
@@ -51,6 +44,13 @@ rrtm_taumol6.o: parrrtm.o yoerrta6.o yoerrtm.o yoerrtrf.o yoerrtwn.o
 rrtm_taumol7.o: parrrtm.o yoerrta7.o yoerrtm.o yoerrtrf.o yoerrtwn.o
 rrtm_taumol8.o: parrrtm.o yoerrta8.o yoerrtm.o yoerrtrf.o yoerrtwn.o
 rrtm_taumol9.o: parrrtm.o yoerrta9.o yoerrtm.o yoerrtrf.o yoerrtwn.o
+rrtm_taumol10.o: parrrtm.o yoerrta10.o yoerrtm.o yoerrtwn.o
+rrtm_taumol11.o: parrrtm.o yoerrta11.o yoerrtm.o yoerrtwn.o
+rrtm_taumol12.o: parrrtm.o yoerrta12.o yoerrtm.o yoerrtrf.o yoerrtwn.o
+rrtm_taumol13.o: parrrtm.o yoerrta13.o yoerrtm.o yoerrtrf.o yoerrtwn.o
+rrtm_taumol14.o: parrrtm.o yoerrta14.o yoerrtm.o yoerrtwn.o
+rrtm_taumol15.o: parrrtm.o yoerrta15.o yoerrtm.o yoerrtrf.o yoerrtwn.o
+rrtm_taumol16.o: parrrtm.o yoerrta16.o yoerrtm.o yoerrtrf.o yoerrtwn.o
 srtm_cmbgb16.o: yoesrta16.o yoesrtm.o yoesrtwn.o
 srtm_cmbgb17.o: yoesrta17.o yoesrtm.o yoesrtwn.o
 srtm_cmbgb18.o: yoesrta18.o yoesrtm.o yoesrtwn.o
