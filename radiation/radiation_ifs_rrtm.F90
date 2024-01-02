@@ -347,7 +347,7 @@ contains
 
     ! Compute start and end levels for indexing the gas mixing ratio
     ! and thermodynamics arrays
-    iendlev   = ubound(gas%mixing_ratio,2)
+    iendlev   = gas%nlev
     istartlev = iendlev - nlev + 1
 
     ZPI = 2.0_jprb*ASIN(1.0_jprb)
@@ -369,6 +369,10 @@ contains
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
 
+    ! Check all gases are present (possibly zero) and 2D, so the
+    ! indexing of mixing_ratio_2d is guaranteed to work.
+    call gas%assert_all_present_2d()
+    
     ! Warning: O2 is hard-coded within the following function so the
     ! user-provided concentrations of this gas are ignored for both
     ! the longwave and shortwave
@@ -378,16 +382,16 @@ contains
          &   pressure_fl, &
          &   thermodynamics%temperature_hl(:,istartlev:iendlev+1), &
          &   temperature_fl, &
-         &   gas%mixing_ratio(:,istartlev:iendlev,IH2O), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,ICO2), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,ICH4), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,IN2O), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,INO2), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,ICFC11), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,ICFC12), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,IHCFC22), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,ICCl4), &
-         &   gas%mixing_ratio(:,istartlev:iendlev,IO3), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(IH2O)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(ICO2)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(ICH4)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(IN2O)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(INO2)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(ICFC11)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(ICFC12)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(IHCFC22)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(ICCl4)), &
+         &   gas%mixing_ratio_2d(:,istartlev:iendlev,gas%index(IO3)), &
          &  ZCOLDRY, ZWBRODL,ZWKL, ZWX, &
          &  ZPAVEL , ZTAVEL , ZPZ , ZTZ, IREFLECT)  
 

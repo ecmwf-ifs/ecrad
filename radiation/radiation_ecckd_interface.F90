@@ -245,7 +245,7 @@ contains
       call config%gas_optics_sw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
            &  NMaxGases, thermodynamics%pressure_hl, &
            &  temperature_fl, &
-           &  gas%mixing_ratio, &
+           &  gas%index, gas%mixing_ratio_2d, gas%mixing_ratio_1d, &
 !           &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
 !           &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
            &  od_sw, rayleigh_od_fl=ssa_sw)
@@ -278,7 +278,7 @@ contains
       call config%gas_optics_lw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
            &  NMaxGases, thermodynamics%pressure_hl, &
            &  temperature_fl, &
-           &  gas%mixing_ratio, &
+           &  gas%index, gas%mixing_ratio_2d, gas%mixing_ratio_1d, &
 !           &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
 !           &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
            &  od_lw)

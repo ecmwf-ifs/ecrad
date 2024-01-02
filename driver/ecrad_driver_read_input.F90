@@ -26,7 +26,7 @@ contains
 
     use parkind1,                 only : jprb, jpim
     use radiation_io,             only : nulout
-    use radiation_config,         only : config_type, ISolverSPARTACUS, ISolverTCRAD
+    use radiation_config,         only : config_type, ISolverSPARTACUS, ISolverTCRAD, IGasModelIFSRRTMG
     use ecrad_driver_config,      only : driver_config_type
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
@@ -54,13 +54,20 @@ contains
     ! Number of columns and levels of input data
     integer, intent(out) :: ncol, nlev
 
-    integer :: ngases             ! Num of gases with concs described in 2D
-    integer :: nwellmixedgases    ! Num of globally well-mixed gases
+    integer :: ngas2d ! Num of gases with concs described in 2D
+    integer :: ngas1d ! Num of gases with concs described in 1D or 0D
 
+    ! Number of array dimensions for each gas
+    integer :: ngasdims(NMaxGases)
+    
     ! Mixing ratio of gases described in 2D (ncol,nlev); this is
     ! volume mixing ratio (m3/m3) except for water vapour and ozone
     ! for which it is mass mixing ratio (kg/kg)
     real(jprb), allocatable, dimension(:,:) :: gas_mr
+
+    ! Alternatives for variation with height only or perfectly well mixed
+    real(jprb), allocatable, dimension(:) :: gas_mr_1d
+    real(jprb) :: gas_mr_0d
 
     ! Volume mixing ratio (m3/m3) of globally well-mixed gases
     real(jprb)                              :: well_mixed_gas_vmr
@@ -85,6 +92,8 @@ contains
     ! cloud size came from namelist parameters in the first place, yes
     ! if it came from the NetCDF file in the first place
     logical :: is_cloud_size_scalable
+
+    logical :: gas_not_found
 
     integer :: jcol
 
@@ -690,59 +699,85 @@ contains
     end if
 
     ! Load in gas volume mixing ratios, which can be either 2D arrays
-    ! (varying with height and column) or 0D scalars (constant volume
-    ! mixing ratio everywhere).
-    ngases          = 0 ! Gases with varying mixing ratio
-    nwellmixedgases = 0 ! Gases with constant mixing ratio
+    ! (varying with height and column), 1D vectors (varying with
+    ! height) or 0D scalars (constant volume mixing ratio everywhere).
 
-    ! Water vapour and ozone are always in terms of mass mixing ratio
-    ! (kg/kg) and always 2D arrays with dimensions (ncol,nlev), unlike
-    ! other gases (see below)
-
-    call gas%allocate(ncol, nlev)
-
-    ! Loop through all radiatively important gases
+    ngasdims = -1
+    ! First count the number of dimensions for each gas
     do jgas = 1,NMaxGases
       if (jgas == IH2O) then
         if (file%exists('q')) then
-          call file%get('q', gas_mr)
-          call gas%put(IH2O, IMassMixingRatio, gas_mr)
-        else if (file%exists('h2o_mmr')) then
-          call file%get('h2o_mmr', gas_mr)
-          call gas%put(IH2O, IMassMixingRatio, gas_mr)
-        else
-          call file%get('h2o' // trim(driver_config%vmr_suffix_str), gas_mr);
-          call gas%put(IH2O, IVolumeMixingRatio, gas_mr)
-        end if
-      else if (jgas == IO3) then
-        if (file%exists('o3_mmr')) then
-          call file%get('o3_mmr', gas_mr)
-          call gas%put(IO3, IMassMixingRatio, gas_mr)
-        else
-          call file%get('o3' // trim(driver_config%vmr_suffix_str), gas_mr)
-          call gas%put(IO3, IVolumeMixingRatio, gas_mr)
-        end if
-      else
-        ! Find number of dimensions of the variable holding gas "jgas" in
-        ! the input file, where the following function returns -1 if the
-        ! gas is not found
-        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
-        irank = file%get_rank(trim(gas_var_name))
-        ! Note that if the gas is not present then a warning will have
-        ! been issued, and irank will be returned as -1
-        if (irank == 0) then
-          ! Store this as a well-mixed gas
-          call file%get(trim(gas_var_name), well_mixed_gas_vmr)
-          call gas%put_well_mixed(jgas, IVolumeMixingRatio, well_mixed_gas_vmr)
-        else if (irank == 2) then
-          call file%get(trim(gas_var_name), gas_mr)
-          call gas%put(jgas, IVolumeMixingRatio, gas_mr)
-        else if (irank > 0) then
-          write(nulout,'(a,a,a)')  '***  Error: ', trim(gas_var_name), ' does not have 0 or 2 dimensions'
-          stop
+          ngasdims(IH2O) = file%get_rank('q')
         end if
       end if
-      if (allocated(gas_mr)) deallocate(gas_mr)
+      if (ngasdims(jgas) == -1) then
+        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
+        if (file%exists(trim(gas_var_name))) then
+          ngasdims(jgas) = file%get_rank(trim(gas_var_name))
+        else
+          gas_var_name = trim(GasLowerCaseName(jgas)) // "_mmr"
+          if (file%exists(trim(gas_var_name))) then
+            ngasdims(jgas) = file%get_rank(trim(gas_var_name))
+          end if
+        end if
+      end if
+    end do
+
+    ngas2d = count(ngasdims >= 2)
+    ngas1d = count(ngasdims >= 0 .and. ngasdims <= 1)
+
+    if (config%i_gas_model == IGasModelIFSRRTMG) then
+      ! IFS-RRTMG must have gases stored in 2D and be able to access
+      ! an array of zeros for any missing gases
+      call gas%allocate(ncol, nlev, ngas2d+ngas1d, do_zero_fill=.true.)
+    else
+      ! ecCKD is more flexible so can cope with some gases stored in
+      ! 1D, which is easier on memory
+      call gas%allocate(ncol, nlev, ngas2d, nmaxgas1d=ngas1d)
+    end if
+
+    ! Loop through all gases again and load them in this time
+    do jgas = 1,NMaxGases
+      gas_not_found = .true.
+      if (jgas == IH2O) then
+        if (file%exists('q')) then
+          if (ngasdims(IH2O) == 2) then
+            call file%get('q', gas_mr)
+            call gas%put(IH2O, IMassMixingRatio, gas_mr)
+          else
+            call file%get('q', gas_mr_1d)
+            call gas%put_1d(IH2O, IMassMixingRatio, gas_mr_1d)
+          end if
+          gas_not_found = .false.
+        end if
+      end if
+      if (gas_not_found .and. ngasdims(jgas) >= 0) then
+        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
+        if (file%exists(trim(gas_var_name))) then
+          if (ngasdims(jgas) == 2) then
+            call file%get(trim(gas_var_name), gas_mr)
+            call gas%put(jgas, IVolumeMixingRatio, gas_mr)
+          else if (ngasdims(jgas) == 1) then
+            call file%get(trim(gas_var_name), gas_mr_1d)
+            call gas%put_1d(jgas, IVolumeMixingRatio, gas_mr_1d)
+          else
+            call file%get(trim(gas_var_name), gas_mr_0d)
+            call gas%put_well_mixed(jgas, IVolumeMixingRatio, gas_mr_0d)
+          end if
+        else
+          gas_var_name = trim(GasLowerCaseName(jgas)) // "_mmr"
+          if (ngasdims(jgas) == 2) then
+            call file%get(trim(gas_var_name), gas_mr)
+            call gas%put(jgas, IMassMixingRatio, gas_mr)
+          else if (ngasdims(jgas) == 1) then
+            call file%get(trim(gas_var_name), gas_mr_1d)
+            call gas%put_1d(jgas, IMassMixingRatio, gas_mr_1d)
+          else
+            call file%get(trim(gas_var_name), gas_mr_0d)
+            call gas%put_well_mixed(jgas, IMassMixingRatio, gas_mr_0d)
+          end if
+        end if
+      end if
     end do
 
     ! Scale gas concentrations if needed
