@@ -43,6 +43,8 @@ contains
     
     implicit none
 
+!#include "disort.inc"
+    
     ! Number of angles for radiance calculation (not needed, so set to
     ! 1)
     integer, parameter :: nphi = 1
@@ -144,6 +146,8 @@ contains
     ! Loop indices for level and column
     integer :: jlev, jcol, jg, jcomp
 
+    external :: disort
+    
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_disort_lw:solver_disort_lw',0,hook_handle)
@@ -451,6 +455,8 @@ contains
 
     ! Loop indices for level and column
     integer :: jlev, jcol, jg, jcomp
+
+    external :: disort
 
     real(jphook) :: hook_handle
 
