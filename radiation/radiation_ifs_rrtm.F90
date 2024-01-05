@@ -40,6 +40,8 @@ contains
     use yomhook,   only : lhook, dr_hook, jphook
 
     use radiation_config
+    use radiation_spectral_definition, only &
+         &  : SolarReferenceTemperature, TerrestrialReferenceTemperature
 
     type(config_type), intent(inout), target :: config
     character(len=*), intent(in)     :: directory
@@ -106,7 +108,7 @@ contains
       ! Wavenumber ranges of each band may be needed so that the user
       ! can compute UV and photosynthetically active radiation for a
       ! particular wavelength range
-      call config%gas_optics_sw%spectral_def%allocate_bands_only( &
+      call config%gas_optics_sw%spectral_def%allocate_bands_only(SolarReferenceTemperature, &
            &  [2600.0_jprb, 3250.0_jprb, 4000.0_jprb, 4650.0_jprb, 5150.0_jprb, 6150.0_jprb, 7700.0_jprb, &
            &   8050.0_jprb, 12850.0_jprb, 16000.0_jprb, 22650.0_jprb, 29000.0_jprb, 38000.0_jprb, 820.0_jprb], &
            &  [3250.0_jprb, 4000.0_jprb, 4650.0_jprb, 5150.0_jprb, 6150.0_jprb, 7700.0_jprb, 8050.0_jprb, &
@@ -152,7 +154,7 @@ contains
       config%do_cloud_aerosol_per_lw_g_point = .false.
       config%n_g_lw = jpglw
       config%n_bands_lw = 16
-      call config%gas_optics_lw%spectral_def%allocate_bands_only( &
+      call config%gas_optics_lw%spectral_def%allocate_bands_only(TerrestrialReferenceTemperature, &
            &  [10.0_jprb, 350.0_jprb, 500.0_jprb, 630.0_jprb, 700.0_jprb, 820.0_jprb, 980.0_jprb, 1080.0_jprb, &
            &   1180.0_jprb, 1390.0_jprb, 1480.0_jprb, 1800.0_jprb, 2080.0_jprb, 2250.0_jprb, 2380.0_jprb, 2600.0_jprb], &
            &  [350.0_jprb, 500.0_jprb, 630.0_jprb, 700.0_jprb, 820.0_jprb, 980.0_jprb, 1080.0_jprb, 1180.0_jprb, &

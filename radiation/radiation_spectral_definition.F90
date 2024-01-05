@@ -24,7 +24,7 @@ module radiation_spectral_definition
 
   public
 
-  real(jprb), parameter :: SolarReferenceTemperature = 5777.0_jprb ! K
+  real(jprb), parameter :: SolarReferenceTemperature       = 5777.0_jprb ! K
   real(jprb), parameter :: TerrestrialReferenceTemperature = 273.15_jprb ! K
 
   !---------------------------------------------------------------------
@@ -137,14 +137,15 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Store a simple band description by copying over the lower and
-  ! upper wavenumbers of each band
-  subroutine allocate_bands_only(this, wavenumber1, wavenumber2)
+  ! Store a simple band description by copying over the reference
+  ! temperature and the lower and upper wavenumbers of each band
+  subroutine allocate_bands_only(this, reference_temperature, wavenumber1, wavenumber2)
 
     use yomhook,     only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(inout) :: this
-    real(jprb),        dimension(:), intent(in)    :: wavenumber1, wavenumber2
+    real(jprb),                      intent(in)    :: reference_temperature    ! K
+    real(jprb),        dimension(:), intent(in)    :: wavenumber1, wavenumber2 ! cm-1
 
     real(jphook) :: hook_handle
 
@@ -157,7 +158,8 @@ contains
     allocate(this%wavenumber2_band(this%nband))
     this%wavenumber1_band = wavenumber1
     this%wavenumber2_band = wavenumber2
-
+    this%reference_temperature = reference_temperature
+    
     if (lhook) call dr_hook('radiation_spectral_definition:allocate_bands_only',1,hook_handle)
 
   end subroutine allocate_bands_only
@@ -172,6 +174,7 @@ contains
     this%nwav  = 0
     this%ng    = 0
     this%nband = 0
+    this%reference_temperature = -1.0_jprb
 
     if (allocated(this%wavenumber1))      deallocate(this%wavenumber1)
     if (allocated(this%wavenumber2))      deallocate(this%wavenumber2)

@@ -21,6 +21,12 @@ version 1.6.1
 	- Enable different gas optics models for shortwave and longwave:
 	  namelist gas_model_name can still be used, or use
 	  sw_gas_model_name and lw_gas_model_name to specify separate models
+	- Fix the general aerosol optics + RRTMG combination, so that
+	  optical properties correctly weighted by solar or terrestrial
+	  Planck function, rather than unweighted. This changes fluxes by up
+	  to 0.3 W m-2 in SW and 0.03 in LW, heating rates by up to 0.015
+	  K/d in SW and 0.0015 in LW. Reverts bug introduced between git
+	  commits a405cca (5 Dec 2022) and 7182230 (8 Dec 2022).
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
