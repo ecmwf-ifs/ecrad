@@ -38,7 +38,7 @@ contains
 
     if (lhook) call dr_hook('radiation_ecckd_interface:setup_gas_optics',0,hook_handle)
 
-    if (config%do_sw) then
+    if (config%do_sw .and. config%i_gas_model_sw == IGasModelECCKD) then
 
       ! Read shortwave ecCKD gas optics NetCDF file
       call config%gas_optics_sw%read(trim(config%gas_optics_sw_file_name), &
@@ -83,7 +83,7 @@ contains
 
     end if
 
-    if (config%do_lw) then
+    if (config%do_lw .and. config%i_gas_model_lw == IGasModelECCKD) then
 
       ! Read longwave ecCKD gas optics NetCDF file
       call config%gas_optics_lw%read(trim(config%gas_optics_lw_file_name), &
@@ -179,7 +179,7 @@ contains
     use parkind1, only : jprb
     use yomhook,  only : lhook, dr_hook, jphook
 
-    use radiation_config,         only : config_type
+    use radiation_config,         only : config_type, IGasModelECCKD
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_single_level,   only : single_level_type
     use radiation_gas_constants,  only : NMaxGases
@@ -222,6 +222,10 @@ contains
     ! Temperature at full levels (K)
     real(jprb) :: temperature_fl(istartcol:iendcol,nlev)
 
+    real(jprb) :: concentration_scaling(NMaxGases)
+    
+    logical :: is_volume_mixing_ratio
+    
     integer :: jcol, jlev, jg
 
     real(jphook) :: hook_handle
@@ -239,16 +243,31 @@ contains
          &     *thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1)) &
          &  / (thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
          &    +thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1))
- 
-    if (config%do_sw) then
 
-      call config%gas_optics_sw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
-           &  NMaxGases, thermodynamics%pressure_hl, &
-           &  temperature_fl, &
-           &  gas%index, gas%mixing_ratio_2d, gas%mixing_ratio_1d, &
-!           &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
-!           &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
-           &  od_sw, rayleigh_od_fl=ssa_sw)
+    ! Check that the gas concentrations are stored in volume mixing
+    ! ratio with no scaling; if not, return a vector of scalings
+    call gas%assert_units(IVolumeMixingRatio, scale_factor=1.0_jprb, &
+         &                istatus=is_volume_mixing_ratio)
+    if (.not. is_volume_mixing_ratio) then
+      call gas%get_scaling(IVolumeMixingRatio, concentration_scaling)
+    else
+      concentration_scaling = 1.0_jprb
+    end if
+    
+    if (config%do_sw .and. config%i_gas_model_sw == IGasModelECCKD) then
+
+      if (is_volume_mixing_ratio) then
+        call config%gas_optics_sw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
+             &  NMaxGases, thermodynamics%pressure_hl, temperature_fl, &
+             &  gas%index, gas%mixing_ratio_2d, gas%mixing_ratio_1d, &
+             &  od_sw, rayleigh_od_fl=ssa_sw)
+      else
+        call config%gas_optics_sw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
+             &  NMaxGases, thermodynamics%pressure_hl, temperature_fl, &
+             &  gas%index, gas%mixing_ratio_2d, gas%mixing_ratio_1d, &
+             &  od_sw, rayleigh_od_fl=ssa_sw, concentration_scaling=concentration_scaling)
+      end if
+
       ! At this point od_sw = absorption optical depth and ssa_sw =
       ! rayleigh optical depth: convert to total optical depth and
       ! single-scattering albedo
@@ -273,15 +292,19 @@ contains
 
     end if
 
-    if (config%do_lw) then
+    if (config%do_lw .and. config%i_gas_model_lw == IGasModelECCKD) then
 
-      call config%gas_optics_lw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
-           &  NMaxGases, thermodynamics%pressure_hl, &
-           &  temperature_fl, &
-           &  gas%index, gas%mixing_ratio_2d, gas%mixing_ratio_1d, &
-!           &  reshape(gas%mixing_ratio(istartcol:iendcol,:,:), &
-!           &          [nlev,iendcol-istartcol+1,NMaxGases],order=[2,1,3]), &
-           &  od_lw)
+      if (is_volume_mixing_ratio) then
+        call config%gas_optics_lw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
+             &  NMaxGases, thermodynamics%pressure_hl, temperature_fl, &
+             &  gas%index, gas%mixing_ratio_2d, gas%mixing_ratio_1d, &
+             &  od_lw)
+      else
+        call config%gas_optics_lw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
+             &  NMaxGases, thermodynamics%pressure_hl, temperature_fl, &
+             &  gas%index, gas%mixing_ratio_2d, gas%mixing_ratio_1d, &
+             &  od_lw, concentration_scaling=concentration_scaling)
+      end if
 
       ! Calculate the Planck function for each g point
       do jcol = istartcol,iendcol

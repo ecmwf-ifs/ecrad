@@ -21,6 +21,21 @@ version 1.6.1
 	- Added use_tcrad_exact_solution which computes radiances from an
 	  exact analytic description of the flux profile consistent with the
 	  two-stream equations
+	- Enable different gas optics models for shortwave and longwave:
+	  namelist gas_model_name can still be used, or use
+	  sw_gas_model_name and lw_gas_model_name to specify separate models
+	- Fix the general aerosol optics + RRTMG combination, so that
+	  optical properties correctly weighted by solar or terrestrial
+	  Planck function, rather than unweighted. This changes fluxes by up
+	  to 0.3 W m-2 in SW and 0.03 in LW, heating rates by up to 0.015
+	  K/d in SW and 0.0015 in LW. Reverts bug introduced between git
+	  commits a405cca (5 Dec 2022) and 7182230 (8 Dec 2022).
+	- Added ifs/satur.F90, used in the IFS to compute relative
+	  humidity for aerosol hydration, and the ability to call it from
+	  ecrad_driver.F90, but note that this routine computes saturation
+	  with respect to ice at colder temperatures. If used, the impact on
+	  fluxes is up to around 1 W m-2 in the SW and 0.05 in the LW, and
+	  for heating rates 0.002 K/d in the SW and 0.003 in the LW.
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran

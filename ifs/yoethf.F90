@@ -1,0 +1,72 @@
+! (C) Copyright 1988- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+MODULE YOETHF
+
+USE PARKIND1  , ONLY : JPIM, JPRB
+USE YOMCST    , ONLY : RD, RV, RCPD, RLVTT, RLSTT, RLMLT, RTT
+
+IMPLICIT NONE
+
+SAVE
+
+!     ------------------------------------------------------------------
+!*     *YOETHF* DERIVED CONSTANTS SPECIFIC TO ECMWF THERMODYNAMICS
+!     ------------------------------------------------------------------
+
+REAL(KIND=JPRB), PARAMETER :: R2ES = 611.21_JPRB*RD/RV
+REAL(KIND=JPRB), PARAMETER :: R3LES = 17.502_JPRB
+REAL(KIND=JPRB), PARAMETER :: R3IES = 22.587_JPRB
+REAL(KIND=JPRB), PARAMETER :: R4LES = 32.19_JPRB
+REAL(KIND=JPRB), PARAMETER :: R4IES = -0.7_JPRB
+REAL(KIND=JPRB), PARAMETER :: R5LES = R3LES*(RTT-R4LES)
+REAL(KIND=JPRB), PARAMETER :: R5IES = R3IES*(RTT-R4IES)
+REAL(KIND=JPRB), PARAMETER :: RVTMP2 = 0.0_JPRB
+REAL(KIND=JPRB), PARAMETER :: RHOH2O = 1000.0_JPRB
+REAL(KIND=JPRB), PARAMETER :: R5ALVCP = R5LES*RLVTT/RCPD
+REAL(KIND=JPRB), PARAMETER :: R5ALSCP = R5IES*RLSTT/RCPD
+REAL(KIND=JPRB), PARAMETER :: RALVDCP = RLVTT/RCPD
+REAL(KIND=JPRB), PARAMETER :: RALSDCP = RLSTT/RCPD
+REAL(KIND=JPRB), PARAMETER :: RALFDCP = RLMLT/RCPD
+REAL(KIND=JPRB), PARAMETER :: RTWAT = RTT
+REAL(KIND=JPRB), PARAMETER :: RTBER = RTT-5._JPRB
+REAL(KIND=JPRB), PARAMETER :: RTBERCU = RTT-5.0_JPRB
+REAL(KIND=JPRB), PARAMETER :: RTICE = RTT-23._JPRB
+REAL(KIND=JPRB), PARAMETER :: RTICECU = RTT-23._JPRB
+REAL(KIND=JPRB), PARAMETER :: RTWAT_RTICE_R = 1.0_JPRB/(RTWAT-RTICE)
+REAL(KIND=JPRB), PARAMETER :: RTWAT_RTICECU_R = 1.0_JPRB/(RTWAT-RTICECU)
+REAL(KIND=JPRB), PARAMETER :: RKOOP1 = 2.583_JPRB
+REAL(KIND=JPRB), PARAMETER :: RKOOP2 = 0.48116E-2_JPRB
+
+!     J.-J. MORCRETTE                   91/07/14  ADAPTED TO I.F.S.
+
+!      NAME     TYPE      PURPOSE
+!      ----     ----      -------
+
+!     *R__ES*   REAL      *CONSTANTS USED FOR COMPUTATION OF SATURATION
+!                         MIXING RATIO OVER LIQUID WATER(*R_LES*) OR
+!                         ICE(*R_IES*).
+!     *RVTMP2*  REAL      *RVTMP2=RCPV/RCPD-1.
+!     *RHOH2O*  REAL      *DENSITY OF LIQUID WATER.   (RATM/100.)
+!     *R5ALVCP* REAL      *R5LES*RLVTT/RCPD
+!     *R5ALSCP* REAL      *R5IES*RLSTT/RCPD
+!     *RALVDCP* REAL      *RLVTT/RCPD
+!     *RALSDCP* REAL      *RLSTT/RCPD
+!     *RALFDCP* REAL      *RLMLT/RCPD
+!     *RTWAT*   REAL      *RTWAT=RTT
+!     *RTBER*   REAL      *RTBER=RTT-0.05
+!     *RTBERCU  REAL      *RTBERCU=RTT-5.0
+!     *RTICE*   REAL      *RTICE=RTT-0.1
+!     *RTICECU* REAL      *RTICECU=RTT-23.0
+!     *RKOOP?   REAL      *CONSTANTS TO DESCRIBE KOOP FORM FOR NUCLEATION
+!     *RTWAT_RTICE_R*   REAL      *RTWAT_RTICE_R=1./(RTWAT-RTICE)
+!     *RTWAT_RTICECU_R* REAL      *RTWAT_RTICECU_R=1./(RTWAT-RTICECU)
+
+!       ----------------------------------------------------------------
+END MODULE YOETHF

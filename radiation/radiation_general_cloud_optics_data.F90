@@ -14,6 +14,8 @@
 ! License: see the COPYING file for details
 !
 
+#include "ecrad_config.h"
+
 module radiation_general_cloud_optics_data
 
   use parkind1, only : jprb
@@ -125,10 +127,14 @@ contains
        &                                iverbose, pf_mode, n_pf_components)
 
     use yomhook,                       only : lhook, dr_hook, jphook
-    use easy_netcdf,                   only : netcdf_file
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
+    use easy_netcdf,          only : netcdf_file
+#endif
     use radiation_constants,           only : Pi
+    use radiation_spectral_definition, only : spectral_definition_type
     use radiation_io,                  only : nulout, nulerr, radiation_abort
-    use radiation_constants,           only : Pi
     use radiation_spectral_definition, only : spectral_definition_type
 
     class(general_cloud_optics_type), intent(inout), target :: this

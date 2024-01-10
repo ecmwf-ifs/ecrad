@@ -16,6 +16,7 @@
 !   2017-10-23  R. Hogan  Renamed single-character variables
 !   2018-04-20  A. Bozzo  Read optical properties at selected wavelengths
 
+#include "ecrad_config.h"
 
 module radiation_aerosol_optics_data
 
@@ -156,7 +157,11 @@ contains
   subroutine setup_aerosol_optics(this, file_name, iverbose)
 
     use yomhook,              only : lhook, dr_hook, jphook
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
     use easy_netcdf,          only : netcdf_file
+#endif
     use radiation_io,         only : nulerr, radiation_abort
 
     class(aerosol_optics_type), intent(inout) :: this
@@ -400,8 +405,8 @@ contains
   ! Save aerosol optical properties in the named file
   subroutine save_aerosol_optics(this, file_name, iverbose)
 
-    use yomhook,     only : lhook, dr_hook, jphook
-    use easy_netcdf, only : netcdf_file
+    use yomhook,              only : lhook, dr_hook, jphook
+    use easy_netcdf,          only : netcdf_file
 
     class(aerosol_optics_type), intent(inout) :: this
     character(len=*),           intent(in)    :: file_name

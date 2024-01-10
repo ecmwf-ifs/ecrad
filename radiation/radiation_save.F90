@@ -85,7 +85,7 @@ contains
       return
     end if
 
-    if (config%i_gas_model == IGasModelMonochromatic &
+    if (config%i_gas_model_lw == IGasModelMonochromatic &
          .and. config%mono_lw_wavelength > 0.0_jprb) then
       lw_units_str = 'W m-3'
     else
@@ -514,7 +514,7 @@ contains
       return
     end if
 
-    if (config%i_gas_model == IGasModelMonochromatic &
+    if (config%i_gas_model_lw == IGasModelMonochromatic &
          .and. config%mono_lw_wavelength > 0.0_jprb) then
       lw_units_str = 'W m-3'
     else

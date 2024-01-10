@@ -726,7 +726,8 @@ contains
     ngas2d = count(ngasdims >= 2)
     ngas1d = count(ngasdims >= 0 .and. ngasdims <= 1)
 
-    if (config%i_gas_model == IGasModelIFSRRTMG) then
+    if (config%i_gas_model_sw == IGasModelIFSRRTMG &
+         .or. config%i_gas_model_lw == IGasModelIFSRRTMG) then
       ! IFS-RRTMG must have gases stored in 2D and be able to access
       ! an array of zeros for any missing gases
       call gas%allocate(ncol, nlev, ngas2d+ngas1d, do_zero_fill=.true.)
