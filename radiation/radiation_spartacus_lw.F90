@@ -48,7 +48,7 @@ contains
   !   4: Compute total sources and albedos
   !   5: Compute fluxes
   subroutine solver_spartacus_lw(nlev,istartcol,iendcol, &
-       &  config, thermodynamics, cloud, & 
+       &  config, thermodynamics, cloud, &
        &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, planck_hl, &
        &  emission, albedo, &
        &  flux)
@@ -482,7 +482,7 @@ contains
                        &  * min(edge_length(1), edge_length(2))
                   edge_length(1) = edge_length(1) - edge_length(3)
                   edge_length(2) = edge_length(2) - edge_length(3)
-                else 
+                else
                   edge_length(3) = 0.0_jprb
                 end if
               end if
@@ -522,7 +522,7 @@ contains
 
               ! Don't allow the transfer rate out of a region to be
               ! equivalent to a loss of exp(-10) through the layer
-              where (transfer_rate > config%max_3d_transfer_rate) 
+              where (transfer_rate > config%max_3d_transfer_rate)
                 transfer_rate = config%max_3d_transfer_rate
               end where
             end if ! Cloud has edge length required for 3D effects
@@ -568,9 +568,7 @@ contains
 
               ! Apply maximum cloud optical depth for stability in the
               ! 3D case
-              if (od_region(jg,jreg) > config%max_cloud_od) then
-                od_region(jg,jreg) = config%max_cloud_od
-              end if
+              od_region(jg,jreg) = min(od_region(jg,jreg), config%max_cloud_od_lw)
 
             end do
 
@@ -649,7 +647,7 @@ contains
                  & (sqrt_1_minus_ssa(1:ng3D) &
                  &  + sqrt(1.0_jprb-ssa_region(1:ng3D,2)*g_region(1:ng3D,2)))
             side_emiss(1:ng3D) = (side_emiss_thin - side_emiss_thick(1:ng3D)) &
-                 &  / (lateral_od(1:ng3D) + 1.0_jprb) & 
+                 &  / (lateral_od(1:ng3D) + 1.0_jprb) &
                  &  + side_emiss_thick(1:ng3D)
           else
             side_emiss(1:ng3D) = 1.0_jprb
@@ -698,7 +696,7 @@ contains
           ! Compute the parts of the particular solution
           solution_diff(1:ng3D,1:2*nreg) &
                &  = solve_vec(ng,ng3D,2*nreg,Gamma_z1,planck_diff)
-          solution_diff(1:ng3D,1:2*nreg) = - solution_diff(1:ng3D,1:2*nreg) 
+          solution_diff(1:ng3D,1:2*nreg) = - solution_diff(1:ng3D,1:2*nreg)
           solution0(1:ng3D,1:2*nreg) = solve_vec(ng,ng3D,2*nreg,Gamma_z1, &
                &  solution_diff-planck_top)
 
@@ -804,7 +802,7 @@ contains
       end if
 
       ! Calculate the upwelling radiation emitted by the surface, and
-      ! copy the surface albedo into total_albedo 
+      ! copy the surface albedo into total_albedo
       do jreg = 1,nreg
         do jg = 1,ng
           ! region_fracs(jreg,nlev,jcol) is the fraction of each
@@ -813,7 +811,7 @@ contains
           total_albedo(jg,jreg,jreg,nlev+1) = albedo(jg,jcol)
         end do
       end do
-      ! Equivalent surface values for computing clear-sky fluxes 
+      ! Equivalent surface values for computing clear-sky fluxes
       if (config%do_clear) then
         do jg = 1,ng
           total_source_clear(jg,nlev+1) = emission(jg,jcol)
@@ -865,12 +863,12 @@ contains
                &  solve_mat(ng,ng,nreg,denominator, &
                &  mat_x_mat(ng,ng,nreg,total_albedo(:,:,:,jlev+1), &
                &  transmittance(:,:,:,jlev))))
-          total_source_below = source_up(:,:,jlev) & 
+          total_source_below = source_up(:,:,jlev) &
                &  + mat_x_vec(ng,ng,nreg,transmittance(:,:,:,jlev), &
                &  solve_vec(ng,ng,nreg,denominator, &
                &  total_source(:,:,jlev+1) + mat_x_vec(ng,ng,nreg, &
                &  total_albedo(:,:,:,jlev+1),source_dn(:,:,jlev))))
-        else 
+        else
           ! Cloudy layer for which reflectance, transmittance and
           ! total_albedo matrices are diagonal
           total_albedo_below = 0.0_jprb
@@ -899,7 +897,7 @@ contains
           total_albedo(:,1,1,jlev) = total_albedo_below(:,1,1)
           total_source(:,:,jlev) = 0.0_jprb
           total_source(:,1,jlev) = total_source_below(:,1)
-        else 
+        else
           total_source(:,:,jlev) = singlemat_x_vec(ng,ng,nreg,&
                &  u_matrix(:,:,jlev,jcol), total_source_below)
 
@@ -1064,7 +1062,7 @@ contains
         call calc_lw_derivatives_matrix(ng, nlev, nreg, jcol, transmittance, &
              &  u_matrix(:,:,:,jcol), sum(flux_up_above,2), flux%lw_derivatives)
       end if
-        
+
     end do ! Loop over columns
 
     if (config%iverbose >= 3) then

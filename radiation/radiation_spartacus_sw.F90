@@ -62,7 +62,7 @@ contains
   !     4.2: Overlap and entrapment
   !   5: Compute fluxes
   subroutine solver_spartacus_sw(nlev,istartcol,iendcol, &
-       &  config, single_level, thermodynamics, cloud, & 
+       &  config, single_level, thermodynamics, cloud, &
        &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, &
        &  albedo_direct, albedo_diffuse, incoming_sw, &
        &  flux)
@@ -547,7 +547,7 @@ contains
                        &  * min(edge_length(1,jlev), edge_length(2,jlev))
                   edge_length(1,jlev) = edge_length(1,jlev) - edge_length(3,jlev)
                   edge_length(2,jlev) = edge_length(2,jlev) - edge_length(3,jlev)
-                else 
+                else
                   edge_length(3,jlev) = 0.0_jprb
                 end if
               end if
@@ -597,10 +597,10 @@ contains
 
               ! Don't allow the transfer rate out of a region to be
               ! equivalent to a loss of exp(-10) through the layer
-              where (transfer_rate_direct > config%max_3d_transfer_rate) 
+              where (transfer_rate_direct > config%max_3d_transfer_rate)
                 transfer_rate_direct = config%max_3d_transfer_rate
               end where
-              where (transfer_rate_diffuse > config%max_3d_transfer_rate) 
+              where (transfer_rate_diffuse > config%max_3d_transfer_rate)
                 transfer_rate_diffuse = config%max_3d_transfer_rate
               end where
 
@@ -644,9 +644,7 @@ contains
 
               ! Apply maximum cloud optical depth for stability in the
               ! 3D case
-              if (od_region(jg,jreg) > config%max_cloud_od) then
-                od_region(jg,jreg) = config%max_cloud_od
-              end if
+              od_region(jg,jreg) = min(od_region(jg,jreg), config%max_cloud_od_sw)
 
             end do
 
@@ -909,7 +907,7 @@ contains
                &  + (trans_dir_dir(:,1,1,jlev)*total_albedo_direct(:,1,1,jlev+1) &
                &    +trans_dir_diff(:,1,1,jlev)*total_albedo(:,1,1,jlev+1)) &
                &  * transmittance(:,1,1,jlev) * inv_denom_scalar(:)
-        else 
+        else
           ! Cloudy layer: use matrix adding method
           denominator = identity_minus_mat_x_mat(ng,ng,nreg, &
                &  total_albedo(:,:,:,jlev+1), reflectance(:,:,:,jlev))
@@ -1050,7 +1048,7 @@ contains
 #ifdef EXPLICIT_EDGE_ENTRAPMENT
 end if
 #endif
-          
+
           ! Now the contribution from the diagonals of the albedo
           ! matrix in the lower layer
           if (config%i_3d_sw_entrapment == IEntrapmentEdgeOnly &
@@ -1104,7 +1102,7 @@ end if
                 ! parameter) and 1.0 (the boundaries line up to the
                 ! minimum extent possible); here this is used to
                 ! produce a scaling factor for the transfer rate.
-                transfer_scaling = 1.0_jprb - (1.0_jprb - config%overhang_factor) & 
+                transfer_scaling = 1.0_jprb - (1.0_jprb - config%overhang_factor) &
                      &  * cloud%overlap_param(jcol,jlev-1) &
                      &  * min(region_fracs(jreg2,jlev,jcol),region_fracs(jreg2,jlev-1,jcol)) &
                      &  / max(config%cloud_fraction_threshold, region_fracs(jreg2,jlev,jcol))
@@ -1123,7 +1121,7 @@ end if
                   transfer_rate_diffuse(jreg+1,jreg) = transfer_scaling &
                        &  * edge_length(jreg,jlev-1) / max(u_matrix(jreg+1,jreg2,jlev,jcol),1.0e-5_jprb)
                 end do
-              
+
                 ! Compute transfer rates directly between regions 1
                 ! and 3 (not used below)
                 if (edge_length(3,jlev) > 0.0_jprb) then
@@ -1154,7 +1152,7 @@ end if
                   entrapment(:,jreg+1,jreg) = entrapment(:,jreg+1,jreg) &
                        &  + transfer_rate_diffuse(jreg,jreg+1)*x_diffuse(:,jreg2)
                   entrapment(:,jreg,jreg+1) = entrapment(:,jreg,jreg+1) &
-                       &  + transfer_rate_diffuse(jreg+1,jreg)*x_diffuse(:,jreg2)                  
+                       &  + transfer_rate_diffuse(jreg+1,jreg)*x_diffuse(:,jreg2)
                 end if
                 entrapment(:,jreg,jreg) = entrapment(:,jreg,jreg) &
                      &  - entrapment(:,jreg+1,jreg)
@@ -1168,9 +1166,9 @@ end if
               ! scaling down if necessary
               do jg = 1,ng
                 max_entr = -min(entrapment(jg,1,1),entrapment(jg,2,2))
-                if (max_entr > config%max_cloud_od) then
+                if (max_entr > config%max_cloud_od_sw) then
                   ! Scale down all inputs for this g point
-                  entrapment(jg,:,:) = entrapment(jg,:,:) * (config%max_cloud_od/max_entr)
+                  entrapment(jg,:,:) = entrapment(jg,:,:) * (config%max_cloud_od_sw/max_entr)
                 end if
               end do
 
@@ -1211,7 +1209,7 @@ end if
               ! Scale to get the contribution to the diffuse albedo
               do jreg3 = 1,nreg     ! TO upper region
                 do jreg = 1,nreg    ! FROM upper region
-                  transfer_scaling = 1.0_jprb - (1.0_jprb - config%overhang_factor) & 
+                  transfer_scaling = 1.0_jprb - (1.0_jprb - config%overhang_factor) &
                        &  * cloud%overlap_param(jcol,jlev-1) &
                        &  * min(region_fracs(jreg,jlev,jcol), region_fracs(jreg,jlev,jcol)) &
                        &  / max(config%cloud_fraction_threshold, region_fracs(jreg,jlev,jcol))
@@ -1265,9 +1263,9 @@ end if
               ! scaling down if necessary
               do jg = 1,ng
                 max_entr = -min(entrapment(jg,1,1),entrapment(jg,2,2))
-                if (max_entr > config%max_cloud_od) then
+                if (max_entr > config%max_cloud_od_sw) then
                   ! Scale down all inputs for this g point
-                  entrapment(jg,:,:) = entrapment(jg,:,:) * (config%max_cloud_od/max_entr)
+                  entrapment(jg,:,:) = entrapment(jg,:,:) * (config%max_cloud_od_sw/max_entr)
                 end if
               end do
 
@@ -1299,7 +1297,7 @@ end if
               albedo_part = 0.0_jprb
               do jreg3 = 1,nreg
                 do jreg = 1,nreg
-                  transfer_scaling = 1.0_jprb - (1.0_jprb - config%overhang_factor) & 
+                  transfer_scaling = 1.0_jprb - (1.0_jprb - config%overhang_factor) &
                        &  * cloud%overlap_param(jcol,jlev-1) &
                        &  * min(region_fracs(jreg,jlev,jcol), region_fracs(jreg,jlev-1,jcol)) &
                        &  / max(config%cloud_fraction_threshold, region_fracs(jreg,jlev,jcol))
@@ -1332,11 +1330,11 @@ end if
           ! Horizontal migration distances are averaged when
           ! applying overlap rules, so equation is
           ! x_above=matmul(transpose(v_matrix),x_below)
-          
+
           ! We do this into temporary arrays...
           x_direct_above = 0.0_jprb
           x_diffuse_above = 0.0_jprb
-          
+
           nregactive = nreg
           if (is_clear_sky_layer(jlev)) then
             nregactive = 1
@@ -1350,7 +1348,7 @@ end if
                    &  + x_diffuse(:,jreg2) * v_matrix(jreg2,jreg,jlev,jcol)
             end do
           end do
-          
+
           !... then copy out of the temporary arrays
           x_direct = x_direct_above
           x_diffuse = x_diffuse_above
@@ -1604,7 +1602,7 @@ end if
        &  reflectance, transmittance, ref_dir, trans_dir_dir, &
        &  trans_dir_diff, total_albedo_diff, total_albedo_dir, &
        &  x_diffuse, x_direct)
-    
+
     use parkind1, only : jprb
 
     implicit none
@@ -1666,7 +1664,7 @@ end if
     ! This is the mean horizontal distance travelled by diffuse
     ! radiation that travels from the top of a layer to the centre and
     ! is then scattered back up and out
-    x_layer_diffuse = layer_depth * tan_diffuse_angle_3d/sqrt(2.0_jprb) 
+    x_layer_diffuse = layer_depth * tan_diffuse_angle_3d/sqrt(2.0_jprb)
 
     ! This is the mean horizontal distance travelled by direct
     ! radiation that travels from the top of a layer to the centre and

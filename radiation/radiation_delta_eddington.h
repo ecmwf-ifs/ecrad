@@ -20,20 +20,20 @@
 elemental subroutine delta_eddington(od, ssa, g)
 
   use parkind1, only : jprb
-  
+
   ! Total optical depth, single scattering albedo and asymmetry
   ! factor
   real(jprb), intent(inout) :: od, ssa, g
-  
+
   ! Fraction of the phase function deemed to be in the forward lobe
   ! and therefore treated as if it is not scattered at all
   real(jprb) :: f
-  
+
   f   = g*g
   od  = od * (1.0_jprb - ssa*f)
   ssa = ssa * (1.0_jprb - f) / (1.0_jprb - ssa*f)
   g   = g / (1.0_jprb + g)
-  
+
 end subroutine delta_eddington
 
 
@@ -57,17 +57,12 @@ elemental subroutine delta_eddington_extensive(od, scat_od, scat_od_g)
   ! and therefore treated as if it is not scattered at all
   real(jprb) :: f, g
 
-  if (scat_od > 0.0_jprb) then
-    g = scat_od_g / scat_od
-  else
-    g = 0.0
-  end if
-
+  g = scat_od_g / max(scat_od, tiny(scat_od))
   f         = g*g
   od        = od - scat_od * f
   scat_od   = scat_od * (1.0_jprb - f)
   scat_od_g = scat_od * g / (1.0_jprb + g)
-  
+
 end subroutine delta_eddington_extensive
 
 
@@ -88,13 +83,13 @@ end subroutine delta_eddington_extensive
   integer :: j
 
   do j = 1,ng
-    g            = scat_od_g(j) / max(scat_od(j), 1.0e-24)
+    g            = scat_od_g(j) / max(scat_od(j), tiny(scat_od(j)))
     f            = g*g
     od(j)        = od(j) - scat_od(j) * f
     scat_od(j)   = scat_od(j) * (1.0_jprb - f)
     scat_od_g(j) = scat_od(j) * g / (1.0_jprb + g)
   end do
-  
+
 end subroutine delta_eddington_extensive_vec
 
 
@@ -105,7 +100,7 @@ end subroutine delta_eddington_extensive_vec
 elemental subroutine delta_eddington_scat_od(od, scat_od, g)
 
   use parkind1, only : jprb
-  
+
   ! Total optical depth, scattering optical depth and asymmetry factor
   real(jprb), intent(inout) :: od, scat_od, g
 
@@ -129,18 +124,18 @@ end subroutine delta_eddington_scat_od
 elemental subroutine revert_delta_eddington(od, ssa, g)
 
   use parkind1, only : jprb
-  
+
   ! Total optical depth, single scattering albedo and asymmetry
   ! factor
   real(jprb), intent(inout) :: od, ssa, g
-  
+
   ! Fraction of the phase function deemed to be in the forward lobe
   ! and therefore treated as if it is not scattered at all
   real(jprb) :: f
-  
+
   g   = g / (1.0_jprb - g)
   f   = g*g
   ssa = ssa / (1.0_jprb - f + f*ssa);
   od  = od / (1.0_jprb - ssa*f)
-  
+
 end subroutine revert_delta_eddington

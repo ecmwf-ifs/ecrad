@@ -251,8 +251,13 @@ module radiation_config
     ! Maximum total optical depth of a cloudy region for stability:
     ! optical depth will be capped at this value in the SPARTACUS
     ! solvers
-    real(jprb) :: max_cloud_od = 16.0_jprb
-
+#ifdef PARKIND1_SINGLE
+    real(jprb) :: max_cloud_od_lw = 10.3_jprb
+    real(jprb) :: max_cloud_od_sw = 11.5_jprb
+#else
+    real(jprb) :: max_cloud_od_sw = 16.0_jprb
+    real(jprb) :: max_cloud_od_lw = 16.0_jprb
+#endif
     ! How much longwave scattering is included?
     logical :: do_lw_cloud_scattering = .true.
     logical :: do_lw_aerosol_scattering = .true.
@@ -381,11 +386,15 @@ module radiation_config
     ! high for the clear-sky regions in layers with high cloud
     ! fraction.  For stability reasons it is necessary to provide a
     ! maximum possible 3D transfer rate.
+#ifdef PARKIND1_SINGLE
+    real(jprb) :: max_3d_transfer_rate = 2.0_jprb
+#else
     real(jprb) :: max_3d_transfer_rate = 10.0_jprb
-
+#endif
     ! It has also sometimes been found necessary to set a minimum
     ! cloud effective size for stability (metres)
-    real(jprb) :: min_cloud_effective_size = 100.0_jprb
+    real(jprb) :: min_cloud_effective_size = 500.0_jprb
+! from IFS, previously 100. 500 seems necessary for stability
 
     ! Given a horizontal migration distance, there is still
     ! uncertainty about how much entrapment occurs associated with how
@@ -696,7 +705,7 @@ contains
     real(jprb):: mono_lw_single_scattering_albedo, mono_sw_single_scattering_albedo
     real(jprb):: mono_lw_asymmetry_factor, mono_sw_asymmetry_factor
     real(jprb):: cloud_inhom_decorr_scaling, cloud_fraction_threshold
-    real(jprb):: clear_to_thick_fraction, max_gas_od_3d, max_cloud_od
+    real(jprb):: clear_to_thick_fraction, max_gas_od_3d, max_cloud_od, max_cloud_od_lw, max_cloud_od_sw
     real(jprb):: cloud_mixing_ratio_threshold, overhead_sun_factor
     real(jprb):: max_3d_transfer_rate, min_cloud_effective_size
     real(jprb):: overhang_factor, encroachment_scaling
@@ -747,7 +756,7 @@ contains
          &  sw_solver_name, lw_solver_name, use_beta_overlap, use_vectorizable_generator, &
          &  use_expm_everywhere, iverbose, iverbosesetup, &
          &  cloud_inhom_decorr_scaling, cloud_fraction_threshold, &
-         &  clear_to_thick_fraction, max_gas_od_3d, max_cloud_od, &
+         &  clear_to_thick_fraction, max_gas_od_3d, max_cloud_od, max_cloud_od_lw, max_cloud_od_sw, &
          &  cloud_mixing_ratio_threshold, overhead_sun_factor, &
          &  n_aerosol_types, i_aerosol_type_map, use_aerosols, &
          &  mono_lw_wavelength, mono_lw_total_od, mono_sw_total_od, &
@@ -812,7 +821,9 @@ contains
     clear_to_thick_fraction = this%clear_to_thick_fraction
     overhead_sun_factor = this%overhead_sun_factor
     max_gas_od_3d = this%max_gas_od_3d
-    max_cloud_od = this%max_cloud_od
+    max_cloud_od = -1.0_jprb
+    max_cloud_od_lw = this%max_cloud_od_lw
+    max_cloud_od_sw = this%max_cloud_od_sw
     max_3d_transfer_rate = this%max_3d_transfer_rate
     min_cloud_effective_size = this%min_cloud_effective_size
     cloud_type_name = this%cloud_type_name
@@ -963,7 +974,18 @@ contains
     this%clear_to_thick_fraction = clear_to_thick_fraction
     this%overhead_sun_factor = overhead_sun_factor
     this%max_gas_od_3d = max_gas_od_3d
-    this%max_cloud_od = max_cloud_od
+
+    ! Determine maximum total optical depth of a cloudy region for stability:
+    if (max_cloud_od >= 0.0_jprb) then
+      ! - firstly, try the general value max_cloud_od
+      this%max_cloud_od_lw = max_cloud_od
+      this%max_cloud_od_sw = max_cloud_od
+    else
+      ! - then the band-specific values
+      this%max_cloud_od_lw = max_cloud_od_lw
+      this%max_cloud_od_sw = max_cloud_od_sw
+    end if
+
     this%max_3d_transfer_rate = max_3d_transfer_rate
     this%min_cloud_effective_size = max(1.0e-6_jprb, min_cloud_effective_size)
     this%cloud_type_name = cloud_type_name
@@ -1567,8 +1589,10 @@ contains
            &  .or. this%i_solver_lw == ISolverSpartacus) then
         write(nulout, '(a)') '  SPARTACUS options:'
         call print_integer('    Number of regions', 'n_regions', this%nregions)
-        call print_real('    Max cloud optical depth per layer', &
-             &   'max_cloud_od', this%max_cloud_od)
+        call print_real('    Max cloud optical depth per layer (LW)', &
+             &   'max_cloud_od_lw', this%max_cloud_od_lw)
+        call print_real('    Max cloud optical depth per layer (SW)', &
+             &   'max_cloud_od_sw', this%max_cloud_od_sw)
         call print_enum('    Shortwave entrapment is', EntrapmentName, &
              &          'i_3d_sw_entrapment', this%i_3d_sw_entrapment)
         call print_logical('    Multilayer longwave horizontal transport is', &
