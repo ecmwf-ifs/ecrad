@@ -51,8 +51,10 @@ USE radiation_config, ONLY :   config_type, &
        &                       ILiquidModelSlingo, ILiquidModelSOCRATES, &
        &                       IIceModelFu, IIceModelBaran, &
        &                       IOverlapExponential, IOverlapMaximumRandom, &
-       &                       IOverlapExponentialRandom
+       &                       IOverlapExponentialRandom,&
+       &                       define_sw_albedo_intervals
 USE YOERAD, ONLY : TERAD
+USE YOE_SPECTRAL_PLANCK, ONLY : INIT
 
 IMPLICIT NONE
 
@@ -437,9 +439,10 @@ CONTAINS
     ! The wavelength bounds (metres) allow for the first emissivity to
     ! represent values outside the infrared atmospheric window, and the
     ! second emissivity to represent values within it.
-    CALL YDERAD%YSPECTPLANCK%INIT(2, [ 8.0E-6_JPRB, 13.0E-6_JPRB ], &
-         &  [ 1,2,1 ])
-      
+    ! CALL YDERAD%YSPECTPLANCK%INIT(2, [ 8.0E-6_JPRB, 13.0E-6_JPRB ], &
+    !      &  [ 1,2,1 ])
+    CALL INIT(YDERAD%YSPECTPLANCK, 2, [ 8.0E-6_JPRB, 13.0E-6_JPRB ], &
+    &  [ 1,2,1 ])
     ! Populate the mapping between the 14 RRTM shortwave bands and the
     ! 6 albedo inputs.
     YDERAD%NSW = 6
@@ -459,7 +462,9 @@ CONTAINS
     ! the MODIS dataset, not shifted to the nearest RRTM band boundary
     ! at 0.625 microns.
     LL_DO_NEAREST_SW_ALBEDO = .FALSE.
-    CALL RAD_CONFIG%DEFINE_SW_ALBEDO_INTERVALS(YDERAD%NSW, ZWAVBOUND, IBAND, &
+    ! CALL RAD_CONFIG%DEFINE_SW_ALBEDO_INTERVALS(YDERAD%NSW, ZWAVBOUND, IBAND, &
+    !      &  DO_NEAREST=LL_DO_NEAREST_SW_ALBEDO)
+    CALL DEFINE_SW_ALBEDO_INTERVALS(RAD_CONFIG, YDERAD%NSW, ZWAVBOUND, IBAND, &
          &  DO_NEAREST=LL_DO_NEAREST_SW_ALBEDO)
 
     ! Likewise between the 16 RRTM longwave bands and the NLWEMISS
