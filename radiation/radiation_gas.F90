@@ -601,7 +601,7 @@ contains
           if (ig > 0) then
             this%mixing_ratio_2d(:,:,ig) = this%mixing_ratio_2d(:,:,ig) * sf
           else if (ig < 0) then
-            ig = ig-1;
+            ig = -ig;
             this%mixing_ratio_1d(:,ig) = this%mixing_ratio_1d(:,ig) * sf
           else
             write(nulerr,'(a,a)') '*** Error: attempt to set units of missing gas ', &
@@ -799,6 +799,7 @@ contains
           mixing_ratio = this%mixing_ratio_2d(i1:i2,:,ig)
         end if
       else
+        ig = -ig
         if (sf /= 1.0_jprb) then
           mixing_ratio = spread(this%mixing_ratio_1d(:,ig) * sf,1,i2-i1+1)
         else
