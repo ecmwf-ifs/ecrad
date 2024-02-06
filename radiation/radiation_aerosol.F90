@@ -50,13 +50,15 @@ module radiation_aerosol
      logical :: is_direct = .false.
 
    contains
-     procedure :: allocate        => allocate_aerosol_arrays
-     procedure :: allocate_direct => allocate_aerosol_arrays_direct
-     procedure :: deallocate      => deallocate_aerosol_arrays
-     procedure :: out_of_physical_bounds
+      procedure :: allocate        => allocate_aerosol_arrays
+      procedure :: allocate_direct => allocate_aerosol_arrays_direct
+      procedure :: deallocate      => deallocate_aerosol_arrays
+      procedure :: out_of_physical_bounds
 #ifdef _OPENACC
-     procedure :: update_host
-     procedure :: update_device
+      procedure :: create_device
+      procedure :: update_host
+      procedure :: update_device
+      procedure :: delete_device
 #endif
   end type aerosol_type
 
@@ -78,15 +80,12 @@ contains
     if (lhook) call dr_hook('radiation_aerosol:allocate',0,hook_handle)
 
     allocate(this%mixing_ratio(ncol,istartlev:iendlev,ntype))
-    !$ACC ENTER DATA CREATE(this%mixing_ratio)
+    ! !$ACC ENTER DATA CREATE(this%mixing_ratio)
     this%is_direct = .false.
     this%istartlev = istartlev
     this%iendlev   = iendlev
+    ! !$ACC UPDATE DEVICE(this%is_direct, this%istartlev, this%iendlev)
 
-#ifdef _OPENACC
-    write(nulerr,'(a)') '*** Error: radiation_aerosol:allocate aerosol%is_direct==.false. is not ported to GPU'
-    call radiation_abort()
-#endif
 
     if (lhook) call dr_hook('radiation_aerosol:allocate',1,hook_handle)
 
@@ -119,23 +118,23 @@ contains
       allocate(this%od_sw (config%n_bands_sw,istartlev:iendlev,ncol))
       allocate(this%ssa_sw(config%n_bands_sw,istartlev:iendlev,ncol))
       allocate(this%g_sw  (config%n_bands_sw,istartlev:iendlev,ncol))
-      !$ACC ENTER DATA CREATE(this%od_sw, this%ssa_sw, this%g_sw) ASYNC(1)
+      ! !$ACC ENTER DATA CREATE(this%od_sw, this%ssa_sw, this%g_sw) ASYNC(1)
     end if
 
     if (config%do_lw) then
       allocate(this%od_lw (config%n_bands_lw,istartlev:iendlev,ncol))
       allocate(this%ssa_lw(config%n_bands_lw,istartlev:iendlev,ncol))
       allocate(this%g_lw  (config%n_bands_lw,istartlev:iendlev,ncol))
-      !$ACC ENTER DATA CREATE(this%od_lw, this%ssa_lw, this%g_lw) ASYNC(1)
+      ! !$ACC ENTER DATA CREATE(this%od_lw, this%ssa_lw, this%g_lw) ASYNC(1)
       ! If longwave scattering by aerosol is not to be represented,
       ! then the user may wish to just provide absorption optical
       ! depth in od_lw, in which case we must set the following two
       ! variables to zero
 
-      !$ACC WAIT ! ACCWA (nvhpc 22.7) crashes otherwise
+      ! !$ACC WAIT ! ACCWA (nvhpc 22.7) crashes otherwise
 
-      !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, config) ASYNC(1)
-      !$ACC LOOP GANG VECTOR COLLAPSE(3)
+      ! !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, config) ASYNC(1)
+      ! !$ACC LOOP GANG VECTOR COLLAPSE(3)
       do jcol = 1,ncol
         do jlev = istartlev,iendlev
           do jband = 1,config%n_bands_lw
@@ -144,7 +143,7 @@ contains
           end do
         end do
       end do
-      !$ACC END PARALLEL
+      ! !$ACC END PARALLEL
     end if
 
     if (lhook) call dr_hook('radiation_aerosol:allocate_direct',1,hook_handle)
@@ -164,14 +163,14 @@ contains
 
     if (lhook) call dr_hook('radiation_aerosol:deallocate',0,hook_handle)
 
-    !$ACC EXIT DATA DELETE(this%mixing_ratio) ASYNC(1) IF(allocated(this%mixing_ratio))
-    !$ACC EXIT DATA DELETE(this%od_sw) ASYNC(1) IF(allocated(this%od_sw))
-    !$ACC EXIT DATA DELETE(this%ssa_sw) ASYNC(1) IF(allocated(this%ssa_sw))
-    !$ACC EXIT DATA DELETE(this%g_sw) ASYNC(1) IF(allocated(this%g_sw))
-    !$ACC EXIT DATA DELETE(this%od_lw) ASYNC(1) IF(allocated(this%od_lw))
-    !$ACC EXIT DATA DELETE(this%ssa_lw) ASYNC(1) IF(allocated(this%ssa_lw))
-    !$ACC EXIT DATA DELETE(this%g_lw) ASYNC(1) IF(allocated(this%g_lw))
-    !$ACC WAIT
+    ! !$ACC EXIT DATA DELETE(this%mixing_ratio) ASYNC(1) IF(allocated(this%mixing_ratio))
+    ! !$ACC EXIT DATA DELETE(this%od_sw) ASYNC(1) IF(allocated(this%od_sw))
+    ! !$ACC EXIT DATA DELETE(this%ssa_sw) ASYNC(1) IF(allocated(this%ssa_sw))
+    ! !$ACC EXIT DATA DELETE(this%g_sw) ASYNC(1) IF(allocated(this%g_sw))
+    ! !$ACC EXIT DATA DELETE(this%od_lw) ASYNC(1) IF(allocated(this%od_lw))
+    ! !$ACC EXIT DATA DELETE(this%ssa_lw) ASYNC(1) IF(allocated(this%ssa_lw))
+    ! !$ACC EXIT DATA DELETE(this%g_lw) ASYNC(1) IF(allocated(this%g_lw))
+    ! !$ACC WAIT
     if (allocated(this%mixing_ratio)) deallocate(this%mixing_ratio)
     if (allocated(this%od_sw))        deallocate(this%od_sw)
     if (allocated(this%ssa_sw))       deallocate(this%ssa_sw)
@@ -179,7 +178,7 @@ contains
     if (allocated(this%od_lw))        deallocate(this%od_lw)
     if (allocated(this%ssa_lw))       deallocate(this%ssa_lw)
     if (allocated(this%g_lw))         deallocate(this%g_lw)
- 
+
     if (lhook) call dr_hook('radiation_aerosol:deallocate',1,hook_handle)
 
   end subroutine deallocate_aerosol_arrays
@@ -231,6 +230,22 @@ contains
 
 #ifdef _OPENACC
   !---------------------------------------------------------------------
+  ! Creates fields on device
+  subroutine create_device(this)
+
+    class(aerosol_type), intent(inout) :: this
+
+    !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
+    !$ACC ENTER DATA CREATE(this%od_sw) IF(allocated(this%od_sw))
+    !$ACC ENTER DATA CREATE(this%ssa_sw) IF(allocated(this%ssa_sw))
+    !$ACC ENTER DATA CREATE(this%g_sw) IF(allocated(this%g_sw))
+    !$ACC ENTER DATA CREATE(this%od_lw) IF(allocated(this%od_lw))
+    !$ACC ENTER DATA CREATE(this%ssa_lw) IF(allocated(this%ssa_lw))
+    !$ACC ENTER DATA CREATE(this%g_lw) IF(allocated(this%g_lw))
+
+  end subroutine create_device
+
+  !---------------------------------------------------------------------
   ! updates fields on host
   subroutine update_host(this)
 
@@ -261,6 +276,22 @@ contains
     !$ACC UPDATE DEVICE(this%g_lw) IF(allocated(this%g_lw))
 
   end subroutine update_device
-#endif 
-  
+
+  !---------------------------------------------------------------------
+  ! Deletes fields on device
+  subroutine delete_device(this)
+
+    class(aerosol_type), intent(inout) :: this
+
+    !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio))
+    !$ACC EXIT DATA DELETE(this%od_sw) IF(allocated(this%od_sw))
+    !$ACC EXIT DATA DELETE(this%ssa_sw) IF(allocated(this%ssa_sw))
+    !$ACC EXIT DATA DELETE(this%g_sw) IF(allocated(this%g_sw))
+    !$ACC EXIT DATA DELETE(this%od_lw) IF(allocated(this%od_lw))
+    !$ACC EXIT DATA DELETE(this%ssa_lw) IF(allocated(this%ssa_lw))
+    !$ACC EXIT DATA DELETE(this%g_lw) IF(allocated(this%g_lw))
+
+  end subroutine delete_device
+#endif
+
 end module radiation_aerosol

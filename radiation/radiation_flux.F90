@@ -109,15 +109,17 @@ module radiation_flux
           &  lw_derivatives
 
    contains
-     procedure :: allocate   => allocate_flux_type
-     procedure :: deallocate => deallocate_flux_type
-     procedure :: calc_surface_spectral
-     procedure :: calc_toa_spectral
-     procedure :: out_of_physical_bounds
-     procedure :: heating_rate_out_of_physical_bounds
+    procedure :: allocate   => allocate_flux_type
+    procedure :: deallocate => deallocate_flux_type
+    procedure :: calc_surface_spectral
+    procedure :: calc_toa_spectral
+    procedure :: out_of_physical_bounds
+    procedure :: heating_rate_out_of_physical_bounds
 #ifdef _OPENACC
+    procedure :: create_device
     procedure :: update_host
     procedure :: update_device
+    procedure :: delete_device
 #endif
   end type flux_type
 
@@ -153,36 +155,36 @@ contains
     if (config%do_lw) then
       allocate(this%lw_up(istartcol:iendcol,nlev+1))
       allocate(this%lw_dn(istartcol:iendcol,nlev+1))
-      !$ACC ENTER DATA CREATE(this%lw_up, this%lw_dn) ASYNC(1)
+      ! !$ACC ENTER DATA CREATE(this%lw_up, this%lw_dn) ASYNC(1)
       if (config%do_clear) then
         allocate(this%lw_up_clear(istartcol:iendcol,nlev+1))
         allocate(this%lw_dn_clear(istartcol:iendcol,nlev+1))
-        !$ACC ENTER DATA CREATE(this%lw_up_clear, this%lw_dn_clear) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%lw_up_clear, this%lw_dn_clear) ASYNC(1)
       end if
-      
+
       if (config%do_save_spectral_flux) then
         if (config%n_spec_lw == 0) then
           write(nulerr,'(a)') '*** Error: number of LW spectral points to save not yet defined ' &
                & // 'so cannot allocate spectral flux arrays'
           call radiation_abort()
         end if
-        
+
         allocate(this%lw_up_band(config%n_spec_lw,istartcol:iendcol,nlev+1))
         allocate(this%lw_dn_band(config%n_spec_lw,istartcol:iendcol,nlev+1))
-        !$ACC ENTER DATA CREATE(this%lw_up_band, this%lw_dn_band) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%lw_up_band, this%lw_dn_band) ASYNC(1)
         if (config%do_clear) then
           allocate(this%lw_up_clear_band(config%n_spec_lw, &
                &                         istartcol:iendcol,nlev+1))
           allocate(this%lw_dn_clear_band(config%n_spec_lw, &
                &                         istartcol:iendcol,nlev+1))
-          !$ACC ENTER DATA CREATE(this%lw_up_clear_band, this%lw_dn_clear_band) &
-          !$ACC   ASYNC(1)
+          ! !$ACC ENTER DATA CREATE(this%lw_up_clear_band, this%lw_dn_clear_band) &
+          ! !$ACC   ASYNC(1)
         end if
       end if
-      
+
       if (config%do_lw_derivatives) then
         allocate(this%lw_derivatives(istartcol:iendcol,nlev+1))
-        !$ACC ENTER DATA CREATE(this%lw_derivatives) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%lw_derivatives) ASYNC(1)
       end if
 
       if (config%do_toa_spectral_flux) then
@@ -192,81 +194,82 @@ contains
           call radiation_abort()
         end if
         allocate(this%lw_up_toa_band(config%n_bands_lw, istartcol:iendcol))
-        !$ACC ENTER DATA CREATE(this%lw_up_toa_band) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%lw_up_toa_band) ASYNC(1)
         if (config%do_clear) then
           allocate(this%lw_up_toa_clear_band(config%n_bands_lw, istartcol:iendcol))
-          !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_band) ASYNC(1)
+          ! !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_band) ASYNC(1)
         end if
       end if
- 
+
       ! Allocate g-point downwelling fluxes at surface, and TOA fluxes
       allocate(this%lw_dn_surf_g(config%n_g_lw,istartcol:iendcol))
+      ! !$ACC ENTER DATA CREATE(this%lw_dn_surf_g) ASYNC(1)
       allocate(this%lw_up_toa_g (config%n_g_lw,istartcol:iendcol))
-      !$ACC ENTER DATA CREATE(this%lw_dn_surf_g, this%lw_up_toa_g) ASYNC(1)
+      ! !$ACC ENTER DATA CREATE(this%lw_dn_surf_g, this%lw_up_toa_g) ASYNC(1)
       if (config%do_clear) then
         allocate(this%lw_dn_surf_clear_g(config%n_g_lw,istartcol:iendcol))
         allocate(this%lw_up_toa_clear_g (config%n_g_lw,istartcol:iendcol))
-        !$ACC ENTER DATA CREATE(this%lw_dn_surf_clear_g, this%lw_up_toa_clear_g) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%lw_dn_surf_clear_g, this%lw_up_toa_clear_g) ASYNC(1)
       end if
 
       if (config%do_canopy_fluxes_lw) then
         ! Downward fluxes at top of canopy at the spectral resolution
         ! used in the canopy radiative transfer scheme
         allocate(this%lw_dn_surf_canopy(config%n_canopy_bands_lw,istartcol:iendcol))
-        !$ACC ENTER DATA CREATE(this%lw_dn_surf_canopy) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%lw_dn_surf_canopy) ASYNC(1)
       end if
     end if
-    
+
     ! Allocate shortwave arrays
     if (config%do_sw) then
       allocate(this%sw_up(istartcol:iendcol,nlev+1))
       allocate(this%sw_dn(istartcol:iendcol,nlev+1))
-      !$ACC ENTER DATA CREATE(this%sw_up, this%sw_dn) ASYNC(1)
+      ! !$ACC ENTER DATA CREATE(this%sw_up, this%sw_dn) ASYNC(1)
       if (config%do_sw_direct) then
         allocate(this%sw_dn_direct(istartcol:iendcol,nlev+1))
-        !$ACC ENTER DATA CREATE(this%sw_dn_direct) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%sw_dn_direct) ASYNC(1)
       end if
       if (config%do_clear) then
         allocate(this%sw_up_clear(istartcol:iendcol,nlev+1))
         allocate(this%sw_dn_clear(istartcol:iendcol,nlev+1))
-        !$ACC ENTER DATA CREATE(this%sw_up_clear, this%sw_dn_clear) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%sw_up_clear, this%sw_dn_clear) ASYNC(1)
         if (config%do_sw_direct) then
           allocate(this%sw_dn_direct_clear(istartcol:iendcol,nlev+1))
-          !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear) ASYNC(1)
+          ! !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear) ASYNC(1)
         end if
       end if
-      
+
       if (config%do_save_spectral_flux) then
         if (config%n_spec_sw == 0) then
           write(nulerr,'(a)') '*** Error: number of SW spectral points to save not yet defined ' &
                & // 'so cannot allocate spectral flux arrays'
           call radiation_abort()
         end if
-        
+
         allocate(this%sw_up_band(config%n_spec_sw,istartcol:iendcol,nlev+1))
         allocate(this%sw_dn_band(config%n_spec_sw,istartcol:iendcol,nlev+1))
-        !$ACC ENTER DATA CREATE(this%sw_up_band, this%sw_dn_band) ASYNC(1)
-        
+        ! !$ACC ENTER DATA CREATE(this%sw_up_band, this%sw_dn_band) ASYNC(1)
+
         if (config%do_sw_direct) then
           allocate(this%sw_dn_direct_band(config%n_spec_sw, &
                &                          istartcol:iendcol,nlev+1))
-          !$ACC ENTER DATA CREATE(this%sw_dn_direct_band) ASYNC(1)
+          ! !$ACC ENTER DATA CREATE(this%sw_dn_direct_band) ASYNC(1)
         end if
         if (config%do_clear) then
           allocate(this%sw_up_clear_band(config%n_spec_sw, &
                &                         istartcol:iendcol,nlev+1))
           allocate(this%sw_dn_clear_band(config%n_spec_sw, &
                &                         istartcol:iendcol,nlev+1))
-          !$ACC ENTER DATA CREATE(this%sw_up_clear_band, this%sw_dn_clear_band) &
-          !$ACC   ASYNC(1)
+          ! !$ACC ENTER DATA CREATE(this%sw_up_clear_band, this%sw_dn_clear_band) &
+          ! !$ACC   ASYNC(1)
           if (config%do_sw_direct) then
             allocate(this%sw_dn_direct_clear_band(config%n_spec_sw, &
                  &                                istartcol:iendcol, nlev+1))
-            !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear_band) ASYNC(1)
+            ! !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear_band) ASYNC(1)
           end if
         end if
       end if
-      
+
       if (config%do_surface_sw_spectral_flux) then
         if (config%n_bands_sw == 0) then
           write(nulerr,'(a)') '*** Error: number of SW bands not yet defined ' &
@@ -275,15 +278,15 @@ contains
         end if
         allocate(this%sw_dn_surf_band(config%n_bands_sw,istartcol:iendcol))
         allocate(this%sw_dn_direct_surf_band(config%n_bands_sw,istartcol:iendcol))
-        !$ACC ENTER DATA CREATE(this%sw_dn_surf_band, this%sw_dn_direct_surf_band) &
-        !$ACC   ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%sw_dn_surf_band, this%sw_dn_direct_surf_band) &
+        ! !$ACC   ASYNC(1)
         if (config%do_clear) then
           allocate(this%sw_dn_surf_clear_band(config%n_bands_sw, &
                &                              istartcol:iendcol))
           allocate(this%sw_dn_direct_surf_clear_band(config%n_bands_sw, &
                &                                     istartcol:iendcol))
-          !$ACC ENTER DATA CREATE(this%sw_dn_surf_clear_band, &
-          !$ACC   this%sw_dn_direct_surf_clear_band) ASYNC(1)
+          ! !$ACC ENTER DATA CREATE(this%sw_dn_surf_clear_band, &
+          ! !$ACC   this%sw_dn_direct_surf_clear_band) ASYNC(1)
         end if
       end if
 
@@ -295,28 +298,28 @@ contains
         end if
         allocate(this%sw_dn_toa_band(config%n_bands_sw, istartcol:iendcol))
         allocate(this%sw_up_toa_band(config%n_bands_sw, istartcol:iendcol))
-        !$ACC ENTER DATA CREATE(this%sw_dn_toa_band, this%sw_up_toa_band) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%sw_dn_toa_band, this%sw_up_toa_band) ASYNC(1)
         if (config%do_clear) then
           allocate(this%sw_up_toa_clear_band(config%n_bands_sw, istartcol:iendcol))
-          !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) ASYNC(1)
+          ! !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) ASYNC(1)
         end if
       end if
-      
+
       ! Allocate g-point downwelling fluxes at surface, and TOA fluxes
       allocate(this%sw_dn_diffuse_surf_g(config%n_g_sw,istartcol:iendcol))
       allocate(this%sw_dn_direct_surf_g (config%n_g_sw,istartcol:iendcol))
       allocate(this%sw_dn_toa_g         (config%n_g_sw,istartcol:iendcol))
       allocate(this%sw_up_toa_g         (config%n_g_sw,istartcol:iendcol))
-      !$ACC ENTER DATA &
-      !$ACC   CREATE(this%sw_dn_diffuse_surf_g,this%sw_dn_direct_surf_g) &
-      !$ACC   CREATE(this%sw_dn_toa_g,this%sw_up_toa_g) &
-      !$ACC   ASYNC(1)
+      ! !$ACC ENTER DATA &
+      ! !$ACC   CREATE(this%sw_dn_diffuse_surf_g,this%sw_dn_direct_surf_g) &
+      ! !$ACC   CREATE(this%sw_dn_toa_g,this%sw_up_toa_g) &
+      ! !$ACC   ASYNC(1)
       if (config%do_clear) then
         allocate(this%sw_dn_diffuse_surf_clear_g(config%n_g_sw,istartcol:iendcol))
         allocate(this%sw_dn_direct_surf_clear_g (config%n_g_sw,istartcol:iendcol))
         allocate(this%sw_up_toa_clear_g         (config%n_g_sw,istartcol:iendcol))
-        !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_clear_g, &
-        !$ACC   this%sw_dn_direct_surf_clear_g, this%sw_up_toa_clear_g) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_clear_g, &
+        ! !$ACC   this%sw_dn_direct_surf_clear_g, this%sw_up_toa_clear_g) ASYNC(1)
       end if
 
       if (config%do_canopy_fluxes_sw) then
@@ -324,30 +327,30 @@ contains
         ! used in the canopy radiative transfer scheme
         allocate(this%sw_dn_diffuse_surf_canopy(config%n_canopy_bands_sw,istartcol:iendcol))
         allocate(this%sw_dn_direct_surf_canopy (config%n_canopy_bands_sw,istartcol:iendcol))
-        !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_canopy, &
-        !$ACC   this%sw_dn_direct_surf_canopy) ASYNC(1)
+        ! !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_canopy, &
+        ! !$ACC   this%sw_dn_direct_surf_canopy) ASYNC(1)
       end if
     end if
-    
+
     ! Allocate cloud cover arrays
     allocate(this%cloud_cover_lw(istartcol:iendcol))
     allocate(this%cloud_cover_sw(istartcol:iendcol))
-    !$ACC ENTER DATA CREATE(this%cloud_cover_lw, this%cloud_cover_sw) ASYNC(1)
+    ! !$ACC ENTER DATA CREATE(this%cloud_cover_lw, this%cloud_cover_sw) ASYNC(1)
 
-    !$ACC WAIT ! ACCWA (nvhpc 22.7) crashes otherwise
+    ! !$ACC WAIT ! ACCWA (nvhpc 22.7) crashes otherwise
 
     ! Some solvers may not write to cloud cover, so we initialize to
     ! an unphysical value
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
-    !$ACC LOOP GANG VECTOR
+    ! !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
+    ! !$ACC LOOP GANG VECTOR
     do jcol = istartcol,iendcol
       this%cloud_cover_lw(jcol) = -1.0_jprb
       this%cloud_cover_sw(jcol) = -1.0_jprb
     end do
-    !$ACC END PARALLEL
+    ! !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_flux:allocate',1,hook_handle)
-    
+
   end subroutine allocate_flux_type
 
 
@@ -363,11 +366,11 @@ contains
     if (lhook) call dr_hook('radiation_flux:deallocate',0,hook_handle)
 
     if (allocated(this%lw_up)) then
-      !$ACC EXIT DATA DELETE(this%lw_up) ASYNC(1)
-      !$ACC EXIT DATA DELETE(this%lw_dn) ASYNC(1) IF(allocated(this%lw_dn))
-      !$ACC EXIT DATA DELETE(this%lw_up_clear) ASYNC(1) IF(allocated(this%lw_up_clear))
-      !$ACC EXIT DATA DELETE(this%lw_dn_clear) ASYNC(1) IF(allocated(this%lw_dn_clear))
-      !$ACC WAIT
+      ! !$ACC EXIT DATA DELETE(this%lw_up) ASYNC(1)
+      ! !$ACC EXIT DATA DELETE(this%lw_dn) ASYNC(1) IF(allocated(this%lw_dn))
+      ! !$ACC EXIT DATA DELETE(this%lw_up_clear) ASYNC(1) IF(allocated(this%lw_up_clear))
+      ! !$ACC EXIT DATA DELETE(this%lw_dn_clear) ASYNC(1) IF(allocated(this%lw_dn_clear))
+      ! !$ACC WAIT
       deallocate(this%lw_up)
       if (allocated(this%lw_dn))       deallocate(this%lw_dn)
       if (allocated(this%lw_up_clear)) deallocate(this%lw_up_clear)
@@ -375,13 +378,13 @@ contains
     end if
 
     if (allocated(this%sw_up)) then
-      !$ACC EXIT DATA DELETE(this%sw_up) ASYNC(1)
-      !$ACC EXIT DATA DELETE(this%sw_dn) ASYNC(1) IF(allocated(this%sw_dn))
-      !$ACC EXIT DATA DELETE(this%sw_up_clear) ASYNC(1) IF(allocated(this%sw_up_clear))
-      !$ACC EXIT DATA DELETE(this%sw_dn_clear) ASYNC(1) IF(allocated(this%sw_dn_clear))
-      !$ACC EXIT DATA DELETE(this%sw_dn_direct) ASYNC(1) IF(allocated(this%sw_dn_direct))
-      !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear) ASYNC(1) IF(allocated(this%sw_dn_direct_clear))
-      !$ACC WAIT
+      ! !$ACC EXIT DATA DELETE(this%sw_up) ASYNC(1)
+      ! !$ACC EXIT DATA DELETE(this%sw_dn) ASYNC(1) IF(allocated(this%sw_dn))
+      ! !$ACC EXIT DATA DELETE(this%sw_up_clear) ASYNC(1) IF(allocated(this%sw_up_clear))
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_clear) ASYNC(1) IF(allocated(this%sw_dn_clear))
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_direct) ASYNC(1) IF(allocated(this%sw_dn_direct))
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear) ASYNC(1) IF(allocated(this%sw_dn_direct_clear))
+      ! !$ACC WAIT
       deallocate(this%sw_up)
       if (allocated(this%sw_dn))        deallocate(this%sw_dn)
       if (allocated(this%sw_up_clear))  deallocate(this%sw_up_clear)
@@ -392,84 +395,84 @@ contains
     end if
 
     if (allocated(this%lw_up_band)) then
-      !$ACC EXIT DATA DELETE(this%lw_up_band) ASYNC(1)
-      !$ACC EXIT DATA DELETE(this%lw_dn_band) ASYNC(1) IF(allocated(this%lw_dn_band))
-      !$ACC EXIT DATA DELETE(this%lw_up_clear_band) ASYNC(1) IF(allocated(this%lw_up_clear_band))
-      !$ACC EXIT DATA DELETE(this%lw_dn_clear_band) ASYNC(1) IF(allocated(this%lw_dn_clear_band))
-      !$ACC WAIT
+      ! !$ACC EXIT DATA DELETE(this%lw_up_band) ASYNC(1)
+      ! !$ACC EXIT DATA DELETE(this%lw_dn_band) ASYNC(1) IF(allocated(this%lw_dn_band))
+      ! !$ACC EXIT DATA DELETE(this%lw_up_clear_band) ASYNC(1) IF(allocated(this%lw_up_clear_band))
+      ! !$ACC EXIT DATA DELETE(this%lw_dn_clear_band) ASYNC(1) IF(allocated(this%lw_dn_clear_band))
+      ! !$ACC WAIT
       deallocate(this%lw_up_band)
       if (allocated(this%lw_dn_band))       deallocate(this%lw_dn_band)
       if (allocated(this%lw_up_clear_band)) deallocate(this%lw_up_clear_band)
       if (allocated(this%lw_dn_clear_band)) deallocate(this%lw_dn_clear_band)
     end if
-    
+
     if (allocated(this%sw_up_band)) then
-      !$ACC EXIT DATA DELETE(this%sw_up_band) ASYNC(1)
-      !$ACC EXIT DATA DELETE(this%sw_dn_band) ASYNC(1) IF(allocated(this%sw_dn_band))
-      !$ACC EXIT DATA DELETE(this%sw_up_clear_band) ASYNC(1) IF(allocated(this%sw_up_clear_band))
-      !$ACC EXIT DATA DELETE(this%sw_dn_clear_band) ASYNC(1) IF(allocated(this%sw_dn_clear_band))
-      !$ACC EXIT DATA DELETE(this%sw_dn_direct_band) ASYNC(1) IF(allocated(this%sw_dn_direct_band))
-      !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear_band) ASYNC(1) &
-      !$ACC   IF(allocated(this%sw_dn_direct_clear_band))
-      !$ACC WAIT
+      ! !$ACC EXIT DATA DELETE(this%sw_up_band) ASYNC(1)
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_band) ASYNC(1) IF(allocated(this%sw_dn_band))
+      ! !$ACC EXIT DATA DELETE(this%sw_up_clear_band) ASYNC(1) IF(allocated(this%sw_up_clear_band))
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_clear_band) ASYNC(1) IF(allocated(this%sw_dn_clear_band))
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_direct_band) ASYNC(1) IF(allocated(this%sw_dn_direct_band))
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear_band) ASYNC(1) &
+      ! !$ACC   IF(allocated(this%sw_dn_direct_clear_band))
+      ! !$ACC WAIT
       deallocate(this%sw_up_band)
       if (allocated(this%sw_dn_band))        deallocate(this%sw_dn_band)
       if (allocated(this%sw_up_clear_band))  deallocate(this%sw_up_clear_band)
       if (allocated(this%sw_dn_clear_band))  deallocate(this%sw_dn_clear_band)
       if (allocated(this%sw_dn_direct_band)) deallocate(this%sw_dn_direct_band)
       if (allocated(this%sw_dn_direct_clear_band)) &
-           &   deallocate(this%sw_dn_direct_clear_band)      
+           &   deallocate(this%sw_dn_direct_clear_band)
     end if
 
     if (allocated(this%sw_dn_surf_band)) then
-      !$ACC EXIT DATA DELETE(this%sw_dn_surf_band) ASYNC(1)
-      !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_band) ASYNC(1) IF(allocated(this%sw_dn_direct_surf_band))
-      !$ACC WAIT
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_surf_band) ASYNC(1)
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_band) ASYNC(1) IF(allocated(this%sw_dn_direct_surf_band))
+      ! !$ACC WAIT
       deallocate(this%sw_dn_surf_band)
       deallocate(this%sw_dn_direct_surf_band)
     end if
     if (allocated(this%sw_dn_surf_clear_band)) then
-      !$ACC EXIT DATA DELETE(this%sw_dn_surf_clear_band) ASYNC(1)
-      !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_band) ASYNC(1) &
-      !$ACC   IF(allocated(this%sw_dn_direct_surf_clear_band))
-      !$ACC WAIT
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_surf_clear_band) ASYNC(1)
+      ! !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_band) ASYNC(1) &
+      ! !$ACC   IF(allocated(this%sw_dn_direct_surf_clear_band))
+      ! !$ACC WAIT
       deallocate(this%sw_dn_surf_clear_band)
       deallocate(this%sw_dn_direct_surf_clear_band)
     end if
 
-    !$ACC EXIT DATA DELETE(this%lw_dn_surf_canopy) ASYNC(1) IF(allocated(this%lw_dn_surf_canopy))
-    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_canopy) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_dn_diffuse_surf_canopy))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_canopy) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_dn_direct_surf_canopy))
-    !$ACC WAIT
+    ! !$ACC EXIT DATA DELETE(this%lw_dn_surf_canopy) ASYNC(1) IF(allocated(this%lw_dn_surf_canopy))
+    ! !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_canopy) ASYNC(1) &
+    ! !$ACC   IF(allocated(this%sw_dn_diffuse_surf_canopy))
+    ! !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_canopy) ASYNC(1) &
+    ! !$ACC   IF(allocated(this%sw_dn_direct_surf_canopy))
+    ! !$ACC WAIT
     if (allocated(this%lw_dn_surf_canopy)) deallocate(this%lw_dn_surf_canopy)
     if (allocated(this%sw_dn_diffuse_surf_canopy)) deallocate(this%sw_dn_diffuse_surf_canopy)
     if (allocated(this%sw_dn_direct_surf_canopy)) deallocate(this%sw_dn_direct_surf_canopy)
 
     if (allocated(this%cloud_cover_sw)) then
-      !$ACC EXIT DATA DELETE(this%cloud_cover_sw) WAIT(1)
+      ! !$ACC EXIT DATA DELETE(this%cloud_cover_sw) WAIT(1)
       deallocate(this%cloud_cover_sw)
     end if
     if (allocated(this%cloud_cover_lw)) then
-      !$ACC EXIT DATA DELETE(this%cloud_cover_lw) WAIT(1)
+      ! !$ACC EXIT DATA DELETE(this%cloud_cover_lw) WAIT(1)
       deallocate(this%cloud_cover_lw)
     end if
 
     if (allocated(this%lw_derivatives)) then
-      !$ACC EXIT DATA DELETE(this%lw_derivatives) WAIT(1)
+      ! !$ACC EXIT DATA DELETE(this%lw_derivatives) WAIT(1)
       deallocate(this%lw_derivatives)
     end if
 
-    !$ACC EXIT DATA DELETE(this%lw_dn_surf_g) ASYNC(1) IF(allocated(this%lw_dn_surf_g))
-    !$ACC EXIT DATA DELETE(this%lw_dn_surf_clear_g) ASYNC(1) IF(allocated(this%lw_dn_surf_clear_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_g) ASYNC(1) IF(allocated(this%sw_dn_diffuse_surf_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_g) ASYNC(1) IF(allocated(this%sw_dn_direct_surf_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_clear_g) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_dn_diffuse_surf_clear_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_g) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_dn_direct_surf_clear_g))
-    !$ACC WAIT
+    ! !$ACC EXIT DATA DELETE(this%lw_dn_surf_g) ASYNC(1) IF(allocated(this%lw_dn_surf_g))
+    ! !$ACC EXIT DATA DELETE(this%lw_dn_surf_clear_g) ASYNC(1) IF(allocated(this%lw_dn_surf_clear_g))
+    ! !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_g) ASYNC(1) IF(allocated(this%sw_dn_diffuse_surf_g))
+    ! !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_g) ASYNC(1) IF(allocated(this%sw_dn_direct_surf_g))
+    ! !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_clear_g) ASYNC(1) &
+    ! !$ACC   IF(allocated(this%sw_dn_diffuse_surf_clear_g))
+    ! !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_g) ASYNC(1) &
+    ! !$ACC   IF(allocated(this%sw_dn_direct_surf_clear_g))
+    ! !$ACC WAIT
     if (allocated(this%lw_dn_surf_g))               deallocate(this%lw_dn_surf_g)
     if (allocated(this%lw_dn_surf_clear_g))         deallocate(this%lw_dn_surf_clear_g)
     if (allocated(this%sw_dn_diffuse_surf_g))       deallocate(this%sw_dn_diffuse_surf_g)
@@ -477,12 +480,12 @@ contains
     if (allocated(this%sw_dn_diffuse_surf_clear_g)) deallocate(this%sw_dn_diffuse_surf_clear_g)
     if (allocated(this%sw_dn_direct_surf_clear_g))  deallocate(this%sw_dn_direct_surf_clear_g)
 
-    !$ACC EXIT DATA DELETE(this%lw_up_toa_g) ASYNC(1) IF(allocated(this%lw_up_toa_g))
-    !$ACC EXIT DATA DELETE(this%sw_up_toa_g) ASYNC(1) IF(allocated(this%sw_up_toa_g))
-    !$ACC EXIT DATA DELETE(this%sw_dn_toa_g) ASYNC(1) IF(allocated(this%sw_dn_toa_g))
-    !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_g) ASYNC(1) IF(allocated(this%lw_up_toa_clear_g))
-    !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_g) ASYNC(1) IF(allocated(this%sw_up_toa_clear_g))
-    !$ACC WAIT
+    ! !$ACC EXIT DATA DELETE(this%lw_up_toa_g) ASYNC(1) IF(allocated(this%lw_up_toa_g))
+    ! !$ACC EXIT DATA DELETE(this%sw_up_toa_g) ASYNC(1) IF(allocated(this%sw_up_toa_g))
+    ! !$ACC EXIT DATA DELETE(this%sw_dn_toa_g) ASYNC(1) IF(allocated(this%sw_dn_toa_g))
+    ! !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_g) ASYNC(1) IF(allocated(this%lw_up_toa_clear_g))
+    ! !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_g) ASYNC(1) IF(allocated(this%sw_up_toa_clear_g))
+    ! !$ACC WAIT
     if (allocated(this%lw_up_toa_g))                deallocate(this%lw_up_toa_g)
     if (allocated(this%sw_up_toa_g))                deallocate(this%sw_up_toa_g)
     if (allocated(this%sw_dn_toa_g))                deallocate(this%sw_dn_toa_g)
@@ -492,7 +495,7 @@ contains
     if (lhook) call dr_hook('radiation_flux:deallocate',1,hook_handle)
 
   end subroutine deallocate_flux_type
-  
+
 
   !---------------------------------------------------------------------
   ! Calculate surface downwelling fluxes in each band using the
@@ -509,7 +512,7 @@ contains
     type(config_type), intent(in)    :: config
     integer,           intent(in)    :: istartcol, iendcol
 
-    integer :: jcol, jband, jalbedoband, nalbedoband
+    integer :: jcol, jband, jalbedoband, nalbedoband, jg
 
     ! Longwave surface downwelling in each band needed to compute
     ! canopy fluxes
@@ -597,8 +600,15 @@ contains
     ! Fluxes in bands required for canopy radiative transfer
     if (config%do_sw .and. config%do_canopy_fluxes_sw) then
       if (config%use_canopy_full_spectrum_sw) then
-        this%sw_dn_diffuse_surf_canopy(:,istartcol:iendcol) = this%sw_dn_diffuse_surf_g(:,istartcol:iendcol)
-        this%sw_dn_direct_surf_canopy (:,istartcol:iendcol) = this%sw_dn_direct_surf_g (:,istartcol:iendcol)
+        !$ACC PARALLEL DEFAULT(NONE)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_sw
+            this%sw_dn_diffuse_surf_canopy(jg,jcol) = this%sw_dn_diffuse_surf_g(jg,jcol)
+            this%sw_dn_direct_surf_canopy (jg,jcol) = this%sw_dn_direct_surf_g (jg,jcol)
+          end do
+        end do
+        !$ACC END PARALLEL
       else if (config%do_nearest_spectral_sw_albedo) then
         if (use_indexed_sum_vec) then
           call indexed_sum_vec(this%sw_dn_direct_surf_g, &
@@ -608,6 +618,9 @@ contains
                &               config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
                &               this%sw_dn_diffuse_surf_canopy, istartcol, iendcol)
         else
+          !$ACC PARALLEL DEFAULT(NONE) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
+          !$ACC   VECTOR_LENGTH(32*(config%n_g_sw-1)/32+1) ASYNC(1)
+          !$ACC LOOP GANG
           do jcol = istartcol,iendcol
             call indexed_sum(this%sw_dn_direct_surf_g(:,jcol), &
                  &           config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
@@ -616,51 +629,98 @@ contains
                  &           config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
                  &           this%sw_dn_diffuse_surf_canopy(:,jcol))
           end do
+          !$ACC END PARALLEL
         end if
       else
         ! More accurate calculations using weights, but requires
         ! this%sw_dn_[direct_]surf_band to be defined, i.e.
         ! config%do_surface_sw_spectral_flux == .true.
         nalbedoband = size(config%sw_albedo_weights,1)
-        this%sw_dn_diffuse_surf_canopy(:,istartcol:iendcol) = 0.0_jprb
-        this%sw_dn_direct_surf_canopy (:,istartcol:iendcol) = 0.0_jprb
-        do jband = 1,config%n_bands_sw
+        !$ACC PARALLEL DEFAULT(NONE) &
+        !$ACC     PRESENT(this%sw_dn_diffuse_surf_canopy, this%sw_dn_direct_surf_canopy, &
+        !$ACC             config%sw_albedo_weights)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol,iendcol
           do jalbedoband = 1,nalbedoband
-            if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
-              ! Initially, "diffuse" is actually "total"
-              this%sw_dn_diffuse_surf_canopy(jalbedoband,istartcol:iendcol) &
-                   &  = this%sw_dn_diffuse_surf_canopy(jalbedoband,istartcol:iendcol) &
-                   &  + config%sw_albedo_weights(jalbedoband,jband) &
-                   &    * this%sw_dn_surf_band(jband,istartcol:iendcol)
-              this%sw_dn_direct_surf_canopy(jalbedoband,istartcol:iendcol) &
-                   &  = this%sw_dn_direct_surf_canopy(jalbedoband,istartcol:iendcol) &
-                   &  + config%sw_albedo_weights(jalbedoband,jband) &
-                   &    * this%sw_dn_direct_surf_band(jband,istartcol:iendcol)
-            end if
+            this%sw_dn_diffuse_surf_canopy(jalbedoband,jcol) = 0.0_jprb
+            this%sw_dn_direct_surf_canopy (jalbedoband,jcol) = 0.0_jprb
           end do
         end do
-        ! Subtract the direct from total to get diffuse
-        this%sw_dn_diffuse_surf_canopy(:,istartcol:iendcol) &
-             &  = this%sw_dn_diffuse_surf_canopy(:,istartcol:iendcol) &
-             &  - this%sw_dn_direct_surf_canopy(:,istartcol:iendcol)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol, iendcol
+          do jalbedoband = 1,nalbedoband
+            !$ACC LOOP SEQ
+            do jband = 1,config%n_bands_sw
+              if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
+                ! Initially, "diffuse" is actually "total"
+                this%sw_dn_diffuse_surf_canopy(jalbedoband,jcol) &
+                    &  = this%sw_dn_diffuse_surf_canopy(jalbedoband,jcol) &
+                    &  + config%sw_albedo_weights(jalbedoband,jband) &
+                    &    * this%sw_dn_surf_band(jband,jcol)
+                this%sw_dn_direct_surf_canopy(jalbedoband,jcol) &
+                    &  = this%sw_dn_direct_surf_canopy(jalbedoband,jcol) &
+                    &  + config%sw_albedo_weights(jalbedoband,jband) &
+                    &    * this%sw_dn_direct_surf_band(jband,jcol)
+              end if
+            end do
+          end do
+        end do
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol,iendcol
+          do jalbedoband = 1,nalbedoband
+            ! Subtract the direct from total to get diffuse
+            this%sw_dn_diffuse_surf_canopy(jalbedoband,jcol) &
+                &  = this%sw_dn_diffuse_surf_canopy(jalbedoband,jcol) &
+                &  - this%sw_dn_direct_surf_canopy(jalbedoband,jcol)
+          end do
+        end do
+        !$ACC END PARALLEL
       end if
 
     end if ! do_canopy_fluxes_sw
 
     if (config%do_lw .and. config%do_canopy_fluxes_lw) then
+      !$ACC DATA CREATE(lw_dn_surf_band)
       if (config%use_canopy_full_spectrum_lw) then
-        this%lw_dn_surf_canopy(:,istartcol:iendcol) = this%lw_dn_surf_g(:,istartcol:iendcol)
+        !$ACC PARALLEL DEFAULT(NONE)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol,iendcol
+          do jg = 1,config%n_g_lw
+            this%lw_dn_surf_canopy(jg,jcol) = this%lw_dn_surf_g(jg,jcol)
+          end do
+        end do
+        !$ACC END PARALLEL
       else if (config%do_nearest_spectral_lw_emiss) then
         if (use_indexed_sum_vec) then
           call indexed_sum_vec(this%lw_dn_surf_g, &
                &               config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
                &               this%lw_dn_surf_canopy, istartcol, iendcol)
         else
+#ifdef _OPENACC
+          !$ACC PARALLEL DEFAULT(NONE) &
+          !$ACC    NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
+          !$ACC    VECTOR_LENGTH(32*(config%n_g_lw-1)/32+1) ASYNC(1)
+          !$ACC LOOP GANG
+          do jcol = istartcol,iendcol
+            ! Inlined indexed_sum because of an on-device segfault due to the nested
+            ! array index-subscript passed as `ind` to indexed_sum
+            this%lw_dn_surf_canopy(:,jcol) = 0.0
+            !$ACC LOOP VECTOR
+            do jg = 1,config%n_g_lw
+              jband = config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw(jg))
+              !$ACC ATOMIC UPDATE
+              this%lw_dn_surf_canopy(jband,jcol) = this%lw_dn_surf_canopy(jband,jcol) + this%lw_dn_surf_g(jg,jcol)
+              !$ACC END ATOMIC
+            end do
+          end do
+          !$ACC END PARALLEL
+#else
           do jcol = istartcol,iendcol
             call indexed_sum(this%lw_dn_surf_g(:,jcol), &
                  &           config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
                  &           this%lw_dn_surf_canopy(:,jcol))
           end do
+#endif
         end if
       else
         ! Compute fluxes in each longwave emissivity interval using
@@ -670,25 +730,41 @@ contains
                &               config%i_band_from_reordered_g_lw, &
                &               lw_dn_surf_band, istartcol, iendcol)
         else
+          !$ACC PARALLEL DEFAULT(NONE) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
+          !$ACC   VECTOR_LENGTH(32*(config%n_g_lw-1)/32+1) ASYNC(1)
+          !$ACC LOOP GANG
           do jcol = istartcol,iendcol
             call indexed_sum(this%lw_dn_surf_g(:,jcol), &
                  &           config%i_band_from_reordered_g_lw, &
                  &           lw_dn_surf_band(:,jcol))
           end do
+          !$ACC END PARALLEL
         end if
         nalbedoband = size(config%lw_emiss_weights,1)
-        this%lw_dn_surf_canopy(:,istartcol:iendcol) = 0.0_jprb
-        do jband = 1,config%n_bands_lw
+        !$ACC PARALLEL DEFAULT(NONE) PRESENT(this%lw_dn_surf_canopy, config%lw_emiss_weights)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol,iendcol
           do jalbedoband = 1,nalbedoband
+            this%lw_dn_surf_canopy(jalbedoband,jcol) = 0.0_jprb
+          end do
+        end do
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol,iendcol
+          do jalbedoband = 1,nalbedoband
+            !$ACC LOOP SEQ
+            do jband = 1,config%n_bands_lw
             if (config%lw_emiss_weights(jalbedoband,jband) /= 0.0_jprb) then
-              this%lw_dn_surf_canopy(jalbedoband,istartcol:iendcol) &
-                   &  = this%lw_dn_surf_canopy(jalbedoband,istartcol:iendcol) &
+                this%lw_dn_surf_canopy(jalbedoband,jcol) &
+                    &  = this%lw_dn_surf_canopy(jalbedoband,jcol) &
                    &  + config%lw_emiss_weights(jalbedoband,jband) &
-                   &    * lw_dn_surf_band(jband,istartcol:iendcol)
+                    &    * lw_dn_surf_band(jband,jcol)
             end if
           end do
         end do
+        end do
+        !$ACC END PARALLEL
       end if
+      !$ACC END DATA
     end if
 
     !$ACC END DATA
@@ -717,7 +793,7 @@ contains
     integer :: jcol, jband
 
     real(jphook) :: hook_handle
-    
+
     if (lhook) call dr_hook('radiation_flux:calc_toa_spectral',0,hook_handle)
 
 #ifdef _OPENACC
@@ -746,7 +822,7 @@ contains
                &           this%sw_up_toa_band(:,jcol))
         end do
       end if
-      
+
       if (config%do_clear) then
         if (use_indexed_sum_vec) then
           call indexed_sum_vec(this%sw_up_toa_clear_g, &
@@ -775,7 +851,7 @@ contains
                &           this%lw_up_toa_band(:,jcol))
         end do
       end if
-      
+
       if (config%do_clear) then
         if (use_indexed_sum_vec) then
           call indexed_sum_vec(this%lw_up_toa_clear_g, &
@@ -790,12 +866,12 @@ contains
         end if
       end if
     end if
-    
+
     if (lhook) call dr_hook('radiation_flux:calc_toa_spectral',1,hook_handle)
 
   end subroutine calc_toa_spectral
-  
-    
+
+
   !---------------------------------------------------------------------
   ! Return .true. if the most important flux variables are out of a
   ! physically sensible range, optionally only considering columns
@@ -827,14 +903,14 @@ contains
     if (lhook) call dr_hook('radiation_flux:out_of_physical_bounds',1,hook_handle)
 
   end function out_of_physical_bounds
-  
+
   !---------------------------------------------------------------------
   ! Return .true. if the heating rates are out of a physically
   ! sensible range, optionally only considering columns between
   ! istartcol and iendcol. This function allocates and deallocates
   ! memory due to the requirements for inputs of out_of_bounds_2d.
   function heating_rate_out_of_physical_bounds(this, nlev, istartcol, iendcol, pressure_hl) result(is_bad)
-    
+
     use radiation_check, only : out_of_bounds_2d
     use radiation_constants, only : AccelDueToGravity
 
@@ -844,13 +920,13 @@ contains
     class(flux_type), intent(inout) :: this
     integer, intent(in) :: istartcol, iendcol, nlev
     logical                      :: is_bad
-    
+
     real(jprb), intent(in) :: pressure_hl(:,:)
 
     real(jprb), allocatable :: hr_K_day(:,:)
 
     real(jprb) :: scaling(istartcol:iendcol,nlev)
-    
+
     allocate(hr_K_day(istartcol:iendcol,nlev))
 
     scaling = -(24.0_jprb * 3600.0_jprb * AccelDueToGravity / SpecificHeatDryAir) &
@@ -994,8 +1070,63 @@ contains
     end do
 
   end subroutine indexed_sum_profile
-  
+
 #ifdef _OPENACC
+  !---------------------------------------------------------------------
+  ! Creates fields on device
+  subroutine create_device(this)
+
+    class(flux_type), intent(inout) :: this
+
+    !$ACC ENTER DATA CREATE(this%lw_up) IF(allocated(this%lw_up))
+    !$ACC ENTER DATA CREATE(this%lw_dn) IF(allocated(this%lw_dn))
+    !$ACC ENTER DATA CREATE(this%lw_up_clear) IF(allocated(this%lw_up_clear))
+    !$ACC ENTER DATA CREATE(this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
+    !$ACC ENTER DATA CREATE(this%sw_up) IF(allocated(this%sw_up))
+    !$ACC ENTER DATA CREATE(this%sw_dn) IF(allocated(this%sw_dn))
+    !$ACC ENTER DATA CREATE(this%sw_up_clear) IF(allocated(this%sw_up_clear))
+    !$ACC ENTER DATA CREATE(this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
+    !$ACC ENTER DATA CREATE(this%lw_up_band) IF(allocated(this%lw_up_band))
+    !$ACC ENTER DATA CREATE(this%lw_dn_band) IF(allocated(this%lw_dn_band))
+    !$ACC ENTER DATA CREATE(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
+    !$ACC ENTER DATA CREATE(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
+    !$ACC ENTER DATA CREATE(this%sw_up_band) IF(allocated(this%sw_up_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_band) IF(allocated(this%sw_dn_band))
+    !$ACC ENTER DATA CREATE(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
+    !$ACC ENTER DATA CREATE(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
+    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
+    !$ACC ENTER DATA CREATE(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
+    !$ACC ENTER DATA CREATE(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
+    !$ACC ENTER DATA CREATE(this%lw_derivatives) IF(allocated(this%lw_derivatives))
+    !$ACC ENTER DATA CREATE(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
+    !$ACC ENTER DATA CREATE(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
+    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
+    !$ACC ENTER DATA CREATE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
+    !$ACC ENTER DATA CREATE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
+    !$ACC ENTER DATA CREATE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
+    !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
+    !$ACC ENTER DATA CREATE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
+    !$ACC ENTER DATA CREATE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
+    !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
+    !$ACC ENTER DATA CREATE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
+    !$ACC ENTER DATA CREATE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
+    !$ACC ENTER DATA CREATE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
+    !$ACC ENTER DATA CREATE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
+    !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
+
+
+  end subroutine create_device
   !---------------------------------------------------------------------
   ! updates fields on host
   subroutine update_host(this)
@@ -1038,6 +1169,16 @@ contains
     !$ACC UPDATE HOST(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
     !$ACC UPDATE HOST(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
     !$ACC UPDATE HOST(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
+    !$ACC UPDATE HOST(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
+    !$ACC UPDATE HOST(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
+    !$ACC UPDATE HOST(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
+    !$ACC UPDATE HOST(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
+    !$ACC UPDATE HOST(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
+    !$ACC UPDATE HOST(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
+    !$ACC UPDATE HOST(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
+    !$ACC UPDATE HOST(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
+    !$ACC UPDATE HOST(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
+    !$ACC UPDATE HOST(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
 
   end subroutine update_host
 
@@ -1083,8 +1224,73 @@ contains
     !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
     !$ACC UPDATE DEVICE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
     !$ACC UPDATE DEVICE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
+    !$ACC UPDATE DEVICE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
+    !$ACC UPDATE DEVICE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
+    !$ACC UPDATE DEVICE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
+    !$ACC UPDATE DEVICE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
+    !$ACC UPDATE DEVICE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
+    !$ACC UPDATE DEVICE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
+    !$ACC UPDATE DEVICE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
+    !$ACC UPDATE DEVICE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
+    !$ACC UPDATE DEVICE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
+    !$ACC UPDATE DEVICE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
 
   end subroutine update_device
-#endif 
+
+  !---------------------------------------------------------------------
+  ! Deletes fields on device
+  subroutine delete_device(this)
+
+    class(flux_type), intent(inout) :: this
+
+    !$ACC EXIT DATA DELETE(this%lw_up) IF(allocated(this%lw_up))
+    !$ACC EXIT DATA DELETE(this%lw_dn) IF(allocated(this%lw_dn))
+    !$ACC EXIT DATA DELETE(this%lw_up_clear) IF(allocated(this%lw_up_clear))
+    !$ACC EXIT DATA DELETE(this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
+    !$ACC EXIT DATA DELETE(this%sw_up) IF(allocated(this%sw_up))
+    !$ACC EXIT DATA DELETE(this%sw_dn) IF(allocated(this%sw_dn))
+    !$ACC EXIT DATA DELETE(this%sw_up_clear) IF(allocated(this%sw_up_clear))
+    !$ACC EXIT DATA DELETE(this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
+    !$ACC EXIT DATA DELETE(this%lw_up_band) IF(allocated(this%lw_up_band))
+    !$ACC EXIT DATA DELETE(this%lw_dn_band) IF(allocated(this%lw_dn_band))
+    !$ACC EXIT DATA DELETE(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
+    !$ACC EXIT DATA DELETE(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
+    !$ACC EXIT DATA DELETE(this%sw_up_band) IF(allocated(this%sw_up_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_band) IF(allocated(this%sw_dn_band))
+    !$ACC EXIT DATA DELETE(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
+    !$ACC EXIT DATA DELETE(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
+    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
+    !$ACC EXIT DATA DELETE(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
+    !$ACC EXIT DATA DELETE(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
+    !$ACC EXIT DATA DELETE(this%lw_derivatives) IF(allocated(this%lw_derivatives))
+    !$ACC EXIT DATA DELETE(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
+    !$ACC EXIT DATA DELETE(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
+    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
+    !$ACC EXIT DATA DELETE(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
+    !$ACC EXIT DATA DELETE(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
+    !$ACC EXIT DATA DELETE(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
+    !$ACC EXIT DATA DELETE(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
+    !$ACC EXIT DATA DELETE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
+    !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
+
+  end subroutine delete_device
+#endif
 
 end module radiation_flux

@@ -115,7 +115,7 @@ program ecrad_ifs_driver
   integer, external :: omp_get_thread_num
   real(kind=jprd), external :: omp_get_wtime
   ! Start/stop time in seconds
-  real(kind=jprd) :: tstart, tstop
+  real(kind=jprd) :: tstart, tstop, t0
 #endif
 
   ! For demonstration of get_sw_weights later on
@@ -371,6 +371,10 @@ program ecrad_ifs_driver
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
 
+#ifndef NO_OPENMP
+  t0 = omp_get_wtime()
+#endif
+
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
 #ifndef NO_OPENMP
@@ -405,40 +409,40 @@ program ecrad_ifs_driver
              &  nlev, size(aerosol%mixing_ratio,3), &    ! nlev, naerosols
              &  single_level%solar_irradiance, &                               ! solar_irrad
              ! array inputs
-             &  zrgp(1,ifs_config%iamu0,ib), zrgp(1,ifs_config%its,ib), &    ! mu0, skintemp
-             &  zrgp(1,ifs_config%iald,ib) , zrgp(1,ifs_config%ialp,ib), &    ! albedo_dif, albedo_dir
-             &  zrgp(1,ifs_config%iemiss,ib), &                   ! spectral emissivity
-             &  zrgp(1,ifs_config%iccnl,ib), zrgp(1,ifs_config%iccno,ib) ,&  ! CCN concentration, land and sea
-             &  zrgp(1,ifs_config%igelam,ib),zrgp(1,ifs_config%igemu,ib), &  ! longitude, sine of latitude
-             &  zrgp(1,ifs_config%islm,ib), &                     ! land sea mask
-             &  zrgp(1,ifs_config%ipr,ib),   zrgp(1,ifs_config%iti,ib),  &   ! full level pressure and temperature
-             &  zrgp(1,ifs_config%iaprs,ib), zrgp(1,ifs_config%ihti,ib), &   ! half-level pressure and temperature
-             &  zrgp(1,ifs_config%iwv,ib),   zrgp(1,ifs_config%iico2,ib), &
-             &  zrgp(1,ifs_config%iich4,ib), zrgp(1,ifs_config%iin2o,ib), &
-             &  zrgp(1,ifs_config%ino2,ib),  zrgp(1,ifs_config%ic11,ib), &
-             &  zrgp(1,ifs_config%ic12,ib),  zrgp(1,ifs_config%ic22,ib), &
-             &  zrgp(1,ifs_config%icl4,ib),  zrgp(1,ifs_config%ioz,ib), &
-             &  zrgp(1,ifs_config%iclc,ib),  zrgp(1,ifs_config%ilwa,ib), &
-             &  zrgp(1,ifs_config%iiwa,ib),  zrgp(1,ifs_config%irwa,ib), &
-             &  zrgp(1,ifs_config%iswa,ib), &
-             &  zrgp(1,ifs_config%iaer,ib),  zrgp(1,ifs_config%iaero,ib), &
+             &  zrgp(:,ifs_config%iamu0,ib), zrgp(:,ifs_config%its,ib), &    ! mu0, skintemp
+             &  zrgp(:,ifs_config%iald,ib) , zrgp(:,ifs_config%ialp,ib), &    ! albedo_dif, albedo_dir
+             &  zrgp(:,ifs_config%iemiss,ib), &                   ! spectral emissivity
+             &  zrgp(:,ifs_config%iccnl,ib), zrgp(:,ifs_config%iccno,ib) ,&  ! CCN concentration, land and sea
+             &  zrgp(:,ifs_config%igelam,ib),zrgp(:,ifs_config%igemu,ib), &  ! longitude, sine of latitude
+             &  zrgp(:,ifs_config%islm,ib), &                     ! land sea mask
+             &  zrgp(:,ifs_config%ipr,ib),   zrgp(:,ifs_config%iti,ib),  &   ! full level pressure and temperature
+             &  zrgp(:,ifs_config%iaprs,ib), zrgp(:,ifs_config%ihti,ib), &   ! half-level pressure and temperature
+             &  zrgp(:,ifs_config%iwv,ib),   zrgp(:,ifs_config%iico2,ib), &
+             &  zrgp(:,ifs_config%iich4,ib), zrgp(:,ifs_config%iin2o,ib), &
+             &  zrgp(:,ifs_config%ino2,ib),  zrgp(:,ifs_config%ic11,ib), &
+             &  zrgp(:,ifs_config%ic12,ib),  zrgp(:,ifs_config%ic22,ib), &
+             &  zrgp(:,ifs_config%icl4,ib),  zrgp(:,ifs_config%ioz,ib), &
+             &  zrgp(:,ifs_config%iclc,ib),  zrgp(:,ifs_config%ilwa,ib), &
+             &  zrgp(:,ifs_config%iiwa,ib),  zrgp(:,ifs_config%irwa,ib), &
+             &  zrgp(:,ifs_config%iswa,ib), &
+             &  zrgp(:,ifs_config%iaer,ib),  zrgp(:,ifs_config%iaero,ib), &
              ! flux outputs
-             &  zrgp(1,ifs_config%ifrso,ib), zrgp(1,ifs_config%ifrth,ib), &
-             &  zrgp(1,ifs_config%iswfc,ib), zrgp(1,ifs_config%ilwfc,ib),&
-             &  zrgp(1,ifs_config%ifrsod,ib),zrgp(1,ifs_config%ifrted,ib), &
-             &  zrgp(1,ifs_config%ifrsodc,ib),zrgp(1,ifs_config%ifrtedc,ib),&
-             &  zrgp(1,ifs_config%ifdir,ib), zrgp(1,ifs_config%icdir,ib), &
-             &  zrgp(1,ifs_config%isudu,ib), &
-             &  zrgp(1,ifs_config%iuvdf,ib), zrgp(1,ifs_config%iparf,ib), &
-             &  zrgp(1,ifs_config%iparcf,ib),zrgp(1,ifs_config%itincf,ib), &
-             &  zrgp(1,ifs_config%iemit,ib) ,zrgp(1,ifs_config%ilwderivative,ib), &
-             &  zrgp(1,ifs_config%iswdiffuseband,ib), zrgp(1,ifs_config%iswdirectband,ib)&
+             &  zrgp(:,ifs_config%ifrso,ib), zrgp(:,ifs_config%ifrth,ib), &
+             &  zrgp(:,ifs_config%iswfc,ib), zrgp(:,ifs_config%ilwfc,ib),&
+             &  zrgp(:,ifs_config%ifrsod,ib),zrgp(:,ifs_config%ifrted,ib), &
+             &  zrgp(:,ifs_config%ifrsodc,ib),zrgp(:,ifs_config%ifrtedc,ib),&
+             &  zrgp(:,ifs_config%ifdir,ib), zrgp(:,ifs_config%icdir,ib), &
+             &  zrgp(:,ifs_config%isudu,ib), &
+             &  zrgp(:,ifs_config%iuvdf,ib), zrgp(:,ifs_config%iparf,ib), &
+             &  zrgp(:,ifs_config%iparcf,ib),zrgp(:,ifs_config%itincf,ib), &
+             &  zrgp(:,ifs_config%iemit,ib) ,zrgp(:,ifs_config%ilwderivative,ib), &
+             &  zrgp(:,ifs_config%iswdiffuseband,ib), zrgp(:,ifs_config%iswdirectband,ib)&
 #ifdef BITIDENTITY_TESTING
             ! To validate results against standalone ecrad, we overwrite effective
             ! radii, cloud overlap and seed with input values
-             &  ,pre_liq=zrgp(1,ifs_config%ire_liq,ib), &
-             &  pre_ice=zrgp(1,ifs_config%ire_ice,ib), &
-             &  pcloud_overlap=zrgp(1,ifs_config%ioverlap,ib), &
+             &  ,pre_liq=zrgp(:,ifs_config%ire_liq,ib), &
+             &  pre_ice=zrgp(:,ifs_config%ire_ice,ib), &
+             &  pcloud_overlap=zrgp(:,ifs_config%ioverlap,ib), &
              &  iseed=iseed(:,ib) &
 #endif
              & )
@@ -462,6 +466,11 @@ program ecrad_ifs_driver
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+#endif
+
+#ifndef NO_OPENMP
+  tstop = omp_get_wtime()
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer including data offload: ', tstop-t0, ' seconds'
 #endif
 
   ! --------------------------------------------------------

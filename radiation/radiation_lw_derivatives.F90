@@ -43,7 +43,9 @@ contains
   subroutine calc_lw_derivatives_ica(ng, nlev, icol, transmittance, flux_up_surf, lw_derivatives)
 
     use parkind1, only           : jprb
+#ifndef _OPENACC
     use yomhook,  only           : lhook, dr_hook, jphook
+#endif
 
     implicit none
 
@@ -61,24 +63,49 @@ contains
     ! to the surface value
     real(jprb) :: lw_derivatives_g(ng)
 
-    integer    :: jlev
+    real(jprb) :: sum_flux_up_surf, sum_lw_derivatives_g
 
+    integer    :: jlev, jg
+
+#ifndef _OPENACC
     real(jphook) :: hook_handle
+#endif
 
+    !$ACC ROUTINE WORKER
+
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_lw_derivatives:calc_lw_derivatives_ica',0,hook_handle)
+#endif
+
+    sum_flux_up_surf = 0.0_jprb
+    !$ACC LOOP WORKER VECTOR REDUCTION(+:sum_flux_up_surf)
+    do jg = 1,ng
+      sum_flux_up_surf = sum_flux_up_surf + flux_up_surf(jg)
+    end do
 
     ! Initialize the derivatives at the surface
-    lw_derivatives_g = flux_up_surf / sum(flux_up_surf)
+    !$ACC LOOP WORKER VECTOR
+    do jg = 1,ng
+      lw_derivatives_g(jg) = flux_up_surf(jg) / sum_flux_up_surf
+    end do
     lw_derivatives(icol, nlev+1) = 1.0_jprb
 
     ! Move up through the atmosphere computing the derivatives at each
     ! half-level
+    !$ACC LOOP SEQ
     do jlev = nlev,1,-1
-      lw_derivatives_g = lw_derivatives_g * transmittance(:,jlev)
-      lw_derivatives(icol,jlev) = sum(lw_derivatives_g)
+      sum_lw_derivatives_g = 0.0_jprb
+      !$ACC LOOP WORKER VECTOR REDUCTION(+:sum_lw_derivatives_g)
+      do jg = 1,ng
+        lw_derivatives_g(jg) = lw_derivatives_g(jg) * transmittance(jg,jlev)
+        sum_lw_derivatives_g = sum_lw_derivatives_g + lw_derivatives_g(jg)
+      end do
+      lw_derivatives(icol,jlev) = sum_lw_derivatives_g
     end do
 
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_lw_derivatives:calc_lw_derivatives_ica',1,hook_handle)
+#endif
 
   end subroutine calc_lw_derivatives_ica
 
@@ -108,26 +135,52 @@ contains
     ! to the surface value
     real(jprb) :: lw_derivatives_g(ng)
 
-    integer    :: jlev
+    real(jprb) :: sum_flux_up_surf, sum_lw_derivatives_g
 
+    integer    :: jlev, jg
+
+#ifndef _OPENACC
     real(jphook) :: hook_handle
+#endif
 
+    !$ACC ROUTINE WORKER
+
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_lw_derivatives:modify_lw_derivatives_ica',0,hook_handle)
+#endif
+
+    sum_flux_up_surf = 0.0_jprb
+    !$ACC LOOP WORKER VECTOR REDUCTION(+:sum_flux_up_surf)
+    do jg = 1,ng
+      sum_flux_up_surf = sum_flux_up_surf + flux_up_surf(jg)
+    end do
 
     ! Initialize the derivatives at the surface
-    lw_derivatives_g = flux_up_surf / sum(flux_up_surf)
+    !$ACC LOOP WORKER VECTOR
+    do jg = 1,ng
+      lw_derivatives_g(jg) = flux_up_surf(jg) / sum_flux_up_surf
+    end do
+
     ! This value must be 1 so no weighting applied
     lw_derivatives(icol, nlev+1) = 1.0_jprb
 
     ! Move up through the atmosphere computing the derivatives at each
     ! half-level
+    !$ACC LOOP SEQ
     do jlev = nlev,1,-1
-      lw_derivatives_g = lw_derivatives_g * transmittance(:,jlev)
+      sum_lw_derivatives_g = 0.0_jprb
+      !$ACC LOOP WORKER VECTOR REDUCTION(+:sum_lw_derivatives_g)
+      do jg = 1,ng
+        lw_derivatives_g(jg) = lw_derivatives_g(jg) * transmittance(jg,jlev)
+        sum_lw_derivatives_g = sum_lw_derivatives_g + lw_derivatives_g(jg)
+      end do
       lw_derivatives(icol,jlev) = (1.0_jprb - weight) * lw_derivatives(icol,jlev) &
-           &                    + weight * sum(lw_derivatives_g)
+           &                    + weight * sum_lw_derivatives_g
     end do
 
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_lw_derivatives:modify_lw_derivatives_ica',1,hook_handle)
+#endif
 
   end subroutine modify_lw_derivatives_ica
 

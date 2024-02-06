@@ -13,8 +13,8 @@
 ! cycle 43R3 when ecRad was introduced.
 !
 &radiation_driver
-do_parallel              = true,   ! Use OpenMP parallelization?
-nblocksize               = 8,      ! Number of columns to process per thread
+do_parallel              = false,   ! Use OpenMP parallelization?
+nblocksize               = 8192,   ! Number of columns to process per thread
 do_save_inputs           = false,   ! Save inputs in "inputs.nc"?
 ! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
 iverbose    	   	= 2,
@@ -43,8 +43,8 @@ use_general_cloud_optics = false,
 use_general_aerosol_optics = false,
 liquid_model_name       = "SOCRATES",     ! Liquid droplet scattering model
 ice_model_name		= "Fu-IFS",       ! Ice particle scattering model
-sw_solver_name          = "McICA",
-lw_solver_name          = "McICA",
+sw_solver_name          = "McICA ACC",
+lw_solver_name          = "McICA ACC",
 overlap_scheme_name     = "Exp-Ran",      ! Exp-Ran, Max-Ran or Exp-Exp
 cloud_fraction_threshold = 0.001e-3,      !
 do_lw_aerosol_scattering= false,          ! Aerosols scatter in the longwave?

@@ -37,7 +37,7 @@ contains
   ! such that the stochastic cloud field satisfies the prescribed
   ! overlap parameter accounting for this weighting.
   subroutine solver_mcica_acc_lw(nlev,istartcol,iendcol, &
-       &  config, single_level, cloud, & 
+       &  config, single_level, cloud, &
        &  od, ssa, g, od_cloud, ssa_cloud, g_cloud, planck_hl, &
        &  emission, albedo, &
        &  flux)
@@ -169,7 +169,7 @@ contains
 
     if (.not. config%do_clear) then
       write(nulerr,'(a)') '*** Error: longwave McICA ACC requires clear-sky calculation to be performed'
-      call radiation_abort()      
+      call radiation_abort()
     end if
 
     ng = config%n_g_lw
@@ -213,12 +213,12 @@ contains
 
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(overlap_alpha)
-    do jcol = istartcol,iendcol       
+    do jcol = istartcol,iendcol
       !---------------------------------------------------------------------
       ! manual inline from cum_cloud_cover_exp_ran >>>>>>>>>>>>>>>>>>>>>>>>
       ! Loop to compute total cloud cover and the cumulative cloud cover
       ! down to the base of each layer
-      do jlev = 1,nlev-1      
+      do jlev = 1,nlev-1
         ! Convert to "alpha" overlap parameter if necessary
         if (config%use_beta_overlap) then
           overlap_alpha = beta2alpha(overlap_param(jlev,jcol), &
@@ -234,13 +234,13 @@ contains
       end do
     end do
     !$ACC END PARALLEL
-    
+
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR
     do jcol = istartcol,iendcol
-      cum_cloud_cover(1, jcol) = frac(1,jcol)        
+      cum_cloud_cover(1, jcol) = frac(1,jcol)
       cum_product(jcol) = 1.0_jprb - frac(1,jcol)
-      !$ACC LOOP SEQ 
+      !$ACC LOOP SEQ
       do jlev = 1,nlev-1
         if (frac(jlev,jcol) >= MaxCloudFrac) then
           ! Cloud cover has reached one
@@ -249,7 +249,7 @@ contains
           cum_product(jcol) = cum_product(jcol) * (1.0_jprb - pair_cloud_cover(jlev, jcol)) &
                 &  / (1.0_jprb - frac(jlev,jcol))
         end if
-        cum_cloud_cover(jlev+1, jcol) = 1.0_jprb - cum_product(jcol) 
+        cum_cloud_cover(jlev+1, jcol) = 1.0_jprb - cum_product(jcol)
       end do
       flux%cloud_cover_lw(jcol) = cum_cloud_cover(nlev,jcol);
       if (flux%cloud_cover_lw(jcol) < config%cloud_fraction_threshold) then
@@ -310,17 +310,21 @@ contains
              &  ref_clear, trans_clear, source_up_clear, source_dn_clear, &
              &  emission(:,jcol), albedo(:,jcol), &
              &  flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
+
       else
 #endif
         ! Non-scattering case: use simpler functions for
         ! transmission and emission
-        !$ACC LOOP SEQ
-        do jlev = 1,nlev
-          call calc_no_scattering_transmittance_lw(ng, od(:,jlev,jcol), &
-               &  planck_hl(:,jlev,jcol), planck_hl(:,jlev+1, jcol), &
-               &  trans_clear(:,jlev), source_up_clear(:,jlev), &
-               &  source_dn_clear(:,jlev))
-        end do
+        call calc_no_scattering_transmittance_lw(ng*nlev, od(:,:,jcol), &
+               &  planck_hl(:,1:nlev,jcol), planck_hl(:,2:nlev+1, jcol), &
+               &  trans_clear, source_up_clear, &
+               &  source_dn_clear)
+        ! Simpler down-then-up method to compute fluxes
+        call calc_fluxes_no_scattering_lw(ng, nlev, &
+             &  trans_clear, source_up_clear, source_dn_clear, &
+             &  emission(:,jcol), albedo(:,jcol), &
+             &  flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
+
         ! Ensure that clear-sky reflectance is zero since it may be
         ! used in cloudy-sky case
         !$ACC LOOP SEQ
@@ -330,11 +334,6 @@ contains
             ref_clear(jg,jlev) = 0.0_jprb
           end do
         end do
-        ! Simpler down-then-up method to compute fluxes
-        call calc_fluxes_no_scattering_lw(ng, nlev, &
-             &  trans_clear, source_up_clear, source_dn_clear, &
-             &  emission(:,jcol), albedo(:,jcol), &
-             &  flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
 #ifndef _OPENACC
       end if
 #endif
@@ -359,7 +358,7 @@ contains
            &  ibegin(jcol), iend(jcol), &
            &  cum_cloud_cover=cum_cloud_cover(:,jcol), &
            &  pair_cloud_cover=pair_cloud_cover(:,jcol))
-      
+
       if (flux%cloud_cover_lw(jcol) >= config%cloud_fraction_threshold) then
         ! Total-sky calculation
 
@@ -429,7 +428,7 @@ contains
 #ifndef _OPENACC
               end if
 #endif
-            
+
               ! Compute cloudy-sky reflectance, transmittance etc at
               ! each model level
               call calc_ref_trans_lw(ng, &
@@ -457,7 +456,7 @@ contains
             end do
           end if
         end do
-        
+
 #ifndef _OPENACC
         if (config%do_lw_aerosol_scattering) then
           ! Use adding method to compute fluxes for an overcast sky,
@@ -496,7 +495,6 @@ contains
 
         ! Compute the longwave derivatives needed by Hogan and Bozzo
         ! (2015) approximate radiation update scheme
-#ifndef _OPENACC
         if (config%do_lw_derivatives) then
           call calc_lw_derivatives_ica(ng, nlev, jcol, transmittance, flux_up(:,nlev+1,jcol), &
                &                       flux%lw_derivatives)
@@ -506,7 +504,6 @@ contains
                  &                         1.0_jprb-flux%cloud_cover_lw(jcol), flux%lw_derivatives)
           end if
         end if
-#endif
 
       else
         ! No cloud in profile and clear-sky fluxes already
@@ -515,13 +512,11 @@ contains
         do jg = 1,ng
           flux%lw_dn_surf_g(jg,jcol) = flux%lw_dn_surf_clear_g(jg,jcol)
         end do
-#ifndef _OPENACC
         if (config%do_lw_derivatives) then
           call calc_lw_derivatives_ica(ng, nlev, jcol, trans_clear, flux_up_clear(:,nlev+1,jcol), &
                &                       flux%lw_derivatives)
- 
+
         end if
-#endif
       end if ! Cloud is present in profile
     end do
     !$ACC END PARALLEL
@@ -571,7 +566,7 @@ contains
     !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_mcica_acc_lw:solver_mcica_acc_lw',1,hook_handle)
-    
+
   end subroutine solver_mcica_acc_lw
 
 end module radiation_mcica_acc_lw

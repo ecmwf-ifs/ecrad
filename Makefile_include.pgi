@@ -2,7 +2,7 @@ FC = pgf90
 CPPFLAGS = -Mpreprocess
 
 ifndef DEBUG
-OPTFLAGS = -O3 -acc -ta=nvidia
+OPTFLAGS = -O3
 else
 OPTFLAGS = -O0
 endif
@@ -15,4 +15,9 @@ WARNFLAGS = -Minform=inform
 # the OPEN command so no compiler flags are needed.
 BASICFLAGS = -module ../mod
 DEBUGFLAGS = -g
-OMPFLAG = -mp=nonuma
+OMPFLAG = -mp
+LDFLAGS += -L$(NVIDIA_DIR)/Linux_x86_64/22.11/math_libs/lib64/
+
+ifdef GPU
+OMPFLAG +=  -acc=verystrict -gpu=cc80
+endif

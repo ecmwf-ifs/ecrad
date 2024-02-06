@@ -335,9 +335,7 @@ contains
             ! Only compute liquid properties if liquid cloud is
             ! present
             if (lwp_in_cloud > 0.0_jprb) then
-#ifndef _OPENACC
               if (config%i_liq_model == ILiquidModelSOCRATES) then
-#endif
                 ! Compute longwave properties
                 call calc_liq_optics_socrates(config%n_bands_lw, &
                     &  config%cloud_optics%liq_coeff_lw, &
@@ -348,7 +346,6 @@ contains
                     &  config%cloud_optics%liq_coeff_sw, &
                     &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
                     &  od_sw_liq, scat_od_sw_liq, g_sw_liq)
-#ifndef _OPENACC
               else if (config%i_liq_model == ILiquidModelSlingo) then
                 ! Compute longwave properties
                 call calc_liq_optics_lindner_li(config%n_bands_lw, &
@@ -360,12 +357,13 @@ contains
                     &  config%cloud_optics%liq_coeff_sw, &
                     &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
                     &  od_sw_liq, scat_od_sw_liq, g_sw_liq)
+#ifndef _OPENACC
               else
                 write(nulerr,*) '*** Error: Unknown liquid model with code', &
                     &          config%i_liq_model
                 call radiation_abort()
-              end if
 #endif
+              end if
 
               ! Delta-Eddington scaling in the shortwave only
               if (.not. config%do_sw_delta_scaling_with_gases) then

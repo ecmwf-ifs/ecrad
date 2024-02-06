@@ -92,7 +92,7 @@ program ecrad_driver
   integer, external :: omp_get_thread_num
   real(kind=jprd), external :: omp_get_wtime
   ! Start/stop time in seconds
-  real(kind=jprd) :: tstart, tstop
+  real(kind=jprd) :: tstart, tstop, t0
 #endif
 
   ! For demonstration of get_sw_weights later on
@@ -319,6 +319,30 @@ program ecrad_driver
   ! setup_radiation
   call flux%allocate(config, 1, ncol, nlev)
 
+#ifndef NO_OPENMP
+  t0 = omp_get_wtime()
+#endif
+
+#ifdef _OPENACC
+  !$ACC DATA COPYIN(config, single_level, thermodynamics, gas, aerosol, cloud) &
+  !$ACC      CREATE(flux)
+  call config%create_device()
+  call single_level%create_device()
+  call thermodynamics%create_device()
+  call gas%create_device()
+  call aerosol%create_device()
+  call cloud%create_device()
+  call flux%create_device()
+
+  ! call config%update_device()
+  call single_level%update_device()
+  call thermodynamics%update_device()
+  call gas%update_device()
+  call aerosol%update_device()
+  call cloud%update_device()
+  call flux%update_device()
+#endif
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
@@ -378,6 +402,28 @@ program ecrad_driver
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+#endif
+
+#ifdef _OPENACC
+  call cloud%update_host()
+  call flux%update_host()
+
+  call config%delete_device()
+  call single_level%delete_device()
+  call thermodynamics%delete_device()
+  call gas%delete_device()
+  call aerosol%delete_device()
+  call cloud%delete_device()
+  call flux%delete_device()
+#endif
+
+  !$ACC END DATA
+  !$ACC WAIT
+
+#ifndef NO_OPENMP
+  tstop = omp_get_wtime()
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer with data pull-back: ', tstop-tstart, ' seconds'
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer, including all data offload and pull-back: ', tstop-t0, ' seconds'
 #endif
 
   ! --------------------------------------------------------

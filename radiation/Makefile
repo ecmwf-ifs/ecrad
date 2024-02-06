@@ -80,12 +80,18 @@ radiation_cloud_optics.o: radiation_ice_optics_baran.o radiation_ice_optics_fu.o
 	radiation_ice_optics_baran2017.o radiation_ice_optics_yi.o
 radiation_aerosol_optics.o radiation_config.o: \
 	radiation_aerosol_optics_data.o
-radiation_mcica_sw.o radiation_homogeneous_sw.o: radiation_adding_ica_sw.o radiation_cloud_generator.o
-radiation_mcica_acc_sw.o radiation_homogeneous_sw.o: radiation_adding_ica_sw.o radiation_cloud_generator_acc.o
+radiation_mcica_sw.o radiation_homogeneous_sw.o: radiation_adding_ica_sw.o radiation_cloud_generator.o \
+	radiation_config.o radiation_single_level.o radiation_cloud.o \
+	radiation_flux.o radiation_two_stream.o
+radiation_mcica_acc_sw.o radiation_homogeneous_sw.o: radiation_adding_ica_sw.o radiation_cloud_generator_acc.o \
+	radiation_config.o radiation_single_level.o radiation_cloud.o \
+	radiation_flux.o radiation_two_stream.o
 radiation_mcica_lw.o radiation_homogeneous_lw.o: radiation_adding_ica_lw.o radiation_cloud_generator.o \
-	radiation_lw_derivatives.o
+	radiation_lw_derivatives.o radiation_config.o radiation_single_level.o \
+	radiation_cloud.o radiation_flux.o radiation_two_stream.o
 radiation_mcica_acc_lw.o radiation_homogeneous_lw.o: radiation_adding_ica_lw.o radiation_cloud_generator_acc.o \
-	radiation_lw_derivatives.o
+	radiation_lw_derivatives.o radiation_config.o radiation_single_level.o \
+	radiation_cloud.o radiation_flux.o radiation_two_stream.o
 radiation_cloudless_sw.o: radiation_adding_ica_sw.o
 radiation_cloudless_lw.o radiation_tripleclouds_lw.o: radiation_adding_ica_lw.o radiation_lw_derivatives.o
 radiation_aerosol_optics.o radiation_cloud_optics.o: \
@@ -93,7 +99,7 @@ radiation_aerosol_optics.o radiation_cloud_optics.o: \
 radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
 	radiation_cloud_cover.o radiation_random_numbers.o
 radiation_cloud_generator_acc.o radiation_config.o:	radiation_pdf_sampler.o \
-	radiation_cloud_cover.o radiation_random_numbers.o
+radiation_cloud_cover.o radiation_random_numbers.o
 radiation_lw_derivatives.o: radiation_matrix.o
 
 radiation_config.o: radiation_cloud_generator.o radiation_cloud_generator_acc.o radiation_ecckd.o radiation_general_cloud_optics_data.o

@@ -64,6 +64,7 @@ endif
 # Optionally overwrite effective radii, seed, and cloud fraction
 # in IFS variants to retain bit-identical results
 ifdef BITIDENTITY_TESTING
+$(info *** Building with bitidentity testing)
 CPPFLAGS += -DBITIDENTITY_TESTING
 endif
 

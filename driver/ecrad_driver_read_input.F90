@@ -15,7 +15,7 @@
 module ecrad_driver_read_input
 
   public
-  
+
 contains
 
   subroutine read_input(file, config, driver_config, ncol, nlev, &
@@ -35,7 +35,10 @@ contains
     use radiation_cloud,          only : cloud_type
     use radiation_aerosol,        only : aerosol_type
     use easy_netcdf,              only : netcdf_file
-    
+#ifdef _OPENACC
+    use openacc
+#endif
+
     implicit none
 
     type(netcdf_file),         intent(in)    :: file
@@ -81,7 +84,7 @@ contains
 
     ! The following calls read in the data, allocating memory for 1D and
     ! 2D arrays.  The program will stop if any variables are not found.
-    
+
     ! Pressure and temperature (SI units) are on half-levels, i.e. of
     ! length (ncol,nlev+1)
     call file%get('pressure_hl',   thermodynamics%pressure_hl)
@@ -124,7 +127,7 @@ contains
     else
       single_level%spectral_solar_cycle_multiplier = 0.0_jprb
     end if
-    
+
     if (driver_config%cos_sza_override >= 0.0_jprb) then
       ! Optional override of cosine of solar zenith angle
       allocate(single_level%cos_sza(ncol))
@@ -160,7 +163,7 @@ contains
       if (file%exists('fractional_std')) then
         call file%get('fractional_std', cloud%fractional_std)
       end if
-      
+
       ! Cloud water content and effective radius may be provided
       ! generically, in which case they have dimensions (ncol, nlev,
       ! ntype)
@@ -188,6 +191,13 @@ contains
       cloud%re_liq => cloud%effective_radius(:,:,1)
       cloud%re_ice => cloud%effective_radius(:,:,2)
       cloud%ntype = size(cloud%mixing_ratio,3)
+
+#ifdef _OPENACC
+      call acc_attach(cloud%q_liq)
+      call acc_attach(cloud%q_ice)
+      call acc_attach(cloud%re_liq)
+      call acc_attach(cloud%re_ice)
+#endif
 
       ! Simple initialization of the seeds for the Monte Carlo scheme
       call single_level%init_seed_simple(1,ncol)
@@ -238,7 +248,7 @@ contains
         ! adjacent layers, stored in cloud%overlap_param
         call cloud%set_overlap_param(thermodynamics, &
              &    driver_config%overlap_decorr_length_override)
-      else if (.not. allocated(cloud%overlap_param)) then 
+      else if (.not. allocated(cloud%overlap_param)) then
         if (driver_config%iverbose >= 1) then
           write(nulout,'(a,g10.3,a)') 'Warning: overlap decorrelation length set to ', &
                &  decorr_length_default, ' m'
@@ -248,12 +258,12 @@ contains
         ! Scale the overlap decorrelation length by taking the overlap
         ! parameter to a power
         !    where (cloud%overlap_param > 0.99_jprb) cloud%overlap_param = 0.99_jprb
-        
-        where (cloud%overlap_param > 0.0_jprb) 
+
+        where (cloud%overlap_param > 0.0_jprb)
           cloud%overlap_param = cloud%overlap_param**(1.0_jprb &
                &                             / driver_config%overlap_decorr_length_scaling)
         end where
-        
+
         if (driver_config%iverbose >= 2) then
           write(nulout,'(a,g10.3)')  '  Scaling overlap decorrelation length by a factor of ', &
                &  driver_config%overlap_decorr_length_scaling
@@ -264,7 +274,7 @@ contains
           write(nulout,'(a)')  '  Setting overlap decorrelation length to zero (random overlap)'
         end if
       end if
-      
+
       ! Cloud inhomogeneity is specified by the fractional standard
       ! deviation of cloud water content, that is currently constant
       ! everywhere (and the same for water and ice). The following copies
@@ -351,7 +361,7 @@ contains
                &  driver_config%cloud_separation_scale_toa, &
                &  driver_config%cloud_separation_scale_power, &
                &  driver_config%cloud_inhom_separation_factor)
-          
+
         else if (file%exists('inv_cloud_effective_size')) then
           ! (3) NetCDF file contains cloud effective size
 
@@ -375,12 +385,12 @@ contains
               write(nulout,'(a)') 'Warning: ...this is unlikely to be accurate for cloud fraction near one'
             end if
           end if
-          
+
         else if (file%exists('inv_cloud_effective_separation')) then
           ! (4) Alternative way to specify cloud scale
 
           is_cloud_size_scalable = .true.
-          
+
           call file%get('inv_cloud_effective_separation', prop_2d)
           allocate(cloud%inv_cloud_effective_size(ncol,nlev))
           allocate(cloud%inv_inhom_effective_size(ncol,nlev))
@@ -431,14 +441,14 @@ contains
             end where
           end if ! exists inv_inhom_effective_separation
           deallocate(prop_2d)
-          
+
         else
 
           write(nulout,'(a)') '*** Error: SPARTACUS solver specified but cloud size not, either in namelist or input file'
           stop
 
         end if ! Select method of specifying cloud effective size
-        
+
         ! In cases (3) and (4) above the effective size obtained from
         ! the NetCDF may be scaled by a namelist variable
         if (is_cloud_size_scalable .and. driver_config%effective_size_scaling > 0.0_jprb) then
@@ -477,11 +487,11 @@ contains
       allocate(single_level%skin_temperature(ncol))
       single_level%skin_temperature(1:ncol) = thermodynamics%temperature_hl(1:ncol,nlev+1)
       if (driver_config%iverbose >= 1 .and. config%do_lw &
-           &  .and. driver_config%skin_temperature_override < 0.0_jprb) then 
+           &  .and. driver_config%skin_temperature_override < 0.0_jprb) then
         write(nulout,'(a)') 'Warning: skin temperature set equal to lowest air temperature'
       end if
     end if
-    
+
     if (driver_config%sw_albedo_override >= 0.0_jprb) then
       ! Optional override of shortwave albedo
       allocate(single_level%sw_albedo(ncol,1))
@@ -510,7 +520,7 @@ contains
         end if
       end if
     end if
-    
+
     ! Longwave emissivity
     if (driver_config%lw_emissivity_override >= 0.0_jprb) then
       ! Optional override of longwave emissivity
@@ -527,7 +537,7 @@ contains
         call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.true.)
       end if
     end if
-  
+
     ! Optional override of skin temperature
     if (driver_config%skin_temperature_override >= 0.0_jprb) then
       single_level%skin_temperature = driver_config%skin_temperature_override
@@ -536,7 +546,7 @@ contains
              &  driver_config%skin_temperature_override
       end if
     end if
-    
+
     ! --------------------------------------------------------
     ! Read aerosol and gas concentrations
     ! --------------------------------------------------------

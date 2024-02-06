@@ -47,14 +47,21 @@ module radiation_pdf_sampler
     procedure :: masked_block_sample => sample_from_pdf_masked_block
     procedure :: deallocate => deallocate_pdf_sampler
 
+#ifdef _OPENACC
+    procedure :: create_device
+    procedure :: update_host
+    procedure :: update_device
+    procedure :: delete_device
+#endif
+
   end type pdf_sampler_type
 
 contains
 
   !---------------------------------------------------------------------
-  ! Load look-up table from a file 
+  ! Load look-up table from a file
   subroutine setup_pdf_sampler(this, file_name, iverbose)
-    
+
     use yomhook,     only : lhook, dr_hook, jphook
     use easy_netcdf, only : netcdf_file
 
@@ -114,7 +121,7 @@ contains
     end if
 
     if (lhook) call dr_hook('radiation_pdf_sampler:deallocate',1,hook_handle)
-    
+
   end subroutine deallocate_pdf_sampler
 
 
@@ -124,7 +131,7 @@ contains
   ! "cdf", and return it in val. Since this is an elemental
   ! subroutine, fsd, cdf and val may be arrays.
   elemental subroutine sample_from_pdf(this, fsd, cdf, val)
-    
+
     class(pdf_sampler_type), intent(in)  :: this
 
     ! Fractional standard deviation (0 to 4) and cumulative
@@ -163,7 +170,7 @@ contains
   ! cumulative distribution function values "cdf", and return in
   ! val. For false elements of mask, return zero in val.
   subroutine sample_from_pdf_masked(this, nsamp, fsd, cdf, val, mask)
-    
+
     class(pdf_sampler_type), intent(in)  :: this
 
     ! Number of samples
@@ -194,11 +201,11 @@ contains
         wcdf = cdf(jsamp) * (this%ncdf-1) + 1.0_jprb
         icdf = max(1, min(int(wcdf), this%ncdf-1))
         wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
-        
+
         wfsd = (fsd(jsamp)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
         ifsd = max(1, min(int(wfsd), this%nfsd-1))
         wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
-        
+
         val(jsamp)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
              &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
              &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
@@ -214,7 +221,7 @@ contains
   ! "fsd" corresponding to the cumulative distribution function values
   ! "cdf", and return in val. This version works on 2D blocks of data.
   subroutine sample_from_pdf_block(this, nz, ng, fsd, cdf, val)
-    
+
     class(pdf_sampler_type), intent(in)  :: this
 
     ! Number of samples
@@ -243,11 +250,11 @@ contains
           wcdf = cdf(jg,jz) * (this%ncdf-1) + 1.0_jprb
           icdf = max(1, min(int(wcdf), this%ncdf-1))
           wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
-          
+
           wfsd = (fsd(jz)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
           ifsd = max(1, min(int(wfsd), this%nfsd-1))
           wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
-          
+
           val(jg,jz)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
                &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
                &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
@@ -265,7 +272,7 @@ contains
   ! "fsd" corresponding to the cumulative distribution function values
   ! "cdf", and return in val. This version works on 2D blocks of data.
   subroutine sample_from_pdf_masked_block(this, nz, ng, fsd, cdf, val, mask)
-    
+
     class(pdf_sampler_type), intent(in)  :: this
 
     ! Number of samples
@@ -293,18 +300,18 @@ contains
     do jz = 1,nz
 
       if (mask(jz)) then
-        
+
         do jg = 1,ng
           if (cdf(jg, jz) > 0.0_jprb) then
             ! Bilinear interpolation with bounds
             wcdf = cdf(jg,jz) * (this%ncdf-1) + 1.0_jprb
             icdf = max(1, min(int(wcdf), this%ncdf-1))
             wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
-          
+
             wfsd = (fsd(jz)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
             ifsd = max(1, min(int(wfsd), this%nfsd-1))
             wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
-            
+
             val(jg,jz)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
                  &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
                  &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
@@ -319,5 +326,32 @@ contains
     end do
 
   end subroutine sample_from_pdf_masked_block
+
+#ifdef _OPENACC
+
+  subroutine create_device(this)
+    class(pdf_sampler_type), intent(inout) :: this
+
+    !$ACC ENTER DATA COPYIN(this%val) IF(allocated(this%val))
+  end subroutine create_device
+
+  subroutine update_host(this)
+    class(pdf_sampler_type), intent(inout) :: this
+
+    !$ACC UPDATE HOST(this%val) IF(allocated(this%val))
+  end subroutine update_host
+
+  subroutine update_device(this)
+    class(pdf_sampler_type), intent(inout) :: this
+
+    !$ACC UPDATE DEVICE(this%val) IF(allocated(this%val))
+  end subroutine update_device
+
+  subroutine delete_device(this)
+    class(pdf_sampler_type), intent(inout) :: this
+
+    !$ACC EXIT DATA DELETE(this%val) IF(allocated(this%val))
+  end subroutine delete_device
+#endif
 
 end module radiation_pdf_sampler

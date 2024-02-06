@@ -75,8 +75,10 @@ module radiation_gas
      procedure :: reverse    => reverse_gas
      procedure :: out_of_physical_bounds
 #ifdef _OPENACC
+    procedure :: create_device
     procedure :: update_host
     procedure :: update_device
+    procedure :: delete_device
 #endif
 
   end type gas_type
@@ -102,10 +104,10 @@ contains
     call this%deallocate()
 
     allocate(this%mixing_ratio(ncol, nlev, NMaxGases))
-    !$ACC ENTER DATA CREATE(this%mixing_ratio) ASYNC(1)
+    ! !$ACC ENTER DATA CREATE(this%mixing_ratio) ASYNC(1)
 
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
-    !$ACC LOOP GANG VECTOR COLLAPSE(3)
+    ! !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
+    ! !$ACC LOOP GANG VECTOR COLLAPSE(3)
     do jgas = 1,NMaxGases
       do jlev = 1, nlev
         do jcol = 1,ncol
@@ -113,11 +115,11 @@ contains
         end do
       end do
     end do
-    !$ACC END PARALLEL
+    ! !$ACC END PARALLEL
 
     this%ncol = ncol
     this%nlev = nlev
-    !$ACC UPDATE DEVICE(this%ncol, this%nlev) ASYNC(1)
+    ! !$ACC UPDATE DEVICE(this%ncol, this%nlev) ASYNC(1)
 
     if (lhook) call dr_hook('radiation_gas:allocate',1,hook_handle)
 
@@ -137,8 +139,8 @@ contains
     if (lhook) call dr_hook('radiation_gas:deallocate',0,hook_handle)
 
     if (allocated(this%mixing_ratio)) then
-       !$ACC EXIT DATA DELETE(this%mixing_ratio) WAIT(1)
-       deallocate(this%mixing_ratio)
+      ! !$ACC EXIT DATA DELETE(this%mixing_ratio) WAIT(1)
+      deallocate(this%mixing_ratio)
     end if
 
     this%iunits = 0
@@ -159,7 +161,7 @@ contains
   ! Put gas mixing ratio corresponding to gas ID "igas" with units
   ! "iunits"
   subroutine put_gas(this, igas, iunits, mixing_ratio, scale_factor, &
-       istartcol)
+       istartcol, lacc)
 
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
@@ -170,11 +172,19 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio(:,:)
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
+    logical,    optional, intent(in)    :: lacc
 
     integer :: i1, i2, jc, jk
+    logical :: llacc
 
 
     real(jphook) :: hook_handle
+
+    if (present(lacc)) then
+      llacc = lacc
+    else
+      llacc = .false.
+    endif
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
@@ -222,13 +232,14 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
-      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1)
+      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
     end if
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
+    !$ACC UPDATE DEVICE(this%is_present(igas), this%iunits(igas), this%is_well_mixed(igas)) IF(LLACC)
 
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, mixing_ratio) ASYNC(1)
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, mixing_ratio) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
       do jc = i1,i2
@@ -241,6 +252,7 @@ contains
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
+    !$ACC UPDATE DEVICE(this%scale_factor(igas)) IF(LLACC)
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
 
@@ -251,7 +263,7 @@ contains
   ! Put well-mixed gas mixing ratio corresponding to gas ID "igas"
   ! with units "iunits"
   subroutine put_well_mixed_gas(this, igas, iunits, mixing_ratio, &
-       scale_factor, istartcol, iendcol)
+       scale_factor, istartcol, iendcol, lacc)
 
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
@@ -262,10 +274,18 @@ contains
     real(jprb),           intent(in)    :: mixing_ratio
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol, iendcol
+    logical,    optional, intent(in)    :: lacc
 
     real(jphook) :: hook_handle
 
     integer :: i1, i2, jc, jk
+    logical :: llacc
+
+    if (present(lacc)) then
+      llacc = lacc
+    else
+      llacc = .false.
+    endif
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
@@ -310,16 +330,17 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
-      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1)
+      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
 
     end if
     ! Map uses a negative value to indicate a well-mixed value
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
+    !$ACC UPDATE DEVICE(this%is_present(igas), this%iunits(igas), this%is_well_mixed(igas)) IF(LLACC)
 
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
-    !$ACC LOOP GANG VECTOR COLLAPSE(2) 
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1) IF(LLACC)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
       do jc = i1,i2
         this%mixing_ratio(jc,jk,igas) = mixing_ratio
@@ -331,6 +352,7 @@ contains
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
+    !$ACC UPDATE DEVICE(this%scale_factor(igas)) IF(LLACC)
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',1,hook_handle)
 
@@ -377,11 +399,12 @@ contains
   ! scale_factor=1.0e-6. If the gas concentrations were currently
   ! dimensionless volume mixing ratios, then the values would be
   ! internally divided by 1.0e-6.
-  recursive subroutine set_units_gas(this, iunits, igas, scale_factor)
+  recursive subroutine set_units_gas(this, iunits, igas, scale_factor, lacc)
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: iunits
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor
+    logical,    optional, intent(in)    :: lacc
 
     integer :: jg, jcol, jlev
 
@@ -390,6 +413,13 @@ contains
 
     ! New scaling factor to store inside the gas object
     real(jprb) :: new_sf
+    logical :: llacc
+
+    if (present(lacc)) then
+      llacc = lacc
+    else
+      llacc = .false.
+    endif
 
     if (present(scale_factor)) then
       ! "sf" is the scaling to be applied now to the numbers (and may
@@ -415,30 +445,31 @@ contains
         end if
         sf = sf * this%scale_factor(igas)
 
+        !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, this%mixing_ratio, igas, this%iunits, this%scale_factor) ASYNC(1) IF(LLACC)
         if (sf /= 1.0_jprb) then
-          !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, this%mixing_ratio, igas) ASYNC(1)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jlev = 1,this%nlev
             do jcol = 1,this%ncol
               this%mixing_ratio(jcol,jlev,igas) = this%mixing_ratio(jcol,jlev,igas) * sf
             enddo
           enddo
-          !$ACC END PARALLEL
         end if
+        !$ACC END PARALLEL
         ! Store the new units and scale factor for this gas inside the
         ! gas object
         this%iunits(igas) = iunits
         this%scale_factor(igas) = new_sf
+        !$ACC UPDATE DEVICE(this%iunits(igas), this%scale_factor(igas)) IF(LLACC)
       end if
     else
       do jg = 1,this%ntype
-        call this%set_units(iunits, igas=this%icode(jg), scale_factor=new_sf)
+        call this%set_units(iunits, igas=this%icode(jg), scale_factor=new_sf, lacc=llacc)
       end do
     end if
 
   end subroutine set_units_gas
 
-  
+
   !---------------------------------------------------------------------
   ! Return a vector indicating the scaling that one would need to
   ! apply to each gas in order to obtain the dimension units in
@@ -448,7 +479,7 @@ contains
     integer,         intent(in)  :: iunits
     real(jprb),      intent(out) :: scaling(NMaxGases)
     integer :: jg
-    
+
     scaling = this%scale_factor
     do jg = 1,NMaxGases
       if (iunits == IMassMixingRatio .and. this%iunits(jg) == IVolumeMixingRatio) then
@@ -457,10 +488,10 @@ contains
         scaling(jg) = scaling(jg) * AirMolarMass / GasMolarMass(jg)
       end if
     end do
-    
+
   end subroutine get_scaling
 
-  
+
   !---------------------------------------------------------------------
   ! Assert that gas mixing ratio units are "iunits", applying to gas
   ! with ID "igas" if present, otherwise to all gases. Otherwise the
@@ -492,7 +523,7 @@ contains
     if (present(istatus)) then
       istatus = .true.
     end if
-    
+
     if (present(igas)) then
       if (this%is_present(igas)) then
         if (iunits /= this%iunits(igas)) then
@@ -530,6 +561,8 @@ contains
   subroutine get_gas(this, igas, iunits, mixing_ratio, scale_factor, &
        &   istartcol)
 
+    !$ACC ROUTINE GANG
+
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
@@ -541,16 +574,16 @@ contains
     integer,    optional, intent(in)  :: istartcol
 
     real(jprb)                        :: sf
-    integer                           :: i1, i2
+    integer                           :: i1, i2, nlev
+    integer                           :: jcol, jlev
 
+#ifndef _OPENACC
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
-
-#ifdef _OPENACC
-    write(nulerr,'(a)') '*** Error: radiation_gas:get not ported to GPU'
-    call radiation_abort()
 #endif
+
+    nlev = size(this%mixing_ratio, 2)
 
     if (present(scale_factor)) then
       sf = scale_factor
@@ -566,6 +599,7 @@ contains
 
     i2 = i1 + size(mixing_ratio,1) - 1
 
+#ifndef _OPENACC
     if (i1 < 1 .or. i2 < 1 .or. i1 > this%ncol .or. i2 > this%ncol) then
       write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to get columns indexed ', &
            &   i1, ' to ', i2, ' from array indexed 1 to ', this%ncol
@@ -578,9 +612,15 @@ contains
            &  ' levels'
       call radiation_abort()
     end if
+#endif
 
     if (.not. this%is_present(igas)) then
-      mixing_ratio = 0.0_jprb
+      !$ACC LOOP GANG VECTOR COLLAPSE(2)
+      do jcol = 1,size(mixing_ratio,1)
+        do jlev = 1,nlev
+          mixing_ratio(jcol,jlev) = 0.0_jprb
+        end do
+      end do
     else
       if (iunits == IMassMixingRatio &
            &   .and. this%iunits(igas) == IVolumeMixingRatio) then
@@ -592,13 +632,25 @@ contains
       sf = sf * this%scale_factor(igas)
 
       if (sf /= 1.0_jprb) then
-        mixing_ratio = this%mixing_ratio(i1:i2,:,igas) * sf
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = i1,i2
+          do jlev = 1,nlev
+            mixing_ratio(jcol-i1+1,jlev) = this%mixing_ratio(jcol,jlev,igas) * sf
+          end do
+        end do
       else
-        mixing_ratio = this%mixing_ratio(i1:i2,:,igas)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = i1,i2
+          do jlev = 1,nlev
+            mixing_ratio(jcol-i1+1,jlev) = this%mixing_ratio(jcol,jlev,igas)
+          end do
+        end do
       end if
     end if
 
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_gas:get',1,hook_handle)
+#endif
 
   end subroutine get_gas
 
@@ -665,6 +717,17 @@ contains
 
 #ifdef _OPENACC
   !---------------------------------------------------------------------
+  ! creates fields on device
+  subroutine create_device(this)
+
+    class(gas_type), intent(inout) :: this
+
+    !$ACC ENTER DATA CREATE(this%mixing_ratio) &
+    !$ACC   IF(allocated(this%mixing_ratio))
+
+  end subroutine create_device
+
+  !---------------------------------------------------------------------
   ! updates fields on host
   subroutine update_host(this)
 
@@ -685,6 +748,17 @@ contains
     !$ACC   IF(allocated(this%mixing_ratio))
 
   end subroutine update_device
-#endif 
+
+  !---------------------------------------------------------------------
+  ! deletes fields on device
+  subroutine delete_device(this)
+
+    class(gas_type), intent(inout) :: this
+
+    !$ACC EXIT DATA DELETE(this%mixing_ratio) &
+    !$ACC   IF(allocated(this%mixing_ratio))
+
+  end subroutine delete_device
+#endif
 
 end module radiation_gas

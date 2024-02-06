@@ -43,13 +43,13 @@ module radiation_thermodynamics
 
      ! Using the interpolation method for temperature and pressure from half levels
      ! to full levels that is used in the subroutine gas_optics in radiation_ifs_rrtm
-     ! can result in values for ind1 that exceed the bounds of absa within 
+     ! can result in values for ind1 that exceed the bounds of absa within
      ! srtm_taumol16 for ecRad inside ICON. This can be avoided by directly
-     ! passing pressure_fl and temperature_fl from ICON to ecRad. With 
+     ! passing pressure_fl and temperature_fl from ICON to ecRad. With
      ! rrtm_pass_temppres_fl = .TRUE., the fields pressure_fl and temperature_fl
      ! are allocated and used within gas_optics in radiation_ifs_rrtm.
      logical :: &
-          &  rrtm_pass_temppres_fl 
+          &  rrtm_pass_temppres_fl
    contains
      procedure :: allocate   => allocate_thermodynamics_arrays
      procedure :: deallocate => deallocate_thermodynamics_arrays
@@ -58,8 +58,10 @@ module radiation_thermodynamics
      procedure :: get_layer_mass_column
      procedure :: out_of_physical_bounds
 #ifdef _OPENACC
+    procedure :: create_device
     procedure :: update_host
     procedure :: update_device
+    procedure :: delete_device
 #endif
 
   end type thermodynamics_type
@@ -89,7 +91,7 @@ contains
 
     allocate(this%pressure_hl(ncol,nlev+1))
     allocate(this%temperature_hl(ncol,nlev+1))
-    !$ACC ENTER DATA CREATE(this%pressure_hl, this%temperature_hl) ASYNC(1)
+    ! !$ACC ENTER DATA CREATE(this%pressure_hl, this%temperature_hl) ASYNC(1)
 
     use_h2o_sat_local = .false.
     if (present(use_h2o_sat)) then
@@ -104,13 +106,13 @@ contains
     if (this%rrtm_pass_temppres_fl) then
       allocate(this%pressure_fl(ncol,nlev))
       allocate(this%temperature_fl(ncol,nlev))
-      !$ACC ENTER DATA CREATE(this%pressure_fl, this%temperature_fl) ASYNC(1)
+      ! !$ACC ENTER DATA CREATE(this%pressure_fl, this%temperature_fl) ASYNC(1)
     end if
-    
+
     if (use_h2o_sat_local) then
       allocate(this%h2o_sat_liq(ncol,nlev))
-      !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1)
-    end if    
+      ! !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1)
+    end if
 
     if (lhook) call dr_hook('radiation_thermodynamics:allocate',1,hook_handle)
 
@@ -130,28 +132,28 @@ contains
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',0,hook_handle)
 
     if (allocated(this%pressure_hl)) then
-      !$ACC EXIT DATA DELETE(this%pressure_hl) WAIT(1)
+      ! !$ACC EXIT DATA DELETE(this%pressure_hl) WAIT(1)
       deallocate(this%pressure_hl)
     end if
     if (allocated(this%temperature_hl)) then
-      !$ACC EXIT DATA DELETE(this%temperature_hl) WAIT(1)
+      ! !$ACC EXIT DATA DELETE(this%temperature_hl) WAIT(1)
       deallocate(this%temperature_hl)
     end if
-    if (allocated(this%pressure_fl)) then
-      !$ACC EXIT DATA DELETE(this%pressure_fl) WAIT(1)
+if (allocated(this%pressure_fl)) then
+      ! !$ACC EXIT DATA DELETE(this%pressure_fl) WAIT(1)
       deallocate(this%pressure_fl)
     end if
     if (allocated(this%temperature_fl)) then
-      !$ACC EXIT DATA DELETE(this%temperature_fl) WAIT(1)
+      ! !$ACC EXIT DATA DELETE(this%temperature_fl) WAIT(1)
       deallocate(this%temperature_fl)
     end if
     if (allocated(this%h2o_sat_liq)) then
-      !$ACC EXIT DATA DELETE(this%h2o_sat_liq) WAIT(1)
+      ! !$ACC EXIT DATA DELETE(this%h2o_sat_liq) WAIT(1)
       deallocate(this%h2o_sat_liq)
     end if
 
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',1,hook_handle)
-  
+
   end subroutine deallocate_thermodynamics_arrays
 
 
@@ -182,11 +184,11 @@ contains
 
     if (.not. allocated(this%h2o_sat_liq)) then
       allocate(this%h2o_sat_liq(ncol,nlev))
-      !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1)
+      ! !$ACC ENTER DATA CREATE(this%h2o_sat_liq) ASYNC(1)
     end if
 
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
-    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(pressure, temperature, e_sat)
+    ! !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1)
+    ! !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(pressure, temperature, e_sat)
     do jlev = 1,nlev
        do jcol = istartcol,iendcol
           pressure = 0.5 * (this%pressure_hl(jcol,jlev)+this%pressure_hl(jcol,jlev+1))
@@ -197,7 +199,7 @@ contains
           this%h2o_sat_liq(jcol,jlev) = min(1.0_jprb, 0.622_jprb * e_sat / pressure)
        end do
     end do
-    !$ACC END PARALLEL
+    ! !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',1,hook_handle)
 
@@ -229,8 +231,8 @@ contains
     layer_mass(istartcol:iendcol,1:nlev) &
          &  = ( this%pressure_hl(istartcol:iendcol,2:nlev+1) &
          &     -this%pressure_hl(istartcol:iendcol,1:nlev  )  ) &
-         &  * inv_g 
-    
+         &  * inv_g
+
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',1,hook_handle)
 
   end subroutine get_layer_mass
@@ -260,7 +262,7 @@ contains
     layer_mass = ( this%pressure_hl(icol,2:nlev+1) &
              &    -this%pressure_hl(icol,1:nlev  )  ) &
              &   * inv_g
-    
+
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass_column',1,hook_handle)
 
   end subroutine get_layer_mass_column
@@ -306,7 +308,7 @@ contains
       ! don't take the logarithm of the first pressure in each column.
       layer_separation(i1:i2,1) = R_over_g * temperature_hl(i1:i2,2) &
            &                    * log(pressure_hl(i1:i2,3)/pressure_hl(i1:i2,2))
-      
+
       ! For other layers we take the separation between midpoints to
       ! be half the separation between the half-levels at the edge of
       ! the two adjacent layers
@@ -331,7 +333,7 @@ contains
 
     end if
 
-    if (lhook) call dr_hook('radiation_thermodynamics:get_layer_separation',1,hook_handle)    
+    if (lhook) call dr_hook('radiation_thermodynamics:get_layer_separation',1,hook_handle)
 
   end subroutine get_layer_separation
 
@@ -374,6 +376,30 @@ contains
   end function out_of_physical_bounds
 
 #ifdef _OPENACC
+
+  !---------------------------------------------------------------------
+  ! Creates fields on device
+  subroutine create_device(this)
+
+    class(thermodynamics_type), intent(inout) :: this
+
+    !$ACC ENTER DATA CREATE(this%pressure_hl) &
+    !$ACC   IF(allocated(this%pressure_hl))
+
+    !$ACC ENTER DATA CREATE(this%temperature_hl) &
+    !$ACC   IF(allocated(this%temperature_hl))
+
+    !$ACC ENTER DATA CREATE(this%pressure_fl) &
+    !$ACC   IF(allocated(this%pressure_fl))
+
+    !$ACC ENTER DATA CREATE(this%temperature_fl) &
+    !$ACC   IF(allocated(this%temperature_fl))
+
+    !$ACC ENTER DATA CREATE(this%h2o_sat_liq) &
+    !$ACC   IF(allocated(this%h2o_sat_liq))
+
+  end subroutine create_device
+
   !---------------------------------------------------------------------
   ! updates fields on host
   subroutine update_host(this)
@@ -419,6 +445,29 @@ contains
     !$ACC   IF(allocated(this%h2o_sat_liq))
 
   end subroutine update_device
-#endif 
-  
+
+  !---------------------------------------------------------------------
+  ! Deletes fields on device
+  subroutine delete_device(this)
+
+    class(thermodynamics_type), intent(inout) :: this
+
+    !$ACC EXIT DATA DELETE(this%pressure_hl) &
+    !$ACC   IF(allocated(this%pressure_hl))
+
+    !$ACC EXIT DATA DELETE(this%temperature_hl) &
+    !$ACC   IF(allocated(this%temperature_hl))
+
+    !$ACC EXIT DATA DELETE(this%pressure_fl) &
+    !$ACC   IF(allocated(this%pressure_fl))
+
+    !$ACC EXIT DATA DELETE(this%temperature_fl) &
+    !$ACC   IF(allocated(this%temperature_fl))
+
+    !$ACC EXIT DATA DELETE(this%h2o_sat_liq) &
+    !$ACC   IF(allocated(this%h2o_sat_liq))
+
+  end subroutine delete_device
+#endif
+
 end module radiation_thermodynamics

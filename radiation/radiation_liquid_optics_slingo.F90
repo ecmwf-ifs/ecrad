@@ -46,6 +46,10 @@ contains
     ! Effective radius in microns, and its inverse
     real(jprb) :: re_um, inv_re_um
 
+    integer :: jb
+
+    !$ACC ROUTINE SEQ
+
     !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_liquid_optics_slingo:calc_liq_optics_slingo',0,hook_handle)
@@ -55,9 +59,11 @@ contains
     re_um = min(max(4.2_jprb, re * 1.0e6_jprb), 16.6_jprb)
     inv_re_um = 1.0_jprb / re_um
 
-    od = lwp_gm_2 * (coeff(1:nb,1) + inv_re_um*coeff(1:nb,2))
-    scat_od = od * (1.0_jprb - coeff(1:nb,3) - re_um*coeff(1:nb,4))
-    g = coeff(1:nb,5) + re_um*coeff(1:nb,6)
+    do jb = 1, nb
+      od(jb) = lwp_gm_2 * (coeff(jb,1) + inv_re_um*coeff(jb,2))
+      scat_od(jb) = od(jb) * (1.0_jprb - coeff(jb,3) - re_um*coeff(jb,4))
+      g(jb) = coeff(jb,5) + re_um*coeff(jb,6)
+    end do
 
     !if (lhook) call dr_hook('radiation_liquid_optics_slingo:calc_liq_optics_slingo',1,hook_handle)
 
@@ -86,23 +92,33 @@ contains
     ! Effective radius in microns, and its inverse
     real(jprb) :: re_um, inv_re_um
 
+    integer :: jb
+
+    !$ACC ROUTINE SEQ
+
+#ifndef _OPENACC
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_liquid_optics_slingo:calc_liq_optics_lindner_li',0,hook_handle)
+#endif
 
     lwp_gm_2 = lwp * 1000.0_jprb
     ! Range of validity reported by Lindner and Li (2000): 2-40 microns
     re_um = min(max(2.0_jprb, re * 1.0e6_jprb), 40.0_jprb)
     inv_re_um = 1.0_jprb / re_um
 
-    od = lwp_gm_2 * (coeff(1:nb,1) + re_um*coeff(1:nb,2) + inv_re_um*(coeff(1:nb,3) &
-         &  + inv_re_um*(coeff(1:nb,4) + inv_re_um*coeff(1:nb,5))))
-    scat_od = od * (1.0_jprb - (coeff(1:nb,6) + inv_re_um*coeff(1:nb,7) &
-         &                      + re_um*(coeff(1:nb,8) + re_um*coeff(1:nb,9))))
-    g = coeff(1:nb,10) + inv_re_um*coeff(1:nb,11) &
-         &  + re_um*(coeff(1:nb,12) + re_um*coeff(1:nb,13))
+    do jb=1,nb
+      od(jb) = lwp_gm_2 * (coeff(jb,1) + re_um*coeff(jb,2) + inv_re_um*(coeff(jb,3) &
+          &  + inv_re_um*(coeff(jb,4) + inv_re_um*coeff(jb,5))))
+      scat_od(jb) = od(jb) * (1.0_jprb - (coeff(jb,6) + inv_re_um*coeff(jb,7) &
+          &                      + re_um*(coeff(jb,8) + re_um*coeff(jb,9))))
+      g(jb) = coeff(jb,10) + inv_re_um*coeff(jb,11) &
+          &  + re_um*(coeff(jb,12) + re_um*coeff(jb,13))
+    end do
 
+#ifndef _OPENACC
     if (lhook) call dr_hook('radiation_liquid_optics_slingo:calc_liq_optics_lindner_li',1,hook_handle)
+#endif
 
   end subroutine calc_liq_optics_lindner_li
 

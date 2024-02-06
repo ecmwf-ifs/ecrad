@@ -70,6 +70,8 @@ end subroutine delta_eddington_extensive
 ! Array version of delta_eddington_extensive, more likely to vectorize
  subroutine delta_eddington_extensive_vec(ng, od, scat_od, scat_od_g)
 
+  !$ACC ROUTINE VECTOR
+
   use parkind1, only : jprb
 
   ! Total optical depth, scattering optical depth and asymmetry factor
@@ -82,6 +84,7 @@ end subroutine delta_eddington_extensive
   real(jprb) :: f, g
   integer :: j
 
+  !$ACC LOOP VECTOR PRIVATE(g, f)
   do j = 1,ng
     g            = scat_od_g(j) / max(scat_od(j), tiny(scat_od(j)))
     f            = g*g

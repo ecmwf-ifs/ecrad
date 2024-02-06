@@ -307,6 +307,8 @@ contains
     character(len=100) :: rad_prop_file_name
     character(*), parameter :: rad_prop_base_file_name = "radiative_properties"
 
+    integer :: jcol, jlev, jband
+
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_interface:radiation',0,hook_handle)
@@ -403,11 +405,24 @@ contains
                &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
         end if
       else
-        g_sw(:,:,istartcol:iendcol) = 0.0_jprb
-        if (config%do_lw_aerosol_scattering) then
-          ssa_lw(:,:,istartcol:iendcol) = 0.0_jprb
-          g_lw(:,:,istartcol:iendcol)   = 0.0_jprb
-        end if
+        !$ACC PARALLEL DEFAULT(PRESENT)
+        !$ACC LOOP GANG VECTOR COLLAPSE(2)
+        do jcol = istartcol,iendcol
+          do jlev = 1,nlev
+            !$ACC LOOP SEQ
+            do jband = 1,config%n_g_sw
+              g_sw(jband,jlev,jcol) = 0.0_jprb
+            end do
+            if (config%do_lw_aerosol_scattering) then
+              !$ACC LOOP SEQ
+              do jband = 1,config%n_g_lw
+                ssa_lw(jband,jlev,jcol) = 0.0_jprb
+                g_lw(jband,jlev,jcol)   = 0.0_jprb
+              end do
+            end if
+          end do
+        end do
+        !$ACC END PARALLEL
       end if
 
       ! For diagnostic purposes, save these intermediate variables to
@@ -419,6 +434,13 @@ contains
           write(rad_prop_file_name,'(a,a,i4.4,a,i4.4,a)') &
                &  rad_prop_base_file_name, '_', istartcol, '-',iendcol,'.nc'
         end if
+#ifdef _OPENACC
+          !$ACC UPDATE HOST(od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+          !$ACC             planck_hl, lw_emission, lw_albedo, sw_albedo_direct, sw_albedo_diffuse, &
+          !$ACC             incoming_sw, od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
+          call cloud%update_host()
+          call flux%update_host()
+#endif
         call save_radiative_properties(trim(rad_prop_file_name), &
              &  nlev, istartcol, iendcol, &
              &  config, single_level, thermodynamics, cloud, &
@@ -436,11 +458,19 @@ contains
 
         !$ACC WAIT
         if (config%i_solver_lw == ISolverMcICA) then
+#ifdef _OPENACC
+          !$ACC UPDATE HOST(od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, planck_hl, lw_emission, lw_albedo)
+          call cloud%update_host()
+          call flux%update_host()
+#endif
           ! Compute fluxes using the McICA longwave solver
           call solver_mcica_lw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
                &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
+#ifdef _OPENACC
+          call flux%update_device()
+#endif
         else if (config%i_solver_lw == ISolverMcICAACC) then
           ! Compute fluxes using the McICA ACC longwave solver
           call solver_mcica_acc_lw(nlev,istartcol,iendcol, &
@@ -480,12 +510,20 @@ contains
 
         !$ACC WAIT
         if (config%i_solver_sw == ISolverMcICA) then
+#ifdef _OPENACC
+          !$ACC UPDATE HOST(od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, incoming_sw)
+          call cloud%update_host()
+          call flux%update_host()
+#endif
           ! Compute fluxes using the McICA shortwave solver
           call solver_mcica_sw(nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
+#ifdef _OPENACC
+          call flux%update_device()
+#endif
         else if (config%i_solver_sw == ISolverMcICAACC) then
           ! Compute fluxes using the McICA ACC shortwave solver
           call solver_mcica_acc_sw(nlev,istartcol,iendcol, &
