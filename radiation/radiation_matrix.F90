@@ -35,7 +35,7 @@ module radiation_matrix
   ! (x x x)
   ! (x x x)
   ! (0 0 x)
-  ! where each element may itself be a square matrix.  
+  ! where each element may itself be a square matrix.
   integer, parameter :: IMatrixPatternDense     = 0
   integer, parameter :: IMatrixPatternShortwave = 1
 
@@ -173,7 +173,7 @@ contains
       ! A = (F G H)
       !     (0 0 I)
       mblock = m/3
-      m2block = 2*mblock 
+      m2block = 2*mblock
       ! Do the top-left (C, D, F, G)
       do j2 = 1,m2block
         do j1 = 1,m2block
@@ -320,7 +320,7 @@ contains
   end function identity_minus_mat_x_mat
 
 
-  
+
   !---------------------------------------------------------------------
   ! Replacement for matmul in the case that the first matrix is sparse
   function sparse_x_dense(sparse, dense)
@@ -334,7 +334,7 @@ contains
     n1 = size(sparse,1)
     n2 = size(sparse,2)
     n3 = size(dense,2)
-    
+
     sparse_x_dense = 0.0_jprb
     do j2 = 1,n2
       do j1 = 1,n1
@@ -343,9 +343,9 @@ contains
         end if
       end do
     end do
-    
+
   end function sparse_x_dense
-  
+
 
   ! --- REPEATEDLY SQUARE A MATRIX ---
 
@@ -812,7 +812,7 @@ contains
 
     real(jprb), parameter :: theta(3) = (/4.258730016922831e-01_jprb, &
          &                                1.880152677804762e+00_jprb, &
-         &                                3.925724783138660e+00_jprb/) 
+         &                                3.925724783138660e+00_jprb/)
     real(jprb), parameter :: c(8) = (/17297280.0_jprb, 8648640.0_jprb, &
          &                1995840.0_jprb, 277200.0_jprb, 25200.0_jprb, &
          &                1512.0_jprb, 56.0_jprb, 1.0_jprb/)
@@ -893,7 +893,7 @@ contains
     ! Loop through the matrices
     do j1 = 1,iend
       if (expo(j1) > 0) then
-        ! Square matrix j1 expo(j1) times          
+        ! Square matrix j1 expo(j1) times
         A(j1,:,:) = repeated_square(m,A(j1,:,:),expo(j1),i_matrix_pattern)
       end if
     end do
@@ -1006,7 +1006,7 @@ contains
     V(1:iend,3,2) = c(1:iend) &
          &  / sign(max(my_epsilon, abs(d(1:iend) + lambda2)), d(1:iend) + lambda2)
     V(1:iend,3,3) = max(my_epsilon, c(1:iend)) / max(my_epsilon, d(1:iend))
-    
+
     diag(:,1) = exp(lambda1)
     diag(:,2) = exp(lambda2)
     diag(:,3) = 1.0_jprb
@@ -1029,5 +1029,5 @@ contains
 
 !  generic :: fast_expm_exchange => fast_expm_exchange_2, fast_expm_exchange_3
 
- 
+
 end module radiation_matrix

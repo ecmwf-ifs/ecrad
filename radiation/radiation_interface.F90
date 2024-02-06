@@ -163,7 +163,7 @@ contains
   ! possibly scale factors) required by the specific gas absorption
   ! model.  This subroutine simply passes the gas object on to the
   ! module of the currently active gas model.
-  subroutine set_gas_units(config, gas)
+  subroutine set_gas_units(config, gas, lacc)
 
     use radiation_config
     use radiation_gas,             only : gas_type

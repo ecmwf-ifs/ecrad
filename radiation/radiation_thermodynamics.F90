@@ -219,7 +219,7 @@ contains
     integer,                    intent(in)  :: istartcol, iendcol
     real(jprb),                 intent(out) :: layer_mass(:,:)
 
-    integer    :: nlev
+    integer    :: nlev, jl, jk
     real(jprb) :: inv_g
 
     real(jphook) :: hook_handle

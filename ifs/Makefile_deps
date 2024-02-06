@@ -3,5 +3,6 @@ cos_sza.o: yoerad.o yomrip.o
 ice_effective_radius.o: yoerad.o
 liquid_effective_radius.o: yoerad.o yoerdu.o
 radiation_scheme.o: radiation_setup.o
-radiation_setup.o: yoephy.o yoerad.o
+radiation_setup.o: yoephy.o yoerad.o yoe_spectral_planck.o
+satur.o: yoethf.o
 yoerad.o: yoe_spectral_planck.o
