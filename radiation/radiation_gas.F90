@@ -563,8 +563,6 @@ contains
   subroutine get_gas(this, igas, iunits, mixing_ratio, scale_factor, &
        &   istartcol)
 
-    !$ACC ROUTINE GANG
-
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
@@ -616,6 +614,7 @@ contains
     end if
 #endif
 
+    !$ACC PARALLEL
     if (.not. this%is_present(igas)) then
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jcol = 1,size(mixing_ratio,1)
@@ -649,6 +648,7 @@ contains
         end do
       end if
     end if
+    !$ACC END PARALLEL
 
 #ifndef _OPENACC
     if (lhook) call dr_hook('radiation_gas:get',1,hook_handle)

@@ -461,8 +461,10 @@ contains
         if (config%i_solver_lw == ISolverMcICA) then
 #ifdef _OPENACC
           !$ACC UPDATE HOST(od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, planck_hl, lw_emission, lw_albedo)
+          !$ACC WAIT(1)
           call cloud%update_host()
           call flux%update_host()
+          !$ACC WAIT(1)
 #endif
           ! Compute fluxes using the McICA longwave solver
           call solver_mcica_lw(nlev,istartcol,iendcol, &
@@ -470,7 +472,9 @@ contains
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, &
                &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
 #ifdef _OPENACC
+          !$ACC WAIT(1)
           call flux%update_device()
+          !$ACC WAIT(1)
 #endif
         else if (config%i_solver_lw == ISolverMcICAACC) then
           ! Compute fluxes using the McICA ACC longwave solver
@@ -513,8 +517,10 @@ contains
         if (config%i_solver_sw == ISolverMcICA) then
 #ifdef _OPENACC
           !$ACC UPDATE HOST(od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, incoming_sw)
+          !$ACC WAIT(1)
           call cloud%update_host()
           call flux%update_host()
+          !$ACC WAIT(1)
 #endif
           ! Compute fluxes using the McICA shortwave solver
           call solver_mcica_sw(nlev,istartcol,iendcol, &
@@ -523,7 +529,9 @@ contains
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
                &  incoming_sw, flux)
 #ifdef _OPENACC
+          !$ACC WAIT(1)
           call flux%update_device()
+          !$ACC WAIT(1)
 #endif
         else if (config%i_solver_sw == ISolverMcICAACC) then
           ! Compute fluxes using the McICA ACC shortwave solver

@@ -230,7 +230,7 @@ contains
     inv_g = 1.0_jprb / AccelDueToGravity
 
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
-    !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(inv_g)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
     DO jl=istartcol, iendcol
       DO jk=1, nlev
         layer_mass(jl,jk) &

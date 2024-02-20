@@ -625,11 +625,13 @@ contains
           end if
         end do
       end do
+      !$ACC END PARALLEL
 
       !call gas%get(IH2O, IMassMixingRatio, h2o_mmr, istartcol=istartcol)
       call get_gas(gas, IH2O, IMassMixingRatio, h2o_mmr, istartcol=istartcol)
 
       ! Loop over column
+      !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG
       do jcol = istartcol,iendcol
         !$ACC LOOP VECTOR PRIVATE(rh, itype, local_od_sw, local_od_lw, mixing_ratio, irh)
@@ -785,7 +787,7 @@ contains
 
         else
 
-          !$ACC LOOP VECTOR COLLAPSE(2) PRIVATE(iband, local_od)
+          !$ACC LOOP VECTOR COLLAPSE(2) PRIVATE(iband, local_od, local_scat)
           do jlev = 1,nlev
             do jg = 1,config%n_g_sw
               ! Need to map between bands and g-points
