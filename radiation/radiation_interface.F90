@@ -406,7 +406,7 @@ contains
                &  od_lw, ssa_lw, g_lw, od_sw, ssa_sw, g_sw)
         end if
       else
-        !$ACC PARALLEL DEFAULT(PRESENT)
+        !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jlev = 1,nlev

@@ -507,7 +507,7 @@ contains
     ! Fluxes in bands required for canopy radiative transfer
     if (config%do_sw .and. config%do_canopy_fluxes_sw) then
       if (config%use_canopy_full_spectrum_sw) then
-        !$ACC PARALLEL DEFAULT(PRESENT)
+        !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jg = 1,config%n_g_sw
@@ -543,7 +543,7 @@ contains
         ! this%sw_dn_[direct_]surf_band to be defined, i.e.
         ! config%do_surface_sw_spectral_flux == .true.
         nalbedoband = size(config%sw_albedo_weights,1)
-        !$ACC PARALLEL DEFAULT(PRESENT) &
+        !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) &
         !$ACC     PRESENT(this%sw_dn_diffuse_surf_canopy, this%sw_dn_direct_surf_canopy, &
         !$ACC             config%sw_albedo_weights)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
@@ -587,9 +587,8 @@ contains
     end if ! do_canopy_fluxes_sw
 
     if (config%do_lw .and. config%do_canopy_fluxes_lw) then
-      !$ACC DATA CREATE(lw_dn_surf_band) ASYNC(1)
       if (config%use_canopy_full_spectrum_lw) then
-        !$ACC PARALLEL DEFAULT(PRESENT)
+        !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jg = 1,config%n_g_lw
@@ -607,7 +606,7 @@ contains
           !$ACC PARALLEL DEFAULT(PRESENT) &
           !$ACC    NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC    VECTOR_LENGTH(32*(config%n_g_lw-1)/32+1) ASYNC(1)
-          !$ACC LOOP GANG
+                    !$ACC LOOP GANG
           do jcol = istartcol,iendcol
             ! Inlined indexed_sum because of an on-device segfault due to the nested
             ! array index-subscript passed as `ind` to indexed_sum
@@ -630,6 +629,7 @@ contains
 #endif
         end if
       else
+        !$ACC DATA CREATE(lw_dn_surf_band) ASYNC(1)
         ! Compute fluxes in each longwave emissivity interval using
         ! weights; first sum over g points to get the values in bands
         if (use_indexed_sum_vec) then
@@ -648,7 +648,8 @@ contains
           !$ACC END PARALLEL
         end if
         nalbedoband = size(config%lw_emiss_weights,1)
-        !$ACC PARALLEL DEFAULT(PRESENT) PRESENT(this%lw_dn_surf_canopy, config%lw_emiss_weights)
+        !$ACC PARALLEL DEFAULT(PRESENT) &
+        !$ACC   PRESENT(this%lw_dn_surf_canopy, config%lw_emiss_weights) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jalbedoband = 1,nalbedoband
@@ -670,8 +671,8 @@ contains
         end do
         end do
         !$ACC END PARALLEL
+        !$ACC END DATA
       end if
-      !$ACC END DATA
     end if
 
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',1,hook_handle)
