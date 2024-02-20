@@ -1319,7 +1319,9 @@ contains
 
     ! McICA solver currently can't store full profiles of spectral fluxes
     if (this%i_solver_sw == ISolverMcICA) then
-      write(nulout, '(a)') 'Warning: McICA solver cannot store full profiles of spectral fluxes'
+      if (this%iverbosesetup >= 1) then
+        write(nulout, '(a)') 'Warning: McICA solver cannot store full profiles of spectral fluxes'
+      end if
       this%do_save_spectral_flux = .false.
     end if
 
