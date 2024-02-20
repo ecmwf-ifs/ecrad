@@ -235,11 +235,17 @@ contains
     end do
 
     ! Compute the fluxes above the highest cloud
-    flux_up(:,i_cloud_top) = source(:,i_cloud_top) &
-         &                 + albedo(:,i_cloud_top)*flux_dn(:,i_cloud_top)
+    !$ACC LOOP WORKER VECTOR
+    do jcol = 1,ncol
+      flux_up(jcol,i_cloud_top) = source(jcol,i_cloud_top) &
+          &                 + albedo(jcol,i_cloud_top)*flux_dn(jcol,i_cloud_top)
+    end do
     !$ACC LOOP SEQ
     do jlev = i_cloud_top-1,1,-1
-      flux_up(:,jlev) = transmittance(:,jlev)*flux_up(:,jlev+1) + source_up(:,jlev)
+      !$ACC LOOP WORKER VECTOR
+      do jcol = 1,ncol
+        flux_up(jcol,jlev) = transmittance(jcol,jlev)*flux_up(jcol,jlev+1) + source_up(jcol,jlev)
+      end do
     end do
 
     ! Work back down through the atmosphere from cloud top computing
@@ -323,7 +329,10 @@ contains
 #endif
 
     ! At top-of-atmosphere there is no diffuse downwelling radiation
-    flux_dn(:,1) = 0.0_jprb
+    !$ACC LOOP WORKER VECTOR
+    do jcol = 1,ncol
+      flux_dn(jcol,1) = 0.0_jprb
+    end do
 
     ! Work down through the atmosphere computing the downward fluxes
     ! at each half-level
@@ -338,7 +347,10 @@ contains
     end do
 
     ! Surface reflection and emission
-    flux_up(:,nlev+1) = emission_surf + albedo_surf * flux_dn(:,nlev+1)
+    !$ACC LOOP WORKER VECTOR
+    do jcol = 1,ncol
+      flux_up(jcol,nlev+1) = emission_surf(jcol) + albedo_surf(jcol) * flux_dn(jcol,nlev+1)
+    end do
 
     ! Work back up through the atmosphere computing the upward fluxes
     ! at each half-level
