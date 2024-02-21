@@ -260,7 +260,7 @@ contains
         end if
         
       end do
-      !$OMP END `PARALLEL DO
+      !$OMP END PARALLEL DO
       
       ! Horizontal "diffusion"
       if (jl < nlay) then

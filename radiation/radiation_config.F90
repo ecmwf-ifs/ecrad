@@ -65,9 +65,10 @@ module radiation_config
           &     ISolverSpartacus, ISolverTripleclouds, &
           &     ISolverTcrad, ISolverTcradICA, &
           &     ISolverFlotsam, ISolverFlotsamICA, &
-          &     ISolverDISORT, ISolverHomogeneousDISORT, ISolverCloudlessDISORT
+          &     ISolverDISORT, ISolverHomogeneousDISORT, ISolverCloudlessDISORT, &
+          &     ISolverPOMART3D
   end enum
-  character(len=*), parameter :: SolverName(0:11) = [ 'Cloudless        ', &
+  character(len=*), parameter :: SolverName(0:12) = [ 'Cloudless        ', &
        &                                              'Homogeneous      ', &
        &                                              'McICA            ', &
        &                                              'SPARTACUS        ', &
@@ -78,7 +79,8 @@ module radiation_config
        &                                              'FLOTSAMICA       ', &
        &                                              'DISORT           ', &
        &                                              'HomogeneousDISORT', &
-       &                                              'CloudlessDISORT  ' ]
+       &                                              'CloudlessDISORT  ', &
+       &                                              'POMART3D         ']
 
   ! How is the gridbox-mean cloud water adjusted to obtain the
   ! in-cloud value? Dependent on the solver, this may be Zero (ignore

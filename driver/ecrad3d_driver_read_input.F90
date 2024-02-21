@@ -1,0 +1,1049 @@
+! ecrad3d_driver_read_input.F90 - Read input structures from NetCDF file which may be 3D
+!
+! (C) Copyright 2018- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
+! Author:  Robin Hogan
+! Email:   r.j.hogan@ecmwf.int
+
+module ecrad3d_driver_read_input
+
+  public
+  
+contains
+
+  ! --------------------------------------------------------
+  ! Read a netCDF file containing input fields for ecRad
+  subroutine read_input(file, config, driver_config, ncol, nlev, &
+       &          geometry, single_level, thermodynamics, &
+       &          gas, cloud, aerosol)
+
+    use parkind1,                 only : jprb, jpim
+    use radiation_io,             only : nulout
+    use radiation_config,         only : config_type, ISolverSPARTACUS, ISolverTCRAD, IGasModelIFSRRTMG
+    use ecrad_driver_config,      only : driver_config_type
+    use ecrad3d_geometry,         only : geometry_type
+    use radiation_single_level,   only : single_level_type
+    use radiation_thermodynamics, only : thermodynamics_type
+    use radiation_gas,            only : gas_type, &
+       &   IVolumeMixingRatio, IMassMixingRatio, &
+       &   IH2O, ICO2, IO3, IN2O, ICO, ICH4, IO2, ICFC11, ICFC12, &
+       &   IHCFC22, ICCl4, INO2, GasName, GasLowerCaseName, NMaxGases
+    use radiation_cloud,          only : cloud_type
+    use radiation_aerosol,        only : aerosol_type
+    use easy_netcdf,              only : netcdf_file
+    
+    implicit none
+
+    type(netcdf_file),         intent(in)    :: file
+    type(config_type),         intent(in)    :: config
+    type(driver_config_type),  intent(in)    :: driver_config
+    type(geometry_type),       intent(inout) :: geometry
+    type(single_level_type),   intent(inout) :: single_level
+    type(thermodynamics_type), intent(inout) :: thermodynamics
+    type(gas_type),            intent(inout) :: gas
+    type(cloud_type),  target, intent(inout) :: cloud
+    type(aerosol_type),        intent(inout) :: aerosol
+
+    real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
+
+    ! Number of columns and levels of input data
+    integer, intent(out) :: ncol, nlev
+
+    integer :: ngas2d ! Num of gases with concs described in 2D
+    integer :: ngas1d ! Num of gases with concs described in 1D or 0D
+
+    ! Number of array dimensions for each gas
+    integer :: ngasdims(NMaxGases)
+    
+    ! Mixing ratio of gases described in 2D (ncol,nlev); this is
+    ! volume mixing ratio (m3/m3) except for water vapour and ozone
+    ! for which it is mass mixing ratio (kg/kg)
+    real(jprb), allocatable, dimension(:,:) :: gas_mr
+
+    ! Alternatives for variation with height only or perfectly well mixed
+    real(jprb), allocatable, dimension(:) :: gas_mr_1d
+    real(jprb) :: gas_mr_0d
+
+    ! Volume mixing ratio (m3/m3) of globally well-mixed gases
+    real(jprb)                              :: well_mixed_gas_vmr
+
+    ! Name of gas concentration variable in the file
+    character(40)               :: gas_var_name
+
+    ! Cloud overlap decorrelation length (m)
+    real(jprb), parameter :: decorr_length_default = 2000.0_jprb
+
+    ! General property to be read and then modified before used in an
+    ! ecRad structure
+    real(jprb), allocatable, dimension(:)   :: prop_1d
+    real(jprb), allocatable, dimension(:,:) :: prop_2d
+
+    ! Longitude and latitude (degrees)
+    real(jprb), allocatable, dimension(:) :: latitude, longitude
+
+    integer :: jgas               ! Loop index for reading gases
+    integer :: irank              ! Dimensions of gas data
+
+    ! Can we scale cloud size using namelist parameters?  No if the
+    ! cloud size came from namelist parameters in the first place, yes
+    ! if it came from the NetCDF file in the first place
+    logical :: is_cloud_size_scalable
+
+    logical :: gas_not_found
+
+    ! Number of dimensions in a variable
+    integer :: ndim
+
+    integer :: nhydro, nre
+
+    ! Loop indices
+    integer :: jcol, jx, jy
+
+    ! Column index
+    integer :: icol
+    
+    ! Are we reading a 3D file?
+    ndim = file%get_rank('pressure_hl')
+    if (ndim == 2) then
+      ! 2D file: get number of columns and levels from half-level
+      ! pressure field, which must be defined at every column and
+      ! level
+      geometry%is_3d = .false.
+      call file%get('pressure_hl', thermodynamics%pressure_hl)
+      ! Extract array dimensions
+      ncol = size(thermodynamics%pressure_hl,1)
+      nlev = size(thermodynamics%pressure_hl,2)-1
+    else
+      ! 3D file: pressure is either 1D (same pressure for all columns)
+      ! or 3D
+      geometry%is_3d = .true.
+      if (file%exists('x') .and. file%exists('y')) then
+        call file%get('x',geometry%x)
+        call file%get('y',geometry%y)
+        geometry%is_lat_lon = .false.
+      else if (file%exists('lon') .and. file%exists('lat')) then
+        call file%get('lon',geometry%x)
+        call file%get('lat',geometry%y)
+        geometry%is_lat_lon = .true.
+      else
+        write(nulout,'(a)') '*** Error: pressure_hl is not 2D, so x/y or lat/lon must be present'
+        stop
+      end if
+      geometry%nx = size(geometry%x)
+      geometry%ny = size(geometry%y)
+      ncol = geometry%nx * geometry%ny
+      geometry%ncol = ncol
+      ! Assume height is the slowest-varying dimension in the file...
+      nlev = file%get_outer_dimension('pressure_hl')-1
+      call get_2d(file, geometry, 'pressure_hl',thermodynamics%pressure_hl)
+    end if
+
+    geometry%nz = nlev
+      
+    ! The following calls read in the data, allocating memory for 1D and
+    ! 2D arrays.  The program will stop if any variables are not found.
+    
+    ! Pressure and temperature (SI units) are on half-levels, i.e. of
+    ! length (ncol,nlev+1)
+    call get_2d(file, geometry, 'temperature_hl',thermodynamics%temperature_hl)
+
+    if (driver_config%solar_irradiance_override > 0.0_jprb) then
+      ! Optional override of solar irradiance
+      single_level%solar_irradiance = driver_config%solar_irradiance_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,f10.1)')  '  Overriding solar irradiance with ', &
+             &  driver_config%solar_irradiance_override
+      end if
+    else if (file%exists('solar_irradiance')) then
+      call file%get('solar_irradiance', single_level%solar_irradiance)
+    else
+      single_level%solar_irradiance = 1366.0_jprb
+      if (driver_config%iverbose >= 1 .and. config%do_sw) then
+        write(nulout,'(a,g10.3,a)') 'Warning: solar irradiance set to ', &
+             &  single_level%solar_irradiance, ' W m-2'
+        end if
+    end if
+
+    ! Solar and sensor geometry can either be provided directly, or
+    ! computed from the longitude and latitude of the sun, the sensor
+    ! and the column - here we load the longitude and latitude of the
+    ! column, if provided
+    call get_1d(file, geometry, 'latitude',  latitude,  is_optional=.true.)
+    call get_1d(file, geometry, 'longitude', longitude, is_optional=.true.)
+    if (geometry%is_3d .and. geometry%is_lat_lon .and. &
+         &  .not. file%exists('longitude') .and. .not. file%exists('latitude')) then
+      ! Copy latitude from coordinate variables
+      allocate(latitude(ncol))
+      allocate(longitude(ncol))
+      icol = 1
+      do jy = 1,geometry%ny
+        do jx = 1,geometry%nx
+          latitude(icol)  = geometry%y(jy)
+          longitude(icol) = geometry%x(jx)
+          icol = icol+1
+        end do
+      end do
+    end if
+    
+    ! Configure the amplitude of the spectral variations in solar
+    ! output associated with the 11-year solar cycle: +1.0 means solar
+    ! maximum, -1.0 means solar minimum, 0.0 means use the mean solar
+    ! spectrum.
+    if (driver_config%solar_cycle_multiplier_override > -1.0e6_jprb) then
+      single_level%spectral_solar_cycle_multiplier &
+           &  = driver_config%solar_cycle_multiplier_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,f10.1)')  '  Overriding solar spectral multiplier with ', &
+             &  driver_config%solar_cycle_multiplier_override
+      end if
+    else if (file%exists('solar_spectral_multiplier')) then
+      call file%get('spectral_solar_cycle_multiplier', single_level%spectral_solar_cycle_multiplier)
+    else
+      single_level%spectral_solar_cycle_multiplier = 0.0_jprb
+    end if
+    
+    if (driver_config%cos_sza_override >= 0.0_jprb) then
+      ! Optional override of cosine of solar zenith angle
+      allocate(single_level%cos_sza(ncol))
+      single_level%cos_sza = driver_config%cos_sza_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding cosine of the solar zenith angle with ', &
+             &  driver_config%cos_sza_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%solar_latitude > -200.0_jprb &
+         &   .and. driver_config%solar_longitude > -400.0_jprb) then
+      ! Compute solar zenith angle from longitude and latitude of sun
+      ! and column
+      allocate(single_level%cos_sza(ncol))
+      single_level%cos_sza &
+           &  = sin(driver_config%solar_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &  + cos(driver_config%solar_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &  * cos((longitude - driver_config%solar_longitude)*PI_OVER_180)
+    else if (file%exists('cos_solar_zenith_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call get_1d(file,geometry,'cos_solar_zenith_angle',single_level%cos_sza)
+    else if (.not. config%do_sw) then
+      ! If cos_solar_zenith_angle not present and shortwave radiation
+      ! not to be performed, we create an array of zeros as some gas
+      ! optics schemes still need to be run in the shortwave
+      allocate(single_level%cos_sza(ncol))
+      single_level%cos_sza = 0.0_jprb
+    else
+      write(nulout,'(a,a)') '*** Error: cos_solar_zenith_angle not provided'
+      stop
+    end if
+
+    if (driver_config%cos_sensor_zenith_angle_override >= -1.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%cos_sensor_zenith_angle(ncol))
+      single_level%cos_sensor_zenith_angle = driver_config%cos_sensor_zenith_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding cosine of the sensor zenith angle with ', &
+             &  driver_config%cos_sensor_zenith_angle_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%sensor_latitude > -200.0_jprb &
+         &   .and. driver_config%sensor_longitude > -400.0_jprb) then
+      ! Compute sensor zenith angle from longitude and latitude of
+      ! sensor and column
+      allocate(single_level%cos_sensor_zenith_angle(ncol))
+      single_level%cos_sensor_zenith_angle &
+           &  = sin(driver_config%sensor_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &  + cos(driver_config%sensor_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &  * cos((longitude - driver_config%sensor_longitude)*PI_OVER_180)
+    else if (file%exists('cos_sensor_zenith_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call get_1d(file,geometry,'cos_sensor_zenith_angle',single_level%cos_sensor_zenith_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: cos_sensor_zenith_angle not provided'
+      stop
+    end if
+
+    if (driver_config%solar_azimuth_angle_override >= -9.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%solar_azimuth_angle(ncol))
+      single_level%solar_azimuth_angle = driver_config%solar_azimuth_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding solar azimuth angle with ', &
+             &  driver_config%solar_azimuth_angle_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%solar_latitude > -200.0_jprb &
+         &   .and. driver_config%solar_longitude > -400.0_jprb) then
+      ! Compute solar azimuth angle from longitude and latitude of sun
+      ! and column
+      allocate(single_level%solar_azimuth_angle(ncol))
+      single_level%solar_azimuth_angle = calc_azimuth(driver_config%solar_latitude, &
+           &  driver_config%solar_longitude, latitude, longitude)
+
+    else if (file%exists('solar_azimuth_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call get_1d(file,geometry,'solar_azimuth_angle',single_level%solar_azimuth_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: solar_azimuth_angle not provided'
+      stop
+    end if
+
+    if (driver_config%sensor_azimuth_angle_override >= -9.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%sensor_azimuth_angle(ncol))
+      single_level%sensor_azimuth_angle = driver_config%sensor_azimuth_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding sensor azimuth angle with ', &
+             &  driver_config%sensor_azimuth_angle_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%sensor_latitude > -200.0_jprb &
+         &   .and. driver_config%sensor_longitude > -400.0_jprb) then
+      ! Compute sensor azimuth angle from longitude and latitude of sensor
+      ! and column
+      allocate(single_level%sensor_azimuth_angle(ncol))
+      single_level%sensor_azimuth_angle = calc_azimuth(driver_config%sensor_latitude, &
+           &  driver_config%sensor_longitude, latitude, longitude)
+    else if (file%exists('sensor_azimuth_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call get_1d(file, geometry, 'sensor_azimuth_angle', single_level%sensor_azimuth_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: sensor_azimuth_angle not provided'
+      stop
+    end if
+
+#ifdef FLOTSAM
+    if (config%do_sw .and. config%do_radiances) then
+      call single_level%calc_scattering_angle()
+    end if
+#endif
+
+    call get_1d(file, geometry, 'u_wind_10m', single_level%u_wind_10m, is_optional=.true.)
+    call get_1d(file, geometry, 'v_wind_10m', single_level%v_wind_10m, is_optional=.true.)
+    call get_1d(file, geometry, 'sea_fraction', single_level%sea_fraction, is_optional=.true.)
+
+    if (config%do_clouds) then
+
+      ! --------------------------------------------------------
+      ! Read cloud properties needed by most solvers
+      ! --------------------------------------------------------
+
+      if (driver_config%cloud_fraction_override >= 0.0_jprb) then
+        allocate(cloud%fraction(ncol,nlev))
+        cloud%fraction = driver_config%cloud_fraction_override
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3)') '  Overriding cloud fraction with ', &
+               &  driver_config%cloud_fraction_override
+        end if
+      else
+        ! Read cloud descriptors with dimensions (ncol, nlev)
+        call get_2d(file, geometry, 'cloud_fraction', cloud%fraction, is_optional=.true.)
+      end if
+
+      ! Fractional standard deviation of in-cloud water content
+      call get_2d(file, geometry, 'fractional_std', cloud%fractional_std, is_optional=.true.)
+      
+      ! Cloud water content and effective radius may be provided
+      ! generically, in which case they have dimensions (ncol, nlev,
+      ! ntype)
+      if (file%exists('q_hydrometeor')) then
+        if (geometry%is_3d) then
+          write(nulout,'(a)') '*** Error: 3D geometry unable to cope with q_hydrometeor :-('
+          stop
+        end if
+        call file%get('q_hydrometeor',  cloud%mixing_ratio, ipermute=[2,1,3])     ! kg/kg
+        call file%get('re_hydrometeor', cloud%effective_radius, ipermute=[2,1,3]) ! m
+      else
+        nre = 2
+        if (file%exists('q_rain')) then
+          nhydro = 3
+          if (file%exists('re_rain')) then
+            nre = 3
+          end if
+        else
+          nhydro = 2
+        end if
+        ! Ice and liquid properties provided in separate arrays
+        allocate(cloud%mixing_ratio(ncol,nlev,nhydro))
+        allocate(cloud%effective_radius(ncol,nlev,nre))
+        call get_2d(file, geometry, 'q_liquid', prop_2d)   ! kg/kg
+        cloud%mixing_ratio(:,:,1) = prop_2d
+        call get_2d(file, geometry, 'q_ice', prop_2d)   ! kg/kg
+        cloud%mixing_ratio(:,:,2) = prop_2d
+        call get_2d(file, geometry, 're_liquid', prop_2d)   ! m
+        cloud%effective_radius(:,:,1) = prop_2d
+        call get_2d(file, geometry, 're_ice', prop_2d)   ! m
+        cloud%effective_radius(:,:,2) = prop_2d
+        if (file%exists('q_rain')) then
+          call get_2d(file, geometry, 'q_rain', prop_2d)   ! kg/kg
+          cloud%mixing_ratio(:,:,3) = prop_2d
+          if (file%exists('re_rain')) then
+            call get_2d(file, geometry, 're_rain', prop_2d)   ! m
+            cloud%effective_radius(:,:,3) = prop_2d
+          end if
+        end if
+      end if
+      ! For backwards compatibility, associate pointers for liquid and
+      ! ice to the first and second slices of cloud%mixing_ratio and
+      ! cloud%effective_radius
+      cloud%q_liq  => cloud%mixing_ratio(:,:,1)
+      cloud%q_ice  => cloud%mixing_ratio(:,:,2)
+      cloud%re_liq => cloud%effective_radius(:,:,1)
+      cloud%re_ice => cloud%effective_radius(:,:,2)
+      cloud%ntype = size(cloud%mixing_ratio,3)
+
+      ! Simple initialization of the seeds for the Monte Carlo scheme
+      call single_level%init_seed_simple(1,ncol)
+      ! Overwrite with user-specified values if available
+      if (file%exists('iseed')) then
+        call file%get('iseed', single_level%iseed)
+      end if
+
+      ! Cloud overlap parameter
+      call get_2d(file, geometry, 'overlap_param', cloud%overlap_param, is_optional=.true.)
+
+      ! Optional scaling of liquid water mixing ratio
+      if (driver_config%q_liq_scaling >= 0.0_jprb &
+           &  .and. driver_config%q_liq_scaling /= 1.0_jprb) then
+        cloud%q_liq = cloud%q_liq * driver_config%q_liq_scaling
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3)')  '  Scaling liquid water mixing ratio by a factor of ', &
+               &  driver_config%q_liq_scaling
+        end if
+      end if
+
+      ! Optional scaling of ice water mixing ratio
+      if (driver_config%q_ice_scaling >= 0.0_jprb .and. driver_config%q_ice_scaling /= 1.0_jprb) then
+        cloud%q_ice = cloud%q_ice * driver_config%q_ice_scaling
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3)')  '  Scaling ice water mixing ratio by a factor of ', &
+               &  driver_config%q_ice_scaling
+        end if
+      end if
+
+      ! Optional scaling of cloud fraction
+      if (driver_config%cloud_fraction_scaling >= 0.0_jprb &
+           &  .and. driver_config%cloud_fraction_scaling /= 1.0_jprb &
+           &  .and. allocated(cloud%fraction)) then
+        cloud%fraction = cloud%fraction * driver_config%cloud_fraction_scaling
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3)')  '  Scaling cloud_fraction by a factor of ', &
+               &  driver_config%cloud_fraction_scaling
+        end if
+      end if
+
+      ! Cloud overlap is currently treated by an overlap decorrelation
+      ! length (m) that is constant everywhere, and specified in one
+      ! of the namelists
+      if (driver_config%overlap_decorr_length_override > 0.0_jprb) then
+        ! Convert overlap decorrelation length to overlap parameter between
+        ! adjacent layers, stored in cloud%overlap_param
+        call cloud%set_overlap_param(thermodynamics, &
+             &    driver_config%overlap_decorr_length_override)
+      else if (.not. allocated(cloud%overlap_param)) then 
+        if (driver_config%iverbose >= 1) then
+          write(nulout,'(a,g10.3,a)') 'Warning: overlap decorrelation length set to ', &
+               &  decorr_length_default, ' m'
+        end if
+        call cloud%set_overlap_param(thermodynamics, decorr_length_default)
+      else if (driver_config%overlap_decorr_length_scaling > 0.0_jprb) then
+        ! Scale the overlap decorrelation length by taking the overlap
+        ! parameter to a power
+        !    where (cloud%overlap_param > 0.99_jprb) cloud%overlap_param = 0.99_jprb
+        
+        where (cloud%overlap_param > 0.0_jprb) 
+          cloud%overlap_param = cloud%overlap_param**(1.0_jprb &
+               &                             / driver_config%overlap_decorr_length_scaling)
+        end where
+        
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3)')  '  Scaling overlap decorrelation length by a factor of ', &
+               &  driver_config%overlap_decorr_length_scaling
+        end if
+      else if (driver_config%overlap_decorr_length_scaling == 0.0_jprb) then
+        cloud%overlap_param = 0.0_jprb
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a)')  '  Setting overlap decorrelation length to zero (random overlap)'
+        end if
+      end if
+      
+      ! Cloud inhomogeneity is specified by the fractional standard
+      ! deviation of cloud water content, that is currently constant
+      ! everywhere (and the same for water and ice). The following copies
+      ! this constant into the cloud%fractional_std array.
+      if (driver_config%fractional_std_override >= 0.0_jprb) then
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3,a)') '  Overriding cloud fractional standard deviation with ', &
+               &  driver_config%fractional_std_override
+        end if
+        call cloud%create_fractional_std(ncol, nlev, &
+             &  driver_config%fractional_std_override)
+      else if (.not. allocated(cloud%fractional_std)) then
+        call cloud%create_fractional_std(ncol, nlev, 0.0_jprb)
+        if (driver_config%iverbose >= 1) then
+          write(nulout,'(a)') 'Warning: cloud optical depth fractional standard deviation set to zero'
+        end if
+      end if
+
+      ! --------------------------------------------------------
+      ! Read cloud properties needed by SPARTACUS
+      ! --------------------------------------------------------
+
+      if (config%i_solver_sw == ISolverSPARTACUS &
+           &  .or.   config%i_solver_lw == ISolverSPARTACUS &
+           &  .or. (config%i_solver_lw == ISolverTCRAD &
+           &        .and. config%do_3d_effects)) then
+
+        ! 3D radiative effects are governed by the length of cloud
+        ! edge per area of gridbox, which is characterized by the
+        ! inverse of the cloud effective size (m-1). Order of
+        ! precedence: (1) effective size namelist overrides, (2)
+        ! separation namelist overrides, (3) inv_cloud_effective_size
+        ! present in NetCDF, (4) inv_cloud_effective_separation
+        ! present in NetCDF. Only in the latter two cases may the
+        ! effective size be scaled by the namelist variable
+        ! "effective_size_scaling".
+
+        is_cloud_size_scalable = .false. ! Default for cases (1) and (2)
+
+        if (driver_config%low_inv_effective_size_override >= 0.0_jprb &
+             &  .or. driver_config%middle_inv_effective_size_override >= 0.0_jprb &
+             &  .or. driver_config%high_inv_effective_size_override >= 0.0_jprb) then
+          ! (1) Cloud effective size specified in namelist
+
+          ! First check all three ranges provided
+          if (driver_config%low_inv_effective_size_override < 0.0_jprb &
+             &  .or. driver_config%middle_inv_effective_size_override < 0.0_jprb &
+             &  .or. driver_config%high_inv_effective_size_override < 0.0_jprb) then
+            write(nulout,'(a,a)') '*** Error: if one of [low|middle|high]_inv_effective_size_override', &
+                 & ' is provided then all must be'
+            stop
+          end if
+          if (driver_config%iverbose >= 2) then
+            write(nulout,'(a,g10.3,a)') '  Overriding inverse cloud effective size with:'
+            write(nulout,'(a,g10.3,a)') '    ', driver_config%low_inv_effective_size_override, &
+                 &       ' m-1 (low clouds)'
+            write(nulout,'(a,g10.3,a)') '    ', driver_config%middle_inv_effective_size_override, &
+                 &       ' m-1 (mid-level clouds)'
+            write(nulout,'(a,g10.3,a)') '    ', driver_config%high_inv_effective_size_override, &
+                 &       ' m-1 (high clouds)'
+          end if
+          call cloud%create_inv_cloud_effective_size_eta(ncol, nlev, &
+               &  thermodynamics%pressure_hl, &
+               &  driver_config%low_inv_effective_size_override, &
+               &  driver_config%middle_inv_effective_size_override, &
+               &  driver_config%high_inv_effective_size_override, 0.8_jprb, 0.45_jprb)
+
+        else if (driver_config%cloud_separation_scale_surface > 0.0_jprb &
+             &  .and. driver_config%cloud_separation_scale_toa > 0.0_jprb) then
+          ! (2) Cloud separation scale provided in namelist
+
+          if (driver_config%iverbose >= 2) then
+            write(nulout,'(a)') '  Effective cloud separation parameterized versus eta:'
+            write(nulout,'(a,f8.1,a)') '    ', &
+                 &  driver_config%cloud_separation_scale_surface, ' m at the surface'
+            write(nulout,'(a,f8.1,a)') '    ', &
+                 &  driver_config%cloud_separation_scale_toa, ' m at top-of-atmosphere'
+            write(nulout,'(a,f6.2)') '     Eta power is', &
+                 &  driver_config%cloud_separation_scale_power
+            write(nulout,'(a,f6.2)') '     Inhomogeneity separation scaling is', &
+                 &  driver_config%cloud_inhom_separation_factor
+          end if
+          call cloud%param_cloud_effective_separation_eta(ncol, nlev, &
+               &  thermodynamics%pressure_hl, &
+               &  driver_config%cloud_separation_scale_surface, &
+               &  driver_config%cloud_separation_scale_toa, &
+               &  driver_config%cloud_separation_scale_power, &
+               &  driver_config%cloud_inhom_separation_factor)
+          
+        else if (file%exists('inv_cloud_effective_size_up_lw') &
+             &  .and. file%exists('inv_cloud_effective_size_dn_lw')) then
+          ! (3a) NetCDF file contains cloud effective size
+          ! In TCRAD we have the possibility of separate upward and
+          ! downward effective sizes
+          call get_2d(file, geometry, 'inv_cloud_effective_size_up_lw', cloud%inv_cloud_effective_size_up_lw)
+          call get_2d(file, geometry, 'inv_cloud_effective_size_dn_lw', cloud%inv_cloud_effective_size_dn_lw)
+
+        else if (file%exists('inv_cloud_effective_size')) then
+          ! (3b) NetCDF file contains cloud effective size
+
+          is_cloud_size_scalable = .true.
+
+          call get_2d(file, geometry, 'inv_cloud_effective_size', cloud%inv_cloud_effective_size)
+          ! For finer control we can specify the effective size for
+          ! in-cloud inhomogeneities as well
+          if (file%exists('inv_inhom_effective_size')) then
+            if (.not. driver_config%do_ignore_inhom_effective_size) then
+              call get_2d(file, geometry, 'inv_inhom_effective_size', cloud%inv_inhom_effective_size)
+            else
+              if (driver_config%iverbose >= 1) then
+                write(nulout,'(a)') 'Ignoring inv_inhom_effective_size so treated as equal to inv_cloud_effective_size'
+                write(nulout,'(a)') 'Warning: ...this is unlikely to be accurate for cloud fraction near one'
+              end if
+            end if
+          else
+            if (driver_config%iverbose >= 1) then
+              write(nulout,'(a)') 'Warning: inv_inhom_effective_size not set so treated as equal to inv_cloud_effective_size'
+              write(nulout,'(a)') 'Warning: ...this is unlikely to be accurate for cloud fraction near one'
+            end if
+          end if
+
+        else if (file%exists('inv_cloud_effective_separation')) then
+          ! (4) Alternative way to specify cloud scale
+
+          is_cloud_size_scalable = .true.
+          
+          call get_2d(file, geometry, 'inv_cloud_effective_separation', prop_2d)
+          allocate(cloud%inv_cloud_effective_size(ncol,nlev))
+          allocate(cloud%inv_inhom_effective_size(ncol,nlev))
+          where (cloud%fraction > config%cloud_fraction_threshold &
+               &  .and. cloud%fraction < 1.0_jprb - config%cloud_fraction_threshold)
+            ! Convert effective cloud separation to effective cloud
+            ! size, noting divisions rather than multiplications
+            ! because we're working in terms of inverse sizes
+            cloud%inv_cloud_effective_size = prop_2d / sqrt(cloud%fraction*(1.0_jprb-cloud%fraction))
+          elsewhere
+            cloud%inv_cloud_effective_size = 0.0_jprb
+          end where
+          if (file%exists('inv_inhom_effective_separation')) then
+            if (driver_config%iverbose >= 2) then
+              write(nulout,'(a)') '  Effective size of clouds and their inhomogeneities being computed from input'
+              write(nulout,'(a)') '  ...variables inv_cloud_effective_separation and inv_inhom_effective_separation'
+            end if
+            call get_2d(file, geometry, 'inv_inhom_effective_separation', prop_2d)
+            where (cloud%fraction > config%cloud_fraction_threshold)
+              ! Convert effective separation of cloud inhomogeneities
+              ! to effective size of cloud inhomogeneities, assuming
+              ! here that the Tripleclouds treatment of cloud
+              ! inhomogeneity will divide the cloudy part of the area
+              ! into regions of equal area
+              cloud%inv_inhom_effective_size = prop_2d &
+                   &  / sqrt(0.5_jprb*cloud%fraction * (1.0_jprb-0.5_jprb*cloud%fraction))
+            elsewhere
+              cloud%inv_inhom_effective_size = 0.0_jprb
+            end where
+          else
+            ! Assume that the effective separation of cloud
+            ! inhomogeneities is equal to that of clouds but
+            ! multiplied by a constant provided by the user; note that
+            ! prop_2d at this point contains
+            ! inv_cloud_effective_separation
+            if (driver_config%iverbose >= 2) then
+              write(nulout,'(a)') '  Effective size of clouds being computed from inv_cloud_effective_separation'
+              write(nulout,'(a,f6.2,a)') '  ...and multiplied by ', driver_config%cloud_inhom_separation_factor, &
+                   &  ' to get effective size of inhomogeneities'
+            end if
+            where (cloud%fraction > config%cloud_fraction_threshold)
+              ! Note divisions rather than multiplications because
+              ! we're working in terms of inverse sizes
+              cloud%inv_inhom_effective_size = (1.0_jprb / driver_config%cloud_inhom_separation_factor) * prop_2d &
+                   &  / sqrt(0.5_jprb*cloud%fraction * (1.0_jprb-0.5_jprb*cloud%fraction))
+            elsewhere
+              cloud%inv_inhom_effective_size = 0.0_jprb
+            end where
+          end if ! exists inv_inhom_effective_separation
+          deallocate(prop_2d)
+          
+        else
+
+          write(nulout,'(a)') '*** Error: SPARTACUS solver specified but cloud size not, either in namelist or input file'
+          stop
+
+        end if ! Select method of specifying cloud effective size
+        
+        ! In cases (3) and (4) above the effective size obtained from
+        ! the NetCDF may be scaled by a namelist variable
+        if (is_cloud_size_scalable .and. driver_config%effective_size_scaling > 0.0_jprb) then
+          ! Scale cloud effective size
+          cloud%inv_cloud_effective_size = cloud%inv_cloud_effective_size &
+               &                         / driver_config%effective_size_scaling
+          if (allocated(cloud%inv_inhom_effective_size)) then
+            if (driver_config%iverbose >= 2) then
+              write(nulout, '(a,g10.3)') '  Scaling effective size of clouds and their inhomogeneities with ', &
+                   &                           driver_config%effective_size_scaling
+            end if
+            cloud%inv_inhom_effective_size = cloud%inv_inhom_effective_size &
+                 &                         / driver_config%effective_size_scaling
+          else
+            if (driver_config%iverbose >= 2) then
+              write(nulout, '(a,g10.3)') '  Scaling cloud effective size with ', &
+                   &                           driver_config%effective_size_scaling
+            end if
+          end if
+        end if
+
+      end if ! Using SPARTACUS solver
+
+    end if ! do_cloud
+
+    ! --------------------------------------------------------
+    ! Read surface properties
+    ! --------------------------------------------------------
+
+    single_level%is_simple_surface = .true.
+
+    ! Single-level variable with dimensions (ncol)
+    if (file%exists('skin_temperature')) then
+      call get_1d(file, geometry, 'skin_temperature', single_level%skin_temperature) ! K
+    else
+      allocate(single_level%skin_temperature(ncol))
+      single_level%skin_temperature(1:ncol) = thermodynamics%temperature_hl(1:ncol,nlev+1)
+      if (driver_config%iverbose >= 1 .and. config%do_lw &
+           &  .and. driver_config%skin_temperature_override < 0.0_jprb) then 
+        write(nulout,'(a)') 'Warning: skin temperature set equal to lowest air temperature'
+      end if
+    end if
+    
+    if (driver_config%sw_albedo_override >= 0.0_jprb) then
+      ! Optional override of shortwave albedo
+      allocate(single_level%sw_albedo(ncol,1))
+      single_level%sw_albedo = driver_config%sw_albedo_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding shortwave albedo with ', &
+             &  driver_config%sw_albedo_override
+      end if
+      !if (allocated(single_level%sw_albedo_direct)) then
+      !  single_level%sw_albedo_direct = driver_config%sw_albedo_override
+      !end if
+    else if (.not. geometry%is_3d) then
+      ! Shortwave albedo is stored with dimensions (ncol,nalbedobands)
+      if (file%get_rank('sw_albedo') == 1) then
+        ! ...but if in the NetCDF file it has only dimension (ncol), in
+        ! order that nalbedobands is correctly set to 1, we need to turn
+        ! off transposition
+        call file%get('sw_albedo',    single_level%sw_albedo, do_transp=.false.)
+        if (file%exists('sw_albedo_direct')) then
+          call file%get('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.false.)
+        end if
+      else
+        call file%get('sw_albedo',    single_level%sw_albedo, do_transp=.true.)
+        if (file%exists('sw_albedo_direct')) then
+          call file%get('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.true.)
+        end if
+      end if
+    else
+      if (file%get_rank('sw_albedo') == 2) then
+        if (allocated(prop_1d)) then
+          deallocate(prop_1d)
+        end if
+        call get_1d(file, geometry, 'sw_albedo', prop_1d)
+        allocate(single_level%sw_albedo(geometry%ncol,1));
+        single_level%sw_albedo(:,1) = prop_1d
+        if (file%exists('sw_albedo_direct')) then
+          call get_1d(file, geometry, 'sw_albedo_direct', prop_1d)
+          allocate(single_level%sw_albedo_direct(geometry%ncol,1));
+          single_level%sw_albedo_direct(:,1) = prop_1d
+        end if
+      else
+        if (allocated(prop_2d)) then
+          deallocate(prop_2d)
+        end if
+        call get_2d(file, geometry, 'sw_albedo', single_level%sw_albedo)
+        if (file%exists('sw_albedo_direct')) then
+          call get_2d(file, geometry, 'sw_albedo_direct', single_level%sw_albedo_direct)
+        end if
+      end if
+    end if
+    
+    ! Longwave emissivity
+    if (driver_config%lw_emissivity_override >= 0.0_jprb) then
+      ! Optional override of longwave emissivity
+      allocate(single_level%lw_emissivity(ncol,1))
+      single_level%lw_emissivity = driver_config%lw_emissivity_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)')  '  Overriding longwave emissivity with ', &
+             &  driver_config%lw_emissivity_override
+      end if
+    else
+      if (file%get_rank('lw_emissivity') == 1) then
+        call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.false.)
+      else
+        call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.true.)
+      end if
+    end if
+  
+    ! Optional override of skin temperature
+    if (driver_config%skin_temperature_override >= 0.0_jprb) then
+      single_level%skin_temperature = driver_config%skin_temperature_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding skin_temperature with ', &
+             &  driver_config%skin_temperature_override
+      end if
+    end if
+    
+    ! --------------------------------------------------------
+    ! Read aerosol and gas concentrations
+    ! --------------------------------------------------------
+
+    if (config%use_aerosols) then
+      ! Load aerosol data
+      call file%get('aerosol_mmr', aerosol%mixing_ratio, ipermute=[2,3,1]);
+      ! Store aerosol level bounds
+      aerosol%istartlev = lbound(aerosol%mixing_ratio, 2)
+      aerosol%iendlev   = ubound(aerosol%mixing_ratio, 2)
+    end if
+
+    ! Load in gas volume mixing ratios, which can be either 2D arrays
+    ! (varying with height and column), 1D vectors (varying with
+    ! height) or 0D scalars (constant volume mixing ratio everywhere).
+
+    ngasdims = -1
+    ! First count the number of dimensions for each gas
+    do jgas = 1,NMaxGases
+      if (jgas == IH2O) then
+        if (file%exists('q')) then
+          ngasdims(IH2O) = file%get_rank('q')
+        end if
+      end if
+      if (ngasdims(jgas) == -1) then
+        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
+        if (file%exists(trim(gas_var_name))) then
+          ngasdims(jgas) = file%get_rank(trim(gas_var_name))
+        else
+          gas_var_name = trim(GasLowerCaseName(jgas)) // "_mmr"
+          if (file%exists(trim(gas_var_name))) then
+            ngasdims(jgas) = file%get_rank(trim(gas_var_name))
+          end if
+        end if
+      end if
+    end do
+
+    ngas2d = count(ngasdims >= 2)
+    ngas1d = count(ngasdims >= 0 .and. ngasdims <= 1)
+
+    if (config%i_gas_model_sw == IGasModelIFSRRTMG &
+         .or. config%i_gas_model_lw == IGasModelIFSRRTMG) then
+      ! IFS-RRTMG must have gases stored in 2D and be able to access
+      ! an array of zeros for any missing gases
+      call gas%allocate(ncol, nlev, ngas2d+ngas1d, do_zero_fill=.true.)
+    else
+      ! ecCKD is more flexible so can cope with some gases stored in
+      ! 1D, which is easier on memory
+      call gas%allocate(ncol, nlev, ngas2d, nmaxgas1d=ngas1d)
+    end if
+
+    ! Loop through all gases again and load them in this time
+    do jgas = 1,NMaxGases
+      gas_not_found = .true.
+      if (jgas == IH2O) then
+        if (file%exists('q')) then
+          if (ngasdims(IH2O) >= 2) then
+            call get_2d(file, geometry, 'q', gas_mr)
+            call gas%put(IH2O, IMassMixingRatio, gas_mr)
+          else
+            call file%get('q', gas_mr_1d)
+            call gas%put_1d(IH2O, IMassMixingRatio, gas_mr_1d)
+          end if
+          gas_not_found = .false.
+        end if
+      end if
+      if (gas_not_found .and. ngasdims(jgas) >= 0) then
+        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
+        if (file%exists(trim(gas_var_name))) then
+          if (ngasdims(jgas) >= 2) then
+            call get_2d(file, geometry, trim(gas_var_name), gas_mr)
+            call gas%put(jgas, IVolumeMixingRatio, gas_mr)
+          else if (ngasdims(jgas) == 1) then
+            call file%get(trim(gas_var_name), gas_mr_1d)
+            call gas%put_1d(jgas, IVolumeMixingRatio, gas_mr_1d)
+          else
+            call file%get(trim(gas_var_name), gas_mr_0d)
+            call gas%put_well_mixed(jgas, IVolumeMixingRatio, gas_mr_0d)
+          end if
+        else
+          gas_var_name = trim(GasLowerCaseName(jgas)) // "_mmr"
+          if (ngasdims(jgas) >= 2) then
+            call get_2d(file, geometry, trim(gas_var_name), gas_mr)
+            call gas%put(jgas, IMassMixingRatio, gas_mr)
+          else if (ngasdims(jgas) == 1) then
+            call file%get(trim(gas_var_name), gas_mr_1d)
+            call gas%put_1d(jgas, IMassMixingRatio, gas_mr_1d)
+          else
+            call file%get(trim(gas_var_name), gas_mr_0d)
+            call gas%put_well_mixed(jgas, IMassMixingRatio, gas_mr_0d)
+          end if
+        end if
+      end if
+    end do
+
+    ! Scale gas concentrations if needed
+    call gas%scale(IH2O,    driver_config%h2o_scaling,    driver_config%iverbose >= 2)
+    call gas%scale(ICO2,    driver_config%co2_scaling,    driver_config%iverbose >= 2)
+    call gas%scale(IO3,     driver_config%o3_scaling,     driver_config%iverbose >= 2)
+    call gas%scale(IN2O,    driver_config%n2o_scaling,    driver_config%iverbose >= 2)
+    call gas%scale(ICO,     driver_config%co_scaling,     driver_config%iverbose >= 2)
+    call gas%scale(ICH4,    driver_config%ch4_scaling,    driver_config%iverbose >= 2)
+    call gas%scale(IO2,     driver_config%o2_scaling,     driver_config%iverbose >= 2)
+    call gas%scale(ICFC11,  driver_config%cfc11_scaling,  driver_config%iverbose >= 2)
+    call gas%scale(ICFC12,  driver_config%cfc12_scaling,  driver_config%iverbose >= 2)
+    call gas%scale(IHCFC22, driver_config%hcfc22_scaling, driver_config%iverbose >= 2)
+    call gas%scale(ICCL4,   driver_config%ccl4_scaling,   driver_config%iverbose >= 2)
+    call gas%scale(INO2,    driver_config%no2_scaling,    driver_config%iverbose >= 2)
+
+
+!    do jcol = 1,ncol
+!      write(101,*) latitude(jcol), longitude(jcol), driver_config%solar_latitude, driver_config%solar_longitude, &
+!           &  driver_config%sensor_latitude, driver_config%sensor_longitude, single_level%cos_sza(jcol), &
+!           &  single_level%cos_sensor_zenith_angle(jcol), single_level%solar_azimuth_angle(jcol), &
+!           &  single_level%sensor_azimuth_angle(jcol), single_level%scattering_angle(jcol)
+!    end do
+
+  end subroutine read_input
+
+  ! --------------------------------------------------------
+  ! Compute the azimuth between a point (sun or sensor) and an
+  ! atmospheric column, where the first two arguments are the latitude
+  ! and longitude of the point in degrees, and the last two are the
+  ! same but for the column
+  elemental function calc_azimuth(pt_lat_deg, pt_lon_deg, col_lat_deg, col_lon_deg)
+
+    use parkind1,                 only : jprb, jpim
+
+    real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
+
+    real(jprb), intent(in) :: pt_lat_deg, pt_lon_deg, col_lat_deg, col_lon_deg
+
+    real(jprb) :: calc_azimuth
+
+    real(jprb) :: sx, sy
+    
+    sx = cos(pt_lat_deg * PI_OVER_180) * sin((pt_lon_deg-col_lon_deg) * PI_OVER_180)
+    sy = cos(col_lat_deg * PI_OVER_180) * sin(pt_lat_deg * PI_OVER_180) &
+         &  - sin(col_lat_deg * PI_OVER_180) * cos(pt_lat_deg * PI_OVER_180) &
+         &  * cos((pt_lon_deg-col_lon_deg) * PI_OVER_180)
+    calc_azimuth = atan2(-sx, -sy)
+
+  end function calc_azimuth
+
+  ! --------------------------------------------------------
+  ! Read a variable from a file into a 2D array. If the source
+  ! variable is 1D it is assumed to vary with height only, while if it
+  ! is 3D then the two horizontal dimensions are compressed
+  subroutine get_2d(file, geometry, varname, array, is_optional)
+    use parkind1,                 only : jprb, jpim
+    use ecrad3d_geometry,         only : geometry_type
+    use easy_netcdf,              only : netcdf_file
+    type(netcdf_file),       intent(in)    :: file
+    type(geometry_type),     intent(in)    :: geometry
+    character(len=*),        intent(in)    :: varname
+    real(jprb), allocatable, intent(inout) :: array(:,:)
+    logical,       optional, intent(in)    :: is_optional
+    
+    real(jprb), allocatable :: tmp_vector(:)
+    real(jprb), allocatable :: tmp_array(:,:,:)
+    integer :: ndim
+
+    if (.not. file%exists(trim(varname))) then
+      if (.not. present(is_optional)) then
+        write(nulout,'(a,a,a)') '*** Error: ', trim(varname), ' not present'
+        error stop
+      else
+        if (.not. is_optional) then
+          write(nulout,'(a,a,a)') '*** Error: ', trim(varname), ' not present'
+          error stop
+        end if
+      end if
+      return
+    end if
+    if (geometry%is_3d) then
+      ndim = file%get_rank(trim(varname))
+      if (ndim == 1) then
+        ! 1D input array: varies with height only
+        call file%get(trim(varname), tmp_vector)
+        if (.not. allocated(array)) then
+          allocate(array(geometry%ncol,size(tmp_vector)))
+        end if
+        array = spread(tmp_vector, 1, geometry%ncol)
+      else if (ndim == 3) then
+        ! 3D input array
+        call file%get(trim(varname), tmp_array)
+        if (geometry%nx /= size(tmp_array,1) &
+             .or. geometry%ny /= size(tmp_array,2)) then
+          write(nulout,'(a,a,a,i0,a,i0,a,i0,a,i0,a)') &
+               &  '*** Error: shape of ', trim(varname), ' (', &
+               &  size(tmp_array,1), ',', size(tmp_array,2), &
+               &  ',*) does not match expected shape (', &
+               &  geometry%nx, ',', geometry%ny, ',*)'
+          error stop
+        end if
+        if (.not. allocated(array)) then
+          allocate(array(geometry%ncol,size(tmp_array,3)))
+        end if
+        array = reshape(tmp_array, [geometry%ncol, size(tmp_array,3)])
+      else
+        write(nulout, '(a,a,a)') '*** Error: ', trim(varname), ' must have 1 or 3 dimensions'
+        error stop
+      end if
+    else
+      call file%get(trim(varname), array, do_transp=.true.)
+    end if
+    
+  end subroutine get_2d
+  
+  ! --------------------------------------------------------
+  ! Read a variable from a file into a 1D array.
+  subroutine get_1d(file, geometry, varname, array, is_optional)
+    use parkind1,                 only : jprb, jpim
+    use ecrad3d_geometry,         only : geometry_type
+    use easy_netcdf,              only : netcdf_file
+    type(netcdf_file),       intent(in)    :: file
+    type(geometry_type),     intent(in)    :: geometry
+    character(len=*),        intent(in)    :: varname
+    real(jprb), allocatable, intent(inout) :: array(:)
+    logical,       optional, intent(in)    :: is_optional
+
+    real(jprb), allocatable :: tmp_array(:,:)
+    real(jprb) :: val
+    integer :: ndim
+
+    if (.not. file%exists(trim(varname))) then
+      if (.not. present(is_optional)) then
+        write(nulout,'(a,a,a)') '*** Error: ', trim(varname), ' not present'
+        stop
+      else
+        if (.not. is_optional) then
+          write(nulout,'(a,a,a)') '*** Error: ', trim(varname), ' not present'
+          stop
+        end if
+      end if
+      return
+    end if
+
+    ndim = file%get_rank(trim(varname))
+    if (ndim == 0) then
+      allocate(array(geometry%ncol))
+      call file%get(trim(varname), val)
+      array(:) = val
+    else if (ndim == 1) then
+      if (geometry%is_3d) then
+        write(nulout,'(a)') '*** Error: ', trim(varname), ' must be 0 or 2 dimensions'
+        stop
+      end if
+      call file%get(trim(varname), array)
+    else if (ndim == 2) then
+      if (.not. geometry%is_3d) then
+        write(nulout,'(a)') '*** Error: ', trim(varname), ' must be 0 or 1 dimensions'
+        stop
+      end if
+      call file%get(trim(varname), tmp_array, do_transp=.false.)
+      if (geometry%nx /= size(tmp_array,1) &
+           &  .or. geometry%ny /= size(tmp_array,2)) then
+        write(nulout,'(a,a,a,i0,a,i0,a,i0,a,i0,a)') &
+             &  '*** Error: shape of ', trim(varname), ' (', &
+             &  size(tmp_array,1), ',', size(tmp_array,2), &
+             &  ') does not match expected shape (', &
+             &  geometry%nx, ',', geometry%ny, ')'
+        stop
+      end if
+      allocate(array(geometry%ncol))
+      array = reshape(tmp_array, [geometry%ncol])
+    else
+      write(nulout, '(a,a,a)') '*** Error: ', trim(varname), ' must have 0, 1 or 2 dimensions'
+    end if
+  end subroutine get_1d
+  
+end module ecrad3d_driver_read_input

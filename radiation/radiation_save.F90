@@ -1034,7 +1034,7 @@ contains
       end if
     end if
 
-    if (config%do_clouds) then
+    if (config%do_clouds .and. allocated(cloud%fraction)) then
       call out_file%define_variable("cloud_fraction", &
            &  dim2_name="column", dim1_name="level", &
            &  units_str="1", long_name="Cloud fraction")
@@ -1153,7 +1153,7 @@ contains
       call out_file%put("q_sat_liquid", thermodynamics%h2o_sat_liq(istartcol:iendcol,:))
     end if
 
-    if (config%do_clouds) then
+    if (config%do_clouds .and. allocated(cloud%fraction)) then
       call out_file%put("cloud_fraction", cloud%fraction(istartcol:iendcol,:))
       call out_file%put("overlap_param", cloud%overlap_param(istartcol:iendcol,:))
     end if
@@ -1397,9 +1397,11 @@ contains
 
     if (config%do_clouds) then
       ! Define cloud variables on full levels
-      call out_file%define_variable("cloud_fraction", &
-           &   dim2_name="column", dim1_name="level", &
-           &   units_str="1", long_name="Cloud fraction")
+      if (allocated(cloud%fraction)) then
+        call out_file%define_variable("cloud_fraction", &
+             &   dim2_name="column", dim1_name="level", &
+             &   units_str="1", long_name="Cloud fraction")
+      end if
       call out_file%define_variable("q_liquid", &
            &   dim2_name="column", dim1_name="level", &
            &   units_str="1", long_name="Gridbox-mean liquid water mixing ratio")
@@ -1486,7 +1488,9 @@ contains
     deallocate(mixing_ratio)
 
     if (config%do_clouds) then
-      call out_file%put("cloud_fraction", cloud%fraction)
+      if (allocated(cloud%fraction)) then
+        call out_file%put("cloud_fraction", cloud%fraction)
+      end if
       call out_file%put("q_liquid", cloud%q_liq)
       call out_file%put("q_ice", cloud%q_ice)
       call out_file%put("re_liquid", cloud%re_liq)

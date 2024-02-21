@@ -71,7 +71,7 @@ endif
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(FLOTSAM_INCLUDE) $(NETCDF_INCLUDE) $(OMPFLAG)
-export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities -ltcrad \
+export LIBS    = $(LDFLAGS) -L../lib -lecrad3d -lradiation -lutilities -ltcrad \
 	-lifsrrtm -ldisort -lifsaux $(FCLIBS) $(FLOTSAM_LIB) $(NETCDF_LIB) $(OMPFLAG)
 
 # Do we include Dr Hook from ECMWF's fiat library?
@@ -106,7 +106,7 @@ help:
 
 ifndef FIATDIR
 build: directories libifsaux libdummydrhook libdisort libutilities libifsrrtm \
-	libtcrad libradiation driver ifsdriver symlinks
+	libtcrad libradiation libecrad3d driver ifsdriver symlinks
 libradiation libutilities: libdummydrhook
 else
 # Note that if we are using Dr Hook from the fiat library we don't
@@ -195,6 +195,7 @@ clean-tests:
 
 clean-toplevel:
 	cd radiation && $(MAKE) clean
+	cd ecrad3d && $(MAKE) clean
 	cd driver && $(MAKE) clean
 	cd tcrad && $(MAKE) clean
 

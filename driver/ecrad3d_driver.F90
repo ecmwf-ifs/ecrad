@@ -31,7 +31,7 @@ program ecrad3d_driver
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
-  use radiation_config,         only : config_type
+  use radiation_config,         only : config_type, ISolverPOMART3D
   use radiation_single_level,   only : single_level_type
   use radiation_thermodynamics, only : thermodynamics_type
   use radiation_gas,            only : gas_type, &
@@ -41,7 +41,9 @@ program ecrad3d_driver
   use radiation_cloud,          only : cloud_type
   use radiation_aerosol,        only : aerosol_type
   use ecrad3d_geometry,         only : geometry_type
-  use ecrad3d_flux,             only : flux_type
+  use radiation_flux,           only : flux_type
+  use radiation_save,           only : save_fluxes, save_inputs
+  use ecrad3d_save,             only : save_fluxes_3d => save_fluxes
   use ecrad_driver_config,      only : driver_config_type
   use ecrad3d_driver_read_input,only : read_input
   use easy_netcdf
@@ -59,6 +61,7 @@ program ecrad3d_driver
   type(gas_type)            :: gas
   type(cloud_type)          :: cloud
   type(aerosol_type)        :: aerosol
+  type(geometry_type)       :: geometry
 
   ! Configuration specific to this driver
   type(driver_config_type)  :: driver_config
@@ -67,10 +70,14 @@ program ecrad3d_driver
   type(flux_type)           :: flux
 
   integer :: ncol, nlev         ! Number of columns and levels
+  integer :: istartcol, iendcol ! Range of columns to process
 
   ! Name of file names specified on command line
   character(len=512) :: file_name
   integer            :: istatus ! Result of command_argument_count
+
+  ! For parallel processing of multiple blocks
+  integer :: jblock, nblock ! Block loop index and number
 
 #ifndef NO_OPENMP
   ! OpenMP functions
@@ -86,6 +93,10 @@ program ecrad3d_driver
   ! Are any variables out of bounds?
   logical :: is_out_of_bounds
 
+  ! Do we use the explicit 3D solver, which requires a different
+  ! interface?
+  logical :: use_ecrad3d_solver
+  
   ! --------------------------------------------------------
   ! Section 2: Configure
   ! --------------------------------------------------------
@@ -98,7 +109,7 @@ program ecrad3d_driver
   ! Use namelist to configure the radiation calculation
   call get_command_argument(1, file_name, status=istatus)
   if (istatus /= 0) then
-    stop 'Failed to read name of namelist file as string of length < 512'
+    error stop 'Failed to read name of namelist file as string of length < 512'
   end if
 
   ! Read "radiation" namelist into radiation configuration type
@@ -119,6 +130,18 @@ program ecrad3d_driver
     call config%print(driver_config%iverbose)
   end if
 
+  ! If we use the explicit 3D solver then a different ecRad interface
+  ! must be called
+  if ((config%do_sw .and. config%i_solver_sw == ISolverPOMART3D) &
+       & .or. (config%do_lw .and. config%i_solver_lw == ISolverPOMART3D)) then
+    if (config%do_sw .and. config%do_lw .and. config%i_solver_sw /= config%i_solver_lw) then
+      error stop 'The POMART3D solver must be selected for both SW and LW, or neither'
+    end if
+    use_ecrad3d_solver = .true.
+  else
+    use_ecrad3d_solver = .false.    
+  end if
+  
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics
   call setup_radiation(config)
@@ -130,7 +153,7 @@ program ecrad3d_driver
   ! Get NetCDF input file name
   call get_command_argument(2, file_name, status=istatus)
   if (istatus /= 0) then
-    stop 'Failed to read name of input NetCDF file as string of length < 512'
+    error stop 'Failed to read name of input NetCDF file as string of length < 512'
   end if
 
   ! Open the file and configure the way it is read
@@ -139,7 +162,7 @@ program ecrad3d_driver
   ! Get NetCDF output file name
   call get_command_argument(3, file_name, status=istatus)
   if (istatus /= 0) then
-    stop 'Failed to read name of output NetCDF file as string of length < 512'
+    error stop 'Failed to read name of output NetCDF file as string of length < 512'
   end if
 
   ! 2D arrays are assumed to be stored in the file with height varying
@@ -150,11 +173,33 @@ program ecrad3d_driver
 
   ! Read input variables from NetCDF file
   call read_input(file, config, driver_config, ncol, nlev, &
-       &          single_level, thermodynamics, &
-       &          gas, cloud, aerosol, geometry)
+       &          geometry, single_level, thermodynamics, &
+       &          gas, cloud, aerosol)
 
   ! Close input file
   call file%close()
+
+  ! Set first and last columns to process
+  if (driver_config%iendcol < 1 .or. driver_config%iendcol > ncol) then
+    driver_config%iendcol = ncol
+  end if
+
+  if (driver_config%istartcol > driver_config%iendcol) then
+    write(nulout,'(a,i0,a,i0,a,i0,a)') '*** Error: requested column range (', &
+         &  driver_config%istartcol, &
+         &  ' to ', driver_config%iendcol, ') is out of the range in the data (1 to ', &
+         &  ncol, ')'
+    stop 1
+  end if
+  
+  ! Store inputs
+  if (driver_config%do_save_inputs) then
+    call save_inputs('inputs.nc', config, single_level, thermodynamics, &
+         &                gas, cloud, aerosol, &
+         &                lat=spread(0.0_jprb,1,ncol), &
+         &                lon=spread(0.0_jprb,1,ncol), &
+         &                iverbose=driver_config%iverbose)
+  end if
 
   ! --------------------------------------------------------
   ! Section 4: Call radiation scheme
@@ -195,11 +240,47 @@ program ecrad3d_driver
   tstart = omp_get_wtime() 
 #endif
   do jrepeat = 1,driver_config%nrepeat
-    
+
+    if (use_ecrad3d_solver) then
       ! Call the ECRAD3D radiation scheme
-    call ecrad3d(ncol, nlev, config, single_level, thermodynamics, gas, cloud, aerosol, &
-         &       geometry, flux)
-    
+      !call ecrad3d(ncol, nlev, config, single_level, thermodynamics, gas, cloud, aerosol, &
+      !     &       geometry, flux)
+      error stop 'Explicit ecRad3D solver not yet implemented'
+    else
+      
+      if (driver_config%do_parallel) then
+        ! Run radiation scheme over blocks of columns in parallel
+      
+        ! Compute number of blocks to process
+        nblock = (driver_config%iendcol - driver_config%istartcol &
+             &  + driver_config%nblocksize) / driver_config%nblocksize
+        
+        !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
+        do jblock = 1, nblock
+          ! Specify the range of columns to process.
+          istartcol = (jblock-1) * driver_config%nblocksize &
+               &    + driver_config%istartcol
+          iendcol = min(istartcol + driver_config%nblocksize - 1, &
+               &        driver_config%iendcol)
+          
+          if (driver_config%iverbose >= 3) then
+#ifndef NO_OPENMP
+            write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
+                 &  ' processing columns ', istartcol, '-', iendcol
+#else
+            write(nulout,'(a,i0,a,i0)')  'Processing columns ', istartcol, '-', iendcol
+#endif
+          end if
+        
+          ! Call the ECRAD radiation scheme
+          call radiation(ncol, nlev, istartcol, iendcol, config, &
+               &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+          
+        end do
+        !$OMP END PARALLEL DO
+        
+      end if
+    end if
   end do
 
 #ifndef NO_OPENMP
@@ -214,10 +295,17 @@ program ecrad3d_driver
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   ! Store the fluxes in the output file
-  call flux%save(file_name, config, thermodynamics, geometry, &
-       &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
-       &   experiment_name=driver_config%experiment_name, &
-       &   is_double_precision=driver_config%do_write_double_precision)
+  if (.not. geometry%is_3d) then
+    call save_fluxes(file_name, config, thermodynamics, flux, & !geometry, &
+         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+         &   experiment_name=driver_config%experiment_name, &
+         &   is_double_precision=driver_config%do_write_double_precision)
+  else
+    call save_fluxes_3d(file_name, config, geometry, thermodynamics, flux, &
+         &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
+         &   experiment_name=driver_config%experiment_name, &
+         &   is_double_precision=driver_config%do_write_double_precision)
+  end if
   
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'

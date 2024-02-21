@@ -6,10 +6,11 @@ module ecrad3d_geometry
 
   type geometry_type
 
-    
+    ! Horizontal coordinate variables, either distance in metres or
+    ! (if is_lat_lon==.true.) longitude and latitude in degrees
     real(jprb), allocatable :: x(:), y(:)
     
-    real(jprb), allocatable :: dz
+    real(jprb), allocatable :: dz(:)
 
     ! Horizontal area in m2 of each grid point
     !real(jprb), allocatable :: area(:)
@@ -20,14 +21,17 @@ module ecrad3d_geometry
     ! Number of x and y grid points (could be lontigude and latitude)
     ! if the horizontal grid is rectangular, must multiply together to
     ! get ncol
-    integer :: nx, ny
+    integer :: nx, ny, nz
     
     ! Is the horizontal arrangement of columns on a rectangular grid
     ! such that a point can be identified by an x and a y index?
     logical :: is_rectangular_grid = .true.
 
-    ! Is t
+    ! Are the x and y vectors actually longitude and latitude
+    ! (respectively) in degrees?
     logical :: is_lat_lon
+
+    logical :: is_3d = .false.
     
   contains
 

@@ -124,7 +124,7 @@ contains
 
     ! The i_spec_* variables are used solely for storing spectral
     ! data, and this can either be by band or by g-point
-    if (config%do_save_spectral_flux) then
+    if (config%do_save_spectral_flux .or. config%do_toa_spectral_flux) then
       if (config%do_save_gpoint_flux) then
         config%n_spec_sw = config%n_g_sw
         config%n_spec_lw = config%n_g_lw
