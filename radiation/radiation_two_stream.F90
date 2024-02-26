@@ -350,6 +350,100 @@ contains
   end subroutine calc_ref_trans_lw
 
 
+
+  !---------------------------------------------------------------------
+  ! OpenACC-optimized variant that avoids the local allocation of gamma
+  ! coefficients
+  subroutine calc_ref_trans_acc_lw(ng, &
+    &    od, ssa, asymmetry, planck_top, planck_bot, &
+    &    reflectance, transmittance, source_up, source_dn)
+
+    integer, intent(in) :: ng
+
+    ! Optical depth and single scattering albedo
+    real(jprb), intent(in), dimension(ng) :: od
+
+    ! Single scattering albedo and asymmetry factor
+    real(jprb), intent(in), dimension(ng) :: ssa, asymmetry
+
+    ! The Planck terms (functions of temperature) at the top and
+    ! bottom of the layer
+    real(jprb), intent(in), dimension(ng) :: planck_top, planck_bot
+
+    ! The diffuse reflectance and transmittance, i.e. the fraction of
+    ! diffuse radiation incident on a layer from either top or bottom
+    ! that is reflected back or transmitted through
+    real(jprb), intent(out), dimension(ng) :: reflectance, transmittance
+
+    ! The upward emission at the top of the layer and the downward
+    ! emission at its base, due to emission from within the layer
+    real(jprb), intent(out), dimension(ng) :: source_up, source_dn
+
+    real(jprb) :: gamma1, gamma2
+
+    ! The two transfer coefficients from the two-stream
+    ! differential equations
+    !real(jprb), dimension(ng)                     :: k_exponent, exponential
+    real(jprb) :: reftrans_factor
+    real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
+
+    real(jprb) :: coeff, coeff_up_top, coeff_up_bot, coeff_dn_top, coeff_dn_bot, factor
+
+    integer :: jg
+
+    !$ACC ROUTINE WORKER
+
+    associate (exponential=>transmittance, k_exponent=>source_up)
+
+    !$ACC LOOP WORKER VECTOR PRIVATE(factor, k_exponent, &
+    !$ACC   reftrans_factor, exponential, exponential2, &
+    !$ACC   coeff, coeff_up_top, coeff_up_bot, coeff_dn_top, coeff_dn_bot, &
+    !$ACC   gamma1, gamma2)
+    do jg = 1, ng
+      factor = (LwDiffusivityWP * 0.5_jprb) * ssa(jg)
+      gamma1 = LwDiffusivityWP - factor*(1.0_jprb + asymmetry(jg))
+      gamma2 = factor * (1.0_jprb - asymmetry(jg))
+      k_exponent(jg) = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
+                KMinLw)) ! Eq 18 of Meador & Weaver (1980)
+
+      exponential(jg) = exp(-k_exponent(jg)*od(jg))
+
+      if (od(jg) > 1.0e-3_jprb) then
+        exponential2 = exponential(jg)*exponential(jg)
+        reftrans_factor = 1.0 / (k_exponent(jg)  + gamma1 + (k_exponent(jg) - gamma1)*exponential2)
+        ! Meador & Weaver (1980) Eq. 25
+        reflectance(jg) = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
+        ! Meador & Weaver (1980) Eq. 26
+        transmittance(jg) = 2.0_jprb * k_exponent(jg) * exponential(jg) * reftrans_factor
+
+        ! Compute upward and downward emission assuming the Planck
+        ! function to vary linearly with optical depth within the layer
+        ! (e.g. Wiscombe , JQSRT 1976).
+
+        ! Stackhouse and Stephens (JAS 1991) Eqs 5 & 12
+        coeff = (planck_bot(jg)-planck_top(jg)) / (od(jg)*(gamma1+gamma2))
+        coeff_up_top  =  coeff + planck_top(jg)
+        coeff_up_bot  =  coeff + planck_bot(jg)
+        coeff_dn_top  = -coeff + planck_top(jg)
+        coeff_dn_bot  = -coeff + planck_bot(jg)
+        source_up(jg) =  coeff_up_top - reflectance(jg) * coeff_dn_top - transmittance(jg) * coeff_up_bot
+        source_dn(jg) =  coeff_dn_bot - reflectance(jg) * coeff_up_bot - transmittance(jg) * coeff_dn_top
+      else if (od(jg) < 1.0e-8_jprb) then
+        source_up(jg) = 0.0_jprb
+        source_dn(jg) = 0.0_jprb
+      else
+        reflectance(jg) = gamma2 * od(jg)
+        transmittance(jg) = (1.0_jprb - k_exponent(jg)*od(jg)) / (1.0_jprb + od(jg)*(gamma1-k_exponent(jg)))
+        source_up(jg) = (1.0_jprb - reflectance(jg) - transmittance(jg)) &
+              &       * 0.5 * (planck_top(jg) + planck_bot(jg))
+        source_dn(jg) = source_up(jg)
+      end if
+    end do
+
+    end associate
+
+  end subroutine calc_ref_trans_acc_lw
+
   !---------------------------------------------------------------------
   ! Compute the longwave transmittance to diffuse radiation in the
   ! no-scattering case, as well as the upward flux at the top and the
@@ -801,6 +895,122 @@ contains
 
   end subroutine calc_ref_trans_sw
 
+
+  !---------------------------------------------------------------------
+  ! OpenACC-optimized variant that avoids the local allocation of gamma
+  ! coefficients
+  subroutine calc_ref_trans_acc_sw(ng, mu0, od, ssa, &
+    &      asymmetry, ref_diff, trans_diff, &
+    &      ref_dir, trans_dir_diff, trans_dir_dir)
+
+  implicit none
+
+  integer, intent(in) :: ng
+
+  ! Cosine of solar zenith angle
+  real(jprb), intent(in) :: mu0
+
+  ! Optical depth and single scattering albedo
+  real(jprb), intent(in), dimension(ng) :: od, ssa, asymmetry
+
+  ! The direct reflectance and transmittance, i.e. the fraction of
+  ! incoming direct solar radiation incident at the top of a layer
+  ! that is either reflected back (ref_dir) or scattered but
+  ! transmitted through the layer to the base (trans_dir_diff)
+  real(jprb), intent(out), dimension(ng) :: ref_dir, trans_dir_diff
+
+  ! The diffuse reflectance and transmittance, i.e. the fraction of
+  ! diffuse radiation incident on a layer from either top or bottom
+  ! that is reflected back or transmitted through
+  real(jprb), intent(out), dimension(ng) :: ref_diff, trans_diff
+
+  ! Transmittance of the direct been with no scattering
+  real(jprb), intent(out), dimension(ng) :: trans_dir_dir
+
+  real(jprb) :: gamma1, gamma2, gamma3, gamma4
+  real(jprb) :: alpha1, alpha2, k_exponent
+  real(jprb) :: exponential ! = exp(-k_exponent*od)
+
+  real(jprb) :: reftrans_factor, factor
+  real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
+  real(jprb) :: k_mu0, k_gamma3, k_gamma4
+  real(jprb) :: k_2_exponential, one_minus_kmu0_sqr
+  integer    :: jg
+
+  ! GPU-capable and vector-optimized version for ICON
+  !$ACC ROUTINE WORKER
+
+  !$ACC LOOP WORKER VECTOR PRIVATE(factor, gamma1, gamma2, gamma3, gamma4, &
+  !$ACC   alpha1, alpha2, k_exponent, &
+  !$ACC   reftrans_factor, exponential, exponential2, k_mu0, &
+  !$ACC   k_gamma3, k_gamma4, k_2_exponential, one_minus_kmu0_sqr)
+  do jg = 1, ng
+
+    trans_dir_dir(jg) = max(-max(od(jg) * (1.0_jprb/mu0),0.0_jprb),-1000.0_jprb)
+    trans_dir_dir(jg) = exp(trans_dir_dir(jg))
+
+    ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
+    ! Atmospheric Physics 53, 147-66)
+    factor = 0.75_jprb*asymmetry(jg)
+
+    gamma1 = 2.0_jprb  - ssa(jg) * (1.25_jprb + factor)
+    gamma2 = ssa(jg) * (0.75_jprb - factor)
+    gamma3 = 0.5_jprb  - mu0*factor
+    gamma4 = 1.0_jprb - gamma3
+
+    alpha1 = gamma1*gamma4 + gamma2*gamma3 ! Eq. 16
+    alpha2 = gamma1*gamma3 + gamma2*gamma4 ! Eq. 17
+  #ifdef PARKIND1_SINGLE
+    k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-6_jprb))  ! Eq 18
+  #else
+    k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-12_jprb)) ! Eq 18
+  #endif
+
+    exponential = exp(-k_exponent*od(jg))
+
+    k_mu0 = k_exponent*mu0
+    one_minus_kmu0_sqr = 1.0_jprb - k_mu0*k_mu0
+    k_gamma3 = k_exponent*gamma3
+    k_gamma4 = k_exponent*gamma4
+    exponential2 = exponential*exponential
+    k_2_exponential = 2.0_jprb * k_exponent * exponential
+    reftrans_factor = 1.0_jprb / (k_exponent + gamma1 + (k_exponent - gamma1)*exponential2)
+
+    ! Meador & Weaver (1980) Eq. 25
+    ref_diff(jg) = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
+
+    ! Meador & Weaver (1980) Eq. 26
+    trans_diff(jg) = k_2_exponential * reftrans_factor
+
+    ! Here we need mu0 even though it wasn't in Meador and Weaver
+    ! because we are assuming the incoming direct flux is defined to
+    ! be the flux into a plane perpendicular to the direction of the
+    ! sun, not into a horizontal plane
+    reftrans_factor = mu0 * ssa(jg) * reftrans_factor &
+          &  / merge(one_minus_kmu0_sqr, epsilon(1.0_jprb), abs(one_minus_kmu0_sqr) > epsilon(1.0_jprb))
+
+    ! Meador & Weaver (1980) Eq. 14, multiplying top & bottom by
+    ! exp(-k_exponent*od) in case of very high optical depths
+    ref_dir(jg) = reftrans_factor &
+          &  * ( (1.0_jprb - k_mu0) * (alpha2 + k_gamma3) &
+          &     -(1.0_jprb + k_mu0) * (alpha2 - k_gamma3)*exponential2 &
+          &     -k_2_exponential*(gamma3 - alpha2*mu0)*trans_dir_dir(jg) )
+
+    ! Meador & Weaver (1980) Eq. 15, multiplying top & bottom by
+    ! exp(-k_exponent*od), minus the 1*exp(-od/mu0) term
+    ! representing direct unscattered transmittance.
+    trans_dir_diff(jg) = reftrans_factor * ( k_2_exponential*(gamma4 + alpha1*mu0) &
+          & - trans_dir_dir(jg) &
+          & * ( (1.0_jprb + k_mu0) * (alpha1 + k_gamma4) &
+          &    -(1.0_jprb - k_mu0) * (alpha1 - k_gamma4) * exponential2) )
+
+    ! Final check that ref_dir + trans_dir_diff <= 1
+    ref_dir(jg)        = max(0.0_jprb, min(ref_dir(jg), mu0*(1.0_jprb-trans_dir_dir(jg))))
+    trans_dir_diff(jg) = max(0.0_jprb, min(trans_dir_diff(jg), mu0*(1.0_jprb-trans_dir_dir(jg))-ref_dir(jg)))
+
+  end do
+
+  end subroutine calc_ref_trans_acc_sw
 
   !---------------------------------------------------------------------
   ! Compute the fraction of shortwave transmitted diffuse radiation

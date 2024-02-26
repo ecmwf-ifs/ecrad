@@ -50,8 +50,8 @@ contains
     use radiation_single_level, only   : single_level_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type
-    use radiation_two_stream, only     : calc_ref_trans_lw, &
-         &                               calc_no_scattering_transmittance_lw
+    use radiation_two_stream, only     : calc_no_scattering_transmittance_lw, &
+         &                               calc_ref_trans_acc_lw
     use radiation_adding_ica_lw, only  : adding_ica_lw, fast_adding_ica_lw, &
          &                               calc_fluxes_no_scattering_lw
     use radiation_lw_derivatives, only : calc_lw_derivatives_ica, modify_lw_derivatives_ica
@@ -293,14 +293,14 @@ contains
     !$ACC   reflectance, tmp_work_inv_denominator, tmp_work_albedo, tmp_work_source, &
     !$ACC   scat_od_total, source_dn, source_dn_clear, source_up, source_up_clear, ssa_total, &
     !$ACC   trans_clear, transmittance)
-        do jcol = istartcol,iendcol
+    do jcol = istartcol,iendcol
 
       ! Clear-sky calculation
 #ifndef _OPENACC
       if (config%do_lw_aerosol_scattering) then
         ! Scattering case: first compute clear-sky reflectance,
         ! transmittance etc at each model level
-        call calc_ref_trans_lw(ng*nlev, &
+        call calc_ref_trans_acc_lw(ng*nlev, &
              &  od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), &
              &  planck_hl(:,1:jlev,jcol), planck_hl(:,2:jlev+1,jcol), &
              &  ref_clear, trans_clear, &
@@ -431,7 +431,7 @@ contains
 
               ! Compute cloudy-sky reflectance, transmittance etc at
               ! each model level
-              call calc_ref_trans_lw(ng, &
+              call calc_ref_trans_acc_lw(ng, &
                    &  od_total, ssa_total, g_total, &
                    &  planck_hl(:,jlev,jcol), planck_hl(:,jlev+1,jcol), &
                    &  reflectance(:,jlev), transmittance(:,jlev), &

@@ -52,7 +52,9 @@ contains
     use radiation_single_level, only   : single_level_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type
-    use radiation_two_stream, only     : calc_ref_trans_sw
+    use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
+         &                               calc_reflectance_transmittance_sw, &
+         &                               calc_ref_trans_acc_sw
     use radiation_adding_ica_sw, only  : adding_ica_sw
     use radiation_cloud_generator_acc, only: cloud_generator_acc
     use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
@@ -297,7 +299,7 @@ contains
         if (.not. config%do_sw_delta_scaling_with_gases) then
           ! Delta-Eddington scaling has already been performed to the
           ! aerosol part of od, ssa and g
-          call calc_ref_trans_sw(ng*nlev, &
+          call calc_ref_trans_acc_sw(ng*nlev, &
             &  cos_sza, od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), &
             &  ref_clear, trans_clear, &
             &  ref_dir_clear, trans_dir_diff_clear, &
@@ -405,7 +407,7 @@ contains
 
               ! Compute cloudy-sky reflectance, transmittance etc at
               ! each model level
-              call calc_ref_trans_sw(ng, &
+              call calc_ref_trans_acc_sw(ng, &
                    &  cos_sza, od_total, ssa_total, g_total, &
                    &  reflectance(:,jlev), transmittance(:,jlev), &
                    &  ref_dir(:,jlev), trans_dir_diff(:,jlev), &
