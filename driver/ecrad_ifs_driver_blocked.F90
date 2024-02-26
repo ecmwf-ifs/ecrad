@@ -410,7 +410,10 @@ program ecrad_ifs_driver
 #endif
         !$acc&
 
-        !$acc update device(zrgp(1:il,:,ib))
+        !$acc update device(zrgp(1:il,ifs_config%iinbeg:ifs_config%iinend,ib), &
+        !$acc&            zrgp(1:il,ifs_config%ioutend+1:ifs_config%ifldstot,ib))
+#endif
+
         ! Call the ECRAD radiation scheme
         call radiation_scheme &
              & (yradiation, &
@@ -455,7 +458,7 @@ program ecrad_ifs_driver
              &  iseed=iseed(:,ib) &
 #endif
              & )
-          !$acc update host(zrgp(1:il,:,ib))
+          !$acc update host(zrgp(1:il,ifs_config%ioutbeg:ifs_config%ioutend,ib))
           !$acc end data
       end do
       !$OMP END PARALLEL DO

@@ -32,7 +32,7 @@ module ifs_blocking
 #ifdef BITIDENTITY_TESTING
     integer :: ire_liq, ire_ice, ioverlap
 #endif
-    integer :: ifldstot, iinbeg, ioutbeg
+    integer :: ifldstot, iinbeg, ioutbeg, iinend, ioutend
   end type ifs_config_type
 
 contains
@@ -197,7 +197,9 @@ subroutine ifs_setup_indices (driver_config, ifs_config, yradiation, nlev)
   ifldsout= ioutend-ioutbeg +1
   ifs_config%ifldstot= inext  - 1
   ifs_config%iinbeg = iinbeg
+  ifs_config%iinend = iinend
   ifs_config%ioutbeg = ioutbeg
+  ifs_config%ioutend = ioutend
 
   if( lldebug )then
     write(nulout,'("imu0   =",i0)')ifs_config%imu0
