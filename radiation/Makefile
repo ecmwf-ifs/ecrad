@@ -95,8 +95,10 @@ $(consumer_objs): FCFLAGS+= $(inlib_inline_FCFLAGS)
 # All object that can be built with the inline library depend on it:
 $(consumer_objs): $(inlib_name)
 
-#radiation_mcica_acc_lw.o: FCFLAGS += -gpu=maxregcount:96
-#radiation_mcica_acc_sw.o: FCFLAGS += -gpu=maxregcount:96
+radiation_mcica_acc_lw.o: FCFLAGS += -gpu=maxregcount:96
+radiation_mcica_acc_sw.o: FCFLAGS += -gpu=maxregcount:96
+radiation_two_stream.o: FCFLAGS += -gpu=maxregcount:96
+radiation_lw_derivatives.o: FCFLAGS += -gpu=maxregcount:96
 endif
 
 # The inline library generation rule. Note that the source files are provided
