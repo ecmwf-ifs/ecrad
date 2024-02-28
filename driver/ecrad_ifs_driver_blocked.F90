@@ -135,6 +135,16 @@ program ecrad_ifs_driver
   ! Loop index
   integer :: jrl, ibeg, iend, il, ib
 
+  ! If enabled, COPY_ASYNC stages copy in, compute and copy out of ZRGP
+  ! in different streams, overlapping the copy-in of the next block with the
+  ! compute of the current block, and the copy-out of the processed block
+  ! with the compute of the next block. However, this does not seem to
+  ! improve overall performance and it is therefore disabled by default.
+! #define COPY_ASYNC
+#ifdef COPY_ASYNC
+  integer :: next_il
+#endif
+
   ! Are any variables out of bounds?
   logical :: is_out_of_bounds
 
@@ -376,6 +386,18 @@ program ecrad_ifs_driver
   t0 = omp_get_wtime()
 #endif
 
+#ifdef COPY_ASYNC
+  !$acc enter data create(zrgp(:,:,1)) &
+#ifdef BITIDENTITY_TESTING
+  !$acc&     copyin(iseed(:,1)) &
+#endif
+  !$acc&     async(2)
+
+  next_il = min(nproma,ncol)
+  !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,1), &
+  !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,1)) async(2)
+#endif
+
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
 #ifndef NO_OPENMP
@@ -404,6 +426,21 @@ program ecrad_ifs_driver
 #endif
         end if
 
+#ifdef COPY_ASYNC
+        if (iend < ncol) then
+          !$acc enter data create(zrgp(:,:,ib+1)) &
+#ifdef BITIDENTITY_TESTING
+          !$acc&     copyin(iseed(:,ib+1)) &
+#endif
+          !$acc&     async(2) wait(2)
+
+          next_il = min(iend+nproma,ncol) - (ibeg+nproma) + 1
+          !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,ib+1), &
+          !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,ib+1)) async(2)
+        endif
+
+#else  /* COPY_ASYNC */
+
         !$acc data create(zrgp(:,:,ib)) &
 #ifdef BITIDENTITY_TESTING
         !$acc&     copyin(iseed(:,ib)) &
@@ -412,7 +449,7 @@ program ecrad_ifs_driver
 
         !$acc update device(zrgp(1:il,ifs_config%iinbeg:ifs_config%iinend,ib), &
         !$acc&            zrgp(1:il,ifs_config%ioutend+1:ifs_config%ifldstot,ib))
-#endif
+#endif /* COPY_ASYNC */
 
         ! Call the ECRAD radiation scheme
         call radiation_scheme &
@@ -458,8 +495,13 @@ program ecrad_ifs_driver
              &  iseed=iseed(:,ib) &
 #endif
              & )
+#ifdef COPY_ASYNC
+          !$acc update host(zrgp(:,ifs_config%ioutbeg:ifs_config%ioutend,ib)) async(3) wait(1)
+          !$acc exit data delete(zrgp(:,:,ib)) async(3)
+#else
           !$acc update host(zrgp(1:il,ifs_config%ioutbeg:ifs_config%ioutend,ib))
           !$acc end data
+#endif
       end do
       !$OMP END PARALLEL DO
 
@@ -482,6 +524,8 @@ program ecrad_ifs_driver
   tstop = omp_get_wtime()
   write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
 #endif
+
+!$acc wait
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
