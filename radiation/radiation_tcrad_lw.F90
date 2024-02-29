@@ -310,7 +310,7 @@ contains
     use parkind1, only           : jprb
     use yomhook,  only           : lhook, dr_hook, jphook
 
-!    use radiation_io, only             : nulout
+    !use radiation_io, only             : nulerr, radiation_abort
     use radiation_config, only         : config_type, IPdfShapeGamma, ISolverTcradICA
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_cloud, only          : cloud_type

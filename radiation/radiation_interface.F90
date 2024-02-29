@@ -460,6 +460,11 @@ contains
         end if
 
         if (config%do_radiances) then
+          if (.not. allocated(single_level%cos_sensor_zenith_angle)) then
+            write(nulerr,'(a)') '*** Error: Radiance solver requires cos_sensor_zenith_angle to be defined'
+            call radiation_abort('cos_sensor_zenith_angle not provided')
+          end if
+              
           if (config%i_solver_lw == ISolverTcrad &
                &  .or. config%i_solver_lw == ISolverTcradICA) then
             ! Compute radiances using the TCRAD longwave solver

@@ -134,7 +134,7 @@ contains
         geometry%is_lat_lon = .true.
       else
         write(nulout,'(a)') '*** Error: pressure_hl is not 2D, so x/y or lat/lon must be present'
-        stop
+        error stop
       end if
       geometry%nx = size(geometry%x)
       geometry%ny = size(geometry%y)
@@ -238,7 +238,7 @@ contains
       single_level%cos_sza = 0.0_jprb
     else
       write(nulout,'(a,a)') '*** Error: cos_solar_zenith_angle not provided'
-      stop
+      error stop
     end if
 
     if (driver_config%cos_sensor_zenith_angle_override >= -1.0_jprb) then
@@ -264,7 +264,7 @@ contains
       call get_1d(file,geometry,'cos_sensor_zenith_angle',single_level%cos_sensor_zenith_angle)
     else if (config%do_sw .and. config%do_radiances) then
       write(nulout,'(a,a)') '*** Error: cos_sensor_zenith_angle not provided'
-      stop
+      error stop
     end if
 
     if (driver_config%solar_azimuth_angle_override >= -9.0_jprb) then
@@ -289,7 +289,7 @@ contains
       call get_1d(file,geometry,'solar_azimuth_angle',single_level%solar_azimuth_angle)
     else if (config%do_sw .and. config%do_radiances) then
       write(nulout,'(a,a)') '*** Error: solar_azimuth_angle not provided'
-      stop
+      error stop
     end if
 
     if (driver_config%sensor_azimuth_angle_override >= -9.0_jprb) then
@@ -313,7 +313,7 @@ contains
       call get_1d(file, geometry, 'sensor_azimuth_angle', single_level%sensor_azimuth_angle)
     else if (config%do_sw .and. config%do_radiances) then
       write(nulout,'(a,a)') '*** Error: sensor_azimuth_angle not provided'
-      stop
+      error stop
     end if
 
 #ifdef FLOTSAM
@@ -353,7 +353,7 @@ contains
       if (file%exists('q_hydrometeor')) then
         if (geometry%is_3d) then
           write(nulout,'(a)') '*** Error: 3D geometry unable to cope with q_hydrometeor :-('
-          stop
+          error stop
         end if
         call file%get('q_hydrometeor',  cloud%mixing_ratio, ipermute=[2,1,3])     ! kg/kg
         call file%get('re_hydrometeor', cloud%effective_radius, ipermute=[2,1,3]) ! m
@@ -521,7 +521,7 @@ contains
              &  .or. driver_config%high_inv_effective_size_override < 0.0_jprb) then
             write(nulout,'(a,a)') '*** Error: if one of [low|middle|high]_inv_effective_size_override', &
                  & ' is provided then all must be'
-            stop
+            error stop
           end if
           if (driver_config%iverbose >= 2) then
             write(nulout,'(a,g10.3,a)') '  Overriding inverse cloud effective size with:'
@@ -651,7 +651,7 @@ contains
         else
 
           write(nulout,'(a)') '*** Error: SPARTACUS solver specified but cloud size not, either in namelist or input file'
-          stop
+          error stop
 
         end if ! Select method of specifying cloud effective size
         
@@ -925,6 +925,7 @@ contains
   ! is 3D then the two horizontal dimensions are compressed
   subroutine get_2d(file, geometry, varname, array, is_optional)
     use parkind1,                 only : jprb, jpim
+    use radiation_io,             only : nulout
     use ecrad3d_geometry,         only : geometry_type
     use easy_netcdf,              only : netcdf_file
     type(netcdf_file),       intent(in)    :: file
@@ -988,6 +989,7 @@ contains
   ! Read a variable from a file into a 1D array.
   subroutine get_1d(file, geometry, varname, array, is_optional)
     use parkind1,                 only : jprb, jpim
+    use radiation_io,             only : nulout
     use ecrad3d_geometry,         only : geometry_type
     use easy_netcdf,              only : netcdf_file
     type(netcdf_file),       intent(in)    :: file
@@ -1003,11 +1005,11 @@ contains
     if (.not. file%exists(trim(varname))) then
       if (.not. present(is_optional)) then
         write(nulout,'(a,a,a)') '*** Error: ', trim(varname), ' not present'
-        stop
+        error stop
       else
         if (.not. is_optional) then
           write(nulout,'(a,a,a)') '*** Error: ', trim(varname), ' not present'
-          stop
+          error stop
         end if
       end if
       return
@@ -1021,13 +1023,13 @@ contains
     else if (ndim == 1) then
       if (geometry%is_3d) then
         write(nulout,'(a)') '*** Error: ', trim(varname), ' must be 0 or 2 dimensions'
-        stop
+        error stop
       end if
       call file%get(trim(varname), array)
     else if (ndim == 2) then
       if (.not. geometry%is_3d) then
         write(nulout,'(a)') '*** Error: ', trim(varname), ' must be 0 or 1 dimensions'
-        stop
+        error stop
       end if
       call file%get(trim(varname), tmp_array, do_transp=.false.)
       if (geometry%nx /= size(tmp_array,1) &
@@ -1037,12 +1039,13 @@ contains
              &  size(tmp_array,1), ',', size(tmp_array,2), &
              &  ') does not match expected shape (', &
              &  geometry%nx, ',', geometry%ny, ')'
-        stop
+        error stop
       end if
       allocate(array(geometry%ncol))
       array = reshape(tmp_array, [geometry%ncol])
     else
       write(nulout, '(a,a,a)') '*** Error: ', trim(varname), ' must have 0, 1 or 2 dimensions'
+      error stop
     end if
   end subroutine get_1d
   
