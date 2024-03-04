@@ -17,6 +17,8 @@
 !   2017-04-22  R. Hogan  Store surface fluxes at all g-points
 !   2017-10-23  R. Hogan  Renamed single-character variables
 
+#include "ecrad_config.h"
+
 module radiation_mcica_acc_sw
 
   public
@@ -50,9 +52,7 @@ contains
     use radiation_single_level, only   : single_level_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type
-    use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
-         &                               calc_reflectance_transmittance_sw, &
-         &                               calc_ref_trans_sw
+    use radiation_two_stream, only     : calc_ref_trans_sw
     use radiation_adding_ica_sw, only  : adding_ica_sw
     use radiation_cloud_generator_acc, only: cloud_generator_acc
     use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
@@ -112,9 +112,6 @@ contains
     ! Combined scattering optical depth
     real(jprb) :: scat_od
 
-    ! Two-stream coefficients
-    real(jprb), dimension(config%n_g_sw) :: gamma1, gamma2, gamma3
-
     ! Optical depth scaling from the cloud generator, zero indicating
     ! clear skies
     real(jprb), dimension(config%n_g_sw,nlev) :: od_scaling
@@ -143,20 +140,18 @@ contains
     integer :: ibegin(istartcol:iendcol), iend(istartcol:iendcol)
 
     ! Temporary working array
-    real(jprb), dimension(config%n_g_sw,nlev+1) :: tmp_work_albedo, tmp_work_source
+    real(jprb), dimension(config%n_g_sw,nlev+1) :: tmp_work_albedo, &
+      &                                            tmp_work_source
     real(jprb), dimension(config%n_g_sw,nlev) :: tmp_work_inv_denominator
 
-    ! Total cloud cover output from the cloud generator
-    real(jprb) :: total_cloud_cover
+    ! Auxiliary for more efficient summation
+    real(jprb) :: sum_up, sum_dn_direct, sum_dn_diffuse
 
     ! Number of g points
     integer :: ng
 
     ! Loop indices for level, column and g point
     integer :: jlev, jcol, jg
-
-    ! temporary sum values for reduction 
-    real(jprb) :: sum_up, sum_dn_direct, sum_dn_diffuse
 
     real(jprb) :: hook_handle
 

@@ -214,7 +214,7 @@ contains
             ! Loop through the sequence of cloudy layers
             !$ACC LOOP SEQ PRIVATE(rand_inhom2, overlap_param_inhom, wcdf, icdf, &
             !$ACC   wfsd, ifsd)
-            do jcloud = jlev-n_layers_to_scale,jlev-1
+            do jcloud = max(2,jlev-n_layers_to_scale),jlev-1
 
               rand_inhom2 = uniform_distribution_acc(istate)
 
