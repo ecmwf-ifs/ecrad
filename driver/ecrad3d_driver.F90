@@ -47,6 +47,7 @@ program ecrad3d_driver
        &                               save_radiances_3d => save_radiances
   use ecrad_driver_config,      only : driver_config_type
   use ecrad3d_driver_read_input,only : read_input
+  use ecrad3d_interface,        only : ecrad3d
   use easy_netcdf
   use print_matrix_mod,         only : print_matrix
   
@@ -248,9 +249,8 @@ program ecrad3d_driver
 
     if (use_ecrad3d_solver) then
       ! Call the ECRAD3D radiation scheme
-      !call ecrad3d(ncol, nlev, config, single_level, thermodynamics, gas, cloud, aerosol, &
-      !     &       geometry, flux)
-      error stop 'Explicit ecRad3D solver not yet implemented'
+      call ecrad3d(config, geometry, single_level, thermodynamics, gas, cloud, aerosol, &
+           &       flux)
     else
       
       if (driver_config%do_parallel) then

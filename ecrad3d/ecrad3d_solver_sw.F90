@@ -120,7 +120,7 @@ contains
 
     ! Incoming radiation at top of atmosphere
     do js = 1,nspec
-      flux_dn_dir_top(:,js,1) = incoming(js)
+      flux_dn_dir_top(:,js,1) = incoming(js)*cos_sza(:)
     end do
     
     ! Loop down through the atmosphere 
@@ -154,7 +154,7 @@ contains
       ! Horizontal "advection"
       if (jl < nlay) then
         if (config%do_3d .and. jl >= local_first_direct_3d_layer) then
-          call geometry%advect(ncol, nspec, jl,flux_dn_dir_base_layer,flux_dn_dir_top(:,:,jl+1))
+          call geometry%advect(ncol, nspec, jl, flux_dn_dir_base_layer, flux_dn_dir_top(:,:,jl+1))
         else
           do js = 1,nspec
             flux_dn_dir_top(:,js,jl+1) = flux_dn_dir_base_layer(:,js)
@@ -170,7 +170,7 @@ contains
     ! Assign values at the surface
     do js = 1,nspec
       do jc = 1,ncol
-        source_base(jc,js,nlay) = flux_dn_dir_base(jc,js,nlay) &
+        source_base(jc,js,nlay) = flux_dn_dir_base_layer(jc,js) &
              &  * surf_albedo_dir(jc,js) * cos_sza(jc)
         albedo_base(jc,js,nlay) = surf_albedo_diff(jc,js)
       end do
@@ -263,16 +263,17 @@ contains
       !$OMP END PARALLEL DO
       
       ! Horizontal "diffusion"
-      if (jl < nlay) then
-        if (config%do_3d) then
-          call geometry%diffuse(ncol, nspec, jl, flux_dn_diff_base, flux_dn_diff_top(:,:,jl+1))
-        else
-          do js = 1,nspec
-            flux_dn_diff_top(:,js,jl+1) = flux_dn_diff_base_layer(:,js)
-          end do
-        end if
+      if (config%do_3d .and. jl < nlay) then
+        call geometry%diffuse(ncol, nspec, jl, flux_dn_diff_base_layer, flux_dn_diff_top(:,:,jl+1))
+      else
+        ! This is also done at surface to ensure that
+        ! flux_dn_diff_top(:,:,nlay+1) contains the surface value
+        flux_dn_diff_top(:,:,jl+1) = flux_dn_diff_base_layer(:,:)
       end if
     end do
+
+    ! Copy surface upwelling
+    flux_up_top(:,:,nlay+1) = flux_up_base_layer(:,:)
 
   end subroutine solver_sw
     

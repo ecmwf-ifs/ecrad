@@ -238,21 +238,23 @@ contains
              &     -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
              &  * (1.0_jprb / AccelDueToGravity)
       else if (config%cloud_scaling_mode == ICloudScalingFraction) then
-        water_path = cloud%mixing_ratio(istartcol:iendcol,:,jtype) &
+        water_path = merge(0.0_jprb, cloud%mixing_ratio(istartcol:iendcol,:,jtype) &
              &  *  (thermodynamics%pressure_hl(istartcol:iendcol, 2:nlev+1) &
              &     -thermodynamics%pressure_hl(istartcol:iendcol, 1:nlev)) &
              &  * (1.0_jprb / (AccelDueToGravity &
              &                 * max(config%cloud_fraction_threshold, &
-             &                       cloud%fraction(istartcol:iendcol,:))))
+             &                       cloud%fraction(istartcol:iendcol,:)))), &
+             &  cloud%fraction(istartcol:iendcol,:) <= 0.0_jprb)
       else if (config%cloud_scaling_mode == ICloudScalingCover) then
         do jcol = istartcol,iendcol
           cld_cover = cloud_cover(nlev, config%i_overlap_scheme, &
                &  cloud%fraction(jcol,:), cloud%overlap_param(jcol,:), config%use_beta_overlap)
-          water_path(jcol,:) = cloud%mixing_ratio(jcol,:,jtype) &
+          water_path(jcol,:) = merge(0.0_jprb, cloud%mixing_ratio(jcol,:,jtype) &
                &  *  (thermodynamics%pressure_hl(jcol, 2:nlev+1) &
                &     -thermodynamics%pressure_hl(jcol, 1:nlev)) &
                &  * (1.0_jprb / (AccelDueToGravity &
-               &                 * max(config%cloud_fraction_threshold, cld_cover)))
+               &                 * max(config%cloud_fraction_threshold, cld_cover))), &
+               &  cloud%fraction(jcol,:) <= 0.0_jprb)
         end do
       else
         write(nulerr,*) '*** Error: Unable to compute in-cloud water content for scaling mode ', &
@@ -269,12 +271,12 @@ contains
         ! factor), then scale after
         if (config%do_lw_cloud_scattering) then
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
-               &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
+               &  iendcol+1-istartcol, &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
                &  od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, layer_depth, temperature_fl)
         else
           call config%cloud_optics_lw(jtype)%add_optical_properties(config%n_bands_lw, nlev, &
-               &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
+               &  iendcol+1-istartcol, &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), od_lw_cloud, &
                &  layer_depth, temperature_fl)
         end if
@@ -288,14 +290,14 @@ contains
 #ifdef FLOTSAM
         if (config%n_pf_sw > 1) then
           call config%cloud_optics_sw(jtype)%add_optical_properties_flotsam(config%n_bands_sw, nlev, &
-               &  iendcol+1-istartcol, config%n_pf_sw, cloud%fraction(istartcol:iendcol,:), &
+               &  iendcol+1-istartcol, config%n_pf_sw, &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
                &  single_level%scattering_angle(istartcol:iendcol), &
                &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud) ! layer depth & temperature_fl not needed
         else
 #endif
           call config%cloud_optics_sw(jtype)%add_optical_properties(config%n_bands_sw, nlev, &
-               &  iendcol+1-istartcol, cloud%fraction(istartcol:iendcol,:), &
+               &  iendcol+1-istartcol, &
                &  water_path, cloud%effective_radius(istartcol:iendcol,:,jtype), &
                &  od_sw_cloud, ssa_sw_cloud, pf_sw_cloud(:,:,:,1), &
                &  layer_depth, temperature_fl)
@@ -305,28 +307,31 @@ contains
       end if
     end do
 
-    ! Scale the combined longwave optical properties
-    if (config%do_lw_cloud_scattering) then
-      do jcol = istartcol, iendcol
-        do jlev = 1,nlev
-          if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
-            ! Note that original cloud optics does not do
-            ! delta-Eddington scaling for liquid clouds in longwave
-            if (SolverPhaseFuncMode(config%i_solver_lw) == IPhaseFuncAsymmetry) then
-              call delta_eddington_extensive(od_lw_cloud(:,jlev,jcol), &
-                   &  ssa_lw_cloud(:,jlev,jcol), pf_lw_cloud(:,jlev,jcol,1))
+    if (config%do_lw) then
+      ! Scale the combined longwave optical properties
+      if (config%do_lw_cloud_scattering) then
+        do jcol = istartcol, iendcol
+          do jlev = 1,nlev
+            ! if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+            if (od_lw_cloud(1,jlev,jcol) > 0.0_jprb) then
+              ! Note that original cloud optics does not do
+              ! delta-Eddington scaling for liquid clouds in longwave
+              if (SolverPhaseFuncMode(config%i_solver_lw) == IPhaseFuncAsymmetry) then
+                call delta_eddington_extensive(od_lw_cloud(:,jlev,jcol), &
+                     &  ssa_lw_cloud(:,jlev,jcol), pf_lw_cloud(:,jlev,jcol,1))
+              end if
+              ! Scale to get phase function components (usually
+              ! asymmetry factor) and single scattering albedo
+              do jcomp = 1,config%n_pf_lw
+                pf_lw_cloud(:,jlev,jcol,jcomp) = pf_lw_cloud(:,jlev,jcol,jcomp) &
+                     &  / max(ssa_lw_cloud(:,jlev,jcol), 1.0e-15_jprb)
+              end do
+              ssa_lw_cloud(:,jlev,jcol) = ssa_lw_cloud(:,jlev,jcol) &
+                   &  / max(od_lw_cloud(:,jlev,jcol),  1.0e-15_jprb)
             end if
-            ! Scale to get phase function components (usually
-            ! asymmetry factor) and single scattering albedo
-            do jcomp = 1,config%n_pf_lw
-              pf_lw_cloud(:,jlev,jcol,jcomp) = pf_lw_cloud(:,jlev,jcol,jcomp) &
-                   &  / max(ssa_lw_cloud(:,jlev,jcol), 1.0e-15_jprb)
-            end do
-            ssa_lw_cloud(:,jlev,jcol) = ssa_lw_cloud(:,jlev,jcol) &
-                 &  / max(od_lw_cloud(:,jlev,jcol),  1.0e-15_jprb)
-          end if
+          end do
         end do
-      end do
+      end if
     end if
     
     ! Scale the combined shortwave optical properties
@@ -335,7 +340,8 @@ contains
            &  .and. SolverPhaseFuncMode(config%i_solver_sw) == IPhaseFuncAsymmetry) then
         do jcol = istartcol, iendcol
           do jlev = 1,nlev
-            if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+            ! if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+            if (od_sw_cloud(1,jlev,jcol) > 0.0_jprb) then
               call delta_eddington_extensive(od_sw_cloud(:,jlev,jcol), &
                    &  ssa_sw_cloud(:,jlev,jcol), pf_sw_cloud(:,jlev,jcol,1))
             end if
@@ -345,7 +351,8 @@ contains
 
       do jcol = istartcol, iendcol
         do jlev = 1,nlev
-          if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+          ! if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+          if (od_sw_cloud(1,jlev,jcol) > 0.0_jprb) then
             ! Scale to get phase function components (usually
             ! asymmetry factor) and single scattering albedo
             do jcomp = 1,config%n_pf_sw

@@ -52,7 +52,7 @@ contains
     real(jprb), intent(in)  :: field_in(ncol,nspec)
     real(jprb), intent(out) :: field_out(ncol,nspec)
 
-    !field_out = field_in
+    field_out = field_in
 
   end subroutine advect
 

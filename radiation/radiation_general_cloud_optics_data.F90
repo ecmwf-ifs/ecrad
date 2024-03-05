@@ -634,7 +634,6 @@ contains
   ! Add the optical properties of a particular cloud type to the
   ! accumulated optical properties of all cloud types
   subroutine add_optical_properties(this, ng, nlev, ncol, &
-       &                            cloud_fraction, &
        &                            water_path, effective_radius, &
        &                            od, scat_od, scat_pf, &
        &                            layer_depth, temperature_fl)
@@ -647,7 +646,6 @@ contains
     integer, intent(in) :: ng, nlev, ncol
 
     ! Properties of present cloud type, dimensioned (ncol,nlev)
-    real(jprb), intent(in) :: cloud_fraction(:,:)
     real(jprb), intent(in) :: water_path(:,:)       ! kg m-2
     real(jprb), intent(in) :: effective_radius(:,:) ! m
 
@@ -694,7 +692,7 @@ contains
       if (present(scat_od)) then
         do jcol = 1,ncol
           do jlev = 1,nlev
-            if (cloud_fraction(jcol, jlev) > 0.0_jprb) then
+            if (water_path(jcol, jlev) > 0.0_jprb) then
               re_index = max(1.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
                    &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
               ire = int(re_index)
@@ -741,7 +739,7 @@ contains
       if (present(scat_od)) then
         do jcol = 1,ncol
           do jlev = 1,nlev
-            if (cloud_fraction(jcol, jlev) > 0.0_jprb) then
+            if (water_path(jcol, jlev) > 0.0_jprb) then
               ln_water_content = log(max(1.0e-12, water_path(jcol,jlev)/layer_depth(jcol,jlev)))
               t_index = max(1.0_jprb, min(1.0_jprb + (temperature_fl(jcol,jlev)-this%temperature_0) &
                    &              / this%d_temperature, this%n_temperature-0.0001_jprb))
@@ -802,7 +800,6 @@ contains
   ! Add the optical properties of a particular cloud type to the
   ! accumulated optical properties of all cloud types, for FLOTSAM
   subroutine add_optical_properties_flotsam(this, ng, nlev, ncol, npf, &
-       &                            cloud_fraction, &
        &                            water_path, effective_radius, &
        &                            scattering_angle, &
        &                            od, scat_od, pf)
@@ -815,7 +812,6 @@ contains
     integer, intent(in) :: ng, nlev, ncol, npf
 
     ! Properties of present cloud type, dimensioned (ncol,nlev)
-    real(jprb), intent(in) :: cloud_fraction(:,:)
     real(jprb), intent(in) :: water_path(:,:)       ! kg m-2
     real(jprb), intent(in) :: effective_radius(:,:) ! m
 
@@ -858,7 +854,7 @@ contains
            &  / (this%scattering_angle(iang+1)-this%scattering_angle(iang))
 
       do jlev = 1,nlev
-        if (cloud_fraction(jcol, jlev) > 0.0_jprb) then
+        if (water_path(jcol, jlev) > 0.0_jprb) then
           re_index = max(1.0_jprb, min(1.0_jprb + (effective_radius(jcol,jlev)-this%effective_radius_0) &
                &              / this%d_effective_radius, this%n_effective_radius-0.0001_jprb))
           ire = int(re_index)

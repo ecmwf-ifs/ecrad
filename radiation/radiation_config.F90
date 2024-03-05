@@ -94,19 +94,21 @@ module radiation_config
 
   ! Array specifying cloud scaling assumption associated with each
   ! solver
-  integer, parameter :: SolverCloudScaling(0:11) &
+  integer, parameter :: SolverCloudScaling(0:12) &
        &  = [ ICloudScalingZero, ICloudScalingOne, &
        &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingFraction, &
        &      ICloudScalingFraction, ICloudScalingFraction, & ! TCRAD
        &      ICloudScalingFraction, ICloudScalingFraction, & ! FLOTSAM
-       &      ICloudScalingCover, ICloudScalingOne, ICloudScalingZero ] ! DISORT
+       &      ICloudScalingCover, ICloudScalingOne, ICloudScalingZero, & ! DISORT
+       &      ICloudScalingOne ] ! POMART3D
 
-  integer, parameter :: SolverPhaseFuncMode(0:11) &
+  integer, parameter :: SolverPhaseFuncMode(0:12) &
        &  = [ IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, &
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, &
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, & ! TCRAD
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, & ! FLOTSAM (need special entry here?)
-       &      IPhaseFuncLegendre,  IPhaseFuncLegendre,  IPhaseFuncLegendre ] ! DISORT
+       &      IPhaseFuncLegendre,  IPhaseFuncLegendre,  IPhaseFuncLegendre, & ! DISORT
+       &      IPhaseFuncAsymmetry ] ! POMART3D
   
   ! SPARTACUS shortwave solver can treat the reflection of radiation
   ! back up into different regions in various ways
