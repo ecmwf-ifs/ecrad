@@ -18,6 +18,8 @@
 !   2017-07-12  R. Hogan  Call fast adding method if only clouds scatter
 !   2017-10-23  R. Hogan  Renamed single-character variables
 
+#include "ecrad_config.h"
+
 module radiation_mcica_lw
 
   public
@@ -124,6 +126,13 @@ contains
     ! Identify clear-sky layers
     logical :: is_clear_sky_layer(nlev)
 
+    ! Temporary storage for more efficient summation
+#ifdef DWD_REDUCTION_OPTIMIZATIONS
+    real(jprb), dimension(nlev+1,2) :: sum_aux
+#else
+    real(jprb) :: sum_up, sum_dn
+#endif
+
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
 
@@ -178,8 +187,30 @@ contains
       end if
 
       ! Sum over g-points to compute broadband fluxes
-      flux%lw_up_clear(jcol,:) = sum(flux_up_clear,1)
-      flux%lw_dn_clear(jcol,:) = sum(flux_dn_clear,1)
+#ifdef DWD_REDUCTION_OPTIMIZATIONS
+      sum_aux(:,:) = 0.0_jprb
+      do jg = 1,ng
+        do jlev = 1,nlev+1
+          sum_aux(jlev,1) = sum_aux(jlev,1) + flux_up_clear(jg,jlev)
+          sum_aux(jlev,2) = sum_aux(jlev,2) + flux_dn_clear(jg,jlev)
+        end do
+      end do
+      flux%lw_up_clear(jcol,:) = sum_aux(:,1)
+      flux%lw_dn_clear(jcol,:) = sum_aux(:,2)
+#else
+      do jlev = 1,nlev+1
+        sum_up = 0.0_jprb
+        sum_dn = 0.0_jprb
+        !$omp simd reduction(+:sum_up, sum_dn)
+        do jg = 1,ng
+          sum_up = sum_up + flux_up_clear(jg,jlev)
+          sum_dn = sum_dn + flux_dn_clear(jg,jlev)
+        end do
+        flux%lw_up_clear(jcol,jlev) = sum_up
+        flux%lw_dn_clear(jcol,jlev) = sum_dn
+      end do
+#endif
+
       ! Store surface spectral downwelling fluxes
       flux%lw_dn_surf_clear_g(:,jcol) = flux_dn_clear(:,nlev+1)
 
@@ -278,10 +309,12 @@ contains
 
           else
             ! Clear-sky layer: copy over clear-sky values
-            reflectance(:,jlev) = ref_clear(:,jlev)
-            transmittance(:,jlev) = trans_clear(:,jlev)
-            source_up(:,jlev) = source_up_clear(:,jlev)
-            source_dn(:,jlev) = source_dn_clear(:,jlev)
+            do jg = 1,ng
+              reflectance(jg,jlev) = ref_clear(jg,jlev)
+              transmittance(jg,jlev) = trans_clear(jg,jlev)
+              source_up(jg,jlev) = source_up_clear(jg,jlev)
+              source_dn(jg,jlev) = source_dn_clear(jg,jlev)
+            end do
           end if
         end do
         
@@ -306,15 +339,38 @@ contains
         end if
         
         ! Store overcast broadband fluxes
-        flux%lw_up(jcol,:) = sum(flux_up,1)
-        flux%lw_dn(jcol,:) = sum(flux_dn,1)
+#ifdef DWD_REDUCTION_OPTIMIZATIONS
+        sum_aux(:,:) = 0._jprb
+        do jg = 1, ng
+          do jlev = 1, nlev+1
+            sum_aux(jlev,1) = sum_aux(jlev,1) + flux_up(jg,jlev)
+            sum_aux(jlev,2) = sum_aux(jlev,2) + flux_dn(jg,jlev)
+          end do
+        end do
+        flux%lw_up(jcol,:) = sum_aux(:,1)
+        flux%lw_dn(jcol,:) = sum_aux(:,2)
+#else
+        do jlev = 1,nlev+1
+          sum_up = 0.0_jprb
+          sum_dn = 0.0_jprb
+          !$omp simd reduction(+:sum_up, sum_dn)
+          do jg = 1,ng
+            sum_up = sum_up + flux_up(jg,jlev)
+            sum_dn = sum_dn + flux_dn(jg,jlev)
+          end do
+          flux%lw_up(jcol,jlev) = sum_up
+          flux%lw_dn(jcol,jlev) = sum_dn
+        end do
+#endif
 
         ! Cloudy flux profiles currently assume completely overcast
         ! skies; perform weighted average with clear-sky profile
-        flux%lw_up(jcol,:) =  total_cloud_cover *flux%lw_up(jcol,:) &
-             &  + (1.0_jprb - total_cloud_cover)*flux%lw_up_clear(jcol,:)
-        flux%lw_dn(jcol,:) =  total_cloud_cover *flux%lw_dn(jcol,:) &
-             &  + (1.0_jprb - total_cloud_cover)*flux%lw_dn_clear(jcol,:)
+        do jlev = 1,nlev+1
+          flux%lw_up(jcol,jlev) =  total_cloud_cover *flux%lw_up(jcol,jlev) &
+             &       + (1.0_jprb - total_cloud_cover)*flux%lw_up_clear(jcol,jlev)
+          flux%lw_dn(jcol,jlev) =  total_cloud_cover *flux%lw_dn(jcol,jlev) &
+             &       + (1.0_jprb - total_cloud_cover)*flux%lw_dn_clear(jcol,jlev)
+        end do
         ! Store surface spectral downwelling fluxes
         flux%lw_dn_surf_g(:,jcol) = total_cloud_cover*flux_dn(:,nlev+1) &
              &  + (1.0_jprb - total_cloud_cover)*flux%lw_dn_surf_clear_g(:,jcol)
@@ -334,8 +390,10 @@ contains
       else
         ! No cloud in profile and clear-sky fluxes already
         ! calculated: copy them over
-        flux%lw_up(jcol,:) = flux%lw_up_clear(jcol,:)
-        flux%lw_dn(jcol,:) = flux%lw_dn_clear(jcol,:)
+        do jlev = 1,nlev+1
+          flux%lw_up(jcol,jlev) = flux%lw_up_clear(jcol,jlev)
+          flux%lw_dn(jcol,jlev) = flux%lw_dn_clear(jcol,jlev)
+        end do
         flux%lw_dn_surf_g(:,jcol) = flux%lw_dn_surf_clear_g(:,jcol)
         if (config%do_lw_derivatives) then
           call calc_lw_derivatives_ica(ng, nlev, jcol, trans_clear, flux_up_clear(:,nlev+1), &

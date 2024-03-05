@@ -14,6 +14,8 @@
 ! License: see the COPYING file for details
 !
 
+#include "ecrad_config.h"
+
 module radiation_general_cloud_optics_data
 
   use parkind1, only : jprb
@@ -72,7 +74,11 @@ contains
        &                                iverbose)
 
     use yomhook,                       only : lhook, dr_hook, jphook
-    use easy_netcdf,                   only : netcdf_file
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
+    use easy_netcdf,          only : netcdf_file
+#endif
     use radiation_spectral_definition, only : spectral_definition_type
     use radiation_io,                  only : nulout, nulerr, radiation_abort
 
@@ -262,12 +268,12 @@ contains
          &  :: scat_od, &     ! Scattering optical depth of layer
          &     scat_asymmetry ! Scattering optical depth x asymmetry factor
 
-    real(jprb) :: od_local(ng)
+    real(jprb) :: od_local
 
     real(jprb) :: re_index, weight1, weight2
     integer :: ire
 
-    integer :: jcol, jlev
+    integer :: jcol, jlev, jg
 
     real(jphook) :: hook_handle
 
@@ -282,15 +288,18 @@ contains
             ire = int(re_index)
             weight2 = re_index - ire
             weight1 = 1.0_jprb - weight2
-            od_local = water_path(jcol, jlev) * (weight1*this%mass_ext(:,ire) &
-                 &                              +weight2*this%mass_ext(:,ire+1))
-            od(:,jlev,jcol) = od(:,jlev,jcol) + od_local
-            od_local = od_local * (weight1*this%ssa(:,ire) &
-                 &                +weight2*this%ssa(:,ire+1))
-            scat_od(:,jlev,jcol) = scat_od(:,jlev,jcol) + od_local
-            scat_asymmetry(:,jlev,jcol) = scat_asymmetry(:,jlev,jcol) &
-                 & + od_local * (weight1*this%asymmetry(:,ire) &
-                 &              +weight2*this%asymmetry(:,ire+1))
+            do jg = 1, ng
+              od_local = water_path(jcol, jlev) * (weight1*this%mass_ext(jg,ire) &
+                 &                                +weight2*this%mass_ext(jg,ire+1))
+              od(jg,jlev,jcol) = od(jg,jlev,jcol) + od_local
+              od_local = od_local * (weight1*this%ssa(jg,ire) &
+                 &                  +weight2*this%ssa(jg,ire+1))
+              scat_od(jg,jlev,jcol) = scat_od(jg,jlev,jcol) + od_local
+              scat_asymmetry(jg,jlev,jcol) = scat_asymmetry(jg,jlev,jcol) &
+                 & + od_local * (weight1*this%asymmetry(jg,ire) &
+                 &              +weight2*this%asymmetry(jg,ire+1))
+            end do
+
           end if
         end do
       end do
