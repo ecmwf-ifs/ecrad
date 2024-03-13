@@ -18,6 +18,8 @@
 !   2017-07-12  R. Hogan  Call fast adding method if only clouds scatter
 !   2017-10-23  R. Hogan  Renamed single-character variables
 
+#include "ecrad_config.h"
+
 module radiation_mcica_acc_lw
 
   public
@@ -48,8 +50,8 @@ contains
     use radiation_single_level, only   : single_level_type
     use radiation_cloud, only          : cloud_type
     use radiation_flux, only           : flux_type
-    use radiation_two_stream, only     : calc_no_scattering_transmittance_lw, &
-         &                               calc_ref_trans_lw
+    use radiation_two_stream, only     : calc_ref_trans_lw, &
+         &                               calc_no_scattering_transmittance_lw
     use radiation_adding_ica_lw, only  : adding_ica_lw, fast_adding_ica_lw, &
          &                               calc_fluxes_no_scattering_lw
     use radiation_lw_derivatives, only : calc_lw_derivatives_ica, modify_lw_derivatives_ica
@@ -111,9 +113,6 @@ contains
     ! Combined scattering optical depth
     real(jprb) :: scat_od, scat_od_total(config%n_g_lw)
 
-    ! Two-stream coefficients
-    real(jprb), dimension(config%n_g_lw) :: gamma1, gamma2
-
     ! Optical depth scaling from the cloud generator, zero indicating
     ! clear skies
     real(jprb), dimension(config%n_g_lw,nlev) :: od_scaling
@@ -123,7 +122,7 @@ contains
     real(jprb), dimension(config%n_g_lw) :: od_cloud_new
 
     ! Total cloud cover output from the cloud generator
-    real(jprb) :: total_cloud_cover, sum_up, sum_dn, sum_up_clr, sum_dn_clr
+    real(jprb) :: total_cloud_cover
 
     ! Identify clear-sky layers
     logical :: is_clear_sky_layer(nlev, istartcol:iendcol)
@@ -152,7 +151,8 @@ contains
     real(jprb), dimension(config%n_g_lw,nlev+1) :: tmp_work_albedo, &
       &                                            tmp_work_source
     real(jprb), dimension(config%n_g_lw,nlev) :: tmp_work_inv_denominator
-
+    ! Temporary storage for more efficient summation
+    real(jprb) :: sum_up, sum_dn, sum_up_clr, sum_dn_clr
 
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
@@ -289,9 +289,9 @@ contains
     ! Loop through columns
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)  &
     !$ACC   NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS((config%n_g_lw-1)/32+1) VECTOR_LENGTH(32)
-    !$ACC LOOP GANG PRIVATE(g_total, gamma1, gamma2, i_cloud_top, od_cloud_new, od_scaling, od_total, ref_clear, &
+    !$ACC LOOP GANG PRIVATE(g_total, i_cloud_top, od_cloud_new, od_scaling, od_total, ref_clear, &
     !$ACC   reflectance, tmp_work_inv_denominator, tmp_work_albedo, tmp_work_source, &
-    !$ACC   scat_od_total, source_dn, source_dn_clear, source_up, source_up_clear, ssa_total, total_cloud_cover, &
+    !$ACC   scat_od_total, source_dn, source_dn_clear, source_up, source_up_clear, ssa_total, &
     !$ACC   trans_clear, transmittance)
     do jcol = istartcol,iendcol
 
@@ -305,13 +305,11 @@ contains
              &  planck_hl(:,1:jlev,jcol), planck_hl(:,2:jlev+1,jcol), &
              &  ref_clear, trans_clear, &
              &  source_up_clear, source_dn_clear)
-
         ! Then use adding method to compute fluxes
         call adding_ica_lw(ng, nlev, &
              &  ref_clear, trans_clear, source_up_clear, source_dn_clear, &
              &  emission(:,jcol), albedo(:,jcol), &
              &  flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
-        
       else
 #endif
         ! Non-scattering case: use simpler functions for
@@ -323,12 +321,6 @@ contains
                &  trans_clear(:,jlev), source_up_clear(:,jlev), &
                &  source_dn_clear(:,jlev))
         end do
-        ! Simpler down-then-up method to compute fluxes
-        call calc_fluxes_no_scattering_lw(ng, nlev, &
-             &  trans_clear, source_up_clear, source_dn_clear, &
-             &  emission(:,jcol), albedo(:,jcol), &
-             &  flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
-        
         ! Ensure that clear-sky reflectance is zero since it may be
         ! used in cloudy-sky case
         !$ACC LOOP SEQ
@@ -338,13 +330,14 @@ contains
             ref_clear(jg,jlev) = 0.0_jprb
           end do
         end do
-
+        ! Simpler down-then-up method to compute fluxes
+        call calc_fluxes_no_scattering_lw(ng, nlev, &
+             &  trans_clear, source_up_clear, source_dn_clear, &
+             &  emission(:,jcol), albedo(:,jcol), &
+             &  flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
 #ifndef _OPENACC
       end if
 #endif
-
-      ! Store total cloud cover
-      total_cloud_cover = flux%cloud_cover_lw(jcol)
 
       ! Store surface spectral downwelling fluxes
       !$ACC LOOP WORKER VECTOR
@@ -362,12 +355,12 @@ contains
            &  config%pdf_sampler%ncdf, config%pdf_sampler%nfsd, &
            &  config%pdf_sampler%fsd1, config%pdf_sampler%inv_fsd_interval, &
            &  sample_val, &
-           &  od_scaling, total_cloud_cover, &
+           &  od_scaling, flux%cloud_cover_lw(jcol), &
            &  ibegin(jcol), iend(jcol), &
            &  cum_cloud_cover=cum_cloud_cover(:,jcol), &
            &  pair_cloud_cover=pair_cloud_cover(:,jcol))
       
-      if (total_cloud_cover >= config%cloud_fraction_threshold) then
+      if (flux%cloud_cover_lw(jcol) >= config%cloud_fraction_threshold) then
         ! Total-sky calculation
 
         i_cloud_top = nlev+1
@@ -418,6 +411,7 @@ contains
 
               else
 #endif
+
                 !$ACC LOOP WORKER VECTOR PRIVATE(scat_od)
                 do jg = 1,ng
                   if (od_total(jg) > 0.0_jprb) then
@@ -431,6 +425,7 @@ contains
                     end if
                   end if
                 end do
+
 #ifndef _OPENACC
               end if
 #endif
@@ -442,7 +437,6 @@ contains
                    &  planck_hl(:,jlev,jcol), planck_hl(:,jlev+1,jcol), &
                    &  reflectance(:,jlev), transmittance(:,jlev), &
                    &  source_up(:,jlev), source_dn(:,jlev))
-
             else
               ! No-scattering case: use simpler functions for
               ! transmission and emission
@@ -477,9 +471,6 @@ contains
 #endif
           ! Use adding method to compute fluxes but optimize for the
           ! presence of clear-sky layers
-!          call adding_ica_lw(ng, nlev, reflectance, transmittance, source_up, source_dn, &
-!               &  emission(:,jcol), albedo(:,jcol), &
-!               &  flux_up(:,:,jcol), flux_dn(:,:,jcol))
           call fast_adding_ica_lw(ng, nlev, reflectance, transmittance, source_up, source_dn, &
                &  emission(:,jcol), albedo(:,jcol), &
                &  is_clear_sky_layer(:,jcol), i_cloud_top, flux_dn_clear(:,:,jcol), &
@@ -499,8 +490,8 @@ contains
         ! Store surface spectral downwelling fluxes
         !$ACC LOOP WORKER VECTOR
         do jg = 1,ng
-          flux%lw_dn_surf_g(jg,jcol) = total_cloud_cover*flux_dn(jg,nlev+1,jcol) &
-              &  + (1.0_jprb - total_cloud_cover)*flux%lw_dn_surf_clear_g(jg,jcol)
+          flux%lw_dn_surf_g(jg,jcol) = flux%cloud_cover_lw(jcol)*flux_dn(jg,nlev+1,jcol) &
+              &  + (1.0_jprb - flux%cloud_cover_lw(jcol))*flux%lw_dn_surf_clear_g(jg,jcol)
         end do
 
         ! Compute the longwave derivatives needed by Hogan and Bozzo
@@ -509,10 +500,10 @@ contains
         if (config%do_lw_derivatives) then
           call calc_lw_derivatives_ica(ng, nlev, jcol, transmittance, flux_up(:,nlev+1,jcol), &
                &                       flux%lw_derivatives)
-          if (total_cloud_cover < 1.0_jprb - config%cloud_fraction_threshold) then
+          if (flux%cloud_cover_lw(jcol) < 1.0_jprb - config%cloud_fraction_threshold) then
             ! Modify the existing derivative with the contribution from the clear sky
             call modify_lw_derivatives_ica(ng, nlev, jcol, trans_clear, flux_up_clear(:,nlev+1,jcol), &
-                 &                         1.0_jprb-total_cloud_cover, flux%lw_derivatives)
+                 &                         1.0_jprb-flux%cloud_cover_lw(jcol), flux%lw_derivatives)
           end if
         end if
 #endif
