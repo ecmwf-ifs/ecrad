@@ -54,6 +54,9 @@ program ecrad_driver
   
   implicit none
 
+  ! Uncomment this if you want to use the "satur" routine below
+!#include "satur.intfb.h"
+  
   ! The NetCDF file containing the input profiles
   type(netcdf_file)         :: file
 
@@ -268,9 +271,19 @@ program ecrad_driver
   call set_gas_units(config, gas)
 
   ! Compute saturation with respect to liquid (needed for aerosol
-  ! hydration) call
+  ! hydration) call...
   call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
+  ! ...or alternatively use the "satur" function in the IFS (requires
+  ! adding -lifs to the linker command line) but note that this
+  ! computes saturation with respect to ice at colder temperatures,
+  ! which is almost certainly incorrect
+  !allocate(thermodynamics%h2o_sat_liq(ncol,nlev))
+  !call satur(driver_config%istartcol, driver_config%iendcol, ncol, 1, nlev, .false., &
+  !     0.5_jprb * (thermodynamics.pressure_hl(:,1:nlev)+thermodynamics.pressure_hl(:,2:nlev)), &
+  !     0.5_jprb * (thermodynamics.temperature_hl(:,1:nlev)+thermodynamics.temperature_hl(:,2:nlev)), &
+  !     thermodynamics%h2o_sat_liq, 2)
+  
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
        &                                            driver_config%do_correct_unphysical_inputs) &

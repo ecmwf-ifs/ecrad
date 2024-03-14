@@ -13,6 +13,8 @@
 ! Email:   r.j.hogan@ecmwf.int
 !
 
+#include "ecrad_config.h"
+
 module radiation_aerosol_optics_description
 
   use parkind1,      only : jprb
@@ -59,6 +61,9 @@ module radiation_aerosol_optics_description
     logical, allocatable :: is_preferred_phobic(:)
     logical, allocatable :: is_preferred_philic(:)
 
+    ! Verbosity level
+    integer :: iverbose
+    
   contains
     procedure :: read
     procedure :: preferred_optical_model
@@ -74,7 +79,11 @@ contains
   subroutine read(this, file_name, iverbose)
 
     use yomhook,              only : lhook, dr_hook, jphook
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
     use easy_netcdf,          only : netcdf_file
+#endif
 
     class(aerosol_optics_description_type), intent(inout) :: this
     character(len=*), intent(in)              :: file_name
@@ -83,7 +92,7 @@ contains
     ! The NetCDF file containing the aerosol optics data
     type(netcdf_file)  :: file
 
-    real(jphook) :: hook_handle
+    real(jphook)       :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_description:load',0,hook_handle)
 
@@ -107,6 +116,12 @@ contains
 
     call file%close()
 
+    if (present(iverbose)) then
+      this%iverbose = iverbose
+    else
+      this%iverbose = 3
+    end if
+    
     if (lhook) call dr_hook('radiation_aerosol_optics_description:load',1,hook_handle)
 
   end subroutine read
@@ -123,7 +138,8 @@ contains
   subroutine preferred_optical_model(this, code_str, optical_model_str)
 
     use yomhook,              only : lhook, dr_hook, jphook
-
+    use radiation_io,         only : nulout, nulerr, radiation_abort
+    
     class(aerosol_optics_description_type), intent(inout) :: this
     character(len=2), intent(in) :: code_str
     character(len=*), intent(in) :: optical_model_str
@@ -131,37 +147,65 @@ contains
     ! Aerosol loop counter
     integer :: ja
 
-    real(jphook) :: hook_handle
+    logical :: is_found, is_philic, is_phobic
+
+    real(jphook)         :: hook_handle
 
     if (lhook) call dr_hook('radiation_aerosol_optics_description:preferred_optical_model',0,hook_handle)
 
     ! Check for empty string
     if (optical_model_str == ' ') then
+      if (lhook) call dr_hook('radiation_aerosol_optics_description:preferred_optical_model',1,hook_handle)
       return
     end if
+
+    is_found  = .false.
+    is_philic = .false.
+    is_phobic = .false.
     
     ! Loop over hydrophilic types
     do ja = 1,size(this%bin_philic)
       ! Check if we have a match
       if (to_string(this%code_philic(:,ja)) == code_str &
-           &  .and. to_string(this%optical_model_philic(1:len(optical_model_str),ja)) &
+           &  .and. trim(to_string(this%optical_model_philic(:,ja))) &
            &          == optical_model_str) then
         this%is_preferred_philic(ja) = .true.
+        is_found  = .true.
+        is_philic = .true.
       end if
     end do
     ! Repeat for the hydrophobic types
     do ja = 1,size(this%bin_phobic)
       if (to_string(this%code_phobic(:,ja)) == code_str &
-           &  .and. to_string(this%optical_model_phobic(1:len(optical_model_str),ja)) &
+           &  .and. trim(to_string(this%optical_model_phobic(:,ja))) &
            &          == optical_model_str) then
         this%is_preferred_phobic(ja) = .true.
+        is_found  = .true.
+        is_phobic = .true.
       end if
     end do
 
+    if (.not. is_found) then
+      write(nulerr,'(a,a2,a,a,a)') '*** Error: Preferred "', code_str ,'" aerosol optical model "', &
+           &  trim(optical_model_str), '" not found in file'
+      call radiation_abort()
+    else if (this%iverbose > 2) then
+      write(nulout,'(a,a2,a,a,a)',advance='no') 'Preferred "', code_str, '" aerosol optical model set to "', &
+           &  trim(optical_model_str), '" ('
+      if (is_phobic) then
+        write(nulout,'(a)',advance='no') ' hydrophobic'
+      end if
+      if (is_philic) then
+        write(nulout,'(a)',advance='no') ' hydrophilic'
+      end if
+      write(nulout,'(a)') ' )'
+    end if
+    
     if (lhook) call dr_hook('radiation_aerosol_optics_description:preferred_optical_model',1,hook_handle)
 
   end subroutine preferred_optical_model
 
+  
   !---------------------------------------------------------------------
   ! Return the index to the aerosol optical properties corresponding
   ! to the aerosol family in code_str (e.g. SS, DD etc), whether or
@@ -178,7 +222,6 @@ contains
   function get_index(this, code_str, lhydrophilic, ibin, optical_model_str)
     
     use yomhook,              only : lhook, dr_hook, jphook
-    use easy_netcdf,          only : netcdf_file
     use radiation_io,         only : nulout
 
     class(aerosol_optics_description_type), intent(in) :: this
@@ -233,7 +276,7 @@ contains
             current_score = 2
           end if
           if (present(optical_model_str)) then
-            if (to_string(this%optical_model_philic(1:len(optical_model_str),ja)) &
+            if (trim(to_string(this%optical_model_philic(:,ja))) &
                  &  == optical_model_str) then
               ! Requested optical model matches
               if (current_score >= 0) then
@@ -284,7 +327,7 @@ contains
             current_score = 2
           end if
           if (present(optical_model_str)) then
-            if (to_string(this%optical_model_phobic(1:len(optical_model_str),ja)) &
+            if (trim(to_string(this%optical_model_phobic(:,ja))) &
                  &  == optical_model_str) then
               ! Requested optical model matches
               if (current_score >= 0) then
@@ -314,23 +357,31 @@ contains
     end if
 
     if (is_ambiguous) then
-      write(nulout,'(a,a2,a,l1,a)') 'Warning: get_index("', code_str, '",', lhydrophilic, &
+      write(nulout,'(a,a2,a,l,a)') 'Warning: radiation_aerosol_optics_description:get_index("', &
+           &  code_str, '",', lhydrophilic, &
            &  ',...) does not unambiguously identify an aerosol optical property index'
     end if
-
+    
     if (lhook) call dr_hook('radiation_aerosol_optics_description:get_index',1,hook_handle)
 
   end function get_index
 
   !---------------------------------------------------------------------
   ! Utility function to convert an array of single characters to a
-  ! character string (yes Fortran's string handling is a bit rubbish)
+  ! character string (yes Fortran's string handling is a bit
+  ! rubbish). We set NULL characters (ASCII code 0) returned from the
+  ! NetCDF library to spaces, so that TRIM can remove them.
   pure function to_string(arr) result(str)
     character, intent(in)  :: arr(:)
     character(len=size(arr)) :: str
     integer :: jc
     do jc = 1,size(arr)
-      str(jc:jc) = arr(jc)
+      if (ichar(arr(jc)) == 0) then
+        ! Replace NULL character with a space
+        str(jc:jc) = ' '
+      else
+        str(jc:jc) = arr(jc)
+      end if
     end do
   end function to_string
 

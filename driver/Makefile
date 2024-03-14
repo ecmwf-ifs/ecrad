@@ -19,6 +19,8 @@ ifs_driver: $(IFS_EXECUTABLE) $(IFS_BLOCKED_EXECUTABLE)
 
 test_programs: $(TEST_PROGRAMS)
 
+# Link ecrad executable; add "-lifs" if you want to use the "satur"
+# routine in ecrad_driver.F90
 $(EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_driver.o
 	$(FC) $(FCFLAGS) ecrad_driver.o $(OBJECTS) $(LIBS) -o $(EXECUTABLE)
 
