@@ -116,7 +116,7 @@ program ecrad_ifs_driver
   integer, external :: omp_get_thread_num
   real(kind=jprd), external :: omp_get_wtime
   ! Start/stop time in seconds
-  real(kind=jprd) :: tstart, tstop, t0
+  real(kind=jprd) :: tstart, tstop
 #endif
 
   ! For demonstration of get_sw_weights later on
@@ -382,22 +382,6 @@ program ecrad_ifs_driver
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
 
-#ifndef NO_OPENMP
-  t0 = omp_get_wtime()
-#endif
-
-#ifdef COPY_ASYNC
-  !$acc enter data create(zrgp(:,:,1)) &
-#ifdef BITIDENTITY_TESTING
-  !$acc&     copyin(iseed(:,1)) &
-#endif
-  !$acc&     async(2)
-
-  next_il = min(nproma,ncol)
-  !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,1), &
-  !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,1)) async(2)
-#endif
-
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
 #ifndef NO_OPENMP
@@ -405,6 +389,18 @@ program ecrad_ifs_driver
 #endif
   do jrepeat = 1,driver_config%nrepeat
      call nvtxStartRange("ecrad_it")
+
+#ifdef COPY_ASYNC
+    !$acc enter data create(zrgp(:,:,1)) &
+#ifdef BITIDENTITY_TESTING
+    !$acc&     copyin(iseed(:,1)) &
+#endif
+    !$acc&     async(2)
+
+    next_il = min(nproma,ncol)
+    !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,1), &
+    !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,1)) async(2)
+#endif
 
 !    if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
@@ -520,16 +516,11 @@ program ecrad_ifs_driver
 
   end do
 
-#ifndef NO_OPENMP
-  tstop = omp_get_wtime()
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
-#endif
-
 !$acc wait
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer including data offload: ', tstop-t0, ' seconds'
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
 #endif
 
   ! --------------------------------------------------------
