@@ -234,7 +234,7 @@ contains
     !$ACC ENTER DATA CREATE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
-#ifndef _OPENACC
+
     ! (note that both should always be allocated)
     if (allocated(this%ssa_lw) .or. allocated(this%g_lw)) then
       ! If longwave scattering by aerosol is not to be represented,
@@ -246,7 +246,6 @@ contains
       this%g_lw(:,:,:) = 0.0_jprb
       !$ACC END KERNELS
     endif
-#endif
 
   end subroutine create_device
 
