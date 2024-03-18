@@ -65,7 +65,7 @@ contains
        &  frac_threshold) result(overlap_matrix)
 
     use parkind1, only : jprb
-    
+
     integer, intent(in) :: nreg ! Number of regions
 
     ! Overlap parameter for each region, and fraction of the gridbox
@@ -112,7 +112,7 @@ contains
     else
       overlap_matrix = 0.0_jprb
     end if
-    
+
     ! Add on the maximum part of the overlap matrix
     do jreg = 1,nreg
       overlap_matrix(jreg,jreg) = overlap_matrix(jreg,jreg) &
@@ -131,7 +131,7 @@ contains
        &  frac_upper, frac_lower) result(overlap_matrix)
 
     use parkind1, only : jprb
-    
+
     integer, intent(in) :: nreg ! Number of regions
 
     ! Overlap parameter for cloud boundaries and for internal
@@ -218,7 +218,7 @@ contains
        &  cf_upper, cf_lower) result(overlap_matrix)
 
     use parkind1, only : jprb
-    
+
     integer, intent(in) :: nreg ! Number of regions
 
     ! Overlap parameter for cloud boundaries and for internal
@@ -390,7 +390,7 @@ contains
         else
           frac_lower = region_fracs(1:nreg,jlev,jcol)
         end if
-   
+
         ! Compute the overlap parameter of the interface just below
         ! the current full level
         if (jlev == 1 .or. jlev > nlev) then
@@ -409,7 +409,7 @@ contains
             op(2:nreg) = op(1)
           end if
         end if
-     
+
         if (use_beta_overlap_param) then
           overlap_matrix = calc_beta_overlap_matrix(nreg, op, &
                &  frac_upper, frac_lower, frac_threshold)
@@ -442,7 +442,7 @@ contains
           end do
         end do
         frac_upper = frac_lower
-        
+
       end do ! levels
 
       ! Compute cloud cover from one of the directional overlap matrices
@@ -455,5 +455,5 @@ contains
     if (lhook) call dr_hook('radiation_overlap:calc_overlap_matrices',1,hook_handle)
 
   end subroutine calc_overlap_matrices
-  
+
 end module radiation_overlap
