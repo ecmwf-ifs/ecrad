@@ -443,21 +443,33 @@ contains
       allocate(mapping(config%n_bands_lw,ao_legacy%n_bands_lw))
       mapping = transpose(mapping_transp)
       ao%mass_ext_lw_phobic = matmul(mapping, ao_legacy%mass_ext_lw_phobic)
-      ao%ssa_lw_phobic = matmul(mapping, ao_legacy%mass_ext_lw_phobic*ao_legacy%ssa_lw_phobic) &
-           &           / ao%mass_ext_lw_phobic
-      ao%g_lw_phobic = matmul(mapping, ao_legacy%mass_ext_lw_phobic*ao_legacy%ssa_lw_phobic &
-           &                           *ao_legacy%g_lw_phobic) &
-           &         / (ao%mass_ext_lw_phobic*ao%ssa_lw_phobic)
+
+      where (ao%mass_ext_lw_phobic /= 0)
+         ao%ssa_lw_phobic = matmul(mapping, ao_legacy%mass_ext_lw_phobic*ao_legacy%ssa_lw_phobic) &
+              &           / ao%mass_ext_lw_phobic
+         ao%g_lw_phobic = matmul(mapping, ao_legacy%mass_ext_lw_phobic*ao_legacy%ssa_lw_phobic &
+              &                           *ao_legacy%g_lw_phobic) &
+              &         / (ao%mass_ext_lw_phobic*ao%ssa_lw_phobic)
+      elsewhere
+         ao%ssa_lw_phobic = 1.
+         ao%g_lw_phobic = 0.
+      end where
 
       if (ao%use_hydrophilic) then
         do jtype = 1,ao%n_type_philic
           ao%mass_ext_lw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_lw_philic(:,:,jtype))
-          ao%ssa_lw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_lw_philic(:,:,jtype) &
-               &                                        *ao_legacy%ssa_lw_philic(:,:,jtype)) &
-               &           / ao%mass_ext_lw_philic(:,:,jtype)
-          ao%g_lw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_lw_philic(:,:,jtype) &
-               &               *ao_legacy%ssa_lw_philic(:,:,jtype)*ao_legacy%g_lw_philic(:,:,jtype)) &
-               &         / (ao%mass_ext_lw_philic(:,:,jtype)*ao%ssa_lw_philic(:,:,jtype))
+
+          where (ao%mass_ext_lw_philic(:,:,jtype) /= 0.)
+             ao%ssa_lw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_lw_philic(:,:,jtype) &
+                  &                                        *ao_legacy%ssa_lw_philic(:,:,jtype)) &
+                  &           / ao%mass_ext_lw_philic(:,:,jtype)
+             ao%g_lw_philic(:,:,jtype) = matmul(mapping, ao_legacy%mass_ext_lw_philic(:,:,jtype) &
+                  &               *ao_legacy%ssa_lw_philic(:,:,jtype)*ao_legacy%g_lw_philic(:,:,jtype)) &
+                  &         / (ao%mass_ext_lw_philic(:,:,jtype)*ao%ssa_lw_philic(:,:,jtype))
+          elsewhere
+             ao%ssa_lw_philic(:,:,jtype) = 1.
+             ao%g_lw_philic(:,:,jtype) = 0.
+          end where
         end do
       end if
     end if
