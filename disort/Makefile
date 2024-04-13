@@ -9,7 +9,7 @@ ifdef SINGLE_PRECISION
   LOCALFLAGS = 
 else
   # gfortran-specific flags to use double precision
-  LOCALFLAGS = -fdefault-real-8 -fdefault-double-8
+  LOCALFLAGS = $(FORCEDOUBLEFLAGS)
 endif
 
 all: $(LIBDISORT)
