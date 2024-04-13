@@ -999,6 +999,8 @@ contains
       end if
     else
 
+      iosread = 0
+      
       ! This version exits correctly, but provides less information
       ! about how the namelist was incorrect
       !read(unit=iunit, iostat=iosread, nml=radiation)

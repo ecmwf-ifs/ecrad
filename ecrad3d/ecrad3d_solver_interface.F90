@@ -94,8 +94,12 @@ contains
            &  config%n_g_sw, single_level%cos_sza, single_level%solar_azimuth_angle, &
            &  incoming_sw(:,1), transpose(sw_albedo_direct), transpose(sw_albedo_diffuse), &
            &  od, ssa, asymmetry, flux_dn_dir_top, flux_dn_diff_top, flux_up_top)
+
+      ! Store broadband fluxes by summing over bands, converting the
+      ! direct fluxes from being into a plane perpendicular to the sun
+      ! to into the horizontal plane
       flux%sw_up_clear        = sum(flux_up_top,2)
-      flux%sw_dn_direct_clear = sum(flux_dn_dir_top,2)
+      flux%sw_dn_direct_clear = sum(flux_dn_dir_top,2) * spread(single_level%cos_sza,2,geometry%nz+1)
       flux%sw_dn_clear        = sum(flux_dn_diff_top,2) + flux%sw_dn_direct_clear
     end if
 
@@ -142,8 +146,11 @@ contains
          &  incoming_sw(:,1), transpose(sw_albedo_direct), transpose(sw_albedo_diffuse), &
          &  od, ssa, asymmetry, flux_dn_dir_top, flux_dn_diff_top, flux_up_top)
 
+    ! Store broadband fluxes by summing over bands, converting the
+    ! direct fluxes from being into a plane perpendicular to the sun
+    ! to into the horizontal plane
     flux%sw_up        = sum(flux_up_top,2)
-    flux%sw_dn_direct = sum(flux_dn_dir_top,2)
+    flux%sw_dn_direct = sum(flux_dn_dir_top,2) * spread(single_level%cos_sza,2,geometry%nz+1)
     flux%sw_dn        = sum(flux_dn_diff_top,2) + flux%sw_dn_direct
     
     if (lhook) call dr_hook('ecrad3d_solver_interface:solver_interface_sw',1,hook_handle)

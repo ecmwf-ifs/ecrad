@@ -131,7 +131,7 @@ contains
         ! Is there any cloud in the profile?
         is_cloudy_profile = .false.
         do jlev = 1,nlev
-          if (cloud%fraction(jcol,jlev) >= config%cloud_fraction_threshold) then
+          if (od_cloud(1,jlev,jcol) > 0.0_jprb) then
             is_cloudy_profile = .true.
             exit
           end if
@@ -146,8 +146,7 @@ contains
           ! Delta-Eddington scaling has already been performed to the
           ! aerosol part of od, ssa and g
           do jlev = 1,nlev
-            if (config%do_clear .or. cloud%fraction(jcol,jlev) &
-                 &                 < config%cloud_fraction_threshold) then
+            if (config%do_clear .or. od_cloud(1,jlev,jcol) <= 0.0_jprb) then
               call calc_two_stream_gammas_sw(ng, cos_sza, &
                    &  ssa(:,jlev,jcol), g(:,jlev,jcol), &
                    &  gamma1, gamma2, gamma3)
@@ -164,8 +163,7 @@ contains
         else
           ! Apply delta-Eddington scaling to the aerosol-gas mixture
           do jlev = 1,nlev
-            if (config%do_clear .or. cloud%fraction(jcol,jlev) &
-                 &                 < config%cloud_fraction_threshold) then
+            if (config%do_clear .or. od_cloud(1,jlev,jcol) <= 0.0_jprb) then
               od_total  =  od(:,jlev,jcol)
               ssa_total = ssa(:,jlev,jcol)
               g_total   =   g(:,jlev,jcol)
@@ -232,7 +230,7 @@ contains
             ! Compute combined gas+aerosol+cloud optical properties;
             ! note that for clear layers, the reflectance and
             ! transmittance have already been calculated
-            if (cloud%fraction(jcol,jlev) >= config%cloud_fraction_threshold) then
+            if (od_cloud(1,jlev,jcol) > 0.0_jprb) then
               od_cloud_g = od_cloud(config%i_band_from_reordered_g_sw,jlev,jcol)
               od_total  = od(:,jlev,jcol) + od_cloud_g
               ssa_total = 0.0_jprb

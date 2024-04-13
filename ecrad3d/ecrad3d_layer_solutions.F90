@@ -51,9 +51,9 @@ contains
 
     ! The three transfer coefficients from the two-stream
     ! differentiatial equations 
-    real(jprb), dimension(ncol) :: gamma1, gamma2, gamma3, gamma4 
-    real(jprb), dimension(ncol) :: alpha1, alpha2, k_exponent
-    real(jprb), dimension(ncol) :: exponential ! = exp(-k_exponent*od)
+    real(jprb), dimension(:), allocatable :: gamma1, gamma2, gamma3, gamma4 
+    real(jprb), dimension(:), allocatable :: alpha1, alpha2, k_exponent
+    real(jprb), dimension(:), allocatable :: exponential ! = exp(-k_exponent*od)
     
     real(jprb) :: reftrans_factor, factor
     real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
@@ -67,19 +67,27 @@ contains
     if (lhook) call dr_hook('ecrad3d_layer_solutions:calc_ref_trans_sw',0,hook_handle)
 #endif
 
-    !$OMP PARALLEL DO PRIVATE(gamma1, gamma2, gamma3, gamma4, alpha1, alpha2, &
+    !$OMP PARALLEL PRIVATE(gamma1, gamma2, gamma3, gamma4, alpha1, alpha2, &
     !$OMP&                 k_exponent, exponential, reftrans_factor, factor, &
     !$OMP&                 exponential2, k_mu0, k_gamma3, k_gamma4, &
     !$OMP&                 k_2_exponential, one_minus_kmu0_sqr, jc, js)
+    allocate(gamma1(ncol))
+    allocate(gamma2(ncol))
+    allocate(gamma3(ncol))
+    allocate(gamma4(ncol))
+    allocate(alpha1(ncol))
+    allocate(alpha2(ncol))
+    allocate(k_exponent(ncol))
+    allocate(exponential(ncol))
+    
+    !$OMP DO SCHEDULE(DYNAMIC)
     do jl = 1,nlay
-
       do js = 1,nspec
         ! GCC 9.3 strange error: intermediate values of ~ -8000 cause
         ! a FPE when vectorizing exp(), but not in non-vectorized
         ! loop, nor with larger negative values!
         trans_dir_dir(:,js,jl) = max(-max(od(:,js,jl) * (1.0_jprb/mu0(:)), 0.0_jprb),-1000.0_jprb)
         trans_dir_dir(:,js,jl) = exp(trans_dir_dir(:,js,jl))
-
         do jc = 1,ncol
           ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions
           ! to Atmospheric Physics 53, 147-66)
@@ -89,7 +97,6 @@ contains
           gamma2(jc) = ssa(jc,js,jl) * (0.75_jprb - factor)
           gamma3(jc) = 0.5_jprb  - mu0(jc)*factor
           gamma4(jc) = 1.0_jprb - gamma3(jc)
-
           alpha1(jc) = gamma1(jc)*gamma4(jc) + gamma2(jc)*gamma3(jc) ! Eq. 16
           alpha2(jc) = gamma1(jc)*gamma3(jc) + gamma2(jc)*gamma4(jc) ! Eq. 17
           ! The following line crashes inexplicably with gfortran 8.5.0 in
@@ -156,7 +163,11 @@ contains
         end do
       end do
     end do
-    !$OMP END PARALLEL DO
+
+    deallocate(gamma1, gamma2, gamma3, gamma4, alpha1, alpha2, &
+         &     k_exponent, exponential)
+    
+    !$OMP END PARALLEL
     
 #ifdef DO_DR_HOOK_TWO_STREAM
     if (lhook) call dr_hook('ecrad3d_two_stream:calc_ref_trans_sw',1,hook_handle)

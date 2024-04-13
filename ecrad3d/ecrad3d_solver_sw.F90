@@ -118,9 +118,11 @@ contains
     
     ! DIRECT BEAM
 
-    ! Incoming radiation at top of atmosphere
+    ! Incoming radiation at top of atmosphere; remember that the
+    ! direct beam in this file is into a plane parallel to the sun, so
+    ! there is no multiplication by cos_sza
     do js = 1,nspec
-      flux_dn_dir_top(:,js,1) = incoming(js)*cos_sza(:)
+      flux_dn_dir_top(:,js,1) = incoming(js)
     end do
     
     ! Loop down through the atmosphere 
