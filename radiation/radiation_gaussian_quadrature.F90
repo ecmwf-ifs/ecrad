@@ -15,7 +15,7 @@
 
 module radiation_gaussian_quadrature
 
-  use parkind1, only : jprb
+  use parkind1, only : jprb, jprd
 
   implicit none
   
@@ -61,9 +61,14 @@ contains
 
     integer :: jacobi_power_local
     real(jprb) :: tmp(norder)
-    real(jprb) :: nodes_chand(2*norder)
-    real(jprb) :: weights_chand(2*norder)
+    real(jprd) :: nodes_chand(2*norder)
+    real(jprd) :: weights_chand(2*norder)
 
+    ! Double precision arguments for CGQF in case we are in single
+    ! precision here
+    real(jprd) :: nodes_dbl(norder)
+    real(jprd) :: weights_dbl(norder)
+    
     if (norder < 1) then
       write(nulerr,'(a)') '*** Error: number of nodes in Gaussian quadrature must be >= 1'
       call radiation_abort()
@@ -78,13 +83,18 @@ contains
       ! in the range 0<mu<1 (even though fluxes are computed by
       ! integrating radiances weighted by mu), i.e. Gauss-Legendre
       ! quadrature
-      call cgqf(norder, 1, 0.0_jprb ,0.0_jprb, 0.0_jprb, 1.0_jprb, nodes, weights)
+      call cgqf(norder, 1, 0.0_jprd ,0.0_jprd, 0.0_jprd, 1.0_jprd, nodes_dbl, weights_dbl)
+      nodes   = nodes_dbl
+      weights = weights_dbl
       
     else if (quadrature_type == IQuadratureLaguerre) then
       ! Change of variables t=-2ln(mu), results in
       ! mu*dmu=constant*exp(-t)*dt and weighting by exp(-t) is
       ! Gauss-Laguerre quadrature)
-      call cgqf(norder, 5, 0.0_jprb ,0.0_jprb, 0.0_jprb, 1.0_jprb, nodes, weights)
+      call cgqf(norder, 5, 0.0_jprd ,0.0_jprd, 0.0_jprd, 1.0_jprd, nodes_dbl, weights_dbl)
+      nodes   = nodes_dbl
+      weights = weights_dbl
+
       nodes = exp(-0.5_jprb * nodes)
       ! Flip the nodes & weights to be in order of increasing mu
       tmp = nodes(norder:1:-1)
@@ -115,8 +125,10 @@ contains
       else
         jacobi_power_local = 0
       end if
-      call cgqf(norder, 4, 0.0_jprb, real(jacobi_power_local,jprb), &
-           &    0.0_jprb, 1.0_jprb, nodes, weights)
+      call cgqf(norder, 4, 0.0_jprd, real(jacobi_power_local,jprd), &
+           &    0.0_jprd, 1.0_jprd, nodes_dbl, weights_dbl)
+      nodes   = nodes_dbl
+      weights = weights_dbl
       nodes = nodes**(0.5_jprb*real(jacobi_power+1,jprb))
       ! Assuming the downstream application will multiply the weights
       ! by mu, we divide by mu then rescale the weights
@@ -127,7 +139,7 @@ contains
     else if (quadrature_type == IQuadratureChandrasekhar) then
       ! Chandrasekhar used Gauss-Legendre quadrature acros the entire
       ! sphere (-1<mu<1)
-      call cgqf(norder*2, 1, 0.0_jprb ,0.0_jprb, -1.0_jprb, 1.0_jprb, nodes_chand, weights_chand)
+      call cgqf(norder*2, 1, 0.0_jprd ,0.0_jprd, -1.0_jprd, 1.0_jprd, nodes_chand, weights_chand)
       nodes = nodes_chand(norder+1:2*norder)
       weights = weights_chand(norder+1:2*norder)
       weights = weights * 0.5_jprb / sum(nodes*weights)
