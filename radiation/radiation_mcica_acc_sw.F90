@@ -350,7 +350,7 @@ contains
 
         ! Do cloudy-sky calculation
         call cloud_generator_acc(ng, nlev, &
-             &  single_level%iseed(jcol), &
+             &  single_level%iseed(jcol) + 0, & ! Workaround for nvhpc-24.1
              &  config%cloud_fraction_threshold, &
              &  frac(:,jcol), overlap_param(:,jcol), &
              &  config%cloud_inhom_decorr_scaling, frac_std(:,jcol), &
