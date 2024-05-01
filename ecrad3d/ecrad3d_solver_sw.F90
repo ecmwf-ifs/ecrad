@@ -147,7 +147,7 @@ contains
         if (present(flux_div)) then
           do jc = 1,ncol
             flux_div(jc,js,jl) = cos_sza(jc) * (flux_dn_dir_base_layer(jc,js) &
-                 &                                   - flux_dn_dir_top(jc,js,jl))
+                 &                            - flux_dn_dir_top(jc,js,jl))
           end do
         end if
       end do
@@ -156,7 +156,9 @@ contains
       ! Horizontal "advection"
       if (jl < nlay) then
         if (config%do_3d .and. jl >= local_first_direct_3d_layer) then
-          call geometry%advect(ncol, nspec, jl, flux_dn_dir_base_layer, flux_dn_dir_top(:,:,jl+1))
+          !print *,'Advecting'
+          call geometry%advect(ncol, nspec, jl, cos_sza, solar_azim, &
+               &               flux_dn_dir_base_layer, flux_dn_dir_top(:,:,jl+1))
         else
           do js = 1,nspec
             flux_dn_dir_top(:,js,jl+1) = flux_dn_dir_base_layer(:,js)

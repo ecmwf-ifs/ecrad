@@ -92,7 +92,6 @@ contains
           ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions
           ! to Atmospheric Physics 53, 147-66)
           factor = 0.75_jprb*asymmetry(jc,js,jl)
-
           gamma1(jc) = 2.0_jprb  - ssa(jc,js,jl) * (1.25_jprb + factor)
           gamma2(jc) = ssa(jc,js,jl) * (0.75_jprb - factor)
           gamma3(jc) = 0.5_jprb  - mu0(jc)*factor

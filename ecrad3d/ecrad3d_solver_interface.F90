@@ -74,7 +74,7 @@ contains
 
     if (lhook) call dr_hook('ecrad3d_solver_interface:solver_interface_sw',0,hook_handle)
 
-    config3d%do_3d = .true.
+    config3d%do_3d = config%do_3d_effects
 
     ! Clear-sky calculation
 

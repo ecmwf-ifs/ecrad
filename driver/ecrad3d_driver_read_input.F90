@@ -37,6 +37,7 @@ contains
        &   IHCFC22, ICCl4, INO2, GasName, GasLowerCaseName, NMaxGases
     use radiation_cloud,          only : cloud_type
     use radiation_aerosol,        only : aerosol_type
+    use radiation_constants,      only : GasConstantDryAir, AccelDueToGravity
     use easy_netcdf,              only : netcdf_file
     
     implicit none
@@ -52,6 +53,9 @@ contains
     type(aerosol_type),        intent(inout) :: aerosol
 
     real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
+
+    ! Ratio of gas constant for dry air to acceleration due to gravity
+    real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
 
     ! Number of columns and levels of input data
     integer, intent(out) :: ncol, nlev
@@ -88,6 +92,9 @@ contains
     ! Longitude and latitude (degrees)
     real(jprb), allocatable, dimension(:) :: latitude, longitude
 
+    ! Layer depth in metres
+    real(jprb) :: layer_depth
+    
     integer :: jgas               ! Loop index for reading gases
     integer :: irank              ! Dimensions of gas data
 
@@ -104,7 +111,7 @@ contains
     integer :: nhydro, nre
 
     ! Loop indices
-    integer :: jcol, jx, jy
+    integer :: jcol, jx, jy, jlev
 
     ! Column index
     integer :: icol
@@ -125,12 +132,12 @@ contains
       ! or 3D
       geometry%is_3d = .true.
       if (file%exists('x') .and. file%exists('y')) then
-        call file%get('x',geometry%x)
-        call file%get('y',geometry%y)
+        call file%get('x', geometry%x)
+        call file%get('y', geometry%y)
         geometry%is_lat_lon = .false.
       else if (file%exists('lon') .and. file%exists('lat')) then
-        call file%get('lon',geometry%x)
-        call file%get('lat',geometry%y)
+        call file%get('lon', geometry%x)
+        call file%get('lat', geometry%y)
         geometry%is_lat_lon = .true.
       else
         write(nulout,'(a)') '*** Error: pressure_hl is not 2D, so x/y or lat/lon must be present'
@@ -142,7 +149,7 @@ contains
       geometry%ncol = ncol
       ! Assume height is the slowest-varying dimension in the file...
       nlev = file%get_outer_dimension('pressure_hl')-1
-      call get_2d(file, geometry, 'pressure_hl',thermodynamics%pressure_hl)
+      call get_2d(file, geometry, 'pressure_hl', thermodynamics%pressure_hl)
     end if
 
     geometry%nz = nlev
@@ -154,6 +161,39 @@ contains
     ! length (ncol,nlev+1)
     call get_2d(file, geometry, 'temperature_hl',thermodynamics%temperature_hl)
 
+    if (geometry%is_3d) then
+      ! Read or compute half-level height
+      if (file%exists('height_hl')) then
+        ! Height is assumed to be above mean sea level or a geoid
+        ! reference
+        call get_2d(file, geometry, 'height_hl', geometry%height_hl)
+      else
+        allocate(geometry%height_hl(ncol,nlev+1))
+        if (file%exists('orography')) then
+          call get_1d(file, geometry, 'orography', prop_1d)
+          geometry%height_hl(:,nlev+1) = prop_1d
+        else
+          write(nulout,'(a)') 'Warning: "height_hl" and "orography" not found so assuming surface is flat'
+          geometry%height_hl(:,nlev+1) = 0.0_jprb
+        end if
+        do jlev = nlev,1,-1
+          do jcol = 1,ncol
+            layer_depth = R_over_g &
+                 &  * (thermodynamics%pressure_hl(jcol,jlev+1) &
+                 &     - thermodynamics%pressure_hl(jcol,jlev)) &
+                 &  * (thermodynamics%temperature_hl(jcol,jlev) &
+                 &     + thermodynamics%temperature_hl(jcol,jlev+1)) &
+                 &  / (thermodynamics%pressure_hl(jcol,jlev) &
+                 &     + thermodynamics%pressure_hl(jcol,jlev+1))
+            geometry%height_hl(jcol,jlev) = geometry%height_hl(jcol,jlev+1)
+          end do
+        end do
+      end if
+
+      call geometry%consolidate
+
+    end if
+    
     if (driver_config%solar_irradiance_override > 0.0_jprb) then
       ! Optional override of solar irradiance
       single_level%solar_irradiance = driver_config%solar_irradiance_override
@@ -283,11 +323,10 @@ contains
       allocate(single_level%solar_azimuth_angle(ncol))
       single_level%solar_azimuth_angle = calc_azimuth(driver_config%solar_latitude, &
            &  driver_config%solar_longitude, latitude, longitude)
-
     else if (file%exists('solar_azimuth_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call get_1d(file,geometry,'solar_azimuth_angle',single_level%solar_azimuth_angle)
-    else if (config%do_sw .and. config%do_radiances) then
+    else if (config%do_sw .and. (geometry%is_3d .or. config%do_radiances)) then
       write(nulout,'(a,a)') '*** Error: solar_azimuth_angle not provided'
       error stop
     end if

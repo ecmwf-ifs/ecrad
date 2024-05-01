@@ -30,7 +30,7 @@ module radiation_thermodynamics
      real(jprb), allocatable, dimension(:,:) :: &
           &  pressure_hl, &   ! (ncol,nlev+1) pressure (Pa)
           &  temperature_hl   ! (ncol,nlev+1) temperature (K)
-
+     
      ! The following is a function of pressure and temperature: you
      ! can calculate it according to your favourite formula, or the
      ! calc_saturation_wrt_liquid subroutine can be used to do this

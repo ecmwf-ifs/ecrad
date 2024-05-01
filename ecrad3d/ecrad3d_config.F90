@@ -7,7 +7,7 @@ module ecrad3d_config
   type config_type
 
      ! Do we represent 3D transport between columns
-     logical :: do_3d         = .true.
+     logical :: do_3d         = .false.
      ! If do_3d==true, do we do 3D effects only for the direct solar
      ! beam, or also diffuse transport
      logical :: do_3d_direct_only = .false.
