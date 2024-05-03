@@ -355,7 +355,7 @@ contains
            &  config%pdf_sampler%ncdf, config%pdf_sampler%nfsd, &
            &  config%pdf_sampler%fsd1, config%pdf_sampler%inv_fsd_interval, &
            &  sample_val, &
-           &  od_scaling, flux%cloud_cover_lw(jcol), &
+           &  od_scaling, flux%cloud_cover_lw(jcol)+0.0_jprb, & ! Workaround for nvhpc-24.1
            &  ibegin(jcol), iend(jcol), &
            &  cum_cloud_cover=cum_cloud_cover(:,jcol), &
            &  pair_cloud_cover=pair_cloud_cover(:,jcol))
