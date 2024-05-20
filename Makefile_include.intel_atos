@@ -38,3 +38,6 @@ BASICFLAGS = -module ../mod -fpe0 -assume byterecl -align array64byte \
 	   -finline-functions -finline-limit=1500 -Winline -assume realloc_lhs
 DEBUGFLAGS = -g
 OMPFLAG = -qopenmp -qopenmp-threadprivate=compat
+
+# location of General Purpose Timing Library (compile with GPTL_TIMING=1 or GPTL_TIMING=2)
+TIME_DIR=/home/papu/gptl-ifort

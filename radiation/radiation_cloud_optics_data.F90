@@ -13,7 +13,7 @@
 ! Email:   r.j.hogan@ecmwf.int
 !
 
-#include "ecrad_config.h"
+! #include "ecrad_config.h"
 
 module radiation_cloud_optics_data
 
@@ -22,6 +22,7 @@ module radiation_cloud_optics_data
   implicit none
   public
 
+#include "ecrad_config.h"
   !---------------------------------------------------------------------
   ! This type holds the configuration information to compute
   ! cloud optical properties

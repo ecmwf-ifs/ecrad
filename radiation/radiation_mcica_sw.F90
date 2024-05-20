@@ -17,11 +17,11 @@
 !   2017-04-22  R. Hogan  Store surface fluxes at all g-points
 !   2017-10-23  R. Hogan  Renamed single-character variables
 
-#include "ecrad_config.h"
 
 module radiation_mcica_sw
 
   public
+#include "ecrad_config.h"
 
 contains
 

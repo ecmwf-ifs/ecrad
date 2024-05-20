@@ -16,8 +16,6 @@
 !   2017-10-23  R. Hogan  Renamed single-character variables
 !   2018-04-20  A. Bozzo  Read optical properties at selected wavelengths
 
-#include "ecrad_config.h"
-
 module radiation_aerosol_optics_data
 
   use parkind1,      only : jprb
@@ -27,6 +25,8 @@ module radiation_aerosol_optics_data
   public
 
   private :: get_line
+
+#include "ecrad_config.h"
 
   ! The following provide possible values for
   ! aerosol_optics_type%iclass, which is used to map the user's type

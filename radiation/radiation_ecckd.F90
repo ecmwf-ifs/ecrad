@@ -14,8 +14,6 @@
 ! License: see the COPYING file for details
 !
 
-#include "ecrad_config.h"
-
 module radiation_ecckd
 
   use parkind1, only : jprb
