@@ -476,9 +476,15 @@ contains
     ! Output variables
 
     ! Layer absorption optical depth for each g point
+#if defined NG_SW && defined NG_LW && NG_SW==NG_LW 
+    real(jprb),            intent(out) :: optical_depth_fl(NG_SW,nlev,istartcol:iendcol)
+    ! In the shortwave only, the Rayleigh scattering optical depth
+    real(jprb),  optional, intent(out) :: rayleigh_od_fl(NG_SW,nlev,istartcol:iendcol)
+#else 
     real(jprb),            intent(out) :: optical_depth_fl(this%ng,nlev,istartcol:iendcol)
     ! In the shortwave only, the Rayleigh scattering optical depth
     real(jprb),  optional, intent(out) :: rayleigh_od_fl(this%ng,nlev,istartcol:iendcol)
+#endif
 
     ! Local variables
 
