@@ -593,6 +593,7 @@ contains
             end do
           end do
         end do
+        !$ACC END PARALLEL
       end if
 
     end if
@@ -710,9 +711,9 @@ contains
             do jg = 1,config%n_g_sw
               incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
             end do
-            !$ACC END PARALLEL
           end if
         end do
+        !$ACC END PARALLEL
       end if
 
     end if
