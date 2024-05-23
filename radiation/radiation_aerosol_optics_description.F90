@@ -357,7 +357,7 @@ contains
     end if
 
     if (is_ambiguous) then
-      write(nulout,'(a,a2,a,l,a)') 'Warning: radiation_aerosol_optics_description:get_index("', &
+      write(nulout,'(a,a2,a,l1,a)') 'Warning: radiation_aerosol_optics_description:get_index("', &
            &  code_str, '",', lhydrophilic, &
            &  ',...) does not unambiguously identify an aerosol optical property index'
     end if
