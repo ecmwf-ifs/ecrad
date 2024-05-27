@@ -27,7 +27,7 @@ USE YOMTAG    ,ONLY : MTAGRAD
 
 USE YOERRTO6 , ONLY : KAO     ,KAO_MCO2, SELFREFO, FORREFO ,FRACREFAO ,CFC11ADJO ,&
  & CFC12O, KAO_D
-USE YOMMP0    , ONLY : NPROC, MYPROC
+USE YOMMP0_IFSRRTM    , ONLY : NPROC, MYPROC
 
 !     ------------------------------------------------------------------
 
