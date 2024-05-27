@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOERRTA8
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -41,25 +50,25 @@ EQUIVALENCE (KA(1,1,1),ABSA(1,1)),(KB(1,13,1),ABSB(1,1))
 
 !  NAME     TYPE     PURPOSE
 !  ----   : ----   : ---------------------------------------------------
-! ABSA    : REAL     absorption coefficient of major absorber for M reference tropospheric 
-!                    pressures and N reference tropospheric temperatures 
+! ABSA    : REAL     absorption coefficient of major absorber for M reference tropospheric
+!                    pressures and N reference tropospheric temperatures
 ! ABSB    : REAL     absorption coefficient of secondary absorber for M reference stratospheric
-!                    pressures and N reference stratospheric temperatures 
-! ABSCO2A : REAL     absorption coefficient for CO2 for M reference tropospheric 
-!                    pressures and N reference tropospheric temperatures 
-! ABSCO2B : REAL     absorption coefficient for CO2 for M reference stratospheric 
-!                    pressures and N reference stratospheric temperatures     
-! ABSN2OA : REAL     absorption coefficient for N2O for M reference tropospheric 
-!                    pressures and N reference tropospheric temperatures     
-! ABSN2OB : REAL     absorption coefficient for N2O for M reference stratospheric 
-!                    pressures and N reference stratospheric temperatures 
+!                    pressures and N reference stratospheric temperatures
+! ABSCO2A : REAL     absorption coefficient for CO2 for M reference tropospheric
+!                    pressures and N reference tropospheric temperatures
+! ABSCO2B : REAL     absorption coefficient for CO2 for M reference stratospheric
+!                    pressures and N reference stratospheric temperatures
+! ABSN2OA : REAL     absorption coefficient for N2O for M reference tropospheric
+!                    pressures and N reference tropospheric temperatures
+! ABSN2OB : REAL     absorption coefficient for N2O for M reference stratospheric
+!                    pressures and N reference stratospheric temperatures
 ! CFC12   : REAL     absorption coefficient for CFC-12
 ! CFC22ADJ: REAL     absorption coefficient for CFC-22 (adjusted)
 ! FRACREFA: REAL     distance from r and T reference tabulated points (troposphere)
 ! FRACREFB: REAL     distance from r and T reference tabulated points (stratosphere)
 ! H2OREF  : REAL     reference profile for H2O
-! KA      : REAL     absorption coefficient of major absorber (equiv. to ABSA)   
-! KB      : REAL     absorption coefficient of secondary absorber (equiv. to ABSB)   
+! KA      : REAL     absorption coefficient of major absorber (equiv. to ABSA)
+! KB      : REAL     absorption coefficient of secondary absorber (equiv. to ABSB)
 ! N2OREF  : REAL     reference profile for N2O
 ! O3REF   : REAL     reference profile for O3
 ! SELFREF : REAL     self broadening coefficient for water vapour

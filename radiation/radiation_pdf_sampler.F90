@@ -1,5 +1,3 @@
-! radiation_pdf_sampler.F90 - Get samples from a PDF for McICA
-!
 ! (C) Copyright 2015- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
@@ -8,6 +6,8 @@
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+
+! radiation_pdf_sampler.F90 - Get samples from a PDF for McICA
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -52,9 +52,9 @@ module radiation_pdf_sampler
 contains
 
   !---------------------------------------------------------------------
-  ! Load look-up table from a file 
+  ! Load look-up table from a file
   subroutine setup_pdf_sampler(this, file_name, iverbose)
-    
+
     use yomhook,     only : lhook, dr_hook, jphook
     use easy_netcdf, only : netcdf_file
 
@@ -114,7 +114,7 @@ contains
     end if
 
     if (lhook) call dr_hook('radiation_pdf_sampler:deallocate',1,hook_handle)
-    
+
   end subroutine deallocate_pdf_sampler
 
 
@@ -124,7 +124,7 @@ contains
   ! "cdf", and return it in val. Since this is an elemental
   ! subroutine, fsd, cdf and val may be arrays.
   elemental subroutine sample_from_pdf(this, fsd, cdf, val)
-    
+
     class(pdf_sampler_type), intent(in)  :: this
 
     ! Fractional standard deviation (0 to 4) and cumulative
@@ -163,7 +163,7 @@ contains
   ! cumulative distribution function values "cdf", and return in
   ! val. For false elements of mask, return zero in val.
   subroutine sample_from_pdf_masked(this, nsamp, fsd, cdf, val, mask)
-    
+
     class(pdf_sampler_type), intent(in)  :: this
 
     ! Number of samples
@@ -194,11 +194,11 @@ contains
         wcdf = cdf(jsamp) * (this%ncdf-1) + 1.0_jprb
         icdf = max(1, min(int(wcdf), this%ncdf-1))
         wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
-        
+
         wfsd = (fsd(jsamp)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
         ifsd = max(1, min(int(wfsd), this%nfsd-1))
         wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
-        
+
         val(jsamp)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
              &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
              &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
@@ -214,7 +214,7 @@ contains
   ! "fsd" corresponding to the cumulative distribution function values
   ! "cdf", and return in val. This version works on 2D blocks of data.
   subroutine sample_from_pdf_block(this, nz, ng, fsd, cdf, val)
-    
+
     class(pdf_sampler_type), intent(in)  :: this
 
     ! Number of samples
@@ -243,11 +243,11 @@ contains
           wcdf = cdf(jg,jz) * (this%ncdf-1) + 1.0_jprb
           icdf = max(1, min(int(wcdf), this%ncdf-1))
           wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
-          
+
           wfsd = (fsd(jz)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
           ifsd = max(1, min(int(wfsd), this%nfsd-1))
           wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
-          
+
           val(jg,jz)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
                &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
                &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &
@@ -265,7 +265,7 @@ contains
   ! "fsd" corresponding to the cumulative distribution function values
   ! "cdf", and return in val. This version works on 2D blocks of data.
   subroutine sample_from_pdf_masked_block(this, nz, ng, fsd, cdf, val, mask)
-    
+
     class(pdf_sampler_type), intent(in)  :: this
 
     ! Number of samples
@@ -293,18 +293,18 @@ contains
     do jz = 1,nz
 
       if (mask(jz)) then
-        
+
         do jg = 1,ng
           if (cdf(jg, jz) > 0.0_jprb) then
             ! Bilinear interpolation with bounds
             wcdf = cdf(jg,jz) * (this%ncdf-1) + 1.0_jprb
             icdf = max(1, min(int(wcdf), this%ncdf-1))
             wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
-          
+
             wfsd = (fsd(jz)-this%fsd1) * this%inv_fsd_interval + 1.0_jprb
             ifsd = max(1, min(int(wfsd), this%nfsd-1))
             wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
-            
+
             val(jg,jz)=(1.0_jprb-wcdf)*(1.0_jprb-wfsd) * this%val(icdf  ,ifsd)   &
                  &    +(1.0_jprb-wcdf)*          wfsd  * this%val(icdf  ,ifsd+1) &
                  &    +          wcdf *(1.0_jprb-wfsd) * this%val(icdf+1,ifsd)   &

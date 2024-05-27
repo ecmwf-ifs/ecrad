@@ -1,5 +1,3 @@
-! radiation_ice_optics_yi.F90 - Yi et al. (2013) ice optical properties
-!
 ! (C) Copyright 2017- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
@@ -8,6 +6,8 @@
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+
+! radiation_ice_optics_yi.F90 - Yi et al. (2013) ice optical properties
 !
 ! Authors: Mark Fielding and Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -78,9 +78,9 @@ contains
     lu_idx = floor(de_um * lu_scale - lu_offset)
     wts_2  = (de_um * lu_scale - lu_offset) - lu_idx
     wts_1  = 1.0_jprb - wts_2
-    od     = 0.001_jprb * iwp_gm_2 * & 
+    od     = 0.001_jprb * iwp_gm_2 * &
              & ( wts_1 * coeff(1:nb,lu_idx) + wts_2 * coeff(1:nb,lu_idx+1) )
-    scat_od = od * & 
+    scat_od = od * &
              & ( wts_1 * coeff(1:nb,lu_idx+NSingleCoeffs) + wts_2 * coeff(1:nb,lu_idx+NSingleCoeffs+1) )
     g = wts_1 * coeff(1:nb,lu_idx+2*NSingleCoeffs) + wts_2 * coeff(1:nb,lu_idx+2*NSingleCoeffs+1)
 
@@ -135,9 +135,9 @@ contains
     lu_idx = floor(de_um * lu_scale - lu_offset)
     wts_2  = (de_um * lu_scale - lu_offset) - lu_idx
     wts_1  = 1.0_jprb - wts_2
-    od     = 0.001_jprb * iwp_gm_2 * & 
+    od     = 0.001_jprb * iwp_gm_2 * &
              & ( wts_1 * coeff(1:nb,lu_idx) + wts_2 * coeff(1:nb,lu_idx+1) )
-    scat_od = od * & 
+    scat_od = od * &
              & ( wts_1 * coeff(1:nb,lu_idx+NSingleCoeffs) + wts_2 * coeff(1:nb,lu_idx+NSingleCoeffs+1) )
     g = wts_1 * coeff(1:nb,lu_idx+2*NSingleCoeffs) + wts_2 * coeff(1:nb,lu_idx+2*NSingleCoeffs+1)
 

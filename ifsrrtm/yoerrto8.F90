@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOERRTO8
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
@@ -42,16 +51,16 @@ REAL(KIND=JPRB) :: FORREFO(4,NO8)
 
 !  NAME     TYPE     PURPOSE
 !  ----   : ----   : ---------------------------------------------------
-! ABSCO2A : REAL     
-! ABSCO2B : REAL     
-! ABSN2OA : REAL     
-! ABSN2OB : REAL 
-! CFC12   : REAL     
-! CFC22ADJ: REAL     
-! FRACREFA: REAL    
-! FRACREFB: REAL    
-! KA      : REAL     
-! KB      : REAL     
-! SELFREF : REAL     
+! ABSCO2A : REAL
+! ABSCO2B : REAL
+! ABSN2OA : REAL
+! ABSN2OB : REAL
+! CFC12   : REAL
+! CFC22ADJ: REAL
+! FRACREFA: REAL
+! FRACREFB: REAL
+! KA      : REAL
+! KB      : REAL
+! SELFREF : REAL
 !     -----------------------------------------------------------------
 END MODULE YOERRTO8

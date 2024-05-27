@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE RRTM_KGB6
 
 !     Originally by Eli J. Mlawer, Atmospheric & Environmental Research.
@@ -17,7 +26,7 @@ USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 
 USE YOERRTO6 , ONLY : KAO     ,KAO_MCO2, SELFREFO, FORREFO ,FRACREFAO ,CFC11ADJO ,&
- & CFC12O, KAO_D 
+ & CFC12O, KAO_D
 USE YOMMP0    , ONLY : NPROC, MYPROC
 
 !     ------------------------------------------------------------------
@@ -54,35 +63,35 @@ CFC11ADJO( :) = (/&
  & 0.0_JPRB,      0.0_JPRB, 36.7627_JPRB, 150.757_JPRB,    &
  & 81.4109_JPRB, 74.9112_JPRB, 56.9325_JPRB, 49.3226_JPRB,  &
  & 57.1074_JPRB, 66.1202_JPRB, 109.557_JPRB, 89.0562_JPRB,  &
- & 149.865_JPRB, 196.140_JPRB, 258.393_JPRB, 80.9923_JPRB/)  
+ & 149.865_JPRB, 196.140_JPRB, 258.393_JPRB, 80.9923_JPRB/)
 
 CFC12O( :) = (/&
  & 62.8368_JPRB, 43.2626_JPRB, 26.7549_JPRB, 22.2487_JPRB,&
  & 23.5029_JPRB, 34.8323_JPRB, 26.2335_JPRB, 23.2306_JPRB,&
  & 18.4062_JPRB, 13.9534_JPRB, 22.6268_JPRB, 24.2604_JPRB,&
- & 30.0088_JPRB, 26.3634_JPRB, 15.8237_JPRB, 57.5050_JPRB/)  
+ & 30.0088_JPRB, 26.3634_JPRB, 15.8237_JPRB, 57.5050_JPRB/)
 
 
 !     ------------------------------------------------------------------
 
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
+!     The array KAO contains absorption coefs at the 16 chosen g-values
 !     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the corresponding TREF for this  pressure level,
+!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30,
+!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second
+!     index, JP, runs from 1 to 13 and refers to the corresponding
+!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).
+!     The third index, IG, goes from 1 to 16, and tells us which
 !     g-interval the absorption coefficients are for.
 
 
-!     The array KAO_Mxx contains the absorption coefficient for 
+!     The array KAO_Mxx contains the absorption coefficient for
 !     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
+!     level below 100~ mb.   The first index refers to temperature
+!     in 7.2 degree increments.  For instance, JT = 1 refers to a
+!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index
 !     runs over the g-channel (1 to 16).
 
       KAO_MCO2(:, 1) = (/ &
@@ -167,9 +176,9 @@ CFC12O( :) = (/&
      & 7.78398E-05_JPRB, 1.00516E-04_JPRB, 1.29799E-04_JPRB, 1.67612E-04_JPRB/)
 
 !     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
+!     foreign-continuum (including the energy term).  The first
+!     index refers to reference temperature (296,260,224,260) and
+!     pressure (970,475,219,3 mbar) levels.  The second index
 !     runs over the g-channel (1 to 16).
 
       FORREFO(1,:) = (/ &

@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE RRTM_KGB4
 
 !     Originally by Eli J. Mlawer, Atmospheric & Environmental Research.
@@ -111,9 +120,9 @@ ENDIF
 !     eta = h2o/(h20 + (rat) * co2), where rat is the ratio of the integrated
 !     line strength in the band of co2 to that of h2o.  For instance,
 !     JS=1 refers to dry air (eta = 0), JS = 9 corresponds to eta = 1.0.
-!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds 
-!     to different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
+!     The 2nd index in the array, JT, which runs from 1 to 5, corresponds
+!     to different temperatures.  More specifically, JT = 3 means that the
+!     data are for the reference temperature TREF for this pressure
 !     level, JT = 2 refers to the temperature TREF-15,
 !     JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
 !     is for TREF+30.  The third index, JP, runs from 1 to 13 and refers
@@ -125,15 +134,15 @@ ENDIF
 
 !     The array KBO contains absorption coefs for each of the 16 g-intervals
 !     for a range of pressure levels  < ~100mb, temperatures, and ratios
-!     of O3 to CO2.  The first index in the array, JS, runs from 1 to 6, 
-!     and corresponds to different O3 to CO2 ratios, as expressed through 
-!     the binary species parameter eta, defined as eta = O3/(O3+RAT*H2O), 
-!     where RAT is the ratio of the integrated line strength in the band 
-!     of CO2 to that of O3.  For instance, JS=1 refers to no O3 (eta = 0) 
+!     of O3 to CO2.  The first index in the array, JS, runs from 1 to 6,
+!     and corresponds to different O3 to CO2 ratios, as expressed through
+!     the binary species parameter eta, defined as eta = O3/(O3+RAT*H2O),
+!     where RAT is the ratio of the integrated line strength in the band
+!     of CO2 to that of O3.  For instance, JS=1 refers to no O3 (eta = 0)
 !     and JS = 5 corresponds to eta = 1.0.  The second index, JT, which
-!     runs from 1 to 5, corresponds to different temperatures.  More 
-!     specifically, JT = 3 means that the data are for the corresponding 
-!     reference temperature TREF for this  pressure level, JT = 2 refers 
+!     runs from 1 to 5, corresponds to different temperatures.  More
+!     specifically, JT = 3 means that the data are for the corresponding
+!     reference temperature TREF for this  pressure level, JT = 2 refers
 !     to the TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and
 !     JT = 5 is for TREF+30.  The third index, JP, runs from 13 to 59 and
 !     refers to the corresponding pressure level in PREF (e.g. JP = 13 is
@@ -143,9 +152,9 @@ ENDIF
 
 
 !     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
+!     foreign-continuum (including the energy term).  The first
+!     index refers to reference temperature (296,260,224,260) and
+!     pressure (970,475,219,3 mbar) levels.  The second index
 !     runs over the g-channel (1 to 16).
 
       FORREFO(1,:) = (/ &

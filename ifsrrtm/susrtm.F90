@@ -1,9 +1,18 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE SUSRTM
 
 !     Adapted from E.J. Mlawer, J. Delamere, Atmospheric & Environmental Research.
 !     by JJMorcrette, ECMWF
 !     Modified to add arrays relevant to mapping for g-point reduction,
-!     M.J. Iacono, Atmospheric & Environmental Research, Inc. 
+!     M.J. Iacono, Atmospheric & Environmental Research, Inc.
 !     JJMorcrette 20010610 Flexible configuration for number of g-points
 !     ------------------------------------------------------------------
 
@@ -40,27 +49,27 @@ NMPSRTM(:)=(/  6, 6, 5, 5, 5, 5, 5, 4, 4, 3, 2, 2, 1, 6 /)
 
 !WAVENUM1( :) = (/&
 ! & 2600._JPRB, 3250._JPRB, 4000._JPRB, 4650._JPRB, 5150._JPRB, 6150._JPRB, 7700._JPRB &
-! & , 8050._JPRB,12850._JPRB,16000._JPRB,22650._JPRB,29000._JPRB,38000._JPRB,  820._JPRB /)  
+! & , 8050._JPRB,12850._JPRB,16000._JPRB,22650._JPRB,29000._JPRB,38000._JPRB,  820._JPRB /)
 !WAVENUM2( :) = (/&
 ! & 3250._JPRB, 4000._JPRB, 4650._JPRB, 5150._JPRB, 6150._JPRB, 7700._JPRB, 8050._JPRB &
-! & ,12850._JPRB,16000._JPRB,22650._JPRB,29000._JPRB,38000._JPRB,50000._JPRB, 2600._JPRB /)  
+! & ,12850._JPRB,16000._JPRB,22650._JPRB,29000._JPRB,38000._JPRB,50000._JPRB, 2600._JPRB /)
 !DELWAVE( :) = (/&
 ! & 650._JPRB,  750._JPRB,  650._JPRB,  500._JPRB, 1000._JPRB, 1550._JPRB,  350._JPRB &
-! & , 4800._JPRB, 3150._JPRB, 6650._JPRB, 6350._JPRB, 9000._JPRB,12000._JPRB, 1780._JPRB /)  
+! & , 4800._JPRB, 3150._JPRB, 6650._JPRB, 6350._JPRB, 9000._JPRB,12000._JPRB, 1780._JPRB /)
 
 !=====================================================================
-! Set arrays needed for the g-point reduction from 224 to 
+! Set arrays needed for the g-point reduction from 224 to
 ! - either 112 for the high-resolution forecast model configuration
-! - or 56 for the EPS-type configuration  
+! - or 56 for the EPS-type configuration
 ! in the 14 SW bands:
 
 ! NB: This mapping from 224 to 112 points has been carefully selected to
 ! minimize the effect on the resulting fluxes and cooling rates, and
 ! caution should be used if the mapping is modified.
-!     The further reduction to 56 for EPS configuration is considered 
-! acceptable, only because of the random perturbations introduced on 
+!     The further reduction to 56 for EPS configuration is considered
+! acceptable, only because of the random perturbations introduced on
 ! the total heating rates produced by the physical parametrization package.
-! While a reduction to 56 obviously speeds up the model, it as obviously 
+! While a reduction to 56 obviously speeds up the model, it as obviously
 ! reduces the accuracy that could be expected from the radiation scheme.
 
 ! JPGPT   The total number of new g-points (NGPT)
@@ -254,7 +263,7 @@ PREF = (/ &
  & 3.53455E-01_JPRB,2.89384E-01_JPRB,2.36928E-01_JPRB,1.93980E-01_JPRB,1.58817E-01_JPRB, &
  & 1.30029E-01_JPRB,1.06458E-01_JPRB,8.71608E-02_JPRB,7.13612E-02_JPRB,5.84256E-02_JPRB, &
  & 4.78349E-02_JPRB,3.91639E-02_JPRB,3.20647E-02_JPRB,2.62523E-02_JPRB,2.14936E-02_JPRB, &
- & 1.75975E-02_JPRB,1.44076E-02_JPRB,1.17959E-02_JPRB,9.65769E-03_JPRB /)  
+ & 1.75975E-02_JPRB,1.44076E-02_JPRB,1.17959E-02_JPRB,9.65769E-03_JPRB /)
 PREFLOG = (/ &
  & 6.9600E+00_JPRB, 6.7600E+00_JPRB, 6.5600E+00_JPRB, 6.3600E+00_JPRB, 6.1600E+00_JPRB, &
  & 5.9600E+00_JPRB, 5.7600E+00_JPRB, 5.5600E+00_JPRB, 5.3600E+00_JPRB, 5.1600E+00_JPRB, &
@@ -267,9 +276,9 @@ PREFLOG = (/ &
  & -1.0400E+00_JPRB,-1.2400E+00_JPRB,-1.4400E+00_JPRB,-1.6400E+00_JPRB,-1.8400E+00_JPRB, &
  & -2.0400E+00_JPRB,-2.2400E+00_JPRB,-2.4400E+00_JPRB,-2.6400E+00_JPRB,-2.8400E+00_JPRB, &
  & -3.0400E+00_JPRB,-3.2400E+00_JPRB,-3.4400E+00_JPRB,-3.6400E+00_JPRB,-3.8400E+00_JPRB, &
- & -4.0400E+00_JPRB,-4.2400E+00_JPRB,-4.4400E+00_JPRB,-4.6400E+00_JPRB /)  
-! These are the temperatures associated with the respective 
-! pressures for the MLS standard atmosphere. 
+ & -4.0400E+00_JPRB,-4.2400E+00_JPRB,-4.4400E+00_JPRB,-4.6400E+00_JPRB /)
+! These are the temperatures associated with the respective
+! pressures for the MLS standard atmosphere.
 TREF = (/ &
  & 2.9420E+02_JPRB, 2.8799E+02_JPRB, 2.7894E+02_JPRB, 2.6925E+02_JPRB, 2.5983E+02_JPRB, &
  & 2.5017E+02_JPRB, 2.4077E+02_JPRB, 2.3179E+02_JPRB, 2.2306E+02_JPRB, 2.1578E+02_JPRB, &
@@ -282,7 +291,7 @@ TREF = (/ &
  & 2.6211E+02_JPRB, 2.5828E+02_JPRB, 2.5360E+02_JPRB, 2.4854E+02_JPRB, 2.4348E+02_JPRB, &
  & 2.3809E+02_JPRB, 2.3206E+02_JPRB, 2.2603E+02_JPRB, 2.2000E+02_JPRB, 2.1435E+02_JPRB, &
  & 2.0887E+02_JPRB, 2.0340E+02_JPRB, 1.9792E+02_JPRB, 1.9290E+02_JPRB, 1.8809E+02_JPRB, &
- & 1.8329E+02_JPRB, 1.7849E+02_JPRB, 1.7394E+02_JPRB, 1.7212E+02_JPRB /)  
+ & 1.8329E+02_JPRB, 1.7849E+02_JPRB, 1.7394E+02_JPRB, 1.7212E+02_JPRB /)
 !     -----------------------------------------------------------------
 
 IF (JPGPT == 56) THEN
@@ -321,4 +330,3 @@ ENDIF
 !     -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SUSRTM',1,ZHOOK_HANDLE)
 END SUBROUTINE SUSRTM
-

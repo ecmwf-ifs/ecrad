@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOERRTM
 
 USE PARKIND1  ,ONLY : JPIM
@@ -14,7 +23,7 @@ SAVE
 
 !     20110613 JJMorcrette
 
-!     Modified to allow possibilities of different g-point numbers.  
+!     Modified to allow possibilities of different g-point numbers.
 !     ------------------------------------------------------------------
 
 !INTEGER(KIND=JPIM) :: JPGPT
@@ -96,4 +105,3 @@ INTEGER(KIND=JPIM) :: NGN(JPGMAX), NGBLW(JPGMAX)
 
 !     ------------------------------------------------------------------
 END MODULE YOERRTM
-

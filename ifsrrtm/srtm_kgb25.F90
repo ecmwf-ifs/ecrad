@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE SRTM_KGB25
 
 !     Originally by J.Delamere, Atmospheric & Environmental Research.
@@ -40,37 +49,37 @@ SFLUXREF = (/ &
  & 42.6858_JPRB , 45.7720_JPRB, 44.9872_JPRB, 45.9662_JPRB    , &
  & 46.5458_JPRB , 41.6926_JPRB, 32.2893_JPRB, 24.0928_JPRB    , &
  & 16.7686_JPRB , 1.86048_JPRB, 1.54057_JPRB, 1.23503_JPRB    , &
- & 0.915085_JPRB,0.590099_JPRB,0.218622_JPRB, 3.21287E-02_JPRB /)  
+ & 0.915085_JPRB,0.590099_JPRB,0.218622_JPRB, 3.21287E-02_JPRB /)
 
 !     Rayleigh extinction coefficient at v = 2925 cm-1.
 RAYL = (/ &
  & 9.81132E-07_JPRB,8.25605E-07_JPRB,6.71302E-07_JPRB,5.53556E-07_JPRB,  &
  & 3.97383E-07_JPRB,3.68206E-07_JPRB,4.42379E-07_JPRB,4.57799E-07_JPRB, &
  & 4.22683E-07_JPRB,3.87113E-07_JPRB,3.79810E-07_JPRB,3.63192E-07_JPRB, &
- & 3.51921E-07_JPRB,3.34231E-07_JPRB,3.34294E-07_JPRB,3.32673E-07_JPRB /)  
-     
+ & 3.51921E-07_JPRB,3.34231E-07_JPRB,3.34294E-07_JPRB,3.32673E-07_JPRB /)
+
 ABSO3A = (/ &
  & 2.32664E-02_JPRB,5.76154E-02_JPRB,0.125389_JPRB,0.250158_JPRB, &
  & 0.378756_JPRB   ,0.402196_JPRB   ,0.352026_JPRB,0.352036_JPRB, &
  & 0.386253_JPRB   ,0.414598_JPRB   ,0.420079_JPRB,0.435471_JPRB, &
- & 0.445487_JPRB   ,0.459549_JPRB   ,0.452920_JPRB,0.456838_JPRB /)  
+ & 0.445487_JPRB   ,0.459549_JPRB   ,0.452920_JPRB,0.456838_JPRB /)
 
 ABSO3B = (/      &
  & 1.76917E-02_JPRB,4.64185E-02_JPRB,1.03640E-01_JPRB,0.189469_JPRB, &
  & 0.303858_JPRB   ,0.400248_JPRB   ,0.447357_JPRB   ,0.470009_JPRB, &
  & 0.498673_JPRB   ,0.515696_JPRB   ,0.517053_JPRB   ,0.517930_JPRB, &
- & 0.518345_JPRB   ,0.524952_JPRB   ,0.508244_JPRB   ,0.468981_JPRB /)  
+ & 0.518345_JPRB   ,0.524952_JPRB   ,0.508244_JPRB   ,0.468981_JPRB /)
 
 LAYREFFR = 2
 
 !     ------------------------------------------------------------------
 
-!     The array KA contains absorption coefs at the 16 chosen g-values 
+!     The array KA contains absorption coefs at the 16 chosen g-values
 !     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
+!     species parameters (see taumol.f for definition).  The first
+!     index in the array, JS, runs from 1 to 9, and corresponds to
+!     different values of the binary species parameter.  For instance,
+!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8,
 !     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
 !     in the array, JT, which runs from 1 to 5, corresponds to different
 !     temperatures.  More specifically, JT = 3 means that the data are for
@@ -81,7 +90,7 @@ LAYREFFR = 2
 !     in mb).  The fourth index, IG, goes from 1 to 16, and indicates
 !     which g-interval the absorption coefficients are for.
 !     -----------------------------------------------------------------
-  
+
 !     -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRTM_KGB25',1,ZHOOK_HANDLE)
 RETURN
