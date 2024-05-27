@@ -1,5 +1,3 @@
-! radiation_delta_eddington.h - Delta-Eddington scaling -*- f90 -*-
-!
 ! (C) Copyright 2015- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
@@ -8,6 +6,9 @@
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+
+!
+! radiation_delta_eddington.h - Delta-Eddington scaling -*- f90 -*-
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -20,20 +21,20 @@
 elemental subroutine delta_eddington(od, ssa, g)
 
   use parkind1, only : jprb
-  
+
   ! Total optical depth, single scattering albedo and asymmetry
   ! factor
   real(jprb), intent(inout) :: od, ssa, g
-  
+
   ! Fraction of the phase function deemed to be in the forward lobe
   ! and therefore treated as if it is not scattered at all
   real(jprb) :: f
-  
+
   f   = g*g
   od  = od * (1.0_jprb - ssa*f)
   ssa = ssa * (1.0_jprb - f) / (1.0_jprb - ssa*f)
   g   = g / (1.0_jprb + g)
-  
+
 end subroutine delta_eddington
 
 
@@ -65,7 +66,7 @@ elemental subroutine delta_eddington_extensive(od, scat_od, scat_od_g)
   od        = od - scat_od * f
   scat_od   = scat_od * (1.0_jprb - f)
   scat_od_g = scat_od * g / (1.0_jprb + g)
-  
+
 end subroutine delta_eddington_extensive
 
 
@@ -103,7 +104,7 @@ end subroutine delta_eddington_extensive_vec
 elemental subroutine delta_eddington_scat_od(od, scat_od, g)
 
   use parkind1, only : jprb
-  
+
   ! Total optical depth, scattering optical depth and asymmetry factor
   real(jprb), intent(inout) :: od, scat_od, g
 

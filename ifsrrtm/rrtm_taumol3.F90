@@ -1,8 +1,17 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 !----------------------------------------------------------------------------
 SUBROUTINE RRTM_TAUMOL3 (KIDIA,KFDIA,KLEV,P_TAU,&
  & P_TAUAERL,P_FAC00,P_FAC01,P_FAC10,P_FAC11,P_FORFAC,P_FORFRAC,K_INDFOR,K_JP,K_JT,K_JT1,P_ONEMINUS,&
  & P_COLH2O,P_COLCO2,P_COLN2O,P_COLDRY,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC, &
- & PRAT_H2OCO2, PRAT_H2OCO2_1,PMINORFRAC,KINDMINOR)  
+ & PRAT_H2OCO2, PRAT_H2OCO2_1,PMINORFRAC,KINDMINOR)
 
 !     BAND 3:  500-630 cm-1 (low - H2O,CO2; high - H2O,CO2)
 
@@ -34,32 +43,32 @@ IMPLICIT NONE
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FORFAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FORFAC(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_ONEMINUS
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLCO2(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLN2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLDRY(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLCO2(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLN2O(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLDRY(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV)
 
 REAL(KIND=JPRB)   ,INTENT(IN)   :: PRAT_H2OCO2(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: PRAT_H2OCO2_1(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: K_INDFOR(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: PMINORFRAC(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: KINDMINOR(KIDIA:KFDIA,KLEV)
 ! ---------------------------------------------------------------------------
@@ -90,9 +99,9 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL3',0,ZHOOK_HANDLE)
 
-!     Compute the optical depth by interpolating in ln(pressure), 
+!     Compute the optical depth by interpolating in ln(pressure),
 !     temperature, and appropriate species.  Below LAYTROP, the water
-!     vapor self-continuum is interpolated (in temperature) separately.  
+!     vapor self-continuum is interpolated (in temperature) separately.
 
 
 ! Minor gas mapping levels:
@@ -108,7 +117,7 @@ IF (LHOOK) CALL DR_HOOK('RRTM_TAUMOL3',0,ZHOOK_HANDLE)
 !  P = 706.270mb
       ZREFRAT_M_A = CHI_MLS(1,3)/CHI_MLS(2,3)
 
-!  P = 95.58 mb 
+!  P = 95.58 mb
       ZREFRAT_M_B = CHI_MLS(1,13)/CHI_MLS(2,13)
 ASSOCIATE(NFLEVG=>KLEV)
 
@@ -139,7 +148,7 @@ DO JLAY = 1, KLEV
         Z_FMN2O = MOD(Z_SPECMULT_MN2O,1.0_JPRB)
         Z_FMN2OMF = PMINORFRAC(JLON,JLAY)*Z_FMN2O
 !  In atmospheres where the amount of N2O is too great to be considered
-!  a minor species, adjust the column amount of N2O by an empirical factor 
+!  a minor species, adjust the column amount of N2O by an empirical factor
 !  to obtain the proper contribution.
         Z_CHI_N2O = P_COLN2O(JLON,JLAY)/P_COLDRY(JLON,JLAY)
         ZRATN2O = 1.E20_JPRB*Z_CHI_N2O/CHI_MLS(4,K_JP(JLON,JLAY)+1)
@@ -149,7 +158,7 @@ DO JLAY = 1, KLEV
         ELSE
            ZADJCOLN2O(JLON,JLAY) = P_COLN2O(JLON,JLAY)
         ENDIF
-        
+
         Z_SPECCOMB_PLANCK(JLAY) = P_COLH2O(JLON,JLAY)+ZREFRAT_PLANCK_A*P_COLCO2(JLON,JLAY)
         Z_SPECPARM_PLANCK = P_COLH2O(JLON,JLAY)/Z_SPECCOMB_PLANCK(JLAY)
         IF (Z_SPECPARM_PLANCK >= P_ONEMINUS) Z_SPECPARM_PLANCK=P_ONEMINUS
@@ -180,7 +189,7 @@ DO JLAY = 1, KLEV
             Z_FAC110 = ZFK1*P_FAC10(JLON,JLAY)
             Z_FAC210 = ZFK2*P_FAC10(JLON,JLAY)
          ELSEIF (Z_SPECPARM > 0.875_JPRB) THEN
-            ZP = -Z_FS 
+            ZP = -Z_FS
             ZP4 = ZP**4
             ZFK0 = ZP4
             ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
@@ -210,7 +219,7 @@ DO JLAY = 1, KLEV
             Z_FAC111 = ZFK1*P_FAC11(JLON,JLAY)
             Z_FAC211 = ZFK2*P_FAC11(JLON,JLAY)
          ELSEIF (Z_SPECPARM1 > 0.875_JPRB) THEN
-            ZP = -Z_FS1 
+            ZP = -Z_FS1
             ZP4 = ZP**4
             ZFK0 = ZP4
             ZFK1 = 1 - ZP - 2.0_JPRB*ZP4
@@ -239,7 +248,7 @@ DO JLAY = 1, KLEV
          ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(INDS(JLAY),IG) + P_SELFFRAC(JLON,JLAY) * &
             &    (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG)))
          ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + P_FORFRAC(JLON,JLAY) * &
-            &    (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
+            &    (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG)))
          ZN2OM1 = KA_MN2O(JMN2O,INDM(JLAY),IG) + Z_FMN2O * &
             &    (KA_MN2O(JMN2O+1,INDM(JLAY),IG) - KA_MN2O(JMN2O,INDM(JLAY),IG))
          ZN2OM2 = KA_MN2O(JMN2O,INDM(JLAY)+1,IG) + Z_FMN2O * &
@@ -293,17 +302,17 @@ DO JLAY = 1, KLEV
                  &  Z_FAC011 * ABSA(IND1(JLAY)+9,IG) + &
                  &  Z_FAC111 * ABSA(IND1(JLAY)+10,IG))
             ENDIF
- 
+
 
         P_TAU(JLON,NGS2+IG,JLAY) = ZTAU_MAJOR + ZTAU_MAJOR1 &
                & + ZTAUSELF + ZTAUFOR &
                & + ZADJCOLN2O(JLON,JLAY)*ZABSN2O &
-               & + P_TAUAERL(JLON,JLAY,3)  
+               & + P_TAUAERL(JLON,JLAY,3)
 
         !if (JPL < 1) call abort
 
         PFRAC(JLON,NGS2+IG,JLAY) = FRACREFA(IG,JPL) + Z_FPL *&
-         & (FRACREFA(IG,JPL+1) - FRACREFA(IG,JPL))  
+         & (FRACREFA(IG,JPL+1) - FRACREFA(IG,JPL))
       ENDDO
     ENDIF
 
@@ -340,7 +349,7 @@ DO JLAY = 1, KLEV
         Z_FMN2O = MOD(Z_SPECMULT_MN2O,1.0_JPRB)
         Z_FMN2OMF = PMINORFRAC(JLON,JLAY)*Z_FMN2O
 !  In atmospheres where the amount of N2O is too great to be considered
-!  a minor species, adjust the column amount of N2O by an empirical factor 
+!  a minor species, adjust the column amount of N2O by an empirical factor
 !  to obtain the proper contribution.
         Z_CHI_N2O = P_COLN2O(JLON,JLAY)/P_COLDRY(JLON,JLAY)
         ZRATN2O = 1.E20_JPRB*Z_CHI_N2O/CHI_MLS(4,K_JP(JLON,JLAY)+1)
@@ -350,7 +359,7 @@ DO JLAY = 1, KLEV
         ELSE
            ZADJCOLN2O(JLON,JLAY) = P_COLN2O(JLON,JLAY)
         ENDIF
-        
+
         Z_SPECCOMB_PLANCK(JLAY) = P_COLH2O(JLON,JLAY)+ZREFRAT_PLANCK_B*P_COLCO2(JLON,JLAY)
         Z_SPECPARM_PLANCK = P_COLH2O(JLON,JLAY)/Z_SPECCOMB_PLANCK(JLAY)
         IF (Z_SPECPARM_PLANCK >= P_ONEMINUS) Z_SPECPARM_PLANCK=P_ONEMINUS
@@ -367,7 +376,7 @@ DO JLAY = 1, KLEV
 !CDIR UNROLL=NG3
       DO IG = 1, NG3
          ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + P_FORFRAC(JLON,JLAY) * &
-               & (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
+               & (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG)))
          ZN2OM1 = KB_MN2O(JMN2O,INDM(JLAY),IG) + Z_FMN2O * &
                & (KB_MN2O(JMN2O+1,INDM(JLAY),IG) - KB_MN2O(JMN2O,INDM(JLAY),IG))
          ZN2OM2 = KB_MN2O(JMN2O,INDM(JLAY)+1,IG) + Z_FMN2O * &
@@ -386,11 +395,11 @@ DO JLAY = 1, KLEV
           & Z_FAC011 * ABSB(IND1(JLAY)+5,IG) +&
           & Z_FAC111 * ABSB(IND1(JLAY)+6,IG))+&
           & ZTAUFOR + ZADJCOLN2O(JLON,JLAY)*ZABSN2O &
-          & + P_TAUAERL(JLON,JLAY,3)  
+          & + P_TAUAERL(JLON,JLAY,3)
 
 
         PFRAC(JLON,NGS2+IG,JLAY) = FRACREFB(IG,JPL) + Z_FPL *&
-         & (FRACREFB(IG,JPL+1) - FRACREFB(IG,JPL))  
+         & (FRACREFB(IG,JPL+1) - FRACREFB(IG,JPL))
       ENDDO
     ENDIF
   ENDDO

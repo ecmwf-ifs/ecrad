@@ -1,5 +1,3 @@
-! radiation_cloudless_sw.F90 - Shortwave homogeneous cloudless solver
-!
 ! (C) Copyright 2019- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
@@ -8,6 +6,8 @@
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+
+! radiation_cloudless_sw.F90 - Shortwave homogeneous cloudless solver
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -25,7 +25,7 @@ contains
   !---------------------------------------------------------------------
   ! Shortwave homogeneous solver containing no clouds
   subroutine solver_cloudless_sw(nlev,istartcol,iendcol, &
-       &  config, single_level, & 
+       &  config, single_level, &
        &  od, ssa, g, albedo_direct, albedo_diffuse, incoming_sw, &
        &  flux)
 
@@ -107,7 +107,7 @@ contains
       if (single_level%cos_sza(jcol) > 0.0_jprb) then
 
         cos_sza = single_level%cos_sza(jcol)
-        
+
         ! The following is the same as the clear-sky part of
         ! solver_homogeneous_sw
         if (.not. config%do_sw_delta_scaling_with_gases) then
@@ -143,13 +143,13 @@ contains
                  &  trans_dir_dir(:,jlev) )
           end do
         end if
-          
+
         ! Use adding method to compute fluxes
         call adding_ica_sw(ng, nlev, incoming_sw(:,jcol), &
              &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), &
              &  spread(cos_sza,1,ng), reflectance, transmittance, ref_dir, trans_dir_diff, &
              &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct)
-        
+
         ! Sum over g-points to compute and save clear-sky broadband
         ! fluxes
         flux%sw_up(jcol,:) = sum(flux_up,1)

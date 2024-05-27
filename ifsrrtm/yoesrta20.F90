@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOESRTA20
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
@@ -15,9 +24,9 @@ SAVE
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG = 16, NG20 = 16
 
-REAL(KIND=JPRB) :: KA(5,13,JPG)   
+REAL(KIND=JPRB) :: KA(5,13,JPG)
 REAL(KIND=JPRB) :: KB(5,13:59,JPG)
-REAL(KIND=JPRD) :: KA_D(5,13,JPG)   
+REAL(KIND=JPRD) :: KA_D(5,13,JPG)
 REAL(KIND=JPRD) :: KB_D(5,13:59,JPG)
 REAL(KIND=JPRB) :: SELFREF(10,JPG),FORREF(4,JPG)
 REAL(KIND=JPRB) :: SFLUXREF(JPG)  ,ABSCH4(JPG)
@@ -56,4 +65,3 @@ EQUIVALENCE (KAC(1,1,1),ABSA(1,1)), (KBC(1,13,1),ABSB(1,1))
 ! ABSCH4C : REAL     Reduced g-point array for ABSCH4
 !     -----------------------------------------------------------------
 END MODULE YOESRTA20
-

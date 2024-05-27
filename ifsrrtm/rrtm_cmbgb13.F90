@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 !***************************************************************************
 SUBROUTINE RRTM_CMBGB13
 !***************************************************************************
@@ -16,7 +25,7 @@ USE YOERRTO13, ONLY : KAO     ,SELFREFO, FORREFO   ,FRACREFAO, FRACREFBO, &
 USE YOERRTA13, ONLY : KA      ,SELFREF, FORREF    ,FRACREFA, FRACREFB, &
                      & KA_MCO2, KA_MCO, KB_MO3
 USE YOERRTRWT, ONLY : RWGT
-USE YOERRTFTR, ONLY : NGC      ,NGS      ,NGN      
+USE YOERRTFTR, ONLY : NGC      ,NGS      ,NGN
 
 IMPLICIT NONE
 

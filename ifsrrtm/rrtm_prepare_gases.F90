@@ -1,10 +1,19 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE RRTM_PREPARE_GASES &
  &( KIDIA, KFDIA, KLON, KLEV, &
  &  PAPH , PAP , &
  &  PTH  , PT  , &
  &  PQ   , PCO2 , PCH4, PN2O  , PNO2, PC11, PC12, PC22, PCL4, POZN, &
  &  PCOLDRY, PWBRODL, PWKL, PWX , &
- &  PAVEL  , PTAVEL , PZ  , PTZ , KREFLECT)  
+ &  PAVEL  , PTAVEL , PZ  , PTZ , KREFLECT)
 
 !----compiled for Cray with -h nopattern----
 
@@ -21,16 +30,16 @@ SUBROUTINE RRTM_PREPARE_GASES &
 USE PARKIND1 , ONLY : JPIM, JPRB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCST   , ONLY : RG
-USE PARRRTM  , ONLY : JPXSEC, JPINPX  
+USE PARRRTM  , ONLY : JPXSEC, JPINPX
 USE YOMDYNCORE,ONLY : RPLRG
 
 !------------------------------Arguments--------------------------------
 
 IMPLICIT NONE
 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLON! Number of atmospheres (longitudes) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV! Number of atmospheric layers 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA, KFDIA 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLON! Number of atmospheres (longitudes)
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV! Number of atmospheric layers
+INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA, KFDIA
 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPH(KLON,KLEV+1) ! Interface pressures (Pa)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAP(KLON,KLEV) ! Layer pressures (Pa)
@@ -47,15 +56,15 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: PC22(KLON,KLEV) ! CFC22 mass mixing ratio
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCL4(KLON,KLEV) ! CCL4  mass mixing ratio
 REAL(KIND=JPRB)   ,INTENT(IN)    :: POZN(KLON,KLEV) ! O3 mass mixing ratio
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PCOLDRY(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PCOLDRY(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWBRODL(KIDIA:KFDIA,KLEV) ! broadening gas column density (mol/cm2)
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWKL(KIDIA:KFDIA,JPINPX,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWKL(KIDIA:KFDIA,JPINPX,KLEV)
 REAL(KIND=JPRB)   ,INTENT(OUT)   :: PWX(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PAVEL(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTAVEL(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PZ(KIDIA:KFDIA,0:KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTZ(KIDIA:KFDIA,0:KLEV) 
-INTEGER(KIND=JPIM),INTENT(OUT)   :: KREFLECT(KIDIA:KFDIA) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PAVEL(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTAVEL(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PZ(KIDIA:KFDIA,0:KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PTZ(KIDIA:KFDIA,0:KLEV)
+INTEGER(KIND=JPIM),INTENT(OUT)   :: KREFLECT(KIDIA:KFDIA)
 
 !      real rch4                       ! CH4 mass mixing ratio
 !      real rn2o                       ! N2O mass mixing ratio
@@ -63,8 +72,8 @@ INTEGER(KIND=JPIM),INTENT(OUT)   :: KREFLECT(KIDIA:KFDIA)
 !      real rcfc12                     ! CFC12 mass mixing ratio
 !      real rcfc22                     ! CFC22 mass mixing ratio
 !      real rccl4                      ! CCl4  mass mixing ratio
-!- from PROFILE             
-!- from SURFACE             
+!- from PROFILE
+!- from SURFACE
 REAL(KIND=JPRB) :: ZAMD                  ! Effective molecular weight of dry air (g/mol)
 REAL(KIND=JPRB) :: ZAMW                  ! Molecular weight of water vapor (g/mol)
 REAL(KIND=JPRB) :: ZAMCO2                ! Molecular weight of carbon dioxide (g/mol)
@@ -104,7 +113,7 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 ! ***
 
 ! *** mji
-! Initialize all molecular amounts to zero here, 
+! Initialize all molecular amounts to zero here,
 ! then pass ECRT amounts into RRTM arrays below.
 
 !      DATA ZWKL /MAXPRDW*0.0/
@@ -140,7 +149,7 @@ ENDDO
 DO J2=1,KLEV
   DO J1=1,35
     DO JL = KIDIA, KFDIA
-      PWKL(JL,J1,J2)=0.0_JPRB 
+      PWKL(JL,J1,J2)=0.0_JPRB
     ENDDO
   ENDDO
 ENDDO
@@ -157,16 +166,16 @@ IXMAX   = 4
 DO JL = KIDIA, KFDIA
 !     Install ECRT arrays into RRTM arrays for pressure, temperature,
 !     and molecular amounts.  Pressures are converted from Pascals
-!     (ECRT) to mb (RRTM).  H2O, CO2, O3 and trace gas amounts are 
+!     (ECRT) to mb (RRTM).  H2O, CO2, O3 and trace gas amounts are
 !     converted from mass mixing ratio to volume mixing ratio.  CO2
-!     converted with same dry air and CO2 molecular weights used in 
+!     converted with same dry air and CO2 molecular weights used in
 !     ECRT to assure correct conversion back to the proper CO2 vmr.
-!     The dry air column COLDRY (in molec/cm2) is calculated from 
+!     The dry air column COLDRY (in molec/cm2) is calculated from
 !     the level pressures PZ (in mb) based on the hydrostatic equation
 !     and includes a correction to account for H2O in the layer.  The
 !     molecular weight of moist air (amm) is calculated for each layer.
 !     Note: RRTM levels count from bottom to top, while the ECRT input
-!     variables count from the top down and must be reversed 
+!     variables count from the top down and must be reversed
   ITMOL = 7
   PZ(JL,0) = PAPH(JL,KLEV+1)/100._JPRB
   PTZ(JL,0) = PTH(JL,KLEV+1)
@@ -222,7 +231,7 @@ ZSUMMOL = 0.0_JPRB
     PWBRODL(JL,JK) = PCOLDRY(JL,JK) * (1._JPRB - ZSUMMOL)
     DO JMOL = 1, ITMOL
       PWKL(JL,JMOL,JK) = PCOLDRY(JL,JK) * PWKL(JL,JMOL,JK)
-    ENDDO    
+    ENDDO
   ENDDO
 ENDDO
 

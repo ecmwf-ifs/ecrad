@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE RRTM_KGB2
 
 !     Originally by Eli J. Mlawer, Atmospheric & Environmental Research.
@@ -6,7 +15,7 @@ SUBROUTINE RRTM_KGB2
 !     R. Elkhatib 12-10-2005 Split for faster and more robust compilation.
 !     G.Mozdzynski March 2011 read constants from files
 !     ABozzo May 2013 update to RRTMG v4.85
-!     band 2:  350-500 cm-1 
+!     band 2:  350-500 cm-1
 !     T. Wilhelmsson and K. Yessad (Oct 2013) Geometry and setup refactoring.
 !      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
@@ -56,9 +65,9 @@ ENDIF
       &  2.2359E-03_JPRB, 1.4226E-03_JPRB, 5.3642E-04_JPRB, 7.6316E-05_JPRB/)
 
 !     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
+!     foreign-continuum (including the energy term).  The first
+!     index refers to reference temperature (296,260,224,260) and
+!     pressure (970,475,219,3 mbar) levels.  The second index
 !     runs over the g-channel (1 to 16).
 
       FORREFO(1,:) = (/ &
@@ -85,31 +94,31 @@ ENDIF
 !REFPARAM( :) = (/&
 ! & 0.903661_JPRB   , 0.859386_JPRB   , 0.746542_JPRB   , 0.580496_JPRB   , 0.412889_JPRB   ,&
 ! & 0.275283_JPRB   , 0.162745_JPRB   , 7.63929E-02_JPRB, 1.82553E-02_JPRB, 3.72432E-03_JPRB, &
-! & 2.14946E-03_JPRB, 1.66320E-03_JPRB, 1.59940E-03_JPRB/)  
+! & 2.14946E-03_JPRB, 1.66320E-03_JPRB, 1.59940E-03_JPRB/)
 
 !     ------------------------------------------------------------------
 
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
+!     The array KAO contains absorption coefs at the 16 chosen g-values
 !     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the corresponding TREF for this  pressure level,
+!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30,
+!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second
+!     index, JP, runs from 1 to 13 and refers to the corresponding
+!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).
+!     The third index, IG, goes from 1 to 16, and tells us which
 !     g-interval the absorption coefficients are for.
 
 
 
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
+!     The array KBO contains absorption coefs at the 16 chosen g-values
+!     for a range of pressure levels < ~100mb and temperatures. The first
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the reference temperature TREF for this pressure
 !     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
+!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.
 !     The second index, JP, runs from 13 to 59 and refers to the JPth
 !     reference pressure level (see taumol.f for the value of these
 !     pressure levels in mb).  The third index, IG, goes from 1 to 16,

@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE SRTM_INIT(CDIRECTORY, NWVCONTINUUM)
 
 !-- read in the basic coefficients to configure RRTM_SW
@@ -86,11 +95,11 @@ CALL SRTM_KGB29
 IF (PRESENT(NWVCONTINUUM)) THEN
   ! Modify the shortwave water vapour continuum, if requested
   CALL MODIFY_WV_CONTINUUM(NWVCONTINUUM)
-END IF
+ENDIF
 
 !-- read in the cloud optical properties
-!- creates module YOESRTOP with EXTLIQ1, SSALIQ1, ASYLIQ1, 
-!  EXTICE3, SSAICE3, ASYICE3, FDLICE3  
+!- creates module YOESRTOP with EXTLIQ1, SSALIQ1, ASYLIQ1,
+!  EXTICE3, SSAICE3, ASYICE3, FDLICE3
 
 !-- RRTM_SW cloud optical properties are not used
 !   SRTM_CLDPROP is not called
@@ -150,4 +159,3 @@ CALL SRTM_CMBGB29
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRTM_INIT',1,ZHOOK_HANDLE)
 END SUBROUTINE SRTM_INIT
-

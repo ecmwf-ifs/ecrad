@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOESRTA16
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
@@ -15,9 +24,9 @@ SAVE
 
 INTEGER(KIND=JPIM), PARAMETER :: JPG=16, NG16 = 16, NGS15 = 0
 
-REAL(KIND=JPRB) :: KA(9,5,13,JPG) 
+REAL(KIND=JPRB) :: KA(9,5,13,JPG)
 REAL(KIND=JPRB) :: KB(5,13:59,JPG)
-REAL(KIND=JPRD) :: KA_D(9,5,13,JPG) 
+REAL(KIND=JPRD) :: KA_D(9,5,13,JPG)
 REAL(KIND=JPRD) :: KB_D(5,13:59,JPG)
 REAL(KIND=JPRB) :: SELFREF(10,JPG),FORREF(3,JPG)
 REAL(KIND=JPRB) :: SFLUXREF(JPG)
@@ -46,7 +55,7 @@ EQUIVALENCE (KAC(1,1,1,1),ABSA(1,1)), (KBC(1,13,1),ABSB(1,1))
 ! FORREF  : REAL     foreign broadening coefficient for water vapour
 ! SFLUXREF: REAL     Incident solar radiation in the spectral interval
 ! RAYL    : REAL     Rayleigh scattering parameter
-! STRRAT1 : REAL     weighting factor for the transition between tropospheric 
+! STRRAT1 : REAL     weighting factor for the transition between tropospheric
 !                    and stratospheric computations
 ! LAYREFFR: INTEGER  reference level for the transition
 ! KAC     : REAL     Reduced g-point array for KA
@@ -56,4 +65,3 @@ EQUIVALENCE (KAC(1,1,1,1),ABSA(1,1)), (KBC(1,13,1),ABSB(1,1))
 !SFLUXREFC: REAL     Reduced g-point array for SFLUXREF
 !     -----------------------------------------------------------------
 END MODULE YOESRTA16
-

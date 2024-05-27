@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOERRTA16
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -34,12 +43,12 @@ EQUIVALENCE (KA(1,1,1,1),ABSA(1,1)), (KB(1,13,1),ABSB(1,1))
 
 !  NAME     TYPE     PURPOSE
 !  ----   : ----   : ---------------------------------------------------
-! ABSA    : REAL     absorption coefficient of major absorber for M reference tropospheric 
-!                    pressures and N reference tropospheric temperatures 
+! ABSA    : REAL     absorption coefficient of major absorber for M reference tropospheric
+!                    pressures and N reference tropospheric temperatures
 ! FRACREFA: REAL     distance from r and T reference tabulated points (troposphere)
-! KA      : REAL     absorption coefficient of major absorber (equiv. to ABSA)   
+! KA      : REAL     absorption coefficient of major absorber (equiv. to ABSA)
 ! SELFREF : REAL     self broadening coefficient for water vapour
-! STRRAT  : REAL     weighting factors for the transition between tropospheric 
+! STRRAT  : REAL     weighting factors for the transition between tropospheric
 !                    and stratospheric computations
 !     -----------------------------------------------------------------
 END MODULE YOERRTA16

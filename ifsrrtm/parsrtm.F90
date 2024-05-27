@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE PARSRTM
 
 USE PARKIND1  ,ONLY : JPIM
@@ -13,8 +22,8 @@ SAVE
 
 !     030224  JJMorcrette
 
-!     Modified for g-point reduction from 224 to 112.  
-!     Swap code below to restore 224 g-point set. 
+!     Modified for g-point reduction from 224 to 112.
+!     Swap code below to restore 224 g-point set.
 !     Mar2004 MJIacono, AER
 !     20110322 JJMorcrette : additional comments
 !     20110603 JJMorcrette reduced number of g-points
@@ -22,7 +31,7 @@ SAVE
 
 !-- basic spectral information unrelated to number of g-points
 ! JPG     : INTEGER : maximum number of g-points in a given spectral band
-! JPBAND  : INTEGER : total number of spectral bands 
+! JPBAND  : INTEGER : total number of spectral bands
 ! JPSW    : INTEGER : total number of shortwave spectral bands
 ! JPB1    : INTEGER : starting index of shortwave spectrum
 ! JPB2    : INTEGER : end index of shortwave spectrum
@@ -35,8 +44,8 @@ INTEGER(KIND=JPIM), PARAMETER :: JPB2   = 29
 INTEGER(KIND=JPIM), PARAMETER :: JPGMAX = 224
 
 !-- other information that could be relevant for RRTM_SW
-!-- NB: The following parameters are unused within the ECMWF IFS. 
-!       They relate to the description of the optical properties 
+!-- NB: The following parameters are unused within the ECMWF IFS.
+!       They relate to the description of the optical properties
 !       in the original cloud model embedded in RRTM_SW
 !INTEGER(KIND=JPIM), PARAMETER :: JMCMU  = 32
 !INTEGER(KIND=JPIM), PARAMETER :: JMUMU  = 32
@@ -106,9 +115,9 @@ INTEGER(KIND=JPIM), PARAMETER :: NGS29 = 208
 !INTEGER(KIND=JPIM), PARAMETER :: NG29 = 12
 
 !-------------------------------------------------------------------------------
-!-- configuration with 14 spectral intervals 
+!-- configuration with 14 spectral intervals
 !   and a total of 224 g-points (14x16)
-! 
+!
 !INTEGER(KIND=JPIM), PARAMETER :: JPGPT  = 224
 
 !INTEGER(KIND=JPIM), PARAMETER :: NG16 = 16
@@ -128,4 +137,3 @@ INTEGER(KIND=JPIM), PARAMETER :: NGS29 = 208
 
 !     ------------------------------------------------------------------
 END MODULE PARSRTM
-

@@ -1,8 +1,17 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 !*******************************************************************************
 SUBROUTINE RRTM_TAUMOL8 (KIDIA,KFDIA,KLEV,P_TAU,P_WX,&
  & P_TAUAERL,P_FAC00,P_FAC01,P_FAC10,P_FAC11,P_FORFAC,P_FORFRAC,K_INDFOR,K_JP,K_JT,K_JT1,&
  & P_COLH2O,P_COLO3,P_COLN2O,P_COLCO2,P_COLDRY,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC, &
- & PMINORFRAC,KINDMINOR)  
+ & PMINORFRAC,KINDMINOR)
 
 !     BAND 8:  1080-1180 cm-1 (low (i.e.>~300mb) - H2O; high - O3)
 
@@ -27,38 +36,38 @@ USE PARRRTM  , ONLY : JPBAND ,JPXSEC
 USE YOERRTM  , ONLY : JPGPT  ,NG8   ,NGS7
 USE YOERRTWN , ONLY : NSPA   ,NSPB
 USE YOERRTA8 , ONLY : ABSA   ,ABSB   ,FRACREFA, FRACREFB,SELFREF,KA_MCO2 ,KB_MCO2  ,&
- & KA_MN2O , KB_MN2O,KA_MO3,CFC12  ,CFC22ADJ,FORREF  
+ & KA_MN2O , KB_MN2O,KA_MO3,CFC12  ,CFC22ADJ,FORREF
 USE YOERRTRF, ONLY : CHI_MLS
 
 IMPLICIT NONE
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_WX(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO3(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLN2O(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLCO2(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLDRY(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO3(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLN2O(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLCO2(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLDRY(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV)
 
 INTEGER(KIND=JPIM),INTENT(IN)   :: K_INDFOR(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFAC(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFRAC(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: P_FORFAC(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: PMINORFRAC(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: KINDMINOR(KIDIA:KFDIA,KLEV)
 
@@ -81,9 +90,9 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !     upper - co2, p = 35.1632 mb, t = 223.28 k
 !     upper - n2o, p = 8.716e-2 mb, t = 226.03 k
 
-! Compute the optical depth by interpolating in ln(pressure) and 
-! temperature, and appropriate species.  Below laytrop, the water vapor 
-! self-continuum and foreign continuum is interpolated (in temperature) 
+! Compute the optical depth by interpolating in ln(pressure) and
+! temperature, and appropriate species.  Below laytrop, the water vapor
+! self-continuum and foreign continuum is interpolated (in temperature)
 ! separately.
 
 ASSOCIATE(NFLEVG=>KLEV)
@@ -93,7 +102,7 @@ DO JLAY = 1, KLEV
   DO JLON = KIDIA, KFDIA
     IF (JLAY <= K_LAYTROP(JLON)) THEN
 ! In atmospheres where the amount of CO2 is too great to be considered
-! a minor species, adjust the column amount of CO2 by an empirical factor 
+! a minor species, adjust the column amount of CO2 by an empirical factor
 ! to obtain the proper contribution.
       ZCHI_CO2 = P_COLCO2(JLON,JLAY)/P_COLDRY(JLON,JLAY)
       ZRATCO2 = 1.E20_JPRB*ZCHI_CO2/CHI_MLS(2,K_JP(JLON,JLAY)+1)
@@ -104,13 +113,13 @@ DO JLAY = 1, KLEV
          ZADJCOLCO2(JLON,JLAY) = P_COLCO2(JLON,JLAY)
       ENDIF
 
-    
+
       IND0(JLAY) = ((K_JP(JLON,JLAY)-1)*5+(K_JT(JLON,JLAY)-1))*NSPA(8) + 1
       IND1(JLAY) = (K_JP(JLON,JLAY)*5+(K_JT1(JLON,JLAY)-1))*NSPA(8) + 1
       INDS(JLAY) = K_INDSELF(JLON,JLAY)
       INDF(JLAY) = K_INDFOR(JLON,JLAY)
       INDM(JLAY) = KINDMINOR(JLON,JLAY)
-      
+
 !-- DS_000515
 !CDIR UNROLL=NG8
       DO IG = 1, NG8
@@ -118,7 +127,7 @@ DO JLAY = 1, KLEV
          ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(INDS(JLAY),IG) + P_SELFFRAC(JLON,JLAY) * &
            &      (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG)))
          ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + P_FORFRAC(JLON,JLAY) * &
-           &      (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
+           &      (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG)))
          ZABSCO2 =  (KA_MCO2(INDM(JLAY),IG) + PMINORFRAC(JLON,JLAY) * &
            &      (KA_MCO2(INDM(JLAY)+1,IG) - KA_MCO2(INDM(JLAY),IG)))
          ZABSO3 =  (KA_MO3(INDM(JLAY),IG) + PMINORFRAC(JLON,JLAY) * &
@@ -137,7 +146,7 @@ DO JLAY = 1, KLEV
          & + P_COLN2O(JLON,JLAY)*ZABSN2O &
          & + P_WX(JLON,3,JLAY) * CFC12(IG)&
          & + P_WX(JLON,4,JLAY) * CFC22ADJ(IG)&
-         & + P_TAUAERL(JLON,JLAY,8)  
+         & + P_TAUAERL(JLON,JLAY,8)
         PFRAC(JLON,NGS7+IG,JLAY) = FRACREFA(IG)
       ENDDO
     ENDIF
@@ -145,7 +154,7 @@ DO JLAY = 1, KLEV
     IF (JLAY > K_LAYTROP(JLON)) THEN
 
 ! In atmospheres where the amount of CO2 is too great to be considered
-! a minor species, adjust the column amount of CO2 by an empirical factor 
+! a minor species, adjust the column amount of CO2 by an empirical factor
 ! to obtain the proper contribution.
       ZCHI_CO2 = P_COLCO2(JLON,JLAY)/P_COLDRY(JLON,JLAY)
       ZRATCO2 = 1.E20_JPRB*ZCHI_CO2/CHI_MLS(2,K_JP(JLON,JLAY)+1)
@@ -177,7 +186,7 @@ DO JLAY = 1, KLEV
          & + P_COLN2O(JLON,JLAY)*ZABSN2O &
          & + P_WX(JLON,3,JLAY) * CFC12(IG)&
          & + P_WX(JLON,4,JLAY) * CFC22ADJ(IG)&
-         & + P_TAUAERL(JLON,JLAY,8)  
+         & + P_TAUAERL(JLON,JLAY,8)
         PFRAC(JLON,NGS7+IG,JLAY) = FRACREFB(IG)
       ENDDO
     ENDIF

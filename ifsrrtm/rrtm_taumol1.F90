@@ -1,6 +1,15 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE RRTM_TAUMOL1 (KIDIA,KFDIA,KLEV,P_TAU,PAVEL,&
  & P_TAUAERL,P_FAC00,P_FAC01,P_FAC10,P_FAC11,P_FORFAC,P_FORFRAC,K_INDFOR,K_JP,K_JT,K_JT1,&
- & P_COLH2O,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC,P_MINORFRAC,K_INDMINOR,PSCALEMINORN2,PCOLBRD)  
+ & P_COLH2O,K_LAYTROP,P_SELFFAC,P_SELFFRAC,K_INDSELF,PFRAC,P_MINORFRAC,K_INDMINOR,PSCALEMINORN2,PCOLBRD)
 
 !******************************************************************************
 !                                                                             *
@@ -114,7 +123,7 @@ SUBROUTINE RRTM_TAUMOL1 (KIDIA,KFDIA,KLEV,P_TAU,PAVEL,&
 !******************************************************************************
 
 !     BAND 1:  10-250 cm-1 (low - H2O; high - H2O)
- 
+
 !     AUTHOR.
 !     -------
 !      JJMorcrette, ECMWF, from
@@ -133,7 +142,7 @@ SUBROUTINE RRTM_TAUMOL1 (KIDIA,KFDIA,KLEV,P_TAU,PAVEL,&
 !     band 1:  10-350 cm-1 (low key - h2o; low minor - n2)
 !                          (high key - h2o; high minor - n2)
 !
-!     note: previous versions of rrtm band 1: 
+!     note: previous versions of rrtm band 1:
 !           10-250 cm-1 (low - h2o; high - h2o)
 ! ---------------------------------------------------------------------------
 
@@ -144,37 +153,37 @@ USE PARRRTM  , ONLY : JPBAND
 USE YOERRTM  , ONLY : JPGPT  ,NG1
 USE YOERRTWN , ONLY : NSPA   ,NSPB
 USE YOERRTA1 , ONLY : ABSA   ,ABSB   ,FRACREFA, FRACREFB,&
- & FORREF   ,SELFREF,  KA_MN2, KB_MN2   
+ & FORREF   ,SELFREF,  KA_MN2, KB_MN2
 
 IMPLICIT NONE
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAVEL(KIDIA:KFDIA,KLEV) ! Layer pressures (hPa)
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FORFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_MINORFRAC(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC10(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC11(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FORFAC(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FORFRAC(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JP(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_JT1(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLH2O(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_MINORFRAC(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV)
 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDFOR(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDMINOR(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PSCALEMINORN2(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PCOLBRD(KIDIA:KFDIA,KLEV)         
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDFOR(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDMINOR(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PSCALEMINORN2(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: PCOLBRD(KIDIA:KFDIA,KLEV)
 ! ---------------------------------------------------------------------------
 
 INTEGER(KIND=JPIM) :: IND0(KLEV),IND1(KLEV),INDS(KLEV)
@@ -189,7 +198,7 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 !     lower - n2, p = 142.5490 mbar, t = 215.70 k
 !     upper - n2, p = 142.5490 mbar, t = 215.70 k
 
-!     Compute the optical depth by interpolating in ln(pressure) and 
+!     Compute the optical depth by interpolating in ln(pressure) and
 !     temperature.  Below LAYTROP, the water vapor self-continuum and
 !     foreign continuum is interpolated (in temperature) separately.
 
@@ -214,18 +223,18 @@ DO JLAY = 1, KLEV
 
 !CDIR UNROLL=NG1
     DO IG = 1, NG1
-!-- DS_000515  
+!-- DS_000515
            ZTAUSELF = P_SELFFAC(JLON,JLAY) * (SELFREF(INDS(JLAY),IG) + &
      &           P_SELFFRAC(JLON,JLAY) * &
-     &           (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG))) 
+     &           (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG)))
 
             ZTAUFOR =  P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + &
      &           P_FORFRAC(JLON,JLAY) * (FORREF(INDF(JLAY)+1,IG) - &
-     &           FORREF(INDF(JLAY),IG)))  
+     &           FORREF(INDF(JLAY),IG)))
 
             ZTAUN2 = ZSCALEN2*(KA_MN2(INDM(JLAY),IG) +   &
      &           P_MINORFRAC(JLON,JLAY) * &
-     &           (KA_MN2(INDM(JLAY)+1,IG) - KA_MN2(INDM(JLAY),IG))) 
+     &           (KA_MN2(INDM(JLAY)+1,IG) - KA_MN2(INDM(JLAY),IG)))
 
             P_TAU(JLON,IG,JLAY) = ZCORRADJ * (P_COLH2O(JLON,JLAY) *  &
      &          (P_FAC00(JLON,JLAY) * ABSA(IND0(JLAY),IG) + &
@@ -256,7 +265,7 @@ DO JLAY = 1, KLEV
 !-- JJM000517
             ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + &
      &           P_FORFRAC(JLON,JLAY) * &
-     &           (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
+     &           (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG)))
 
             ZTAUN2 = ZSCALEN2*(KB_MN2(INDM(JLAY),IG) +  &
      &           P_MINORFRAC(JLON,JLAY) * &
@@ -266,7 +275,7 @@ DO JLAY = 1, KLEV
      &          (P_FAC00(JLON,JLAY) * ABSB(IND0(JLAY),IG) + &
      &           P_FAC10(JLON,JLAY) * ABSB(IND0(JLAY)+1,IG) + &
      &           P_FAC01(JLON,JLAY) * ABSB(IND1(JLAY),IG) + &
-     &           P_FAC11(JLON,JLAY) * ABSB(IND1(JLAY)+1,IG)) &  
+     &           P_FAC11(JLON,JLAY) * ABSB(IND1(JLAY)+1,IG)) &
      &           + ZTAUFOR &
      &           + ZTAUN2)+ P_TAUAERL(JLON,JLAY,1)
       PFRAC(JLON,IG,JLAY) = FRACREFB(IG)

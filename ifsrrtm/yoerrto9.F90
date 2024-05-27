@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOERRTO9
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB,JPRD
@@ -19,7 +28,7 @@ INTEGER(KIND=JPIM), PARAMETER :: NO9  = 16
 REAL(KIND=JPRB) :: FRACREFAO(NO9,9)
 
 REAL(KIND=JPRB) , DIMENSION(NO9) :: FRACREFBO
-! 48 = 3*NO9      
+! 48 = 3*NO9
 
 
 REAL(KIND=JPRB) :: KAO(9,5,13,NO9)
@@ -37,15 +46,15 @@ REAL(KIND=JPRB) :: FORREFO(4,NO9)
 
 !  NAME     TYPE     PURPOSE
 !  ----   : ----   : ---------------------------------------------------
-! ABSN2O  : REAL    
+! ABSN2O  : REAL
 ! CH4REF  : REAL
 ! ETAREF  : REAL
-! FRACREFA: REAL    
+! FRACREFA: REAL
 ! FRACREFB: REAL
 ! H2OREF  : REAL
 ! N2OREF  : REAL
-! KA      : REAL     
-! KB      : REAL     
-! SELFREF : REAL     
+! KA      : REAL
+! KB      : REAL
+! SELFREF : REAL
 !     -----------------------------------------------------------------
 END MODULE YOERRTO9
