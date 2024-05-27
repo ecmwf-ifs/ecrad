@@ -20,6 +20,8 @@
 !   2019-01-07  R. Hogan  HDF5 writing support, allowing larger files, provided NC_NETCDF4 defined
 !   2019-01-16  R. Hogan  Revised interpretation of "iverbose"
 !   2019-06-17  R. Hogan  Pass through deflate_level and shuffle to variable definition
+!   2021-03-15  O. Marsden Add 'first-touch' option to the 4D array get method, to allow improved OpenMP access to arrays.
+
 
 module easy_netcdf
 
@@ -65,6 +67,7 @@ module easy_netcdf
     procedure :: get_real_vector_indexed
     procedure :: get_real_matrix_indexed
     procedure :: get_real_array3_indexed
+    procedure :: get_real_array3_indexed2
     procedure :: get_real_array4
     procedure :: get_char_vector
     procedure :: get_char_matrix
@@ -74,6 +77,7 @@ module easy_netcdf
          &              get_real_array4, &
          &              get_real_scalar_indexed, get_real_vector_indexed, &
          &              get_real_matrix_indexed, get_real_array3_indexed, &
+         &              get_real_array3_indexed2, &
          &              get_char_vector, get_char_matrix
     procedure :: get_real_scalar_attribute
     procedure :: get_string_attribute
@@ -548,7 +552,7 @@ contains
            &                           len=i_attr_len)
       if (istatus /= NF90_NOERR) then
         is_present = .false.
-      else 
+      else
         is_present = .true.
         if (present(len)) then
           if (i_attr_len > len) then
@@ -580,7 +584,7 @@ contains
          &                           len=i_attr_len)
     if (istatus /= NF90_NOERR) then
       is_present = .false.
-    else 
+    else
       is_present = .true.
       if (present(len)) then
         if (i_attr_len > len) then
@@ -1200,7 +1204,7 @@ contains
 
       vstart = 1
       vcount(1:2) = [ndimlen1,1]
-      
+
       do j = 1,ndimlen2
         vstart(2) = j
         istatus = nf90_get_var(this%ncid, ivarid, matrix(:,j), start=vstart, count=vcount)
@@ -1602,7 +1606,7 @@ contains
       if (this%iverbose >= 3) then
         write(nulout,'(a,i0,a,a,a,i0,a,i0,a,i0,a)') '  Reading slice ', index, &
              &  ' of ', var_name, ' as ', ndimlen1, 'x', ndimlen2, 'x', &
-             &  ndimlen3, 'array'
+             &  ndimlen3, ' array'
       end if
 
       istatus = nf90_get_var(this%ncid, ivarid, var, &
@@ -1619,14 +1623,176 @@ contains
 
 
   !---------------------------------------------------------------------
+  ! Read 3D array of data from a larger-dimensional array, which must
+  ! be allocatable and will be reallocated if necessary.  Whether to
+  ! pemute is specifed by the final optional argument
+  subroutine get_real_array3_indexed2(this, var_name, var, index4, index5, ipermute)
+    class(netcdf_file)                   :: this
+    character(len=*), intent(in)         :: var_name
+    integer, intent(in)                  :: index4, index5
+    real(jprb), allocatable, intent(out) :: var(:,:,:)
+    integer, optional, intent(in)        :: ipermute(3)
+
+    real(jprb), allocatable   :: var_permute(:,:,:)
+    integer                   :: ndimlen1, ndimlen2, ndimlen3
+    integer                   :: istatus
+    integer                   :: ivarid, ndims
+    integer                   :: ndimlens(NF90_MAX_VAR_DIMS)
+    integer                   :: vstart(NF90_MAX_VAR_DIMS)
+    integer                   :: vcount(NF90_MAX_VAR_DIMS)
+    integer                   :: j, ntotal
+    integer                   :: n_dimlens_permuted(3)
+    integer                   :: i_permute_3d(3)
+    logical                   :: do_permute
+
+    ! Decide whether to permute
+    if (present(ipermute)) then
+      do_permute = .true.
+      i_permute_3d = ipermute
+    else
+      do_permute = this%do_permute_3d
+      i_permute_3d = this%i_permute_3d
+    end if
+
+    call this%get_variable_id(var_name, ivarid)
+    call this%get_array_dimensions(ivarid, ndims, ndimlens)
+
+    ! Ensure the variable has no more than four non-singleton
+    ! dimensions aside from the last one
+    ntotal = 1
+    do j = 1, ndims-1
+      ntotal = ntotal * ndimlens(j)
+      if (j > 4 .and. ndimlens(j) > 1) then
+        write(nulerr,'(a,a,a)') '*** Error reading 3D slice from NetCDF variable ', &
+           & var_name, &
+           & ': all dimensions above the fouth must be singletons'
+        call my_abort('Error reading NetCDF file')
+      end if
+    end do
+
+    if (index4 < 1 .or. index4 > ndimlens(4)) then
+      write(nulerr,'(a,i0,a,a,a,i0)') '*** Error reading element ', index4, &
+           &  ' of NetCDF variable ', &
+           &    var_name, ' with 4th dimension ', ndimlens(4)
+      call my_abort('Error reading NetCDF file')
+    end if
+    if (index5 < 1 .or. index5 > ndimlens(ndims)) then
+      write(nulerr,'(a,i0,a,a,a,i0)') '*** Error reading element ', index5, &
+           &  ' of NetCDF variable ', &
+           &    var_name, ' with outer dimension ', ndimlens(ndims)
+      call my_abort('Error reading NetCDF file')
+    end if
+
+    ! Work out dimension lengths
+    if (ndims >= 4) then
+      ndimlen1 = ndimlens(1)
+      ndimlen2 = ndimlens(2)
+      ndimlen3 = ndimlens(3)
+    else if (ndims >= 3) then
+      ndimlen1 = ndimlens(1)
+      ndimlen2 = ndimlens(2)
+      ndimlen3 = ntotal/(ndimlen1*ndimlen2)
+    else if (ndims >= 2) then
+      ndimlen1 = ndimlens(1)
+      ndimlen2 = ntotal/ndimlen1
+      ndimlen3 = 1
+    else
+      ndimlen1 = ntotal
+      ndimlen2 = 1
+      ndimlen3 = 1
+    end if
+
+    vstart(1:ndims-1) = 1
+    vstart(4)         = index4
+    vstart(ndims)     = index5
+    vcount(1:ndims-1) = ndimlens(1:ndims-1)
+    vcount(4)         = 1
+    vcount(ndims)     = 1
+
+    if (do_permute) then
+      ! Read and permute
+      allocate(var_permute(ndimlen1, ndimlen2, ndimlen3))
+      n_dimlens_permuted(i_permute_3d) = ndimlens(1:3)
+
+      ! Reallocate if necessary
+      if (allocated(var)) then
+        if (size(var,1) /= n_dimlens_permuted(1) &
+             &  .or. size(var,2) /= n_dimlens_permuted(2) &
+             &  .or. size(var,3) /= n_dimlens_permuted(3)) then
+          if (this%iverbose >= 1) then
+            write(nulout,'(a,a)') '  Warning: resizing array to read ', var_name
+          end if
+          deallocate(var)
+          allocate(var(n_dimlens_permuted(1), n_dimlens_permuted(2), &
+               &       n_dimlens_permuted(3)))
+        end if
+      else
+        allocate(var(n_dimlens_permuted(1), n_dimlens_permuted(2), &
+             &       n_dimlens_permuted(3)))
+      end if
+
+      if (this%iverbose >= 3) then
+        write(nulout,'(a,i0,a,i0,a,a,a,i0,i0,i0,a)') '  Reading slice ', index4, ',', index5, &
+             &  ' of ', var_name, &
+             & ' (permuting dimensions ', i_permute_3d, ')'
+      end if
+
+      istatus = nf90_get_var(this%ncid, ivarid, var_permute, &
+           &                 start=vstart, count=vcount)
+      var = reshape(var_permute, n_dimlens_permuted, order=i_permute_3d)
+      deallocate(var_permute)
+
+    else
+      ! Read data without permutation
+
+      ! Reallocate if necessary
+      if (allocated(var)) then
+        if (size(var,1) /= ndimlen1 &
+             &  .or. size(var,2) /= ndimlen2 &
+             &  .or. size(var,3) /= ndimlen3) then
+          if (this%iverbose >= 1) then
+            write(nulout,'(a,a)') '  Warning: resizing array to read ', var_name
+          end if
+          deallocate(var)
+          allocate(var(ndimlen1, ndimlen2, ndimlen3))
+        end if
+      else
+        allocate(var(ndimlen1, ndimlen2, ndimlen3))
+      end if
+
+      if (this%iverbose >= 3) then
+        write(nulout,'(a,i0,a,i0,a,a,a,i0,a,i0,a,i0,a)') '  Reading slice ', index4, ',', index5, &
+             &  ' of ', var_name, ' as ', ndimlen1, 'x', ndimlen2, 'x', &
+             &  ndimlen3, ' array'
+      end if
+
+      istatus = nf90_get_var(this%ncid, ivarid, var, &
+           &                 start=vstart, count=vcount)
+    end if
+
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error reading 3D slice of NetCDF variable ', &
+           &  var_name, ': ', trim(nf90_strerror(istatus))
+      call my_abort('Error reading NetCDF file')
+    end if
+
+  end subroutine get_real_array3_indexed2
+
+
+  !---------------------------------------------------------------------
   ! Read 4D array into "var", which must be allocatable and will be
   ! reallocated if necessary.  Whether to pemute is specifed by the
-  ! final optional argument
-  subroutine get_real_array4(this, var_name, var, ipermute)
+  ! ipermute optional argument. For the non-permuted case, OpenMP
+  ! thread-optimized location of array is enabled by setting optional
+  ! argument ld_first_touch to true. This results in zero-ing of "var"
+  ! inside an OpenMP loop before reading the array in from NetCDF.
+
+  subroutine get_real_array4(this, var_name, var, ipermute, ld_first_touch)
     class(netcdf_file)                   :: this
     character(len=*), intent(in)         :: var_name
     real(jprb), allocatable, intent(out) :: var(:,:,:,:)
     integer, optional, intent(in)        :: ipermute(4)
+    logical, optional, intent(in)        :: ld_first_touch
 
     real(jprb), allocatable   :: var_permute(:,:,:,:)
     integer                   :: ndimlen1, ndimlen2, ndimlen3, ndimlen4
@@ -1638,6 +1804,9 @@ contains
     integer                   :: i_permute_4d(4)
     logical                   :: do_permute
 
+    logical                   :: ll_first_touch
+    integer                   :: ii,jj,kk,mm
+
     ! Decide whether to permute
     if (present(ipermute)) then
       do_permute = .true.
@@ -1646,6 +1815,12 @@ contains
       do_permute = this%do_permute_4d
       i_permute_4d = this%i_permute_4d
     end if
+
+    if (present(ld_first_touch)) then
+      ll_first_touch = ld_first_touch
+    else
+      ll_first_touch = .false.
+    endif
 
     call this%get_variable_id(var_name, ivarid)
     call this%get_array_dimensions(ivarid, ndims, ndimlens)
@@ -1746,6 +1921,24 @@ contains
         call this%print_variable_attributes(ivarid,nulout)
       end if
 
+      if (ll_first_touch) then
+        !!first touch
+        !$OMP parallel PRIVATE(ii,jj,kk,mm)
+        do mm=1,ndimlen4
+          !$OMP DO PRIVATE(ii,jj,kk) collapse(2) schedule(static)
+          do kk=1,ndimlen3
+            do jj=1,ndimlen2
+              !$omp simd
+              do ii=1,ndimlen1
+                var(ii,jj,kk,mm) = 0.0_jprb
+              enddo
+            enddo
+          enddo
+          !$OMP END DO
+        end do
+        !$OMP END PARALLEL
+      end if
+
       istatus = nf90_get_var(this%ncid, ivarid, var)
     end if
 
@@ -1808,7 +2001,6 @@ contains
     end do
 
   end subroutine get_string_attribute
-
 
 
   !---------------------------------------------------------------------
@@ -2694,7 +2886,7 @@ contains
     character(len=512) :: dimname
     integer :: istatus
     integer :: include_parents
-    
+
     include_parents = 0
 
     istatus = nf90_inq_dimids(infile%ncid, ndims, idimids, include_parents)
@@ -2747,10 +2939,10 @@ contains
     end if
 
     ! Get variable ID from name
-    istatus = nf90_inq_varid(infile%ncid, var_name, ivarid_in) 
+    istatus = nf90_inq_varid(infile%ncid, trim(var_name), ivarid_in)
     if (istatus /= NF90_NOERR) then
-      write(nulerr,'(a,i0,a)') '*** Error inquiring about NetCDF variable "', &
-           & var_name, '": ', trim(nf90_strerror(istatus))
+      write(nulerr,'(a,a,a)') '*** Error inquiring about NetCDF variable "', &
+           & trim(var_name), '": ', trim(nf90_strerror(istatus))
       call my_abort('Error reading NetCDF file')
     end if
 
@@ -2825,7 +3017,7 @@ contains
     integer :: ivarid_in, ivarid_out
     integer :: ndims
     integer :: ndimlens(NF90_MAX_VAR_DIMS)
-    integer(kind=jpib) :: ntotal
+    integer(kind=jpib) :: ntotal, ntotal_out
     integer :: data_type
     integer :: istatus
 
@@ -2853,7 +3045,13 @@ contains
       call my_abort('Error reading NetCDF file')
     end if
 
-    call infile%get_variable_id(var_name, ivarid_out)
+    call this%get_variable_id(var_name, ivarid_out)
+    call this%get_array_dimensions(ivarid_out, ndims, ndimlens, ntotal_out)
+    if (ntotal /= ntotal_out) then
+      write(nulerr,'(a)') '*** Error: size mismatch between input and output variables'
+      call my_abort('Error writing NetCDF file')
+    end if
+
     if (data_type == NF90_DOUBLE .or. data_type == NF90_FLOAT) then
       allocate(data_real(ntotal))
       !istatus = nf90_get_var(infile%ncid, ivarid_in, data_real(1))
@@ -2880,7 +3078,7 @@ contains
       istatus = nf_get_var_int(infile%ncid, ivarid_in, data_int)
       if (istatus /= NF90_NOERR) then
         deallocate(data_int)
- 
+
         write(nulerr,'(a,a,a,a)') '*** Error reading variable "', var_name, '": ', &
              &  trim(nf90_strerror(istatus))
         call my_abort('Error reading NetCDF file')
