@@ -1,0 +1,234 @@
+# (C) Copyright 2014- ECMWF.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+set( ifsrrtm_SOURCES
+        modify_wv_continuum.F90
+        parrrtm.F90
+        parsrtm.F90
+        rrtm_cmbgb1.F90
+        rrtm_cmbgb10.F90
+        rrtm_cmbgb11.F90
+        rrtm_cmbgb12.F90
+        rrtm_cmbgb13.F90
+        rrtm_cmbgb14.F90
+        rrtm_cmbgb15.F90
+        rrtm_cmbgb16.F90
+        rrtm_cmbgb2.F90
+        rrtm_cmbgb3.F90
+        rrtm_cmbgb4.F90
+        rrtm_cmbgb5.F90
+        rrtm_cmbgb6.F90
+        rrtm_cmbgb7.F90
+        rrtm_cmbgb8.F90
+        rrtm_cmbgb9.F90
+        rrtm_gas_optical_depth.F90
+        rrtm_init_140gp.F90
+        rrtm_kgb1.F90
+        rrtm_kgb10.F90
+        rrtm_kgb11.F90
+        rrtm_kgb12.F90
+        rrtm_kgb13.F90
+        rrtm_kgb14.F90
+        rrtm_kgb15.F90
+        rrtm_kgb16.F90
+        rrtm_kgb2.F90
+        rrtm_kgb3.F90
+        rrtm_kgb4.F90
+        rrtm_kgb5.F90
+        rrtm_kgb6.F90
+        rrtm_kgb7.F90
+        rrtm_kgb8.F90
+        rrtm_kgb9.F90
+        rrtm_prepare_gases.F90
+        rrtm_setcoef_140gp.F90
+        rrtm_taumol1.F90
+        rrtm_taumol10.F90
+        rrtm_taumol11.F90
+        rrtm_taumol12.F90
+        rrtm_taumol13.F90
+        rrtm_taumol14.F90
+        rrtm_taumol15.F90
+        rrtm_taumol16.F90
+        rrtm_taumol2.F90
+        rrtm_taumol3.F90
+        rrtm_taumol4.F90
+        rrtm_taumol5.F90
+        rrtm_taumol6.F90
+        rrtm_taumol7.F90
+        rrtm_taumol8.F90
+        rrtm_taumol9.F90
+        srtm_cmbgb16.F90
+        srtm_cmbgb17.F90
+        srtm_cmbgb18.F90
+        srtm_cmbgb19.F90
+        srtm_cmbgb20.F90
+        srtm_cmbgb21.F90
+        srtm_cmbgb22.F90
+        srtm_cmbgb23.F90
+        srtm_cmbgb24.F90
+        srtm_cmbgb25.F90
+        srtm_cmbgb26.F90
+        srtm_cmbgb27.F90
+        srtm_cmbgb28.F90
+        srtm_cmbgb29.F90
+        srtm_gas_optical_depth.F90
+        srtm_init.F90
+        srtm_kgb16.F90
+        srtm_kgb17.F90
+        srtm_kgb18.F90
+        srtm_kgb19.F90
+        srtm_kgb20.F90
+        srtm_kgb21.F90
+        srtm_kgb22.F90
+        srtm_kgb23.F90
+        srtm_kgb24.F90
+        srtm_kgb25.F90
+        srtm_kgb26.F90
+        srtm_kgb27.F90
+        srtm_kgb28.F90
+        srtm_kgb29.F90
+        srtm_setcoef.F90
+        srtm_taumol16.F90
+        srtm_taumol17.F90
+        srtm_taumol18.F90
+        srtm_taumol19.F90
+        srtm_taumol20.F90
+        srtm_taumol21.F90
+        srtm_taumol22.F90
+        srtm_taumol23.F90
+        srtm_taumol24.F90
+        srtm_taumol25.F90
+        srtm_taumol26.F90
+        srtm_taumol27.F90
+        srtm_taumol28.F90
+        srtm_taumol29.F90
+        surdi.F90
+        surrtab.F90
+        surrtftr.F90
+        surrtpk.F90
+        surrtrf.F90
+        susrtm.F90
+        yoerdi.F90
+        yoerrta1.F90
+        yoerrta10.F90
+        yoerrta11.F90
+        yoerrta12.F90
+        yoerrta13.F90
+        yoerrta14.F90
+        yoerrta15.F90
+        yoerrta16.F90
+        yoerrta2.F90
+        yoerrta3.F90
+        yoerrta4.F90
+        yoerrta5.F90
+        yoerrta6.F90
+        yoerrta7.F90
+        yoerrta8.F90
+        yoerrta9.F90
+        yoerrtab.F90
+        yoerrtbg2.F90
+        yoerrtftr.F90
+        yoerrtm.F90
+        yoerrto1.F90
+        yoerrto10.F90
+        yoerrto11.F90
+        yoerrto12.F90
+        yoerrto13.F90
+        yoerrto14.F90
+        yoerrto15.F90
+        yoerrto16.F90
+        yoerrto2.F90
+        yoerrto3.F90
+        yoerrto4.F90
+        yoerrto5.F90
+        yoerrto6.F90
+        yoerrto7.F90
+        yoerrto8.F90
+        yoerrto9.F90
+        yoerrtrf.F90
+        yoerrtrwt.F90
+        yoerrtwn.F90
+        yoesrta16.F90
+        yoesrta17.F90
+        yoesrta18.F90
+        yoesrta19.F90
+        yoesrta20.F90
+        yoesrta21.F90
+        yoesrta22.F90
+        yoesrta23.F90
+        yoesrta24.F90
+        yoesrta25.F90
+        yoesrta26.F90
+        yoesrta27.F90
+        yoesrta28.F90
+        yoesrta29.F90
+        yoesrtab.F90
+        yoesrtaer.F90
+        yoesrtm.F90
+        yoesrtwn.F90
+        yoesw.F90
+        yommp0_ifsrrtm.F90
+)
+
+set( ifsrrtm_HEADERS
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol1.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol2.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol3.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol4.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol5.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol6.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol7.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol8.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol9.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol10.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol11.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol12.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol13.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol14.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol15.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_taumol16.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol16.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol17.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol18.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol19.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol20.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol21.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol22.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol23.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol24.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol25.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol26.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol27.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol28.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_taumol29.intfb.h
+)
+
+ecbuild_add_library(
+    TARGET ifsrrtm.${PREC}
+    TYPE OBJECT
+    SOURCES
+        ${ifsrrtm_SOURCES}
+    # PRIVATE_INCLUDES ${PROJECT_SOURCE_DIR}/include
+    PUBLIC_INCLUDES
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+        "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
+        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}>"
+    PRIVATE_LIBS
+        ecrad_base.${PREC}
+        ecrad_utilities.${PREC}
+        ecrad_ifsaux.${PREC}
+)
+
+install(
+    FILES
+        ${ifsrrtm_HEADERS}
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerrtm.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerdi.mod"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}"
+)
