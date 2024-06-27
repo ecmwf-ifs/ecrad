@@ -12,6 +12,7 @@
 ! dummy implementation for offline packages.
 
 module yomhook
+  implicit none
 
   public
 
@@ -19,7 +20,7 @@ module yomhook
 
   integer, parameter :: jphook = selected_real_kind(13,300)
   logical :: lhook = .false.
-  
+
 contains
 
   subroutine dr_hook(proc_name, iswitch, proc_key)

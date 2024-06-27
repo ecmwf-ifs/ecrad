@@ -75,13 +75,10 @@ ecbuild_add_library(
     PRIVATE_LIBS
         ecrad_base.${PREC}
         ecrad_ifsaux.${PREC}
-        # easy_netcdf used in IFS
         ecrad_utilities.${PREC}
-        # yoerdi and yoerrtm modules used in IFS
         ifsrrtm.${PREC}
 )
 
-# ecrad_target_compile_definitions_FILENAME( radiation.${PREC} )
 add_library(ecrad::radiation.${PREC} ALIAS radiation.${PREC})
 install(
     FILES
