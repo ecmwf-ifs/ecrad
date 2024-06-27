@@ -214,7 +214,6 @@ ecbuild_add_library(
     TYPE OBJECT
     SOURCES
         ${ifsrrtm_SOURCES}
-    # PRIVATE_INCLUDES ${PROJECT_SOURCE_DIR}/include
     PUBLIC_INCLUDES
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
         "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"

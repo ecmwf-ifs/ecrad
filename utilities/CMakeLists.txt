@@ -9,11 +9,18 @@
 
 set(
     utilities_SOURCES
-        easy_netcdf_read_mpi.F90
         easy_netcdf.F90
         radiation_io.F90
         radiation_random_numbers_mix.F90
 )
+
+if( HAVE_FIAT )
+    list( APPEND utilities_SOURCES easy_netcdf_read_mpi.F90 )
+    install(
+        FILES "${CMAKE_Fortran_MODULE_DIRECTORY}/easy_netcdf_read_mpi.mod"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}"
+    )
+endif()
 
 ecbuild_add_library(
     TARGET ecrad_utilities.${PREC}
@@ -30,8 +37,6 @@ ecbuild_add_library(
 )
 
 install(
-    FILES
-        "${CMAKE_Fortran_MODULE_DIRECTORY}/easy_netcdf_read_mpi.mod"
-        "${CMAKE_Fortran_MODULE_DIRECTORY}/easy_netcdf.mod"
+    FILES "${CMAKE_Fortran_MODULE_DIRECTORY}/easy_netcdf.mod"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}"
 )

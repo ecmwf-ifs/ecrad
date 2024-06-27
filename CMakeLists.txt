@@ -40,6 +40,8 @@ project( ecrad LANGUAGES Fortran VERSION 1.6.1 )
 ecbuild_enable_fortran( REQUIRED )
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
+set( ECRAD_COMPILE_DEFINITIONS "" )
+
 # Dependencies
 find_package( NetCDF COMPONENTS Fortran REQUIRED )
 
@@ -47,7 +49,7 @@ find_package( NetCDF COMPONENTS Fortran REQUIRED )
 ecbuild_add_option(
     FEATURE FIAT
     DEFAULT ON
-    DESCRIPTION "Use PARKIND1, MPL, ABOR1 from fiat"
+    DESCRIPTION "Use PARKIND1, MPL, ABOR1, DR_HOOK from fiat"
     REQUIRED_PACKAGES "fiat"
 )
 
@@ -87,7 +89,21 @@ if( HAVE_SHARED_LIBS )
     set( CMAKE_POSITION_INDEPENDENT_CODE TRUE )
 endif()
 
+ecbuild_add_option(
+    FEATURE PRINT_ENTRAPMENT_DATA
+    DEFAULT OFF
+    DESCRIPTION "Write data to fort.101 and fort.102 in the SPARTACUS shortwave solver"
+)
+if( HAVE_PRINT_ENTRAPMENT_DATA )
+    list( APPEND ECRAD_COMPILE_DEFINITIONS PRINT_ENTRAPMENT_DATA )
+endif()
+
 include(ecrad_compile_flags)
+
+# Dummy drhook module
+if( NOT HAVE_FIAT )
+    add_subdirectory(drhook)
+endif()
 
 # Include subdirectories, once per precision, and using precision-specific
 # binary directories
@@ -103,20 +119,20 @@ foreach( PREC IN LISTS _PRECISIONS )
         TYPE INTERFACE
         PUBLIC_DEFINITIONS
             NC_NETCDF4
-            $<$<NOT:${HAVE_OMP}>:NO_OPENMP>
+            ${ECRAD_COMPILE_DEFINITIONS}
             $<$<STREQUAL:"${PREC}","sp">:PARKIND1_SINGLE>
             $<${HAVE_FIAT}:HAVE_FIAT>
         PUBLIC_LIBS
             $<${HAVE_FIAT}:fiat parkind_${PREC}>
-            $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+            $<$<NOT:${HAVE_FIAT}>:drhook_dummy>
     )
 
     add_subdirectory(ifsaux ifsaux.${PREC})
     add_subdirectory(utilities utilities.${PREC})
     add_subdirectory(ifsrrtm ifsrrtm.${PREC})
     add_subdirectory(radiation radiation.${PREC})
-    # add_subdirectory(ifs)
-    # add_subdirectory(driver)
+    add_subdirectory(ifs ifs.${PREC})
+    add_subdirectory(driver driver.${PREC})
 endforeach()
 
 ecbuild_install_project( NAME ${PROJECT_NAME} )
