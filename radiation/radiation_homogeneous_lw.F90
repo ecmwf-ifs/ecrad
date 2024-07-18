@@ -182,8 +182,9 @@ contains
         ! Sum over g-points to compute broadband fluxes
         flux%lw_up_clear(jcol,:) = sum(flux_up,1)
         flux%lw_dn_clear(jcol,:) = sum(flux_dn,1)
-        ! Store surface spectral downwelling fluxes
+        ! Store surface spectral downwelling and TOA upwelling fluxes
         flux%lw_dn_surf_clear_g(:,jcol) = flux_dn(:,nlev+1)
+        flux%lw_up_toa_clear_g (:,jcol) = flux_up(:,1)
 
         ! Save the spectral fluxes if required
         if (config%do_save_spectral_flux) then
@@ -273,8 +274,9 @@ contains
         ! Store overcast broadband fluxes
         flux%lw_up(jcol,:) = sum(flux_up,1)
         flux%lw_dn(jcol,:) = sum(flux_dn,1)
-        ! Store surface spectral downwelling fluxes
+        ! Store surface spectral downwelling and TOA upwelling fluxes
         flux%lw_dn_surf_g(:,jcol) = flux_dn(:,nlev+1)
+        flux%lw_up_toa_g(:,jcol)  = flux_up(:,1)
 
         ! Save the spectral fluxes if required
         if (config%do_save_spectral_flux) then

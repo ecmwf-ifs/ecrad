@@ -17,8 +17,9 @@ contains
     use ecrad3d_config,           only : config3d_type => config_type
     use ecrad3d_geometry,         only : geometry_type
     use radiation_single_level,   only : single_level_type
-    use radiation_flux,           only : flux_type
+    use radiation_flux,           only : flux_type, indexed_sum_profile
     use ecrad3d_solver_sw,        only : solver_sw
+    use ecrad3d_radiance_sw,      only : radiance_sw
     
     implicit none
     
@@ -64,6 +65,8 @@ contains
     real(jprb), dimension(geometry%ncol,config%n_g_sw,geometry%nz+1) &
          &  :: flux_dn_dir_top, flux_dn_diff_top, flux_up_top
 
+    real(jprb), allocatable :: flux_up_base(:,:,:), radiance(:,:)
+    
     real(jprb) :: scat_od, scat_od_cloud
     
     integer :: jcol, jlev, jg
@@ -75,6 +78,11 @@ contains
     if (lhook) call dr_hook('ecrad3d_solver_interface:solver_interface_sw',0,hook_handle)
 
     config3d%do_3d = config%do_3d_effects
+    
+    if (config%do_radiances) then
+      allocate(flux_up_base(geometry%ncol,config%n_g_sw,geometry%nz+1))
+      allocate(radiance(geometry%ncol,config%n_g_sw))
+    end if
 
     ! Clear-sky calculation
 
@@ -93,14 +101,38 @@ contains
       call solver_sw(config3d, geometry, geometry%ncol, geometry%nz, config%n_g_sw, &
            &  config%n_g_sw, single_level%cos_sza, single_level%solar_azimuth_angle, &
            &  incoming_sw(:,1), transpose(sw_albedo_direct), transpose(sw_albedo_diffuse), &
-           &  od, ssa, asymmetry, flux_dn_dir_top, flux_dn_diff_top, flux_up_top)
+           &  od, ssa, asymmetry, flux_dn_dir_top, flux_dn_diff_top, flux_up_top, &
+           &  flux_up_base=flux_up_base)
 
-      ! Store broadband fluxes by summing over bands, converting the
-      ! direct fluxes from being into a plane perpendicular to the sun
-      ! to into the horizontal plane
-      flux%sw_up_clear        = sum(flux_up_top,2)
-      flux%sw_dn_direct_clear = sum(flux_dn_dir_top,2) * spread(single_level%cos_sza,2,geometry%nz+1)
-      flux%sw_dn_clear        = sum(flux_dn_diff_top,2) + flux%sw_dn_direct_clear
+      if (.not. config%do_radiances) then
+        ! Store broadband fluxes by summing over bands, converting the
+        ! direct fluxes from being into a plane perpendicular to the sun
+        ! to into the horizontal plane
+        flux%sw_up_clear        = sum(flux_up_top,2)
+        flux%sw_dn_direct_clear = sum(flux_dn_dir_top,2) * spread(single_level%cos_sza,2,geometry%nz+1)
+        flux%sw_dn_clear        = sum(flux_dn_diff_top,2) + flux%sw_dn_direct_clear
+        flux%sw_up_toa_clear_g  = transpose(flux_up_top(:,:,1))
+      else
+        if (.not. allocated(single_level%solar_azimuth_angle)) then
+          write(nulerr,'(a)') '*** Error: solar_azimuth_angle not provided'
+          call radiation_abort()
+        elseif (.not. allocated(single_level%cos_sensor_zenith_angle)) then
+          write(nulerr,'(a)') '*** Error: cos_sensor_zenith_angle not proided'
+          call radiation_abort()
+        elseif (.not. allocated(single_level%sensor_azimuth_angle)) then
+          write(nulerr,'(a)') '*** Error: sensor_azimuth_angle not proided'
+          call radiation_abort()
+        end if
+        call radiance_sw(config3d, geometry, geometry%ncol, geometry%nz, config%n_g_sw, &
+             &           config%n_g_sw, single_level%cos_sza, single_level%solar_azimuth_angle, &
+             &           single_level%cos_sensor_zenith_angle, single_level%sensor_azimuth_angle, &
+             &           od, ssa, asymmetry, &
+             &           flux_dn_dir_top, flux_dn_diff_top, flux_up_base, radiance)
+        !flux%sw_radiance_clear_band = transpose(radiance)
+        call indexed_sum_profile(transpose(radiance), &
+             &  config%i_band_from_reordered_g_sw, &
+             &  flux%sw_radiance_clear_band)
+      end if
     end if
 
     ! All-sky calculation
@@ -144,14 +176,34 @@ contains
     call solver_sw(config3d, geometry, geometry%ncol, geometry%nz, config%n_g_sw, &
          &  config%n_g_sw, single_level%cos_sza, single_level%solar_azimuth_angle, &
          &  incoming_sw(:,1), transpose(sw_albedo_direct), transpose(sw_albedo_diffuse), &
-         &  od, ssa, asymmetry, flux_dn_dir_top, flux_dn_diff_top, flux_up_top)
+         &  od, ssa, asymmetry, flux_dn_dir_top, flux_dn_diff_top, flux_up_top, &
+         &  flux_up_base=flux_up_base)
 
-    ! Store broadband fluxes by summing over bands, converting the
-    ! direct fluxes from being into a plane perpendicular to the sun
-    ! to into the horizontal plane
-    flux%sw_up        = sum(flux_up_top,2)
-    flux%sw_dn_direct = sum(flux_dn_dir_top,2) * spread(single_level%cos_sza,2,geometry%nz+1)
-    flux%sw_dn        = sum(flux_dn_diff_top,2) + flux%sw_dn_direct
+    if (.not. config%do_radiances) then
+      ! Store broadband fluxes by summing over bands, converting the
+      ! direct fluxes from being into a plane perpendicular to the sun
+      ! to into the horizontal plane
+      flux%sw_up        = sum(flux_up_top,2)
+      flux%sw_dn_direct = sum(flux_dn_dir_top,2) * spread(single_level%cos_sza,2,geometry%nz+1)
+      flux%sw_dn        = sum(flux_dn_diff_top,2) + flux%sw_dn_direct
+      flux%sw_up_toa_g  = transpose(flux_up_top(:,:,1))
+      flux%sw_dn_toa_g  = transpose(flux_dn_dir_top(:,:,1) * spread(single_level%cos_sza,2,config%n_g_sw))
+
+      ! Store surface downwelling, and TOA, fluxes in bands from
+      ! fluxes in g points
+      call flux%calc_surface_spectral(config, 1, geometry%ncol)
+      call flux%calc_toa_spectral    (config, 1, geometry%ncol)
+    else
+      call radiance_sw(config3d, geometry, geometry%ncol, geometry%nz, config%n_g_sw, &
+           &           config%n_g_sw, single_level%cos_sza, single_level%solar_azimuth_angle, &
+           &           single_level%cos_sensor_zenith_angle, single_level%sensor_azimuth_angle, &
+           &           od, ssa, asymmetry, &
+           &           flux_dn_dir_top, flux_dn_diff_top, flux_up_base, radiance)
+      !flux%sw_radiance_band = transpose(radiance)
+      call indexed_sum_profile(transpose(radiance), &
+           &  config%i_band_from_reordered_g_sw, &
+           &  flux%sw_radiance_band)
+    end if
     
     if (lhook) call dr_hook('ecrad3d_solver_interface:solver_interface_sw',1,hook_handle)
 

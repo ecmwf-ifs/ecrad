@@ -45,7 +45,7 @@ contains
     use radiation_flux, only           : flux_type, &
          &                               indexed_sum_profile, add_indexed_sum_profile
     use radiation_two_stream, only     : calc_two_stream_gammas_sw, &
-         &                       calc_reflectance_transmittance_sw
+         &                               calc_reflectance_transmittance_sw
     use radiation_constants, only      : Pi, GasConstantDryAir, &
          &                               AccelDueToGravity
     use radiation_adding_ica_sw, only  : adding_ica_sw
@@ -187,7 +187,7 @@ contains
                &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), &
                &  spread(cos_sza,1,ng), reflectance, transmittance, ref_dir, trans_dir_diff, &
                &  trans_dir_dir, flux_up, flux_dn_diffuse, flux_dn_direct)
-        
+
           ! Sum over g-points to compute and save clear-sky broadband
           ! fluxes
           flux%sw_up_clear(jcol,:) = sum(flux_up,1)
@@ -200,7 +200,9 @@ contains
             flux%sw_dn_clear(jcol,:) = sum(flux_dn_diffuse,1) &
                  &  + sum(flux_dn_direct,1)
           end if
-          ! Store spectral downwelling fluxes at surface
+          
+          ! Store spectral downwelling fluxes at surface and TOA
+          flux%sw_up_toa_clear_g(:,jcol)          = flux_up(:,1)
           flux%sw_dn_diffuse_surf_clear_g(:,jcol) = flux_dn_diffuse(:,nlev+1)
           flux%sw_dn_direct_surf_clear_g(:,jcol)  = flux_dn_direct(:,nlev+1)
 
@@ -287,7 +289,9 @@ contains
                  &  + sum(flux_dn_direct,1)
           end if
 
-          ! Likewise for surface spectral fluxes
+          ! Likewise for surface and TOA spectral fluxes
+          flux%sw_up_toa_g(:,jcol)          = flux_up(:,1)
+          flux%sw_dn_toa_g(:,jcol)          = incoming_sw(:,jcol)*cos_sza
           flux%sw_dn_diffuse_surf_g(:,jcol) = flux_dn_diffuse(:,nlev+1)
           flux%sw_dn_direct_surf_g(:,jcol)  = flux_dn_direct(:,nlev+1)
 
@@ -314,6 +318,8 @@ contains
           if (allocated(flux%sw_dn_direct)) then
             flux%sw_dn_direct(jcol,:) = flux%sw_dn_direct_clear(jcol,:)
           end if
+          flux%sw_up_toa_g(:,jcol)          = flux%sw_up_toa_clear_g(:,jcol)
+          flux%sw_dn_toa_g(:,jcol)          = incoming_sw(:,jcol)*cos_sza
           flux%sw_dn_diffuse_surf_g(:,jcol) = flux%sw_dn_diffuse_surf_clear_g(:,jcol)
           flux%sw_dn_direct_surf_g(:,jcol)  = flux%sw_dn_direct_surf_clear_g(:,jcol)
 
@@ -334,6 +340,8 @@ contains
         if (allocated(flux%sw_dn_direct)) then
           flux%sw_dn_direct(jcol,:) = 0.0_jprb
         end if
+        flux%sw_up_toa_g(:,jcol)          = 0.0_jprb
+        flux%sw_dn_toa_g(:,jcol)          = 0.0_jprb
         flux%sw_dn_diffuse_surf_g(:,jcol) = 0.0_jprb
         flux%sw_dn_direct_surf_g(:,jcol)  = 0.0_jprb
 
@@ -343,6 +351,7 @@ contains
           if (allocated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,:) = 0.0_jprb
           end if
+          flux%sw_up_toa_clear_g(:,jcol)          = 0.0_jprb
           flux%sw_dn_diffuse_surf_clear_g(:,jcol) = 0.0_jprb
           flux%sw_dn_direct_surf_clear_g(:,jcol)  = 0.0_jprb
         end if

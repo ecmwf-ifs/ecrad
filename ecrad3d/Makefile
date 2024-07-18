@@ -1,6 +1,6 @@
 SOURCES = ecrad3d_config.F90 ecrad3d_geometry.F90 ecrad3d_layer_solutions.F90 \
 	ecrad3d_solver_sw.F90 ecrad3d_save.F90 ecrad3d_solver_interface.F90 \
-	ecrad3d_interface.F90
+	ecrad3d_interface.F90 ecrad3d_radiance_sw.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBECRAD3D = ../lib/libecrad3d.a
@@ -16,6 +16,6 @@ $(LIBECRAD3D): $(OBJECTS)
 clean:
 	rm -f *.o $(LIBECRAD3D)
 
-ecrad3d_solver_sw.o: ecrad3d_geometry.o ecrad3d_layer_solutions.o ecrad3d_config.o
+ecrad3d_solver_sw.o ecrad_radiance_sw.o: ecrad3d_geometry.o ecrad3d_layer_solutions.o ecrad3d_config.o
 ecrad3d_save.o: ecrad3d_geometry.o
-ecrad3d_solver_interface.o: ecrad3d_solver_sw.o
+ecrad3d_solver_interface.o: ecrad3d_solver_sw.o ecrad3d_radiance_sw.o

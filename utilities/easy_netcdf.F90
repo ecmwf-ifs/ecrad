@@ -162,11 +162,11 @@ contains
 
     ! Open file according to write mode
     if (.not. this%is_write_mode) then
-      istatus = nf90_open(file_name, NF90_NOWRITE, this%ncid)
       if (this%iverbose >= 2) then
-        write(nulout,'(a,a)') 'Reading NetCDF file ', file_name
+        write(nulout,'(a,a,a)') 'Reading NetCDF file "', file_name, '"'
         !write(nulout,'(a,a,a,i0,a)') 'Reading NetCDF file ', file_name, ' (ID=', this%ncid, ')'
       end if
+      istatus = nf90_open(file_name, NF90_NOWRITE, this%ncid)
       this%is_define_mode = .false.
     else
       i_write_mode = NF90_CLOBBER

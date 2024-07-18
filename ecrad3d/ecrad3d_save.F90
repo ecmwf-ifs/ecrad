@@ -603,7 +603,8 @@ module ecrad3d_save
 
     if (config%do_sw) then
 
-      if (.not. config%do_save_spectral_flux) then
+      if (.not. config%do_save_spectral_flux &
+           &  .and. size(config%gas_optics_sw%spectral_def%wavenumber1_band) == n_bands_sw) then
         call out_file%define_variable("wavenumber1_sw", &
              &  dim1_name="band_sw", units_str="cm-1", &
              &  long_name="Lower wavenumber of shortwave band")
@@ -642,7 +643,8 @@ module ecrad3d_save
     end if
 
     if (config%do_sw) then
-      if (.not. config%do_save_spectral_flux) then
+      if (.not. config%do_save_spectral_flux &
+           &  .and. size(config%gas_optics_sw%spectral_def%wavenumber1_band) == n_bands_sw) then
         call out_file%put("wavenumber1_sw", config%gas_optics_sw%spectral_def%wavenumber1_band)
         call out_file%put("wavenumber2_sw", config%gas_optics_sw%spectral_def%wavenumber2_band)
       end if
