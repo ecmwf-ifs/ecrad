@@ -7,7 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-cmake_minimum_required( VERSION 3.17 FATAL_ERROR )
+cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
 
 # ecrad uses ecbuild (https://github.com/ecmwf/ecbuild) to enhance the CMake build system.
 # In an ifs-bundle build, ecbuild is already available as a shared dependency for multiple
@@ -134,6 +134,10 @@ foreach( PREC IN LISTS _PRECISIONS )
     add_subdirectory(ifs ifs.${PREC})
     add_subdirectory(driver driver.${PREC})
 endforeach()
+
+if( HAVE_TESTS )
+    add_subdirectory(test)
+endif()
 
 ecbuild_install_project( NAME ${PROJECT_NAME} )
 ecbuild_print_summary()
