@@ -77,6 +77,7 @@ ecbuild_add_library(
         ecrad_ifsaux.${PREC}
         ecrad_utilities.${PREC}
         ifsrrtm.${PREC}
+        $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
 )
 
 add_library(ecrad::radiation.${PREC} ALIAS radiation.${PREC})
