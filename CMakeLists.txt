@@ -100,7 +100,7 @@ endif()
 
 include(ecrad_compile_flags)
 
-# Dummy drhook module
+# Dummy drhook module (precision-independent)
 if( NOT HAVE_FIAT )
     add_subdirectory(drhook)
 endif()
@@ -135,6 +135,8 @@ foreach( PREC IN LISTS _PRECISIONS )
     add_subdirectory(driver driver.${PREC})
 endforeach()
 
+# Include test directories only if tests are enabled (which is the default
+# and can be disabled by setting ENABLE_TESTS=OFF)
 if( HAVE_TESTS )
     add_subdirectory(test)
 endif()

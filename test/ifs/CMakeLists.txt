@@ -36,7 +36,7 @@ function( add_ecrad_ifs_test )
         # Setup namelist file for the test, either by overwriting options
         # or by copying the original file
         set( CONFIG_NAM "${CMAKE_CURRENT_BINARY_DIR}/config_${_PAR_NAME}.nam" )
-        list( APPEND _PAR_NAMELIST_OPTIONS "directory_name=\"data\"" )
+        list( APPEND _PAR_NAMELIST_OPTIONS "directory_name=\\\"data\\\"" )
         add_custom_command(
             OUTPUT ${CONFIG_NAM}
             COMMAND
@@ -103,7 +103,7 @@ add_ecrad_ifs_test(
 # Older exponential-exponential overlap
 add_ecrad_ifs_test(
     NAME expexp
-    NAMELIST_OPTIONS "overlap_scheme_name=\"Exp-Exp\""
+    NAMELIST_OPTIONS "overlap_scheme_name=\\\"Exp-Exp\\\""
     ENABLED ON
 )
 
@@ -111,15 +111,15 @@ add_ecrad_ifs_test(
 add_ecrad_ifs_test(
     NAME tripleclouds
 	NAMELIST_OPTIONS
-        "sw_solver_name=\"Tripleclouds\""
-        "lw_solver_name=\"Tripleclouds\""
+        "sw_solver_name=\\\"Tripleclouds\\\""
+        "lw_solver_name=\\\"Tripleclouds\\\""
     ENABLED ON
 )
 
 # Longwave scattering; since 46R1 this is the default
 add_ecrad_ifs_test(
     NAME lwscat
-    NAMELIST_OPTIONS "do_lw_cloud_scattering=\"true\""
+    NAMELIST_OPTIONS "do_lw_cloud_scattering=true"
     ENABLED ON
 )
 
@@ -127,10 +127,10 @@ add_ecrad_ifs_test(
 add_ecrad_ifs_test(
     NAME spartacus
     NAMELIST_OPTIONS
-		"sw_solver_name=\"SPARTACUS\""
-        "lw_solver_name=\"SPARTACUS\""
-		"do_3d_effects=\"true\""
-		"do_sw_delta_scaling_with_gases=\"false\""
+		"sw_solver_name=\\\"SPARTACUS\\\""
+        "lw_solver_name=\\\"SPARTACUS\\\""
+		"do_3d_effects=true"
+		"do_sw_delta_scaling_with_gases=false"
     ENABLED ON
 )
 
@@ -138,11 +138,11 @@ add_ecrad_ifs_test(
 add_ecrad_ifs_test(
     NAME spartacus_maxentr
     NAMELIST_OPTIONS
-		"sw_solver_name=\"SPARTACUS\""
-        "lw_solver_name=\"SPARTACUS\""
-		"do_3d_effects=\"true\""
-		"sw_entrapment_name=\"Maximum\""
-		"do_sw_delta_scaling_with_gases=\"false\""
+		"sw_solver_name=\\\"SPARTACUS\\\""
+        "lw_solver_name=\\\"SPARTACUS\\\""
+		"do_3d_effects=true"
+		"sw_entrapment_name=\\\"Maximum\\\""
+		"do_sw_delta_scaling_with_gases=false"
     ENABLED ON
 )
 
@@ -151,8 +151,8 @@ add_ecrad_ifs_test(
     NAME cloudless
     NAMELIST_OPTIONS
 		"use_aerosols=false"
-		"sw_solver_name=\"Cloudless\""
-        "lw_solver_name=\"Cloudless\""
+		"sw_solver_name=\\\"Cloudless\\\""
+        "lw_solver_name=\\\"Cloudless\\\""
     ENABLED ON
 )
 
@@ -171,8 +171,8 @@ add_ecrad_ifs_test(
     NAME ecckd_mcica
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
     NAMELIST_OPTIONS
-        "sw_solver_name=\"McICA\""
-        "lw_solver_name=\"McICA\""
+        "sw_solver_name=\\\"McICA\\\""
+        "lw_solver_name=\\\"McICA\\\""
     ENABLED ON
 )
 
@@ -196,8 +196,8 @@ add_ecrad_ifs_test(
     NAME ecckd_spartacus
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
     NAMELIST_OPTIONS
-        "sw_solver_name=\"SPARTACUS\""
-        "lw_solver_name=\"SPARTACUS\""
-        "do_3d_effects=\"true\""
+        "sw_solver_name=\\\"SPARTACUS\\\""
+        "lw_solver_name=\\\"SPARTACUS\\\""
+        "do_3d_effects=true"
     ENABLED ON
 )
