@@ -50,6 +50,32 @@ ecbuild_add_executable(
         driver_lib.${PREC}
 )
 
+# For ecrad_ifs_driver_blocked we have to disable bounds checking
+# (which is enabled in Debug builds) because sequence association
+# and values initialized to -9999 for unused arguments is used in
+# the call to RADIATION_SCHEME.
+if( CMAKE_BUILD_TYPE MATCHES "Debug" )
+    if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
+        set_source_files_properties(
+            "ecrad_ifs_driver_blocked.F90"
+            PROPERTIES COMPILE_FLAGS "-fcheck=no-bounds"
+        )
+    elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+        set_source_files_properties(
+            "ecrad_ifs_driver_blocked.F90"
+            PROPERTIES COMPILE_FLAGS "-check nobounds"
+        )
+    elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC")
+        set_source_files_properties(
+            "ecrad_ifs_driver_blocked.F90"
+            PROPERTIES COMPILE_FLAGS "-Mnobounds"
+        )
+    endif()
+endif()
+
+# Create a symlink for each driver without the precision suffix.
+# The default is to link to the double precision version if it is built,
+# and single precision otherwise.
 if ( "${PREC}" STREQUAL "dp" OR NOT HAVE_DOUBLE_PRECISION )
     foreach( tgt ecrad ecrad_ifs ecrad_ifs_blocked )
         add_custom_command(
