@@ -32,4 +32,8 @@ contains
 
   end subroutine dr_hook
 
+  subroutine dr_hook_init()
+    ! Do nothing!
+  end subroutine dr_hook_init
+
 end module yomhook
