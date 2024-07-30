@@ -21,6 +21,7 @@ find_package( ecbuild ${MINIMUM_ECBUILD_VERSION} HINTS ${CMAKE_CURRENT_SOURCE_DI
 # ... or, if it cannot be found, download it via FetchContent ...
 if( NOT ecbuild_FOUND )
     include(FetchContent)
+    set( ECBUILD_ENABLE_TESTS OFF CACHE BOOL "Disable tests for ecbuild" )
     FetchContent_Declare(
         ecbuild
         GIT_REPOSITORY https://github.com/ecmwf/ecbuild.git
