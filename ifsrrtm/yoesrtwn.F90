@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOESRTWN
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -44,7 +53,7 @@ REAL(KIND=JPRB), DIMENSION(224) :: RWGT
 !  NG     : INTEGER : Number of k-coefficients in spectral intervals
 !  NSPA   : INTEGER :
 !  NSPB   : INTEGER :
-! NMPSRTM : INTEGER : MAPPING INDICES FOR 6-SPECTRAL INT. SURFACE ALBEDO 
+! NMPSRTM : INTEGER : MAPPING INDICES FOR 6-SPECTRAL INT. SURFACE ALBEDO
 ! WAVENUM1: REAL    : Lower wavenumber spectral limit
 ! WAVENUM2: REAL    : Higher wavenumber spectral limit
 ! DELWAVE : REAL    : Spectral interval width
@@ -59,10 +68,9 @@ REAL(KIND=JPRB), DIMENSION(224) :: RWGT
 !  WT     : REAL    : RRTM weights for 16 g-points.
 !  WTSUM  : REAL    : Sum of the weights
 !  RWGT   : REAL    :
-! 
-!  NGN    : INTEGER : The number of original g-points that are combined 
+!
+!  NGN    : INTEGER : The number of original g-points that are combined
 !                     to make each new g-point in each band.
 !  NGBSW  : INTEGER : The band index for each new g-point.
 !     -----------------------------------------------------------------
 END MODULE YOESRTWN
-

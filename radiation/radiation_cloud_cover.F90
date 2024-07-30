@@ -1,5 +1,3 @@
-! radiation_cloud_cover.F90 - Compute cumulative cloud cover for McICA
-!
 ! (C) Copyright 2016- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
@@ -8,6 +6,8 @@
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+
+! radiation_cloud_cover.F90 - Compute cumulative cloud cover for McICA
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -81,7 +81,7 @@ contains
        &               is_beta_overlap)
 
     implicit none
-    
+
     ! Number of levels and the overlap scheme to be applied
     integer, intent(in)    :: nlev, i_overlap_scheme
 
@@ -175,7 +175,7 @@ contains
     if (lhook) call dr_hook('radiation_cloud_cover:cum_cloud_cover_max_ran',1,hook_handle)
 
   end subroutine cum_cloud_cover_max_ran
-  
+
 
   !---------------------------------------------------------------------
   ! Exponential-random overlap: exponential overlap for contiguous
@@ -229,7 +229,7 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud_cover:cum_cloud_cover_exp_ran',0,hook_handle)
 
-    
+
     if (present(is_beta_overlap)) then
       do_overlap_conversion = is_beta_overlap
     else
@@ -373,7 +373,7 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud_cover:cum_cloud_cover_exp_exp',0,hook_handle)
 
-    
+
     if (present(is_beta_overlap)) then
       do_overlap_conversion = is_beta_overlap
     else
@@ -391,7 +391,7 @@ contains
         i_top_obj(nobj) = jlev;
         ! Find its maximum cloud fraction
         jlev = jlev + 1
-        do while (jlev <= nlev) 
+        do while (jlev <= nlev)
           if (frac(jlev) < frac(jlev-1)) then
             exit
           end if
@@ -428,7 +428,7 @@ contains
 
     if (nobj > 0) then
       ! Only do any more work if there is cloud present
-      
+
       ! To minimize the potential calls to beta2alpha, we do all the
       ! computations related to overlap parameter here
       if (.not. do_overlap_conversion) then
@@ -459,7 +459,7 @@ contains
           pair_cloud_cover(jlev) &
                &  = overlap_alpha(jlev)*max(frac(jlev),frac(jlev+1)) &
                &  + (1.0_jprb - overlap_alpha(jlev)) &
-               &  * (frac(jlev)+frac(jlev+1)-frac(jlev)*frac(jlev+1))          
+               &  * (frac(jlev)+frac(jlev+1)-frac(jlev)*frac(jlev+1))
         end do
         ! Estimate the effective overlap parameter "alpha_obj" between
         ! adjacent objects as the product of the layerwise overlap
@@ -529,14 +529,14 @@ contains
         scaling = min(max((cc_pair-cc_obj(iobj1)) / max(min_frac, cc_obj(iobj2)), &
              &            0.0_jprb), &
              &        1.0_jprb)
-        
+
         ! Scale the combined cloud cover of the lower object to
         ! account for its overlap with the upper object
         do jlev = i_top_obj(iobj2),i_base_obj(iobj2)
           cum_cloud_cover(jlev) = cum_cloud_cover(i_base_obj(iobj1)) &
                +  cum_cloud_cover(jlev) * scaling
         end do
-        
+
         ! Merge the objects by setting the properties of the upper
         ! object to the combined properties of both.  Note that
         ! i_max_obj is not modified because it is no longer needed.
@@ -549,7 +549,7 @@ contains
 
       ! Finish off the total cloud cover below cloud
       cum_cloud_cover(i_base_obj(iobj1)+1:nlev) &
-           &  = cum_cloud_cover(i_base_obj(iobj1)) 
+           &  = cum_cloud_cover(i_base_obj(iobj1))
 
       ! Ensure that the combined cloud cover of pairs of layers is
       ! consistent with the overhang

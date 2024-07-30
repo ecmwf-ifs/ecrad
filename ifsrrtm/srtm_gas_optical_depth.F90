@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 #ifdef RS6K
 @PROCESS HOT(NOVECTOR) NOSTRICT
 #endif
@@ -9,7 +18,7 @@ SUBROUTINE SRTM_GAS_OPTICAL_DEPTH &
  &   PFORFAC , PFORFRAC , KINDFOR , PSELFFAC, PSELFFRAC, KINDSELF ,&
  &   PFAC00  , PFAC01   , PFAC10  , PFAC11 ,&
  &   KJP     , KJT      , KJT1 ,&
- !-- output arrays 
+ !-- output arrays
  &   POD, PSSA, PINCSOL)
 
 
@@ -155,7 +164,7 @@ DO JB = IB1, IB2
     IGT = NGC(IBM)
   ENDDO
 
-  !-- for each band, computes the gaseous and Rayleigh optical thickness 
+  !-- for each band, computes the gaseous and Rayleigh optical thickness
   !  for all g-points within the band
 
   IF (JB == 16) THEN
@@ -166,7 +175,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLCH4  , PCOLMOL  ,&
      &   KLAYTROP, PSELFFAC , PSELFFRAC, KINDSELF, PFORFAC  , PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG    , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 17) THEN
     CALL SRTM_TAUMOL17 &
@@ -176,7 +185,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLCO2 , PCOLMOL  ,&
      &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 18) THEN
     CALL SRTM_TAUMOL18 &
@@ -186,7 +195,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLCH4 , PCOLMOL  ,&
      &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 19) THEN
     CALL SRTM_TAUMOL19 &
@@ -196,7 +205,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLCO2 , PCOLMOL  ,&
      &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 20) THEN
     CALL SRTM_TAUMOL20 &
@@ -206,7 +215,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLCH4 , PCOLMOL  ,&
      &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 21) THEN
     CALL SRTM_TAUMOL21 &
@@ -216,7 +225,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLCO2 , PCOLMOL  ,&
      &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 22) THEN
     CALL SRTM_TAUMOL22 &
@@ -226,7 +235,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLMOL , PCOLO2   ,&
      &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 23) THEN
     CALL SRTM_TAUMOL23 &
@@ -236,7 +245,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLMOL ,&
      &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 24) THEN
     CALL SRTM_TAUMOL24 &
@@ -246,7 +255,7 @@ DO JB = IB1, IB2
      &   PCOLH2O , PCOLMOL , PCOLO2   , PCOLO3 ,&
      &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 25) THEN
     !--- visible 16000-22650 cm-1   0.4415 - 0.6250 um
@@ -257,7 +266,7 @@ DO JB = IB1, IB2
      &   PCOLH2O  , PCOLMOL , PCOLO3 ,&
      &   KLAYTROP ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR   , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 26) THEN
     !--- UV-A 22650-29000 cm-1   0.3448 - 0.4415 um
@@ -265,7 +274,7 @@ DO JB = IB1, IB2
      & ( KIDIA   , KFDIA   , KLEV    ,&
      &   PCOLMOL ,KLAYTROP,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 27) THEN
     !--- UV-B 29000-38000 cm-1   0.2632 - 0.3448 um
@@ -276,7 +285,7 @@ DO JB = IB1, IB2
      &   PCOLMOL , PCOLO3 ,&
      &   KLAYTROP ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 28) THEN
     !--- UV-C 38000-50000 cm-1   0.2000 - 0.2632 um
@@ -287,7 +296,7 @@ DO JB = IB1, IB2
      &   PCOLMOL , PCOLO2  , PCOLO3 ,&
      &   KLAYTROP ,&
      &   ZSFLXZEN, ZTAUG   , ZTAUR  , PRMU0     &
-     & )  
+     & )
 
   ELSEIF (JB == 29) THEN
     CALL SRTM_TAUMOL29 &
@@ -297,10 +306,10 @@ DO JB = IB1, IB2
      &   PCOLH2O  , PCOLCO2 , PCOLMOL  ,&
      &   KLAYTROP , PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
      &   ZSFLXZEN , ZTAUG   , ZTAUR    , PRMU0     &
-     & )  
+     & )
 
   ENDIF
-   
+
   DO JG=1,IGT
 ! Added for DWD (2020)
 !NEC$ ivdep

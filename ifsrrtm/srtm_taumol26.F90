@@ -1,8 +1,17 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE SRTM_TAUMOL26 &
  & ( KIDIA   , KFDIA    , KLEV,&
  & P_COLMOL  ,K_LAYTROP,&
  & P_SFLUXZEN, P_TAUG   , P_TAUR    , PRMU0   &
- & )  
+ & )
 
 !     Written by Eli J. Mlawer, Atmospheric & Environmental Research.
 
@@ -26,21 +35,21 @@ USE YOESRTA26, ONLY : SFLUXREFC, RAYLC
 IMPLICIT NONE
 
 !-- Output
-INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA, KFDIA 
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLMOL(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA, KFDIA
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLMOL(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA)
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_SFLUXZEN(KIDIA:KFDIA,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUG(KIDIA:KFDIA,KLEV,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUR(KIDIA:KFDIA,KLEV,JPG) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_SFLUXZEN(KIDIA:KFDIA,JPG)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUG(KIDIA:KFDIA,KLEV,JPG)
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUR(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
 !- from AER
-!- from INTFAC      
+!- from INTFAC
 !- from INTIND
-!- from PRECISE             
-!- from PROFDATA             
-!- from SELF             
+!- from PRECISE
+!- from PROFDATA
+!- from SELF
 INTEGER(KIND=JPIM) :: IG, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
@@ -49,9 +58,9 @@ IF (LHOOK) CALL DR_HOOK('SRTM_TAUMOL26',0,ZHOOK_HANDLE)
 
 I_NLAYERS = KLEV
 
-!     Compute the optical depth by interpolating in ln(pressure), 
+!     Compute the optical depth by interpolating in ln(pressure),
 !     temperature, and appropriate species.  Below LAYTROP, the water
-!     vapor self-continuum is interpolated (in temperature) separately.  
+!     vapor self-continuum is interpolated (in temperature) separately.
 
 I_LAYSOLFR(KIDIA:KFDIA) = K_LAYTROP(KIDIA:KFDIA)
 
@@ -61,12 +70,12 @@ DO I_LAY = 1, I_NLAYERS
       IF (I_LAY <= K_LAYTROP(IPLON)) THEN
         !  DO IG = 1, NG(26)
 !CDIR UNROLL=NG26
-        DO IG = 1 , NG26 
+        DO IG = 1 , NG26
           !    TAUG(LAY,IG) = COLMOL(LAY) * RAYLC(IG)
           !    SSA(LAY,IG) = 1.0
-          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG) 
+          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG)
           P_TAUG(IPLON,I_LAY,IG) = 0.0_JPRB
-          P_TAUR(IPLON,I_LAY,IG) = P_COLMOL(IPLON,I_LAY) * RAYLC(IG) 
+          P_TAUR(IPLON,I_LAY,IG) = P_COLMOL(IPLON,I_LAY) * RAYLC(IG)
         ENDDO
       ENDIF
     ENDIF
@@ -83,7 +92,7 @@ DO I_LAY = 1, I_NLAYERS
           !    TAUG(LAY,IG) = COLMOL(LAY) * RAYLC(IG)
           !    SSA(LAY,IG) = 1.0
           P_TAUG(IPLON,I_LAY,IG) = 0.0_JPRB
-          P_TAUR(IPLON,I_LAY,IG) = P_COLMOL(IPLON,I_LAY) * RAYLC(IG) 
+          P_TAUR(IPLON,I_LAY,IG) = P_COLMOL(IPLON,I_LAY) * RAYLC(IG)
         ENDDO
       ENDIF
     ENDIF

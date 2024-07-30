@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE RRTM_KGB12
 
 !     Originally by Eli J. Mlawer, Atmospheric & Environmental Research.
@@ -77,12 +86,12 @@ ENDIF
 
 !     ------------------------------------------------------------------
 
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
+!     The array KAO contains absorption coefs at the 16 chosen g-values
 !     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
+!     species parameters (see taumol.f for definition).  The first
+!     index in the array, JS, runs from 1 to 9, and corresponds to
+!     different values of the binary species parameter.  For instance,
+!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8,
 !     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
 !     in the array, JT, which runs from 1 to 5, corresponds to different
 !     temperatures.  More specifically, JT = 3 means that the data are for
@@ -95,9 +104,9 @@ ENDIF
 
 
 !     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
+!     foreign-continuum (including the energy term).  The first
+!     index refers to reference temperature (296,260,224,260) and
+!     pressure (970,475,219,3 mbar) levels.  The second index
 !     runs over the g-channel (1 to 16).
 
       FORREFO(1,:) = (/ &

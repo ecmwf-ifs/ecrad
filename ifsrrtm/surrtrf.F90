@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE SURRTRF
 
 !     Adapted from Eli J. Mlawer, Atmospheric & Environmental Research.
@@ -30,7 +39,7 @@ PREF( :) = (/&
  & 3.53455E-01_JPRB,2.89384E-01_JPRB,2.36928E-01_JPRB,1.93980E-01_JPRB,1.58817E-01_JPRB,&
  & 1.30029E-01_JPRB,1.06458E-01_JPRB,8.71608E-02_JPRB,7.13612E-02_JPRB,5.84256E-02_JPRB,&
  & 4.78349E-02_JPRB,3.91639E-02_JPRB,3.20647E-02_JPRB,2.62523E-02_JPRB,2.14936E-02_JPRB,&
- & 1.75975E-02_JPRB,1.44076E-02_JPRB,1.17959E-02_JPRB,9.65769E-03_JPRB/)  
+ & 1.75975E-02_JPRB,1.44076E-02_JPRB,1.17959E-02_JPRB,9.65769E-03_JPRB/)
 
 PREFLOG( :) = (/&
  & 6.9600E+00_JPRB, 6.7600E+00_JPRB, 6.5600E+00_JPRB, 6.3600E+00_JPRB, 6.1600E+00_JPRB,&
@@ -44,10 +53,10 @@ PREFLOG( :) = (/&
  & -1.0400E+00_JPRB,-1.2400E+00_JPRB,-1.4400E+00_JPRB,-1.6400E+00_JPRB,-1.8400E+00_JPRB,&
  & -2.0400E+00_JPRB,-2.2400E+00_JPRB,-2.4400E+00_JPRB,-2.6400E+00_JPRB,-2.8400E+00_JPRB,&
  & -3.0400E+00_JPRB,-3.2400E+00_JPRB,-3.4400E+00_JPRB,-3.6400E+00_JPRB,-3.8400E+00_JPRB,&
- & -4.0400E+00_JPRB,-4.2400E+00_JPRB,-4.4400E+00_JPRB,-4.6400E+00_JPRB/)  
+ & -4.0400E+00_JPRB,-4.2400E+00_JPRB,-4.4400E+00_JPRB,-4.6400E+00_JPRB/)
 
-!     These are the temperatures associated with the respective 
-!     pressures for the MLS standard atmosphere. 
+!     These are the temperatures associated with the respective
+!     pressures for the MLS standard atmosphere.
 TREF( :) = (/&
  & 2.9420E+02_JPRB, 2.8799E+02_JPRB, 2.7894E+02_JPRB, 2.6925E+02_JPRB, 2.5983E+02_JPRB,&
  & 2.5017E+02_JPRB, 2.4077E+02_JPRB, 2.3179E+02_JPRB, 2.2306E+02_JPRB, 2.1578E+02_JPRB,&
@@ -60,7 +69,7 @@ TREF( :) = (/&
  & 2.6211E+02_JPRB, 2.5828E+02_JPRB, 2.5360E+02_JPRB, 2.4854E+02_JPRB, 2.4348E+02_JPRB,&
  & 2.3809E+02_JPRB, 2.3206E+02_JPRB, 2.2603E+02_JPRB, 2.2000E+02_JPRB, 2.1435E+02_JPRB,&
  & 2.0887E+02_JPRB, 2.0340E+02_JPRB, 1.9792E+02_JPRB, 1.9290E+02_JPRB, 1.8809E+02_JPRB,&
- & 1.8329E+02_JPRB, 1.7849E+02_JPRB, 1.7394E+02_JPRB, 1.7212E+02_JPRB/)  
+ & 1.8329E+02_JPRB, 1.7849E+02_JPRB, 1.7394E+02_JPRB, 1.7212E+02_JPRB/)
 
   CHI_MLS(1,1:12) = (/ &
      &  1.8760E-02_JPRB, 1.2223E-02_JPRB, 5.8909E-03_JPRB, 2.7675E-03_JPRB, 1.4065E-03_JPRB, &

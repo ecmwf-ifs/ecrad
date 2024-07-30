@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 SUBROUTINE RRTM_KGB8
 
 !     Originally by Eli J. Mlawer, Atmospheric & Environmental Research.
@@ -66,34 +75,34 @@ CFC12O( :) = (/&
  & 85.4027_JPRB, 89.4696_JPRB, 74.0959_JPRB, 67.7480_JPRB,&
  & 61.2444_JPRB, 59.9073_JPRB, 60.8296_JPRB, 63.0998_JPRB,&
  & 59.6110_JPRB, 64.0735_JPRB, 57.2622_JPRB, 58.9721_JPRB,&
- & 43.5505_JPRB, 26.1192_JPRB, 32.7023_JPRB, 32.8667_JPRB/)  
+ & 43.5505_JPRB, 26.1192_JPRB, 32.7023_JPRB, 32.8667_JPRB/)
 
-!     Original CFC22 is multiplied by 1.485 to account for the 780-850 cm-1 
+!     Original CFC22 is multiplied by 1.485 to account for the 780-850 cm-1
 !     and 1290-1335 cm-1 bands.
 CFC22ADJO( :) = (/&
  & 135.335_JPRB, 89.6642_JPRB, 76.2375_JPRB, 65.9748_JPRB,&
  & 63.1164_JPRB, 60.2935_JPRB, 64.0299_JPRB, 75.4264_JPRB,&
  & 51.3018_JPRB, 7.07911_JPRB, 5.86928_JPRB, 0.398693_JPRB,&
- & 2.82885_JPRB, 9.12751_JPRB, 6.28271_JPRB, 0.0_JPRB/)  
+ & 2.82885_JPRB, 9.12751_JPRB, 6.28271_JPRB, 0.0_JPRB/)
 
 !     ------------------------------------------------------------------
 
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
+!     The array KAO contains absorption coefs at the 16 chosen g-values
 !     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the corresponding TREF for this  pressure level,
+!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30,
+!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second
+!     index, JP, runs from 1 to 13 and refers to the corresponding
+!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).
+!     The third index, IG, goes from 1 to 16, and tells us which
 !     g-interval the absorption coefficients are for.
-!     The array KA contains absorption coef5s at the 16 chosen g-values 
+!     The array KA contains absorption coef5s at the 16 chosen g-values
 !     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the cooresponding TREF for this  pressure level, 
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the cooresponding TREF for this  pressure level,
 !     JT = 2 refers to the temperature
 !     TREF-15, JT = 1 is for TREF-30, JT = 4 is for TREF+15, and JT = 5
 !     is for TREF+30.  The second index, JP, runs from 1 to 13 and refers
@@ -103,13 +112,13 @@ CFC22ADJO( :) = (/&
 
 
 
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
+!     The array KBO contains absorption coefs at the 16 chosen g-values
+!     for a range of pressure levels < ~100mb and temperatures. The first
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the reference temperature TREF for this pressure
 !     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
+!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.
 !     The second index, JP, runs from 13 to 59 and refers to the JPth
 !     reference pressure level (see taumol.f for the value of these
 !     pressure levels in mb).  The third index, IG, goes from 1 to 16,
@@ -117,11 +126,11 @@ CFC22ADJO( :) = (/&
 
 
 
-!     The array KAO_Mxx contains the absorption coefficient for 
+!     The array KAO_Mxx contains the absorption coefficient for
 !     a minor species at the 16 chosen g-values for a reference pressure
-!     level below 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
+!     level below 100~ mb.   The first index refers to temperature
+!     in 7.2 degree increments.  For instance, JT = 1 refers to a
+!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index
 !     runs over the g-channel (1 to 16).
 
       KAO_MCO2(:, 1) = (/ &
@@ -367,11 +376,11 @@ CFC22ADJO( :) = (/&
      & 1.82960E-01_JPRB, 1.79630E-01_JPRB, 1.76361E-01_JPRB, 1.73151E-01_JPRB, 1.70000E-01_JPRB, &
      & 1.66906E-01_JPRB, 1.63868E-01_JPRB, 1.60886E-01_JPRB, 1.57958E-01_JPRB/)
 
-!     The array KBO_Mxx contains the absorption coefficient for 
+!     The array KBO_Mxx contains the absorption coefficient for
 !     a minor species at the 16 chosen g-values for a reference pressure
-!     level above 100~ mb.   The first index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index 
+!     level above 100~ mb.   The first index refers to temperature
+!     in 7.2 degree increments.  For instance, JT = 1 refers to a
+!     temperature of 188.0, JT = 2 refers to 195.2, etc. The second index
 !     runs over the g-channel (1 to 16).
 
       KBO_MCO2(:, 1) = (/ &
@@ -537,9 +546,9 @@ CFC22ADJO( :) = (/&
      & 5.28064E-01_JPRB, 6.82266E-01_JPRB, 8.81496E-01_JPRB, 1.13891E+00_JPRB/)
 
 !     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
+!     foreign-continuum (including the energy term).  The first
+!     index refers to reference temperature (296,260,224,260) and
+!     pressure (970,475,219,3 mbar) levels.  The second index
 !     runs over the g-channel (1 to 16).
 
       FORREFO(1,:) = (/ &

@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 MODULE YOERRTA6
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
@@ -37,12 +46,12 @@ EQUIVALENCE (KA(1,1,1),ABSA(1,1))
 !  NAME     TYPE     PURPOSE
 !  ----   : ----   : ---------------------------------------------------
 ! ABSCO2  : REAL     absorption coefficient for CO2
-! ABSA    : REAL     absorption coefficient of major absorber for M reference tropospheric 
-!                    pressures and N reference tropospheric temperatures 
+! ABSA    : REAL     absorption coefficient of major absorber for M reference tropospheric
+!                    pressures and N reference tropospheric temperatures
 ! CFC11ADJ: REAL     absorption coefficient for CFC-11 (adjusted)
 ! CFC12   : REAL     absorption coefficient for CFC-12
 ! FRACREFA: REAL     distance from r and T reference tabulated points (troposphere)
-! KA      : REAL     absorption coefficient of major absorber (equiv. to ABSA)   
+! KA      : REAL     absorption coefficient of major absorber (equiv. to ABSA)
 ! SELFREF : REAL     self broadening coefficient for water vapour
 !     -----------------------------------------------------------------
 END MODULE YOERRTA6
