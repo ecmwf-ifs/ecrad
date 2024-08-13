@@ -98,8 +98,10 @@ program ecrad_driver
   ! For demonstration of get_sw_weights later on
   ! Ultraviolet weightings
   !integer    :: nweight_uv
-  !integer    :: iband_uv(100)
-  !real(jprb) :: weight_uv(100)
+  !integer    :: iband_uv(200)
+  !real(jprb) :: weight_uv(200)
+  !integer    :: jw
+  
   ! Photosynthetically active radiation weightings
   !integer    :: nweight_par
   !integer    :: iband_par(100)
@@ -180,6 +182,16 @@ program ecrad_driver
   !  call config%get_sw_weights(0.4e-6_jprb, 0.7e-6_jprb,&
   !       &  nweight_par, iband_par, weight_par,&
   !       &  'photosynthetically active radiation, PAR')
+  !end if
+  
+  !if (config%do_sw .and. config%gas_optics_sw%spectral_def%ng > 0) then
+  !  call config%get_uv_biological_weights(nweight_uv, iband_uv, weight_uv)
+  !  if (driver_config%iverbose >= 3) then
+  !    write(nulout,'(a)') 'Weights of shortwave g-points for computing UV biologically effective dose (g-point number, weight)'
+  !    do jw = 1,nweight_uv
+  !      write(nulout,'(i4,x,f7.5)') iband_uv(jw), weight_uv(jw)
+  !    end do
+  !  end if
   !end if
 
   ! Optionally compute shortwave spectral diagnostics in
