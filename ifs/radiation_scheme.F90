@@ -317,16 +317,14 @@ call flux%create_device()
 
 
 call nvtxStartRange("thermodynamics setup")
-!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
 ! Set thermodynamic profiles: simply copy over the half-level
 ! pressure and temperature
-!$ACC LOOP GANG VECTOR
+!$ACC PARALLEL LOOP GANG VECTOR COLLAPSE (2) DEFAULT(PRESENT) ASYNC(1)
 DO JLEV = 1,KLEV+1
   DO JLON = KIDIA,KFDIA
     THERMODYNAMICS%PRESSURE_HL   (JLON,JLEV) = PPRESSURE_H   (JLON,JLEV)
-    THERMODYNAMICS%TEMPERATURE_HL(JLON,JLEV) = PTEMPERATURE_H(JLON,JLEV)
-  ENDDO
-ENDDO
+    IF (JLEV /= KLEV + 1) THEN
+      THERMODYNAMICS%TEMPERATURE_HL(JLON,JLEV) = PTEMPERATURE_H(JLON,JLEV)
 
 ! IFS currently sets the half-level temperature at the surface to be
 ! equal to the skin temperature. The radiation scheme takes as input
@@ -344,12 +342,13 @@ ENDDO
 ! 0.25*Tskin, which can be achieved by setting the atmospheric
 ! temperature at the half-level corresponding to the surface as
 ! follows:
-!$ACC LOOP GANG VECTOR
-DO JLON = KIDIA,KFDIA
-  THERMODYNAMICS%TEMPERATURE_HL(JLON,KLEV+1)&
-     &  = PTEMPERATURE(JLON,KLEV)&
-     &  + 0.5_JPRB * (PTEMPERATURE_H(JLON,KLEV+1)&
-     &               -PTEMPERATURE_H(JLON,KLEV))
+    ELSE
+      THERMODYNAMICS%TEMPERATURE_HL(JLON,KLEV+1)&
+        &  = PTEMPERATURE(JLON,KLEV)&
+        &  + 0.5_JPRB * (PTEMPERATURE_H(JLON,KLEV+1)&
+        &               -PTEMPERATURE_H(JLON,KLEV))
+    ENDIF
+  ENDDO
 ENDDO
 !$ACC END PARALLEL
 
