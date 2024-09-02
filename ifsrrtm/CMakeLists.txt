@@ -207,6 +207,14 @@ set( ifsrrtm_HEADERS
         ${PROJECT_SOURCE_DIR}/include/srtm_taumol27.intfb.h
         ${PROJECT_SOURCE_DIR}/include/srtm_taumol28.intfb.h
         ${PROJECT_SOURCE_DIR}/include/srtm_taumol29.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_setcoef_140gp.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/rrtm_init_140gp.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_setcoef.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/surdi.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/surrtab.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/surrtpk.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/surrtrf.intfb.h
+        ${PROJECT_SOURCE_DIR}/include/srtm_init.intfb.h
 )
 
 ecbuild_add_library(
@@ -229,5 +237,16 @@ install(
         ${ifsrrtm_HEADERS}
         "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerrtm.mod"
         "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerdi.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoesrtab.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoesrtaer.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoesrtm.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoesrtwn.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoesw.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerrtab.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerrtwn.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerrtftr.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerrtm.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/parrrtm.mod"
+        "${CMAKE_Fortran_MODULE_DIRECTORY}/parsrtm.mod"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}"
 )
