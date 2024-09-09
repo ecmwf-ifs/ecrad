@@ -204,7 +204,8 @@ contains
           end if
           ! Store spectral downwelling fluxes at surface
           flux%sw_dn_diffuse_surf_clear_g(:,jcol) = flux_dn_diffuse(:,nlev+1)
-          flux%sw_dn_direct_surf_clear_g(:,jcol)  = flux_dn_direct(:,nlev+1)
+          flux%sw_dn_direct_surf_clear_g (:,jcol) = flux_dn_direct(:,nlev+1)
+          flux%sw_up_toa_clear_g         (:,jcol) = flux_up(:,1)
 
           ! Save the spectral fluxes if required
           if (config%do_save_spectral_flux) then
@@ -289,9 +290,10 @@ contains
                  &  + sum(flux_dn_direct,1)
           end if
 
-          ! Likewise for surface spectral fluxes
+          ! Likewise for surface/TOA spectral fluxes
           flux%sw_dn_diffuse_surf_g(:,jcol) = flux_dn_diffuse(:,nlev+1)
-          flux%sw_dn_direct_surf_g(:,jcol)  = flux_dn_direct(:,nlev+1)
+          flux%sw_dn_direct_surf_g (:,jcol) = flux_dn_direct (:,nlev+1)
+          flux%sw_up_toa_g         (:,jcol) = flux_up        (:,1)
 
           ! Save the spectral fluxes if required
           if (config%do_save_spectral_flux) then
@@ -317,7 +319,8 @@ contains
             flux%sw_dn_direct(jcol,:) = flux%sw_dn_direct_clear(jcol,:)
           end if
           flux%sw_dn_diffuse_surf_g(:,jcol) = flux%sw_dn_diffuse_surf_clear_g(:,jcol)
-          flux%sw_dn_direct_surf_g(:,jcol)  = flux%sw_dn_direct_surf_clear_g(:,jcol)
+          flux%sw_dn_direct_surf_g (:,jcol) = flux%sw_dn_direct_surf_clear_g (:,jcol)
+          flux%sw_up_toa_g         (:,jcol) = flux%sw_up_toa_clear_g         (:,jcol)
 
           if (config%do_save_spectral_flux) then
             flux%sw_up_band(:,jcol,:) = flux%sw_up_clear_band(:,jcol,:)
@@ -337,7 +340,8 @@ contains
           flux%sw_dn_direct(jcol,:) = 0.0_jprb
         end if
         flux%sw_dn_diffuse_surf_g(:,jcol) = 0.0_jprb
-        flux%sw_dn_direct_surf_g(:,jcol)  = 0.0_jprb
+        flux%sw_dn_direct_surf_g (:,jcol) = 0.0_jprb
+        flux%sw_up_toa_g         (:,jcol) = 0.0_jprb
 
         if (config%do_clear) then
           flux%sw_up_clear(jcol,:) = 0.0_jprb
@@ -346,7 +350,8 @@ contains
             flux%sw_dn_direct_clear(jcol,:) = 0.0_jprb
           end if
           flux%sw_dn_diffuse_surf_clear_g(:,jcol) = 0.0_jprb
-          flux%sw_dn_direct_surf_clear_g(:,jcol)  = 0.0_jprb
+          flux%sw_dn_direct_surf_clear_g (:,jcol) = 0.0_jprb
+          flux%sw_up_toa_clear_g         (:,jcol) = 0.0_jprb
         end if
 
         if (config%do_save_spectral_flux) then

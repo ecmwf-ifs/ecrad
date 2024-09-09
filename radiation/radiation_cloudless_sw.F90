@@ -162,7 +162,8 @@ contains
         end if
         ! Store spectral downwelling fluxes at surface
         flux%sw_dn_diffuse_surf_g(:,jcol) = flux_dn_diffuse(:,nlev+1)
-        flux%sw_dn_direct_surf_g(:,jcol)  = flux_dn_direct(:,nlev+1)
+        flux%sw_dn_direct_surf_g (:,jcol) = flux_dn_direct (:,nlev+1)
+        flux%sw_up_toa_g         (:,jcol) = flux_up        (:,1)
 
         ! Save the spectral fluxes if required
         if (config%do_save_spectral_flux) then
@@ -188,7 +189,8 @@ contains
             flux%sw_dn_direct_clear(jcol,:) = flux%sw_dn_direct(jcol,:)
           end if
           flux%sw_dn_diffuse_surf_clear_g(:,jcol) = flux%sw_dn_diffuse_surf_g(:,jcol)
-          flux%sw_dn_direct_surf_clear_g(:,jcol)  = flux%sw_dn_direct_surf_g(:,jcol)
+          flux%sw_dn_direct_surf_clear_g (:,jcol) = flux%sw_dn_direct_surf_g (:,jcol)
+          flux%sw_up_toa_clear_g         (:,jcol) = flux%sw_up_toa_g         (:,jcol)
 
           if (config%do_save_spectral_flux) then
             flux%sw_up_clear_band(:,jcol,:) = flux%sw_up_band(:,jcol,:)

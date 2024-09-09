@@ -947,10 +947,12 @@ contains
 
       ! Store the outgoing longwave radiation at top-of-atmosphere
       flux%lw_up(jcol,1) = sum(sum(total_source(:,:,1),1))
+      flux%lw_up_toa_g(:,jcol) = sum(total_source(:,:,1),2)
       if (config%do_clear) then
         flux%lw_up_clear(jcol,1) = sum(total_source_clear(:,1))
+        flux%lw_up_toa_clear_g(:,jcol) = total_source_clear(:,1)
       end if
-
+      
       if (config%do_save_spectral_flux) then
         call indexed_sum(sum(total_source(:,:,1),2), &
              &           config%i_spec_from_reordered_g_lw, &

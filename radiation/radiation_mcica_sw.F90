@@ -221,10 +221,11 @@ contains
         end do
 #endif
         
-        ! Store spectral downwelling fluxes at surface
+        ! Store spectral downwelling fluxes at surface / TOA upwelling
         do jg = 1,ng
           flux%sw_dn_diffuse_surf_clear_g(jg,jcol) = flux_dn_diffuse(jg,nlev+1)
-          flux%sw_dn_direct_surf_clear_g(jg,jcol)  = flux_dn_direct(jg,nlev+1)
+          flux%sw_dn_direct_surf_clear_g (jg,jcol) = flux_dn_direct(jg,nlev+1)
+          flux%sw_up_toa_clear_g         (jg,jcol) = flux_up(jg,1)
         end do
 
         ! Do cloudy-sky calculation
@@ -350,12 +351,12 @@ contains
           end do
           ! Likewise for surface spectral fluxes
           do jg = 1,ng
-            flux%sw_dn_diffuse_surf_g(jg,jcol) = flux_dn_diffuse(jg,nlev+1)
-            flux%sw_dn_direct_surf_g(jg,jcol)  = flux_dn_direct(jg,nlev+1)
-            flux%sw_dn_diffuse_surf_g(jg,jcol) = total_cloud_cover *flux%sw_dn_diffuse_surf_g(jg,jcol) &
+            flux%sw_dn_diffuse_surf_g(jg,jcol) = total_cloud_cover *flux_dn_diffuse(jg,nlev+1) &
                  &                 + (1.0_jprb - total_cloud_cover)*flux%sw_dn_diffuse_surf_clear_g(jg,jcol)
-            flux%sw_dn_direct_surf_g(jg,jcol)  = total_cloud_cover *flux%sw_dn_direct_surf_g(jg,jcol) &
+            flux%sw_dn_direct_surf_g(jg,jcol)  = total_cloud_cover *flux_dn_direct(jg,nlev+1) &
                  &                 + (1.0_jprb - total_cloud_cover)*flux%sw_dn_direct_surf_clear_g(jg,jcol)
+            flux%sw_up_toa_g(jg,jcol)          = total_cloud_cover *flux_up(jg,1) &
+                 &                 + (1.0_jprb - total_cloud_cover)*flux%sw_up_toa_clear_g(jg,jcol)
           end do
 
         else
@@ -370,7 +371,8 @@ contains
           end do
           do jg = 1,ng
             flux%sw_dn_diffuse_surf_g(jg,jcol) = flux%sw_dn_diffuse_surf_clear_g(jg,jcol)
-            flux%sw_dn_direct_surf_g(jg,jcol)  = flux%sw_dn_direct_surf_clear_g(jg,jcol)
+            flux%sw_dn_direct_surf_g (jg,jcol) = flux%sw_dn_direct_surf_clear_g(jg,jcol)
+            flux%sw_up_toa_g         (jg,jcol) = flux%sw_up_toa_clear_g(jg,jcol)
           end do
 
         end if ! Cloud is present in profile
@@ -390,12 +392,14 @@ contains
           end if
         end do
         do jg = 1,ng
-          flux%sw_dn_diffuse_surf_g(jg,jcol) = 0.0_jprb
-          flux%sw_dn_direct_surf_g(jg,jcol)  = 0.0_jprb
+          flux%sw_dn_diffuse_surf_g      (jg,jcol) = 0.0_jprb
+          flux%sw_dn_direct_surf_g       (jg,jcol) = 0.0_jprb
+          flux%sw_up_toa_g               (jg,jcol) = 0.0_jprb
           flux%sw_dn_diffuse_surf_clear_g(jg,jcol) = 0.0_jprb
-          flux%sw_dn_direct_surf_clear_g(jg,jcol)  = 0.0_jprb
+          flux%sw_dn_direct_surf_clear_g (jg,jcol) = 0.0_jprb
+          flux%sw_up_toa_clear_g         (jg,jcol) = 0.0_jprb
         end do
-      end if ! Sun above horizon
+      end if ! sun above horizon
 
     end do ! Loop over columns
 

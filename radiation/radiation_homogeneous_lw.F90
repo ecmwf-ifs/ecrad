@@ -182,8 +182,9 @@ contains
         ! Sum over g-points to compute broadband fluxes
         flux%lw_up_clear(jcol,:) = sum(flux_up,1)
         flux%lw_dn_clear(jcol,:) = sum(flux_dn,1)
-        ! Store surface spectral downwelling fluxes
+        ! Store surface spectral downwelling fluxes / TOA upwelling
         flux%lw_dn_surf_clear_g(:,jcol) = flux_dn(:,nlev+1)
+        flux%lw_up_toa_clear_g (:,jcol) = flux_up(:,1)
 
         ! Save the spectral fluxes if required
         if (config%do_save_spectral_flux) then
@@ -273,8 +274,9 @@ contains
         ! Store overcast broadband fluxes
         flux%lw_up(jcol,:) = sum(flux_up,1)
         flux%lw_dn(jcol,:) = sum(flux_dn,1)
-        ! Store surface spectral downwelling fluxes
+        ! Store surface spectral downwelling fluxes / TOA upwelling
         flux%lw_dn_surf_g(:,jcol) = flux_dn(:,nlev+1)
+        flux%lw_up_toa_g (:,jcol) = flux_up(:,1)
 
         ! Save the spectral fluxes if required
         if (config%do_save_spectral_flux) then
@@ -290,6 +292,7 @@ contains
         flux%lw_up(jcol,:) = flux%lw_up_clear(jcol,:)
         flux%lw_dn(jcol,:) = flux%lw_dn_clear(jcol,:)
         flux%lw_dn_surf_g(:,jcol) = flux%lw_dn_surf_clear_g(:,jcol)
+        flux%lw_up_toa_g (:,jcol) = flux%lw_up_toa_clear_g (:,jcol)
 
         if (config%do_save_spectral_flux) then
           flux%lw_up_band(:,jcol,:) = flux%lw_up_clear_band(:,jcol,:)
@@ -305,7 +308,6 @@ contains
       if (config%do_lw_derivatives) then
         call calc_lw_derivatives_ica(ng, nlev, jcol, transmittance, flux_up(:,nlev+1), &
              &                       flux%lw_derivatives)
- 
       end if
 
     end do
