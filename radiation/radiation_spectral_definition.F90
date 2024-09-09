@@ -54,6 +54,9 @@ module radiation_spectral_definition
     ! file.
     real(jprb) :: reference_temperature = -1.0_jprb
     real(jprb), allocatable :: solar_spectral_irradiance(:)
+
+    ! Solar irradiance per g-point (W m-2)
+    real(jprb), allocatable :: solar_irradiance(:)
     
     ! Band information
 
@@ -120,6 +123,7 @@ contains
     if (file%exists('solar_irradiance')) then
       ! Shortwave default temperature
       this%reference_temperature = SolarReferenceTemperature
+      call file%get('solar_irradiance', this%solar_irradiance)
     else
       ! Longwave reference temperature
       this%reference_temperature = TerrestrialReferenceTemperature
@@ -509,7 +513,8 @@ contains
   ! albedo/emissivity value is to be associated with more than one
   ! discontinuous ranges of the spectrum).
   subroutine calc_mapping_from_bands(this, &
-       &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
+       &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes, &
+       &  solar_fraction)
 
     use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulerr, radiation_abort
@@ -524,6 +529,9 @@ contains
     real(jprb), allocatable,         intent(inout) :: mapping(:,:)
     logical,    optional,            intent(in)    :: use_bands
     logical,    optional,            intent(in)    :: use_fluxes
+    ! Return fraction of total solar irradiance in each
+    ! interval, for normalizing to get reflectances
+    real(jprb), optional,            intent(out)   :: solar_fraction(:)
 
     ! Planck function and central wavenumber of each wavenumber
     ! interval of the spectral definition
@@ -543,6 +551,9 @@ contains
     real(jprb), parameter :: weight_sample(nsample) &
          &        = [0.5_jprb, 1.0_jprb, 1.0_jprb, 1.0_jprb, 0.5_jprb]
 
+    ! Solar irradiance in bands
+    real(jprb) :: solar_irradiance_band(this%nband)
+    
     ! Index of input value corresponding to each wavenumber interval
     integer :: i_input(this%nwav)
 
@@ -656,6 +667,20 @@ contains
         end do
       end do
 
+      if (present(solar_fraction)) then
+        if (.not. allocated(this%solar_irradiance)) then
+          ! Solar irradiance not available
+          solar_fraction(1:ninput) = 0.0_jprb
+        else
+          solar_irradiance_band(1:this%nband) = 0.0_jprb
+          do jg = 1,this%ng
+            solar_irradiance_band(this%i_band_number(jg)) = solar_irradiance_band(this%i_band_number(jg)) &
+                 &  + this%solar_irradiance(jg)
+          end do
+          solar_fraction(1:ninput) = matmul(mapping, solar_irradiance_band) / sum(this%solar_irradiance)
+        end if
+      end if
+      
       if (use_fluxes_local) then
         mapping = mapping / max(1.0e-12_jprb, mapping_denom)
         deallocate(mapping_denom)
@@ -764,7 +789,15 @@ contains
       end if
 
 #endif
-      
+      if (present(solar_fraction)) then
+        if (.not. allocated(this%solar_irradiance)) then
+          ! Solar irradiance not available
+          solar_fraction(1:ninput) = 0.0_jprb
+        else
+          solar_fraction(1:ninput) = matmul(mapping, this%solar_irradiance) / sum(this%solar_irradiance)
+        end if
+      end if
+        
     end if
 
     if (.not. use_fluxes_local) then
