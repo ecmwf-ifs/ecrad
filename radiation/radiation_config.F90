@@ -637,6 +637,7 @@ module radiation_config
      procedure :: print => print_config
      procedure :: get_sw_weights
      procedure :: get_sw_mapping
+     procedure :: get_uv_biological_weights
      procedure :: define_sw_albedo_intervals
      procedure :: define_lw_emiss_intervals
      procedure :: set_aerosol_wavelength_mono
@@ -1620,7 +1621,6 @@ contains
   subroutine get_sw_weights(this, wavelength1, wavelength2, &
        &                    nweights, iband, weight, weighting_name)
 
-    use parkind1, only : jprb
     use radiation_io, only : nulout, nulerr, radiation_abort
     use radiation_spectral_definition, only : SolarReferenceTemperature
 
@@ -1694,6 +1694,40 @@ contains
 
   end subroutine get_sw_weights
 
+  !---------------------------------------------------------------------
+  ! Get weights per g-point to compute the UV biologically effective
+  ! flux, which should be divided by 40 to obtain UV index.
+  subroutine get_uv_biological_weights(this, nweights, ig, weight)
+    
+    class(config_type), intent(in) :: this
+    ! Number of output weights
+    integer,    intent(out) :: nweights
+    ! Index of non-zero g-points and weights of those g-points: user
+    ! expected to provide arrays of at least ng elements
+    integer,    intent(out) :: ig(:)
+    real(jprb), intent(out) :: weight(:)
+
+    ! Weights at every g point (only non-zero weights are returned)
+    real(jprb) :: weight_g(this%gas_optics_sw%spectral_def%ng)
+
+    integer :: jg
+    
+    ! McKinlay & Diffey (CIE research note, 1987), but considering any
+    ! wavelength less than 298 nm to have a weight of 1 (rather than
+    ! only 250-298 nm)
+    weight_g = this%gas_optics_sw%spectral_def%weighted_mapping([1.0e-9_jprb, 298.0e-9_jprb, 328.0e-9_jprb,  400.0e-9_jprb], &
+         &                                                      [1.0_jprb,      1.0_jprb,      0.0015136_jprb, 0.0001216_jprb], &
+         &                                                      do_logarithmic=.true.)
+    nweights = 0
+    do jg = 1,this%gas_optics_sw%spectral_def%ng
+      if (weight_g(jg) > 0.0_jprb) then
+        nweights = nweights + 1
+        ig(nweights)     = jg
+        weight(nweights) = weight_g(jg)
+      end if
+    end do
+    
+  end subroutine get_uv_biological_weights
   
   !---------------------------------------------------------------------
   ! As get_sw_weights but suitable for a larger number of spectral
@@ -1707,7 +1741,6 @@ contains
   ! provided on nulout.
   subroutine get_sw_mapping(this, wavelength_bound, mapping, weighting_name)
 
-    use parkind1, only : jprb
     use radiation_io, only : nulout, nulerr, radiation_abort
     use radiation_spectral_definition, only : SolarReferenceTemperature
 
@@ -2116,7 +2149,6 @@ contains
   !---------------------------------------------------------------------
   ! Print one line of information: real
   subroutine print_real(message_str, name, val)
-    use parkind1,     only : jprb
     use radiation_io, only : nulout
     character(len=*),   intent(in) :: message_str
     character(len=*),   intent(in) :: name
