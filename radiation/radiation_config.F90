@@ -733,6 +733,7 @@ module radiation_config
      procedure :: print => print_config
      procedure :: get_sw_weights
      procedure :: get_sw_mapping
+     procedure :: get_uv_biological_weights
      procedure :: define_sw_albedo_intervals
      procedure :: define_lw_emiss_intervals
      procedure :: set_aerosol_wavelength_mono
@@ -1842,9 +1843,8 @@ contains
   ! iverbose>=2, then information on the weighting will be provided on
   ! nulout.
   subroutine get_sw_weights(this, wavelength1, wavelength2, &
-       &                    nweights, iband, weight, weighting_name)
+       &                    nweights, iband, weight, weighting_name, solar_fraction)
 
-    use parkind1, only : jprb
     use radiation_io, only : nulout, nulerr, radiation_abort
     use radiation_spectral_definition, only : SolarReferenceTemperature
 
@@ -1858,7 +1858,9 @@ contains
     ! those bands
     integer,    intent(out)   :: iband(:)
     real(jprb), intent(out)   :: weight(:)
-    character(len=*), optional, intent(in) :: weighting_name
+    character(len=*), optional, intent(in)  :: weighting_name
+    ! Fraction of solar irradiance in this wavelength range
+    real(jprb),        optional, intent(out) :: solar_fraction
 
     real(jprb), allocatable   :: mapping(:,:)
 
@@ -1866,6 +1868,8 @@ contains
     real(jprb) :: wavenumber1, wavenumber2 ! cm-1
 
     real(jprb) :: wavenumber1_band, wavenumber2_band ! cm-1
+
+    real(jprb) :: solar_fraction_local(3)
 
     integer :: jband ! Loop index for spectral band
 
@@ -1880,8 +1884,12 @@ contains
 
     call this%gas_optics_sw%spectral_def%calc_mapping_from_bands( &
          &  [wavelength1, wavelength2], [1, 2, 3], mapping, &
-         &  use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point), use_fluxes=.true.)
-
+         &  use_bands=(.not. this%do_cloud_aerosol_per_sw_g_point), use_fluxes=.true., &
+         &  solar_fraction=solar_fraction_local)
+    if (present(solar_fraction)) then
+      solar_fraction = solar_fraction_local(2)
+    end if
+    
     ! "mapping" now contains a 3*nband matrix, where mapping(2,:)
     ! contains the weights of interest.  We now find the non-zero weights
     nweights = 0
@@ -1898,9 +1906,21 @@ contains
            &  wavelength1, ' to ', wavelength2, ' m is outside shortwave band'
       call radiation_abort('Radiation configuration error')
     else if (this%iverbosesetup >= 2 .and. present(weighting_name)) then
-      write(nulout,'(a,a,a,f6.0,a,f6.0,a)') 'Spectral weights for ', &
-           &  weighting_name, ' (', wavenumber1, ' to ', &
-           &  wavenumber2, ' cm-1):'
+      if (present(solar_fraction)) then
+        if (solar_fraction > 0.0_jprb) then
+          write(nulout,'(a,a,a,f6.0,a,f6.0,a,f8.4,a)') 'Spectral weights for ', &
+               &  weighting_name, ', ', wavenumber1, ' to ', &
+               &  wavenumber2, ' cm-1 (solar fraction ', solar_fraction, '):'
+        else
+          write(nulout,'(a,a,a,f6.0,a,f6.0,a)') 'Spectral weights for ', &
+               &  weighting_name, ', ', wavenumber1, ' to ', &
+               &  wavenumber2, ' cm-1 (solar fraction not available)'
+        end if
+      else
+        write(nulout,'(a,a,a,f6.0,a,f6.0,a)') 'Spectral weights for ', &
+             &  weighting_name, ', ', wavenumber1, ' to ', &
+             &  wavenumber2, ' cm-1'
+      end if
       if (this%do_cloud_aerosol_per_sw_g_point) then
         do jband = 1, nweights
           write(nulout, '(a,i0,a,f8.4)') '  Shortwave g point ', iband(jband), ': ', weight(jband)
@@ -1918,6 +1938,40 @@ contains
 
   end subroutine get_sw_weights
 
+  !---------------------------------------------------------------------
+  ! Get weights per g-point to compute the UV biologically effective
+  ! flux, which should be divided by 40 to obtain UV index.
+  subroutine get_uv_biological_weights(this, nweights, ig, weight)
+    
+    class(config_type), intent(in) :: this
+    ! Number of output weights
+    integer,    intent(out) :: nweights
+    ! Index of non-zero g-points and weights of those g-points: user
+    ! expected to provide arrays of at least ng elements
+    integer,    intent(out) :: ig(:)
+    real(jprb), intent(out) :: weight(:)
+
+    ! Weights at every g point (only non-zero weights are returned)
+    real(jprb) :: weight_g(this%gas_optics_sw%spectral_def%ng)
+
+    integer :: jg
+    
+    ! McKinlay & Diffey (CIE research note, 1987), but considering any
+    ! wavelength less than 298 nm to have a weight of 1 (rather than
+    ! only 250-298 nm)
+    weight_g = this%gas_optics_sw%spectral_def%weighted_mapping([1.0e-9_jprb, 298.0e-9_jprb, 328.0e-9_jprb,  400.0e-9_jprb], &
+         &                                                      [1.0_jprb,      1.0_jprb,      0.0015136_jprb, 0.0001216_jprb], &
+         &                                                      do_logarithmic=.true.)
+    nweights = 0
+    do jg = 1,this%gas_optics_sw%spectral_def%ng
+      if (weight_g(jg) > 0.0_jprb) then
+        nweights = nweights + 1
+        ig(nweights)     = jg
+        weight(nweights) = weight_g(jg)
+      end if
+    end do
+    
+  end subroutine get_uv_biological_weights
   
   !---------------------------------------------------------------------
   ! As get_sw_weights but suitable for a larger number of spectral
@@ -1931,7 +1985,6 @@ contains
   ! provided on nulout.
   subroutine get_sw_mapping(this, wavelength_bound, mapping, weighting_name)
 
-    use parkind1, only : jprb
     use radiation_io, only : nulout, nulerr, radiation_abort
     use radiation_spectral_definition, only : SolarReferenceTemperature
 
@@ -2340,7 +2393,6 @@ contains
   !---------------------------------------------------------------------
   ! Print one line of information: real
   subroutine print_real(message_str, name, val)
-    use parkind1,     only : jprb
     use radiation_io, only : nulout
     character(len=*),   intent(in) :: message_str
     character(len=*),   intent(in) :: name

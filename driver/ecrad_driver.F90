@@ -96,16 +96,22 @@ program ecrad_driver
   real(kind=jprd) :: tstart, tstop
 #endif
 
+!#define DEMONSTRATE_SW_DIAGS 1
+#ifdef DEMONSTRATE_SW_DIAGS
   ! For demonstration of get_sw_weights later on
   ! Ultraviolet weightings
-  !integer    :: nweight_uv
-  !integer    :: iband_uv(100)
-  !real(jprb) :: weight_uv(100)
+  integer    :: nweight_uv
+  integer    :: iband_uv(256)
+  real(jprb) :: weight_uv(256)
+  real(jprb) :: solar_fraction
+  integer    :: jw
+  
   ! Photosynthetically active radiation weightings
-  !integer    :: nweight_par
-  !integer    :: iband_par(100)
-  !real(jprb) :: weight_par(100)
-
+  integer    :: nweight_par
+  integer    :: iband_par(256)
+  real(jprb) :: weight_par(256)
+#endif
+  
   ! Loop index for repeats (for benchmarking)
   integer :: jrepeat
 
@@ -172,15 +178,26 @@ program ecrad_driver
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
   call setup_radiation(config)
-
+#ifdef DEMONSTRATE_SW_DIAGS
   ! Demonstration of how to get weights for UV and PAR fluxes
-  !if (config%do_sw) then
-  !  call config%get_sw_weights(0.2e-6_jprb, 0.4415e-6_jprb,&
-  !       &  nweight_uv, iband_uv, weight_uv,&
-  !       &  'ultraviolet')
-  !  call config%get_sw_weights(0.4e-6_jprb, 0.7e-6_jprb,&
-  !       &  nweight_par, iband_par, weight_par,&
-  !       &  'photosynthetically active radiation, PAR')
+  if (config%do_sw) then
+    call config%get_sw_weights(0.2e-6_jprb, 0.4415e-6_jprb,&
+         &  nweight_uv, iband_uv, weight_uv,&
+         &  'ultraviolet', solar_fraction)
+    call config%get_sw_weights(0.4e-6_jprb, 0.7e-6_jprb,&
+         &  nweight_par, iband_par, weight_par,&
+         &  'photosynthetically active radiation, PAR', solar_fraction)
+  end if
+#endif
+  
+  !if (config%do_sw .and. config%gas_optics_sw%spectral_def%ng > 0) then
+  !  call config%get_uv_biological_weights(nweight_uv, iband_uv, weight_uv)
+  !  if (driver_config%iverbose >= 3) then
+  !    write(nulout,'(a)') 'Weights of shortwave g-points for computing UV biologically effective dose (g-point number, weight)'
+  !    do jw = 1,nweight_uv
+  !      write(nulout,'(i4,x,f7.5)') iband_uv(jw), weight_uv(jw)
+  !    end do
+  !  end if
   !end if
 
   ! Optionally compute shortwave spectral diagnostics in
