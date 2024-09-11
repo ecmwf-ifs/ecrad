@@ -594,12 +594,16 @@ contains
               ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
             end do
           end do
-          if (present(incoming_sw)) then
+        end do
+
+        if (present(incoming_sw)) then
+          do jcol = istartcol,iendcol
             do jg = 1,config%n_g_sw
               incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
             end do
-          end if
-        end do
+          end do
+        end if
+
       end if
 
     end if
