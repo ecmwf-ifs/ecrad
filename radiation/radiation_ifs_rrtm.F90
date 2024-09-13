@@ -734,7 +734,7 @@ contains
             if (jlev == 1) then
               ! Top-of-atmosphere half level - note that PFRAC is on model
               ! levels not half levels
-              planck_hl(jg,1,jcol) = planck_store(jcol,jlev,iband) * PFRAC(jcol,jg,nlev)
+              planck_hl(jg,1,jcol) = planck_store(jcol,1,iband) * PFRAC(jcol,jg,nlev)
             else
               planck_hl(jg,jlev,jcol) = planck_store(jcol,jlev,iband) * PFRAC(jcol,jg,nlev+2-jlev)
             end if
