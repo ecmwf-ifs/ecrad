@@ -691,7 +691,7 @@ contains
       do jlev = 1,nlev+1
         do jcol = istartcol,iendcol
           factor = zfluxfac * delwave(jband)
-          planck_store(jcol,jlev, jband) = factor &
+          planck_store(jcol,jlev,jband) = factor &
               &  * (totplnk(ind(jcol,jlev),jband) &
               &  + frac(jcol,jlev)*(totplnk(ind(jcol,jlev)+1,jband)-totplnk(ind(jcol,jlev),jband)))
         end do
