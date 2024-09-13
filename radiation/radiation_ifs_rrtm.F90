@@ -647,7 +647,7 @@ contains
     ! Temperature (K) of a half-level
     real(jprb) :: temperature
 
-    real(jprb) :: factor, planck_tmp(istartcol:iendcol,config%n_g_lw)
+    real(jprb) :: factor
     real(jprb) :: ZFLUXFAC
 
     integer :: jlev, jgreorder, jg, ig, iband, jband, jcol, ilevoffset
@@ -736,8 +736,7 @@ contains
               ! levels not half levels
               planck_hl(jg,1,jcol) = planck_store(jcol,jlev,iband) * PFRAC(jcol,jg,nlev)
             else
-              planck_tmp(jcol,jg) = planck_store(jcol,jlev,iband) * PFRAC(jcol,jg,nlev+2-jlev)
-              planck_hl(jg,jlev,jcol) = planck_tmp(jcol,jg)
+              planck_hl(jg,jlev,jcol) = planck_store(jcol,jlev,iband) * PFRAC(jcol,jg,nlev+2-jlev)
             end if
           end do
         end do
