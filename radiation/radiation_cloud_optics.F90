@@ -307,11 +307,11 @@ contains
       !$ACC END PARALLEL
 
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-      !$ACC LOOP SEQ
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) &
+      !$ACC   PRIVATE(od_lw_liq, scat_od_lw_liq, g_lw_liq, od_lw_ice, scat_od_lw_ice, g_lw_ice) &
+      !$ACC   PRIVATE(od_sw_liq, scat_od_sw_liq, g_sw_liq, od_sw_ice, scat_od_sw_ice, g_sw_ice) &
+      !$ACC   PRIVATE(lwp_in_cloud, iwp_in_cloud, factor, temperature)
       do jlev = 1,nlev
-        !$ACC LOOP GANG VECTOR &
-        !$ACC PRIVATE(od_lw_liq, scat_od_lw_liq, g_lw_liq, od_lw_ice, scat_od_lw_ice, g_lw_ice)  &
-        !$ACC PRIVATE(od_sw_liq, scat_od_sw_liq, g_sw_liq, od_sw_ice, scat_od_sw_ice, g_sw_ice)
         do jcol = istartcol,iendcol
           ! Only do anything if cloud is present (assume that
           ! cloud%crop_cloud_fraction has already been called)
