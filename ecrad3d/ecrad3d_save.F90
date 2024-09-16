@@ -57,7 +57,7 @@ module ecrad3d_save
     character(5), parameter                :: default_lw_units_str = 'W m-2'
     character(5)                           :: lw_units_str
     integer                                :: i_local_verbose
-
+    
     ! Shape of output arrays
     integer, dimension(2) :: shape_2d
     integer, dimension(3) :: shape_3d, shape_lw_3d, shape_sw_3d, shape_canopy_lw_3d, shape_canopy_sw_3d
@@ -108,6 +108,12 @@ module ecrad3d_save
     ! Open the file
     call out_file%create(trim(file_name), iverbose=i_local_verbose, is_hdf5_file=is_hdf5_file)
 
+    ! Use compression if is an hdf5 file, for all variables with 3 or
+    ! more dimensions using deflate-level 3 and shuffling
+    if (is_hdf5_file) then
+      call out_file%deflate_policy(3, 3, .true.)
+    end if
+    
     ! Variables stored internally with column varying fastest, but in
     ! output file column varies most slowly so need to transpose
     !call out_file%transpose_matrices(.true.)
@@ -538,6 +544,12 @@ module ecrad3d_save
 
     ! Open the file
     call out_file%create(trim(file_name), iverbose=i_local_verbose, is_hdf5_file=is_hdf5_file)
+
+    ! Use compression if is an hdf5 file, for all variables with 3 or
+    ! more dimensions using deflate-level 3 and shuffling
+    if (is_hdf5_file) then
+      call out_file%deflate_policy(3, 3, .true.)
+    end if
 
     if (geometry%is_lat_lon) then
       xname = 'lon'

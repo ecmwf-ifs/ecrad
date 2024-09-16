@@ -50,6 +50,10 @@ module easy_netcdf
     integer :: i_permute_3d(3) = (/1,2,3/) ! New order of dimensions
     integer :: i_permute_4d(4) = (/1,2,3,4/) ! New order of dimensions
     character(len=511) :: file_name
+    integer :: deflate_level    = 0 ! Default deflate level
+    integer :: min_dims_deflate = 1 ! ...applied to variables with at least this many dimension
+    logical :: shuffle              ! ...possibly with shuffling of bytes
+
   contains
     procedure :: open => open_netcdf_file
     procedure :: create => create_netcdf_file
@@ -108,6 +112,7 @@ module easy_netcdf
     procedure :: get_outer_dimension
     procedure :: attribute_exists
     procedure :: global_attribute_exists
+    procedure :: deflate_policy
 #ifdef NC_NETCDF4
     procedure :: copy_dimensions
 #endif
@@ -346,7 +351,27 @@ contains
 
   end subroutine permute_4d_arrays
 
+  
+  !---------------------------------------------------------------------
+  ! Specify the default compression (deflate) policy: all variables
+  ! with at least "min_dims" dimensions will be compressed with
+  ! "deflate_level" compression (0-9, where 0=no compression) and
+  ! "shuffle" indicating whether each byte is compressed together.
+  ! This can be overridden if the user provides "deflate_level" when
+  ! defining a variable, which is the only case in which chunksizes
+  ! can be user-specified.
+  subroutine deflate_policy(this, min_dims, deflate_level, shuffle)
+    class(netcdf_file)  :: this
+    integer, intent(in) :: min_dims, deflate_level
+    logical, intent(in) :: shuffle
 
+    this%min_dims_deflate = min_dims
+    this%deflate_level    = deflate_level
+    this%shuffle          = shuffle
+    
+  end subroutine deflate_policy
+  
+  
   ! --- PRIVATE SUBROUTINES ---
 
   !---------------------------------------------------------------------
@@ -2062,8 +2087,18 @@ contains
 
     ! Define variable
 #ifdef NC_NETCDF4
-    istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), &
-         & ivarid, deflate_level=deflate_level, shuffle=shuffle, chunksizes=chunksizes)
+    if (present(deflate_level)) then
+      ! Deflate level provided by user (optionally also shuffle and chunksizes)
+      istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), &
+           & ivarid, deflate_level=deflate_level, shuffle=shuffle, chunksizes=chunksizes)
+    else if (this%deflate_level > 0 .and. ndims_local >= this%min_dims_deflate) then
+      ! Use default deflate level previously set for this file
+      istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), &
+           & ivarid, deflate_level=this%deflate_level, shuffle=this%shuffle, chunksizes=chunksizes)
+    else
+      ! No compression
+      istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), ivarid)
+    end if
 #else
     istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), ivarid)
 #endif
