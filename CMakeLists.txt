@@ -80,16 +80,6 @@ if( HAVE_SINGLE_PRECISION )
 endif()
 
 ecbuild_add_option(
-    FEATURE SHARED_LIBS
-    DEFAULT ON
-    DESCRIPTION "Build using shared libraries"
-)
-set( BUILD_SHARED_LIBS ${HAVE_SHARED_LIBS} )
-if( HAVE_SHARED_LIBS )
-    set( CMAKE_POSITION_INDEPENDENT_CODE TRUE )
-endif()
-
-ecbuild_add_option(
     FEATURE PRINT_ENTRAPMENT_DATA
     DEFAULT OFF
     DESCRIPTION "Write data to fort.101 and fort.102 in the SPARTACUS shortwave solver"
