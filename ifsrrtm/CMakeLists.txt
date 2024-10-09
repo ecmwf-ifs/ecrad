@@ -224,7 +224,7 @@ ecbuild_add_library(
     PUBLIC_INCLUDES
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
         "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}>"
+        "$<INSTALL_INTERFACE:${ecrad_${PREC}_INSTALL_INCLUDEDIR}>"
     PRIVATE_LIBS
         ecrad_base.${PREC}
         ecrad_utilities.${PREC}
@@ -247,5 +247,6 @@ install(
         "${CMAKE_Fortran_MODULE_DIRECTORY}/yoerrtm.mod"
         "${CMAKE_Fortran_MODULE_DIRECTORY}/parrrtm.mod"
         "${CMAKE_Fortran_MODULE_DIRECTORY}/parsrtm.mod"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}"
+    DESTINATION ${ecrad_${PREC}_INSTALL_INCLUDEDIR}
 )
+install( TARGETS ifsrrtm.${PREC} EXPORT ecrad-targets )

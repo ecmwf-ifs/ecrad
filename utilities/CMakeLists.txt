@@ -18,7 +18,7 @@ if( HAVE_FIAT )
     list( APPEND utilities_SOURCES easy_netcdf_read_mpi.F90 )
     install(
         FILES "${CMAKE_Fortran_MODULE_DIRECTORY}/easy_netcdf_read_mpi.mod"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}"
+        DESTINATION ${ecrad_${PREC}_INSTALL_INCLUDEDIR}
     )
 endif()
 
@@ -28,7 +28,7 @@ ecbuild_add_library(
     SOURCES ${utilities_SOURCES}
     PUBLIC_INCLUDES
         "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}>"
+        "$<INSTALL_INTERFACE:${ecrad_${PREC}_INSTALL_INCLUDEDIR}>"
     PRIVATE_LIBS
         ecrad_base.${PREC}
         ecrad_ifsaux.${PREC}
@@ -38,5 +38,6 @@ ecbuild_add_library(
 
 install(
     FILES "${CMAKE_Fortran_MODULE_DIRECTORY}/easy_netcdf.mod"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}"
+    DESTINATION ${ecrad_${PREC}_INSTALL_INCLUDEDIR}
 )
+install( TARGETS ecrad_utilities.${PREC} EXPORT ecrad-targets )

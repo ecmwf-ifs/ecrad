@@ -28,3 +28,4 @@ ecbuild_add_library(
         "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
     PRIVATE_LIBS ecrad_base.${PREC}
 )
+install( TARGETS ecrad_ifsaux.${PREC} EXPORT ecrad-targets )

@@ -17,14 +17,13 @@ ecbuild_add_library(
     PUBLIC_DEFINITIONS
         $<$<NOT:${HAVE_OMP}>:NO_OPENMP>
     PUBLIC_LIBS
-        ecrad_utilities.${PREC}
-        radiation.${PREC}
+        ecrad.${PREC}
         ecrad_base.${PREC}
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
 )
 
 ecbuild_add_executable(
-    TARGET ecrad.${PREC}
+    TARGET ecrad_${PREC}
     SOURCES
         ecrad_driver.F90
     LIBS
@@ -32,7 +31,7 @@ ecbuild_add_executable(
 )
 
 ecbuild_add_executable(
-    TARGET ecrad_ifs.${PREC}
+    TARGET ecrad_ifs_${PREC}
     SOURCES
         ecrad_ifs_driver.F90
     LIBS
@@ -41,7 +40,7 @@ ecbuild_add_executable(
 )
 
 ecbuild_add_executable(
-    TARGET ecrad_ifs_blocked.${PREC}
+    TARGET ecrad_ifs_blocked_${PREC}
     SOURCES
         ecrad_ifs_driver_blocked.F90
         ifs_blocking.F90
@@ -79,14 +78,14 @@ endif()
 if ( "${PREC}" STREQUAL "dp" OR NOT HAVE_DOUBLE_PRECISION )
     foreach( tgt ecrad ecrad_ifs ecrad_ifs_blocked )
         add_custom_command(
-            TARGET ${tgt}.${PREC}
+            TARGET ${tgt}_${PREC}
             POST_BUILD
             COMMAND
-                "${CMAKE_COMMAND}" -E create_symlink ${tgt}.${PREC} ${tgt}
+                "${CMAKE_COMMAND}" -E create_symlink ${tgt}_${PREC} ${tgt}
             BYPRODUCTS ${tgt}
             WORKING_DIRECTORY
                 "${CMAKE_BINARY_DIR}/bin"
-            COMMENT "Creating symbolic link from ${tgt} to ${tgt}.${PREC}"
+            COMMENT "Creating symbolic link from ${tgt} to ${tgt}_${PREC}"
         )
         install(
             FILES ${CMAKE_BINARY_DIR}/bin/${tgt}

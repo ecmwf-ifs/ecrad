@@ -57,8 +57,8 @@ function( add_ecrad_ifs_test )
         add_custom_target( config_${_PAR_NAME}_${PREC}_net DEPENDS ${CONFIG_NET_NAM} )
 
         ecbuild_add_test(
-            TARGET ecrad.${PREC}_${_PAR_NAME}
-            COMMAND ecrad.${PREC}
+            TARGET ecrad_${PREC}_${_PAR_NAME}
+            COMMAND ecrad_${PREC}
             ARGS
                 ${CONFIG_NAM}
                 ${TEST_IFS_INPUT}
@@ -66,7 +66,7 @@ function( add_ecrad_ifs_test )
             DEPENDS config_${_PAR_NAME}_${PREC}
         )
 
-        foreach( binary ecrad.${PREC} ecrad_ifs.${PREC} ecrad_ifs_blocked.${PREC} )
+        foreach( binary ecrad_${PREC} ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
 
             ecbuild_add_test(
                 TARGET ${binary}_${_PAR_NAME}_net

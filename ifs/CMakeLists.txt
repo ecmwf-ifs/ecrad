@@ -25,12 +25,7 @@ ecbuild_add_library(
     TARGET ifs.${PREC}
     TYPE OBJECT
     SOURCES ${ifs_SOURCES}
-    PUBLIC_INCLUDES
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-        "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}>"
     PRIVATE_LIBS
-        ecrad_ifsaux.${PREC}
-        radiation.${PREC}
+        ecrad.${PREC}
         ecrad_base.${PREC}
 )
