@@ -37,7 +37,7 @@ find_package( ecbuild ${MINIMUM_ECBUILD_VERSION} REQUIRED )
 # specify a default set of compilation flags as well as per-file overwrites as part of the CMake config.
 set( ECRAD_ECBUILD_COMPILE_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ecrad_init_flags.cmake CACHE FILEPATH "")
 
-project( ecrad LANGUAGES Fortran VERSION 1.6.1 )
+project( ecrad LANGUAGES Fortran )
 ecbuild_enable_fortran( REQUIRED )
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
