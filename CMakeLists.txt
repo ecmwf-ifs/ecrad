@@ -103,6 +103,9 @@ foreach( PREC IN LISTS _PRECISIONS )
     set( CMAKE_Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/radiation.${PREC}/module" )
     file( MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY} )
 
+    # Define precision-specific include directory for installing files
+    set( ecrad_${PREC}_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/ecrad.${PREC}" )
+
     # Create an interface library to propagate external dependencies (OpenMP, FIAT),
     # or precision-specific compilation options to all targets
     ecbuild_add_library(

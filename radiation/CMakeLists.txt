@@ -66,12 +66,14 @@ set( radiation_SOURCES
 )
 
 ecbuild_add_library(
-    TARGET radiation.${PREC}
-    SOURCES ${radiation_SOURCES}
+    TARGET
+        ecrad.${PREC}
+    SOURCES
+        ${radiation_SOURCES}
     PUBLIC_INCLUDES
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
         "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
-        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}>"
+        "$<INSTALL_INTERFACE:${ecrad_${PREC}_INSTALL_INCLUDEDIR}>"
     PRIVATE_LIBS
         ecrad_base.${PREC}
         ecrad_ifsaux.${PREC}
@@ -80,7 +82,7 @@ ecbuild_add_library(
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
 )
 
-add_library(ecrad::radiation.${PREC} ALIAS radiation.${PREC})
+add_library( ecrad::ecrad.${PREC} ALIAS ecrad.${PREC} )
 install(
     FILES
         "${CMAKE_Fortran_MODULE_DIRECTORY}/radiation_aerosol.mod"
@@ -97,7 +99,7 @@ install(
         "${CMAKE_Fortran_MODULE_DIRECTORY}/radiation_save.mod"
         "${CMAKE_Fortran_MODULE_DIRECTORY}/radiation_single_level.mod"
         "${CMAKE_Fortran_MODULE_DIRECTORY}/radiation_thermodynamics.mod"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/radiation.${PREC}"
+    DESTINATION ${ecrad_${PREC}_INSTALL_INCLUDEDIR}
 )
 
 # Compile flag overwrites
