@@ -1,5 +1,17 @@
+ version 1.6.1
+	- Moved ifsaux/yommp0.F90 to ifsrrtm/yommp0_ifsrrtm.F90 and initialize
+	  from fiat/MPL or the dummy mpl_module in ifsaux
+	- Wrapped module variables in yoerdi.F90 and yoesw.F90 in derived types
 	- Increased security value in single-precision SW
 	  reflectance-transmittance calculation from 1e-12 to 1e-6
+	- Use abor1 and parkind1 from fiat, if available
+	- Moved easy_netcdf_read_mpi.F90 to utilities and updated with changes
+	  from IFS
+	- Renamed random_numbers_mix.F90 to radiation_random_numbers_mix.F90
+	- Fix no-aerosol and cloudless configurations in IFS-style drivers
+	- Add CMake build scripts and CTest definitions that allow to compile
+	  ecrad into a libecrad.dp/libecrad.sp that can directly be used to
+	  integrate ecrad into a model.
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
