@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 !***************************************************************************
 SUBROUTINE RRTM_CMBGB3
 !***************************************************************************
@@ -13,11 +22,11 @@ USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 
 USE YOERRTO3 , ONLY : KAO     ,KBO     ,SELFREFO   ,FRACREFAO  ,&
- & FRACREFBO  ,FORREFO    ,KAO_MN2O   ,KBO_MN2O  
+ & FRACREFBO  ,FORREFO    ,KAO_MN2O   ,KBO_MN2O
 USE YOERRTA3 , ONLY : KA      ,KB      ,SELFREF    ,FRACREFA   ,&
- & FRACREFB   ,FORREF    ,KA_MN2O   ,KB_MN2O  
+ & FRACREFB   ,FORREF    ,KA_MN2O   ,KB_MN2O
 USE YOERRTRWT, ONLY : RWGT
-USE YOERRTFTR, ONLY : NGC      ,NGS      ,NGN      
+USE YOERRTFTR, ONLY : NGC      ,NGS      ,NGN
 
 IMPLICIT NONE
 

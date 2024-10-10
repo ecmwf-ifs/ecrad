@@ -48,6 +48,10 @@ program ecrad_ifs_driver
   ! Section 1: Declarations
   ! --------------------------------------------------------
   use parkind1,                 only : jprb, jprd ! Working/double precision
+  use yomhook,                  only : dr_hook_init
+#ifdef HAVE_FIAT
+  use mpl_module,               only : mpl_init, mpl_end
+#endif
 
   use radiation_io,             only : nulout
   use radiation_single_level,   only : single_level_type
@@ -138,6 +142,12 @@ program ecrad_ifs_driver
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
+  ! Initialise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_init
+#endif
+
+  call dr_hook_init()
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -188,6 +198,15 @@ program ecrad_ifs_driver
   !     &   4.69e-07_jprb, 5.0e-07_jprb, 5.32e-07_jprb, 5.5e-07_jprb, 6.45e-07_jprb, &
   !     &   6.7e-07_jprb, 8.0e-07_jprb, 8.58e-07_jprb, 8.65e-07_jprb, 1.02e-06_jprb, &
   !     &   1.064e-06_jprb, 1.24e-06_jprb, 1.64e-06_jprb, 2.13e-06_jprb, 1.0e-05_jprb])
+
+  call yradiation%rad_config%read(file_name=file_name)
+
+  ! Setup aerosols
+  if (yradiation%rad_config%use_aerosols) then
+    yradiation%yrerad%naermacc = 1 ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
+  else
+    yradiation%yrerad%naermacc = 0
+  endif
 
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
@@ -488,5 +507,10 @@ program ecrad_ifs_driver
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
+
+  ! Finalise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_end(ldmeminfo=.false.)
+#endif
 
 end program ecrad_ifs_driver

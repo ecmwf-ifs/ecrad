@@ -1,3 +1,12 @@
+! (C) Copyright 2005- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+!
 !***************************************************************************
 SUBROUTINE RRTM_CMBGB15
 !***************************************************************************
@@ -15,7 +24,7 @@ USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOERRTO15, ONLY : KAO     ,KAO_MN2,SELFREFO,FORREFO   ,FRACREFAO
 USE YOERRTA15, ONLY : KA      ,KA_MN2,SELFREF,FORREF    ,FRACREFA
 USE YOERRTRWT, ONLY : RWGT
-USE YOERRTFTR, ONLY : NGC      ,NGS      ,NGN      
+USE YOERRTFTR, ONLY : NGC      ,NGS      ,NGN
 
 IMPLICIT NONE
 
@@ -97,6 +106,6 @@ DO JP = 1,9
   ENDDO
 ENDDO
 
- 
+
 IF (LHOOK) CALL DR_HOOK('RRTM_CMBGB15',1,ZHOOK_HANDLE)
 END SUBROUTINE RRTM_CMBGB15

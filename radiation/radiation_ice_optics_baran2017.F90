@@ -1,5 +1,3 @@
-! radiation_ice_optics_baran2017.F90 - 2017 parameterization of Baran's ice optical properties
-!
 ! (C) Copyright 2017- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
@@ -8,6 +6,8 @@
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+
+! radiation_ice_optics_baran2017.f90 - 2017 parameterization of Baran's ice optical properties
 !
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
@@ -24,7 +24,7 @@ module radiation_ice_optics_baran2017
 
 contains
 
-  
+
   !---------------------------------------------------------------------
   ! Compute ice-particle scattering properties using a
   ! parameterization as a function of ice water mixing ratio and
@@ -47,10 +47,10 @@ contains
     real(jprb), intent(in) :: temperature
     ! Total optical depth, scattering optical depth and asymmetry factor
     real(jprb), intent(out) :: od(nb), scat_od(nb), g(nb)
-    
+
     ! Modified ice mixing ratio, and the same raised to an appropriate power
     real(jprb) :: qi_mod, qi_mod_od, qi_mod_ssa, qi_mod_g
-    
+
     !real(jphook) :: hook_handle
 
     !if (lhook) call dr_hook('radiation_ice_optics:calc_ice_optics_baran2017',0,hook_handle)

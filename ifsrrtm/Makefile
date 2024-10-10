@@ -34,7 +34,7 @@ srtm_kgb22.o srtm_kgb23.o srtm_kgb24.o srtm_kgb25.o srtm_kgb26.o	\
 srtm_kgb27.o srtm_kgb28.o srtm_kgb29.o yoerrto1.o yoerrto10.o		\
 yoerrto11.o yoerrto12.o yoerrto13.o yoerrto14.o yoerrto15.o		\
 yoerrto16.o yoerrto2.o yoerrto3.o yoerrto4.o yoerrto5.o yoerrto6.o	\
-yoerrto7.o yoerrto8.o yoerrto9.o susrtm.o modify_wv_continuum.o
+yoerrto7.o yoerrto8.o yoerrto9.o susrtm.o modify_wv_continuum.o yommp0_ifsrrtm.o
 
 SOURCES := $(OBJECTS:.o=.F90)
 
@@ -58,7 +58,7 @@ $(LIBIFSRRTM): $(OBJECTS)
 %.o: %.F90
 	$(FC) $(FCFLAGS) -c $<
 
-$(DEPS_FILE): $(SOURCES) 
+$(DEPS_FILE): $(SOURCES)
 	$(MAKE_DEPS) $(SOURCES) > $(DEPS_FILE)
 
 dummy_includes:
@@ -81,4 +81,3 @@ clean-deps:
 .PHONY: deps dummy_includes includes clean-deps
 
 include $(DEPS_FILE)
-
