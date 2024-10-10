@@ -693,27 +693,30 @@ contains
         end do
       else
         ! G points have not been reordered
-        !$ACC PARALLEL DEFAULT(NONE) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS((config%n_g_sw-1)/32+1) &
-        !$ACC   VECTOR_LENGTH(32) ASYNC(1)
-        !$ACC LOOP GANG
+        !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+        !$ACC LOOP GANG VECTOR TILE(4,1,32)
         do jcol = istartcol,iendcol
-          !$ACC LOOP SEQ
           do jlev = 1,nlev
-            !$ACC LOOP WORKER VECTOR
             do jg = 1,config%n_g_sw
               ! Check for negative optical depth
               od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
               ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
             end do
           end do
-          if (present(incoming_sw)) then
-            !$ACC LOOP WORKER VECTOR
+        end do
+        !$ACC END PARALLEL
+
+        if (present(incoming_sw)) then
+          !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
+          !$ACC LOOP GANG VECTOR COLLAPSE(2)
+          do jcol = istartcol,iendcol
             do jg = 1,config%n_g_sw
               incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
             end do
-          end if
-        end do
-        !$ACC END PARALLEL
+          end do
+          !$ACC END PARALLEL
+        end if
+
       end if
 
     end if
