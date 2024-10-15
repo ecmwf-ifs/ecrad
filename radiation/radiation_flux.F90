@@ -98,6 +98,11 @@ module radiation_flux
           &  lw_dn_surf_canopy, &
           &  sw_dn_diffuse_surf_canopy, sw_dn_direct_surf_canopy
 
+     ! For fully 3D solvers only: flux divergence since the boundary
+     ! fluxes do not give correct heating rates
+     real(jprb), allocatable, dimension(:,:) :: &
+          &  lw_div, lw_div_clear, sw_div, sw_div_clear
+     
      ! Diagnosed cloud cover from the short- and long-wave solvers
      real(jprb), allocatable, dimension(:) :: &
           &  cloud_cover_lw, cloud_cover_sw
@@ -142,7 +147,7 @@ contains
   ! Allocate arrays for flux profiles, using config to define which
   ! fluxes are needed.  The arrays are dimensioned for columns between
   ! istartcol, iendcol and levels from 1 to nlev+1
-  subroutine allocate_flux_type(this, config, istartcol, iendcol, nlev)
+  subroutine allocate_flux_type(this, config, istartcol, iendcol, nlev, do_divergence)
 
     use yomhook,          only : lhook, dr_hook, jphook
     use radiation_io,     only : nulerr, radiation_abort
@@ -151,11 +156,20 @@ contains
     integer, intent(in)             :: istartcol, iendcol, nlev
     class(flux_type), intent(inout) :: this
     type(config_type), intent(in)   :: config
+    logical, optional, intent(in)   :: do_divergence
+
+    logical :: do_divergence_local
 
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:allocate',0,hook_handle)
 
+    if (present(do_divergence)) then
+      do_divergence_local = do_divergence
+    else
+      do_divergence_local = .false.
+    end if
+    
     ! Allocate longwave arrays
     if (config%do_lw) then
       allocate(this%lw_up(istartcol:iendcol,nlev+1))
@@ -211,6 +225,14 @@ contains
         ! used in the canopy radiative transfer scheme
         allocate(this%lw_dn_surf_canopy(config%n_canopy_bands_lw,istartcol:iendcol))
       end if
+
+      if (do_divergence_local) then
+        allocate(this%lw_div(istartcol:iendcol,nlev))
+        if (config%do_clear) then
+          allocate(this%lw_div_clear(istartcol:iendcol,nlev))
+        end if
+      end if
+      
     end if
     
     ! Allocate shortwave arrays
@@ -300,6 +322,14 @@ contains
         allocate(this%sw_dn_diffuse_surf_canopy(config%n_canopy_bands_sw,istartcol:iendcol))
         allocate(this%sw_dn_direct_surf_canopy (config%n_canopy_bands_sw,istartcol:iendcol))
       end if
+
+      if (do_divergence_local) then
+        allocate(this%sw_div(istartcol:iendcol,nlev))
+        if (config%do_clear) then
+          allocate(this%sw_div_clear(istartcol:iendcol,nlev))
+        end if
+      end if
+      
     end if
     
     ! Allocate cloud cover arrays

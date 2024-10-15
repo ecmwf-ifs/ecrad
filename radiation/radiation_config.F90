@@ -66,9 +66,9 @@ module radiation_config
           &     ISolverTcrad, ISolverTcradICA, &
           &     ISolverFlotsam, ISolverFlotsamICA, &
           &     ISolverDISORT, ISolverHomogeneousDISORT, ISolverCloudlessDISORT, &
-          &     ISolverPOMART3D
+          &     ISolverPOMART3D, ISolverPOMART3DTICA
   end enum
-  character(len=*), parameter :: SolverName(0:12) = [ 'Cloudless        ', &
+  character(len=*), parameter :: SolverName(0:13) = [ 'Cloudless        ', &
        &                                              'Homogeneous      ', &
        &                                              'McICA            ', &
        &                                              'SPARTACUS        ', &
@@ -80,7 +80,8 @@ module radiation_config
        &                                              'DISORT           ', &
        &                                              'HomogeneousDISORT', &
        &                                              'CloudlessDISORT  ', &
-       &                                              'POMART3D         ']
+       &                                              'POMART3D         ', &
+       &                                              'POMART3DTICA     ']
 
   ! How is the gridbox-mean cloud water adjusted to obtain the
   ! in-cloud value? Dependent on the solver, this may be Zero (ignore
@@ -94,21 +95,21 @@ module radiation_config
 
   ! Array specifying cloud scaling assumption associated with each
   ! solver
-  integer, parameter :: SolverCloudScaling(0:12) &
+  integer, parameter :: SolverCloudScaling(0:13) &
        &  = [ ICloudScalingZero, ICloudScalingOne, &
        &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingFraction, &
        &      ICloudScalingFraction, ICloudScalingFraction, & ! TCRAD
        &      ICloudScalingFraction, ICloudScalingFraction, & ! FLOTSAM
        &      ICloudScalingCover, ICloudScalingOne, ICloudScalingZero, & ! DISORT
-       &      ICloudScalingOne ] ! POMART3D
+       &      ICloudScalingOne, ICloudScalingOne ] ! POMART3D
 
-  integer, parameter :: SolverPhaseFuncMode(0:12) &
+  integer, parameter :: SolverPhaseFuncMode(0:13) &
        &  = [ IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, &
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, &
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, & ! TCRAD
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, & ! FLOTSAM (need special entry here?)
        &      IPhaseFuncLegendre,  IPhaseFuncLegendre,  IPhaseFuncLegendre, & ! DISORT
-       &      IPhaseFuncAsymmetry ] ! POMART3D
+       &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry ] ! POMART3D
   
   ! SPARTACUS shortwave solver can treat the reflection of radiation
   ! back up into different regions in various ways

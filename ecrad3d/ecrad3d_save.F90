@@ -60,7 +60,8 @@ module ecrad3d_save
     
     ! Shape of output arrays
     integer, dimension(2) :: shape_2d
-    integer, dimension(3) :: shape_3d, shape_lw_3d, shape_sw_3d, shape_canopy_lw_3d, shape_canopy_sw_3d
+    integer, dimension(3) :: shape_3d, shape_3d_lev, shape_lw_3d, shape_sw_3d, &
+         &                   shape_canopy_lw_3d, shape_canopy_sw_3d
     integer, dimension(4) :: shape_lw_4d, shape_sw_4d
 
     ! Either "x" and "y" or "lon" and "lat"
@@ -138,11 +139,15 @@ module ecrad3d_save
     
     ! Define dimensions
     call out_file%define_dimension("half_level", n_lev_plus1)
+    if (allocated(flux%sw_div) .or. allocated(flux%lw_div)) then
+      call out_file%define_dimension("level", n_lev_plus1-1)
+    end if
     call out_file%define_dimension(trim(yname), geometry%ny)
     call out_file%define_dimension(trim(xname), geometry%nx)
 
     shape_2d = [geometry%nx, geometry%ny]
     shape_3d = [geometry%nx, geometry%ny, n_lev_plus1]
+    shape_3d_lev = [geometry%nx, geometry%ny, n_lev_plus1-1]
     
     if (config%do_save_spectral_flux .or. config%do_toa_spectral_flux) then
       if (config%do_lw) then
@@ -212,6 +217,17 @@ module ecrad3d_save
              &   dim3_name="half_level", dim2_name=trim(yname), dim1_name=trim(xname), &
              &   units_str=lw_units_str, &
              &   long_name="Downwelling clear-sky longwave flux")
+      end if
+
+      if (allocated(flux%lw_div)) then
+        call out_file%define_variable("flux_divergence_lw", &
+             &   dim3_name="level", dim2_name=trim(yname), dim1_name=trim(xname), &
+             &   units_str=lw_units_str, long_name="Longwave flux divergence")
+        if (config%do_clear) then
+          call out_file%define_variable("flux_divergence_lw_clear", &
+               &   dim3_name="level", dim2_name=trim(yname), dim1_name=trim(xname), &
+               &   units_str=lw_units_str, long_name="Clear-sky longwave flux divergence")
+        end if
       end if
 
       if (config%do_lw_derivatives) then
@@ -293,6 +309,17 @@ module ecrad3d_save
         end if
       end if
 
+      if (allocated(flux%sw_div)) then
+        call out_file%define_variable("flux_divergence_sw", &
+             &   dim3_name="level", dim2_name=trim(yname), dim1_name=trim(xname), &
+             &   units_str="W m-2", long_name="Shortwave flux divergence")
+        if (config%do_clear) then
+          call out_file%define_variable("flux_divergence_sw_clear", &
+               &   dim3_name="level", dim2_name=trim(yname), dim1_name=trim(xname), &
+               &   units_str="W m-2", long_name="Clear-sky shortwave flux divergence")
+        end if
+      end if
+      
       if (config%do_save_spectral_flux) then
         call out_file%define_variable("spectral_flux_up_sw", &
              &   dim4_name="half_level", dim3_name=trim(yname), dim2_name=trim(xname), &
@@ -391,6 +418,13 @@ module ecrad3d_save
         call out_file%put("flux_dn_lw_clear", reshape(flux%lw_dn_clear, shape_3d))
       end if
 
+      if (allocated(flux%lw_div)) then
+        call out_file%put("flux_divergence_lw", reshape(flux%lw_div, shape_3d_lev))
+        if (config%do_clear) then
+          call out_file%put("flux_divergence_lw_clear", reshape(flux%lw_div_clear, shape_3d_lev))
+        end if
+      endif
+      
       if (config%do_lw_derivatives) then
         call out_file%put("lw_derivative", reshape(flux%lw_derivatives, shape_3d))
       end if
@@ -431,6 +465,13 @@ module ecrad3d_save
         end if
       end if
 
+      if (allocated(flux%sw_div)) then
+        call out_file%put("flux_divergence_sw", reshape(flux%sw_div, shape_3d_lev))
+        if (config%do_clear) then
+          call out_file%put("flux_divergence_sw_clear", reshape(flux%sw_div_clear, shape_3d_lev))
+        end if
+      endif
+      
       if (config%do_save_spectral_flux) then
         call out_file%put("spectral_flux_up_sw", reshape(flux%sw_up_band, shape_sw_4d))
         call out_file%put("spectral_flux_dn_sw", reshape(flux%sw_dn_band, shape_sw_4d))

@@ -204,7 +204,7 @@ contains
 
       ! Horizontal "diffusion"
       if (jl > 1) then
-        if (config%do_3d) then
+        if (config%do_3d .and. .not. config%do_3d_direct_only) then
           call geometry%diffuse(ncol, nspec, jl, albedo_top, albedo_base(:,:,jl-1))
           call geometry%diffuse(ncol, nspec, jl, source_top, source_base(:,:,jl-1))
         else
@@ -267,7 +267,7 @@ contains
       !$OMP END PARALLEL DO
       
       ! Horizontal "diffusion"
-      if (config%do_3d .and. jl < nlay) then
+      if (config%do_3d .and. (.not. config%do_3d_direct_only) .and. jl < nlay) then
         call geometry%diffuse(ncol, nspec, jl, flux_dn_diff_base_layer, flux_dn_diff_top(:,:,jl+1))
       else
         ! This is also done at surface to ensure that

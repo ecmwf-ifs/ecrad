@@ -31,7 +31,7 @@ program ecrad3d_driver
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
-  use radiation_config,         only : config_type, ISolverPOMART3D
+  use radiation_config,         only : config_type, ISolverPOMART3D, ISolverPOMART3DTICA
   use radiation_single_level,   only : single_level_type
   use radiation_thermodynamics, only : thermodynamics_type
   use radiation_gas,            only : gas_type, &
@@ -43,6 +43,7 @@ program ecrad3d_driver
   use ecrad3d_geometry,         only : geometry_type
   use radiation_flux,           only : flux_type
   use radiation_save,           only : save_fluxes, save_inputs, save_radiances
+  use radiation_general_cloud_optics, only : save_general_cloud_optics
   use ecrad3d_save,             only : save_fluxes_3d    => save_fluxes, &
        &                               save_radiances_3d => save_radiances
   use ecrad_driver_config,      only : driver_config_type
@@ -134,7 +135,7 @@ program ecrad3d_driver
 
   ! If we use the explicit 3D solver then a different ecRad interface
   ! must be called
-  if ((config%do_sw .and. config%i_solver_sw == ISolverPOMART3D) &
+  if ((config%do_sw .and. (config%i_solver_sw == ISolverPOMART3D .or. config%i_solver_sw == ISolverPOMART3DTICA)) &
        & .or. (config%do_lw .and. config%i_solver_lw == ISolverPOMART3D)) then
     if (config%do_sw .and. config%do_lw .and. config%i_solver_sw /= config%i_solver_lw) then
       error stop 'The POMART3D solver must be selected for both SW and LW, or neither'
@@ -147,6 +148,14 @@ program ecrad3d_driver
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics
   call setup_radiation(config)
+
+  if (driver_config%do_save_aerosol_optics) then
+    call config%aerosol_optics%save('aerosol_optics.nc', iverbose=driver_config%iverbose)
+  end if
+
+  if (driver_config%do_save_cloud_optics .and. config%use_general_cloud_optics) then
+    call save_general_cloud_optics(config, 'hydrometeor_optics', iverbose=driver_config%iverbose)
+  end if
 
   ! --------------------------------------------------------
   ! Section 3: Read input data file
@@ -233,7 +242,7 @@ program ecrad3d_driver
   if (config%do_radiances) then
     call flux%allocate_radiances_only(config, 1, ncol)
   else
-    call flux%allocate(config, 1, ncol, nlev)
+    call flux%allocate(config, 1, ncol, nlev, do_divergence=use_ecrad3d_solver)
   end if
   
   if (driver_config%iverbose >= 2) then

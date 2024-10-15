@@ -13,7 +13,7 @@ contains
     use yomhook,                  only : lhook, dr_hook, jphook
 
     use radiation_io,             only : nulout, nulerr, radiation_abort
-    use radiation_config,         only : config_type
+    use radiation_config,         only : config_type, ISolverPOMART3DTICA
     use ecrad3d_config,           only : config3d_type => config_type
     use ecrad3d_geometry,         only : geometry_type
     use radiation_single_level,   only : single_level_type
@@ -66,6 +66,7 @@ contains
          &  :: flux_dn_dir_top, flux_dn_diff_top, flux_up_top
 
     real(jprb), allocatable :: flux_up_base(:,:,:), radiance(:,:)
+    real(jprb), pointer     :: flux_div(:,:,:)
     
     real(jprb) :: scat_od, scat_od_cloud
     
@@ -78,10 +79,19 @@ contains
     if (lhook) call dr_hook('ecrad3d_solver_interface:solver_interface_sw',0,hook_handle)
 
     config3d%do_3d = config%do_3d_effects
+
+    if (config%i_solver_sw == ISolverPOMART3DTICA) then
+      ! Pseudo Tilted Independent Column Approximation: use POMART
+      ! method for direct beam only, and standard ICA for diffuse
+      config3d%do_3d_direct_only = .true.
+    end if
     
     if (config%do_radiances) then
-      allocate(flux_up_base(geometry%ncol,config%n_g_sw,geometry%nz+1))
+      allocate(flux_up_base(geometry%ncol,config%n_g_sw,geometry%nz))
       allocate(radiance(geometry%ncol,config%n_g_sw))
+      nullify(flux_div)
+    else
+      allocate(flux_div(geometry%ncol,config%n_g_sw,geometry%nz))
     end if
 
     ! Clear-sky calculation
@@ -102,7 +112,7 @@ contains
            &  config%n_g_sw, single_level%cos_sza, single_level%solar_azimuth_angle, &
            &  incoming_sw(:,1), transpose(sw_albedo_direct), transpose(sw_albedo_diffuse), &
            &  od, ssa, asymmetry, flux_dn_dir_top, flux_dn_diff_top, flux_up_top, &
-           &  flux_up_base=flux_up_base)
+           &  flux_up_base=flux_up_base, flux_div=flux_div)
 
       if (.not. config%do_radiances) then
         ! Store broadband fluxes by summing over bands, converting the
@@ -112,6 +122,7 @@ contains
         flux%sw_dn_direct_clear = sum(flux_dn_dir_top,2) * spread(single_level%cos_sza,2,geometry%nz+1)
         flux%sw_dn_clear        = sum(flux_dn_diff_top,2) + flux%sw_dn_direct_clear
         flux%sw_up_toa_clear_g  = transpose(flux_up_top(:,:,1))
+        flux%sw_div_clear       = sum(flux_div,2)
       else
         if (.not. allocated(single_level%solar_azimuth_angle)) then
           write(nulerr,'(a)') '*** Error: solar_azimuth_angle not provided'
@@ -177,7 +188,7 @@ contains
          &  config%n_g_sw, single_level%cos_sza, single_level%solar_azimuth_angle, &
          &  incoming_sw(:,1), transpose(sw_albedo_direct), transpose(sw_albedo_diffuse), &
          &  od, ssa, asymmetry, flux_dn_dir_top, flux_dn_diff_top, flux_up_top, &
-         &  flux_up_base=flux_up_base)
+         &  flux_up_base=flux_up_base, flux_div=flux_div)
 
     if (.not. config%do_radiances) then
       ! Store broadband fluxes by summing over bands, converting the
@@ -188,6 +199,7 @@ contains
       flux%sw_dn        = sum(flux_dn_diff_top,2) + flux%sw_dn_direct
       flux%sw_up_toa_g  = transpose(flux_up_top(:,:,1))
       flux%sw_dn_toa_g  = transpose(flux_dn_dir_top(:,:,1) * spread(single_level%cos_sza,2,config%n_g_sw))
+      flux%sw_div       = sum(flux_div,2)
 
       ! Store surface downwelling, and TOA, fluxes in bands from
       ! fluxes in g points

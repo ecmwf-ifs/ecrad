@@ -230,7 +230,7 @@ contains
         icol = (jy-1)*self%nx + jx
         if (cos_zenith_angle(icol) > 0.0_jprb) then
           dz_tan_zenith_angle = self%dz(ilay) &
-               &   * sqrt(1.0_jprb-cos_zenith_angle(icol))/cos_zenith_angle(icol)
+               &   * sqrt(1.0_jprb-cos_zenith_angle(icol)*cos_zenith_angle(icol))/cos_zenith_angle(icol)
           xoffs(icol) = -(cos(azimuth_angle(icol)) * dz_tan_zenith_angle) / self%dx(icol)
           yoffs(icol) = -(sin(azimuth_angle(icol)) * dz_tan_zenith_angle) / self%dy(jy)
         else
@@ -329,18 +329,21 @@ contains
     integer    :: n_exchange
     real(jprb) :: exchange_limit
     real(jprb) :: exchange_factor
+    real(jprb) :: max_aspect
     
     real(jprb), parameter :: TwoThirds = 2.0_jprb / 3.0_jprb
     
-    integer :: jcol, jspec, iy
+    integer :: jcol, jspec, jex, iy
 
-    ! Decide whether to do one or two exchanges, and in each case how
+    max_aspect = maxval(self%dz(ilay)/self%dx(1:self%ncol))
+    
+    ! Decide whether to do one or more exchanges, and in each case how
     ! much to exchange and the limit on the exchange
-    if (any(self%dz(ilay) > self%dx(1:self%ncol)*(sqrt(TwoThirds)/DiffusionFactor))) then
-      n_exchange = 2
-      exchange_limit = 4.0_jprb / 5.0_jprb
-      ! Reduced exchange per step because we will do two
-      exchange_factor = DiffusionFactor / sqrt(2.0_jprb)
+    if (max_aspect > sqrt(TwoThirds)/DiffusionFactor) then
+      ! Check the following!
+      n_exchange = min(10, ceiling((5.0_jprb/4.0_jprb) &
+           &  * (DiffusionFactor*DiffusionFactor*max_aspect*max_aspect)))
+      exchange_factor = DiffusionFactor / sqrt(real(n_exchange,jprb))
     else
       n_exchange = 1
       exchange_limit = TwoThirds
@@ -364,7 +367,8 @@ contains
              &                +  0.5_jprb * frac * (field_tmp(self%inorth(jcol)) + field_tmp(self%isouth(jcol)))
       end do
 
-      if (n_exchange == 2) then
+      ! For two or more exchanges
+      do jex = 2,n_exchange
         ! East-west diffusion
         do jcol = 1,self%ncol
           scale = exchange_factor * self%dz(ilay) / self%dx(jcol)
@@ -380,7 +384,7 @@ contains
           field_out(jcol,jspec) = (1.0_jprb - frac) * field_tmp(jcol) &
                &                +  0.5_jprb * frac * (field_tmp(self%inorth(jcol)) + field_tmp(self%isouth(jcol)))
         end do
-      end if
+      end do
       
     end do
 
