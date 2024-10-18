@@ -127,6 +127,10 @@ test_ecckd_noaer:
 		use_aerosols=false
 	$(DRIVER) config_ecckd_noaer.nam $(INPUT).nc $(INPUT)_ecckd_noaer_out.nc
 
+test_ifsdriver_blocked_ecckd_tc:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_net.nam do_save_net_fluxes=true do_write_double_precision=true do_save_spectral_flux=false nblocksize=8 nrepeat=10
+	$(IFS_DRIVER_BLOCKED) config_net.nam $(INPUT).nc $(INPUT)_ifsdriver_blocked_ecckd_tc_out.nc | tee $(INPUT)_ifsdriver_blocked_ecckd_tc_out.log
+
 # Test the different ways that aerosol optical properties can be
 # averaged, outputing the aerosol properties in each gas-optics
 # spectral interval, producing the following:

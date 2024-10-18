@@ -21,14 +21,13 @@
 !   2022-11-22  P Ukkonen/R Hogan  Single precision uses no double precision
 !   2023-09-28  R Hogan  Increased security for single-precision SW "k"
 
-#include "ecrad_config.h"
-
 module radiation_two_stream
 
   use parkind1, only : jprb, jprd
 
   implicit none
   public
+#include "ecrad_config.h"
 
   ! Elsasser's factor: the effective factor by which the zenith
   ! optical depth needs to be multiplied to account for longwave
