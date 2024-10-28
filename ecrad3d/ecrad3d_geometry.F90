@@ -341,8 +341,9 @@ contains
     ! much to exchange and the limit on the exchange
     if (max_aspect > sqrt(TwoThirds)/DiffusionFactor) then
       ! Check the following!
-      n_exchange = min(10, ceiling((5.0_jprb/4.0_jprb) &
+      n_exchange = min(50, ceiling((5.0_jprb/4.0_jprb) &
            &  * (DiffusionFactor*DiffusionFactor*max_aspect*max_aspect)))
+      exchange_limit = 0.8_jprb
       exchange_factor = DiffusionFactor / sqrt(real(n_exchange,jprb))
     else
       n_exchange = 1
