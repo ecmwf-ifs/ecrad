@@ -50,11 +50,14 @@ module easy_netcdf_read_mpi
     procedure :: get_real_array3_indexed2
     procedure :: get_real_array4
     procedure :: get_real_array4_active
+    procedure :: get_char_vector
+    procedure :: get_char_matrix
     generic   :: get => get_real_scalar, get_int_scalar, &
          &              get_real_vector, get_int_vector, &
          &              get_real_matrix, get_real_array3, &
          &              get_real_array4, get_real_array3_indexed, &
-         &              get_real_array3_indexed2
+         &              get_real_array3_indexed2, &
+         &              get_char_vector, get_char_matrix
     generic   :: get_active => get_real_vector_active, get_real_matrix_active, &
          &                     get_real_array3_active, get_real_array4_active
     procedure :: get_global_attribute
@@ -733,6 +736,88 @@ contains
     end if
 
   end subroutine get_real_array4_active
+
+
+  !---------------------------------------------------------------------
+  ! Read a 1D character array into "vector", which must be allocatable
+  ! and will be reallocated if necessary
+  subroutine get_char_vector(this, var_name, vector)
+
+    USE MPL_MODULE, ONLY : MPL_BROADCAST, MPL_NPROC
+
+    class(netcdf_file)           :: this
+    character(len=*), intent(in) :: var_name
+    character(len=1), allocatable, intent(out) :: vector(:)
+
+    integer                      :: n
+
+    !! these two if statements have to be nested, because MPL_NPROC() crashes if mpi is not initialized
+    if (this%is_master_task) then
+      call this%file%get(var_name, vector)
+      n = size(vector)
+    end if
+    if (this%mpi_enabled) then
+      if (MPL_NPROC() > 1) then
+        CALL MPL_BROADCAST(n, mtagrad, 1, &
+             &  CDSTRING='EASY_NETCDF_READ_MPI:GET_CHAR_VECTOR:SIZE')
+
+        if (.not. this%is_master_task) then
+          if(allocated(vector))deallocate(vector)
+          allocate(vector(n))
+        end if
+
+        CALL MPL_BROADCAST(vector, mtagrad, 1, &
+             &  CDSTRING='EASY_NETCDF_READ_MPI:GET_CHAR_VECTOR')
+      end if
+    end if
+
+  end subroutine get_char_vector
+
+
+  !---------------------------------------------------------------------
+  ! Read 2D array of characters into "matrix", which must be
+  ! allocatable and will be reallocated if necessary.  Whether to
+  ! transpose is specifed by the final optional argument, but can also
+  ! be specified by the do_transpose_2d class data member.
+  subroutine get_char_matrix(this, var_name, matrix, do_transp)
+
+    USE MPL_MODULE, ONLY : MPL_BROADCAST, MPL_NPROC
+
+    class(netcdf_file)           :: this
+    character(len=*), intent(in) :: var_name
+    character(len=1), allocatable, intent(inout) :: matrix(:,:)
+    logical, optional, intent(in):: do_transp ! Transpose data?
+
+    integer                      :: n(2)
+    integer                      :: j
+
+    n = 0
+
+    if (this%is_master_task) then
+      call this%file%get(var_name, matrix, do_transp)
+      n = shape(matrix)
+    end if
+
+    !! these two if statements have to be nested, because MPL_NPROC() crashes if mpi is not initialized
+    if (this%mpi_enabled) then
+      if (MPL_NPROC() > 1) then
+        CALL MPL_BROADCAST(n, mtagrad, 1, &
+             &  CDSTRING='EASY_NETCDF_READ_MPI:GET_CHAR_MATRIX:SIZE')
+
+        if (.not. this%is_master_task) then
+          if(allocated(matrix))deallocate(matrix)
+          allocate(matrix(n(1),n(2)))
+        end if
+
+        ! MPL has no char2 broadcast
+        do j = 1, n(2)
+          CALL MPL_BROADCAST(matrix(:,j), mtagrad, 1, &
+              &  CDSTRING='EASY_NETCDF_READ_MPI:GET_CHAR_MATRIX')
+        end do
+      end if
+    end if
+
+  end subroutine get_char_matrix
 
 
   !---------------------------------------------------------------------
