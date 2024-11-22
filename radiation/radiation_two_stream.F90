@@ -404,7 +404,7 @@ contains
       gamma1 = LwDiffusivityWP - factor*(1.0_jprb + asymmetry(jg))
       gamma2 = factor * (1.0_jprb - asymmetry(jg))
       k_exponent(jg) = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
-                KMinLw)) ! Eq 18 of Meador & Weaver (1980)
+                1.0e-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
 
       exponential(jg) = exp(-k_exponent(jg)*od(jg))
 

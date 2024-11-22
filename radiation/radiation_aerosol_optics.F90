@@ -612,13 +612,13 @@ contains
       do jcol = istartcol,iendcol
         do jlev = 1,nlev
           !$ACC LOOP SEQ
-          do jg = 1,ng_sw
+          do jg = 1,config%n_g_sw
             g_sw(jg,jlev,jcol) = 0.0_jprb
           end do
 
           if (config%do_lw_aerosol_scattering) then
             !$ACC LOOP SEQ
-            do jg = 1,ng_lw
+            do jg = 1,config%n_g_lw
               ssa_lw(jg,jlev,jcol) = 0.0_jprb
               g_lw(jg,jlev,jcol)   = 0.0_jprb
             end do
@@ -638,7 +638,7 @@ contains
         do jlev = istartlev,iendlev
 
           !$ACC LOOP SEQ
-          do jband = 1,nbnd_sw
+          do jband = 1,config%n_bands_sw
             ! Reset temporary arrays
             od_sw_aerosol(jband,jlev,jcol)     = 0.0_jprb
             scat_sw_aerosol(jband,jlev,jcol)   = 0.0_jprb
@@ -646,7 +646,7 @@ contains
           end do
 
           !$ACC LOOP SEQ
-          do jband = 1,nbnd_lw
+          do jband = 1,config%n_bands_lw
             od_lw_aerosol(jband,jlev,jcol)     = 0.0_jprb
             if (config%do_lw_aerosol_scattering) then
               scat_lw_aerosol(jband,jlev,jcol)   = 0.0_jprb

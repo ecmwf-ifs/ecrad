@@ -114,6 +114,9 @@ contains
     ! Combined scattering optical depth
     real(jprb) :: scat_od
 
+    ! Two-stream coefficients
+    real(jprb), dimension(config%n_g_sw) :: gamma1, gamma2, gamma3
+
     ! Optical depth scaling from the cloud generator, zero indicating
     ! clear skies
     real(jprb), dimension(config%n_g_sw,nlev) :: od_scaling
@@ -285,10 +288,10 @@ contains
     ! Loop through columns
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1) &
     !$ACC   NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS((config%n_g_sw-1)/32+1) VECTOR_LENGTH(32)
-    !$ACC LOOP GANG PRIVATE(cos_sza, g_total, od_cloud_new, od_scaling, od_total, ref_clear, &
+    !$ACC LOOP GANG PRIVATE(cos_sza, g_total, gamma1, gamma2, gamma3, od_cloud_new, od_scaling, od_total, ref_clear, &
     !$ACC   ref_dir, ref_dir_clear, reflectance, ssa_total, tmp_work_inv_denominator, tmp_work_albedo, &
     !$ACC   tmp_work_source, trans_clear, trans_dir_diff, trans_dir_diff_clear, &
-    !$ACC   trans_dir_dir, trans_dir_dir_clear, transmittance, total_cloud_cover)
+    !$ACC   trans_dir_dir, trans_dir_dir_clear, transmittance)
     do jcol = istartcol,iendcol
       ! Only perform calculation if sun above the horizon
       if (single_level%cos_sza(jcol) > 0.0_jprb) then
@@ -473,7 +476,7 @@ contains
     ! Loop through columns
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1) PRIVATE(sum_dn_diffuse, sum_dn_direct, sum_up) &
     !$ACC   NUM_GANGS((iendcol-istartcol+1)*(nlev+1)) NUM_WORKERS(1) VECTOR_LENGTH(32*((config%n_g_sw-1)/32+1))
-    !$ACC LOOP GANG COLLAPSE(2) PRIVATE(cos_sza, total_cloud_cover)
+    !$ACC LOOP GANG COLLAPSE(2) PRIVATE(cos_sza)
     do jcol = istartcol,iendcol
       do jlev = 1, nlev+1
 

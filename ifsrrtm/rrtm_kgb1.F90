@@ -1,4 +1,4 @@
-SUBROUTINE RRTM_KGB1(DIRECTORY)
+SUBROUTINE RRTM_KGB1(CDIRECTORY)
 
 !     Originally by Eli J. Mlawer, Atmospheric & Environmental Research.
 !     BAND 1:  10-250 cm-1 (low - H2O; high - H2O)
@@ -12,7 +12,7 @@ SUBROUTINE RRTM_KGB1(DIRECTORY)
 
 USE PARKIND1  ,ONLY : JPRB
 USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
-USE YOMLUN    ,ONLY : NULRAD
+USE YOMLUN    ,ONLY : NULRAD, NULOUT
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 USE YOMMP0    , ONLY : NPROC, MYPROC
@@ -23,11 +23,10 @@ USE YOERRTO1 , ONLY : KAO     ,KBO     ,KAO_D,KBO_D,SELFREFO   ,FRACREFAO ,&
 !     ------------------------------------------------------------------
 
 IMPLICIT NONE
+CHARACTER(LEN=*), INTENT(IN) :: CDIRECTORY
 
-CHARACTER(LEN=*), INTENT(IN) :: DIRECTORY
+CHARACTER(LEN=512) :: CLF1
 
-!CHARACTER(LEN = 80) :: CLZZZ
-CHARACTER(LEN = 255) :: CLF1
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 #include "abor1.intfb.h"
@@ -35,21 +34,12 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('RRTM_KGB1',0,ZHOOK_HANDLE)
 
 IF( MYPROC==1 )THEN
-  !CALL GETENV("DATA",CLZZZ)
-  !IF(CLZZZ /= " ") THEN
-  !  CLF1=TRIM(CLZZZ) // "/RADRRTM"
-  CLF1 = DIRECTORY // "/RADRRTM"
-#ifdef __ECRAD_LITTLE_ENDIAN
-  OPEN(NULRAD,FILE=TRIM(CLF1),CONVERT="BIG_ENDIAN",FORM="UNFORMATTED",ACTION="READ",ERR=1000)
-#else
-  WRITE(0,'(A,A)') 'Reading ',TRIM(CLF1)
-  OPEN(NULRAD,FILE=TRIM(CLF1),FORM="UNFORMATTED",ACTION="READ",ERR=1000)
-#endif
-  !ELSE
-  !  OPEN(NULRAD,FILE='RADRRTM',FORM="UNFORMATTED",ACTION="READ",ERR=1000)
-  !ENDIF
+  CLF1 = TRIM(CDIRECTORY) // "/RADRRTM"
+  WRITE(NULOUT,'(a,a)') 'Reading RRTMG longwave data file ', TRIM(CLF1)
+  OPEN(NULRAD,FILE=TRIM(CLF1),FORM="UNFORMATTED",ACTION="READ",ERR=1000,CONVERT='BIG_ENDIAN')
+
   READ(NULRAD,ERR=1001) KAO_D,KBO_D
- ! Convert the data into model actual precision.
+  ! Convert the data into model actual precision.
   KAO = REAL(KAO_D,JPRB)
   KBO = REAL(KBO_D,JPRB)
 ENDIF
@@ -73,9 +63,9 @@ FRACREFBO(:) = (/ &
  & 1.9141E-03_JPRB,1.2612E-03_JPRB,5.3169E-04_JPRB,7.6476E-05_JPRB/)
 
 !     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
+!     foreign-continuum (including the energy term).  The first
+!     index refers to reference temperature (296,260,224,260) and
+!     pressure (970,475,219,3 mbar) levels.  The second index
 !     runs over the g-channel (1 to 16).
 
       FORREFO(1,:) = (/ &
@@ -98,27 +88,27 @@ FRACREFBO(:) = (/ &
 
 !     ------------------------------------------------------------------
 
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
+!     The array KAO contains absorption coefs at the 16 chosen g-values
 !     for a range of pressure levels > ~100mb and temperatures.  The first
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the corresponding TREF for this  pressure level, 
-!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30, 
-!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second 
-!     index, JP, runs from 1 to 13 and refers to the corresponding 
-!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).  
-!     The third index, IG, goes from 1 to 16, and tells us which 
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the corresponding TREF for this  pressure level,
+!     JT = 2 refers to the temperatureTREF-15, JT = 1 is for TREF-30,
+!     JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  The second
+!     index, JP, runs from 1 to 13 and refers to the corresponding
+!     pressure level in PREF (e.g. JP = 1 is for a pressure of 1053.63 mb).
+!     The third index, IG, goes from 1 to 16, and tells us which
 !     g-interval the absorption coefficients are for.
 
 
 
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
+!     The array KBO contains absorption coefs at the 16 chosen g-values
+!     for a range of pressure levels < ~100mb and temperatures. The first
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the reference temperature TREF for this pressure
 !     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
+!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.
 !     The second index, JP, runs from 13 to 59 and refers to the JPth
 !     reference pressure level (see taumol.f for the value of these
 !     pressure levels in mb).  The third index, IG, goes from 1 to 16,
