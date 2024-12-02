@@ -265,7 +265,7 @@ contains
         call config%gas_optics_sw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
              &  NMaxGases, thermodynamics%pressure_hl, &
              &  temperature_fl, gas%mixing_ratio, &
-             &  od_sw, rayleigh_od_fl=ssa_sw, opt_concentration_scaling=concentration_scaling)
+             &  od_sw, rayleigh_od_fl=ssa_sw, concentration_scaling=concentration_scaling)
       end if
       
       ! At this point od_sw = absorption optical depth and ssa_sw =
@@ -303,7 +303,7 @@ contains
         call config%gas_optics_lw%calc_optical_depth(ncol,nlev,istartcol,iendcol, &
              &  NMaxGases, thermodynamics%pressure_hl, &
              &  temperature_fl, gas%mixing_ratio, &
-             &  od_lw, opt_concentration_scaling=concentration_scaling)
+             &  od_lw, concentration_scaling=concentration_scaling)
       end if
 
       ! Calculate the Planck function for each g point
