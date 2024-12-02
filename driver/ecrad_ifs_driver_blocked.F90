@@ -69,7 +69,9 @@ program ecrad_ifs_driver
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
   use ifs_blocking
+#ifdef HAVE_NVTX
   use nvtx
+#endif
 
   implicit none
 
@@ -398,7 +400,9 @@ program ecrad_ifs_driver
   tstart = omp_get_wtime()
 #endif
   do jrepeat = 1,driver_config%nrepeat
+#ifdef HAVE_NVTX
      call nvtxStartRange("ecrad_it")
+#endif
 
 #ifdef COPY_ASYNC
     !$acc enter data create(zrgp(:,:,1)) &
@@ -522,7 +526,9 @@ program ecrad_ifs_driver
 !           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
 
 !    end if
+#ifdef HAVE_NVTX
      call nvtxEndRange
+#endif
 
   end do
 

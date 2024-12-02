@@ -28,4 +28,6 @@ ecbuild_add_library(
     PRIVATE_LIBS
         ecrad.${PREC}
         ecrad_base.${PREC}
+    PUBLIC_LIBS
+        $<${HAVE_NVTX}:${NVTX_TARGET}>
 )

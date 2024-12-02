@@ -85,7 +85,9 @@ USE RADIATION_AEROSOL,        ONLY : AEROSOL_TYPE
 USE RADIATION_FLUX,           ONLY : FLUX_TYPE
 USE RADIATION_INTERFACE,      ONLY : RADIATION, SET_GAS_UNITS
 USE RADIATION_SAVE,           ONLY : SAVE_INPUTS, SAVE_FLUXES
+#ifdef HAVE_NVTX
 USE NVTX
+#endif
 
 IMPLICIT NONE
 
@@ -276,7 +278,9 @@ ASSOCIATE(YRERAD    =>YRADIATION%YRERAD, &
      &    TROP_BG_AER_MASS_EXT=>YRADIATION%TROP_BG_AER_MASS_EXT, &
      &    STRAT_BG_AER_MASS_EXT=>YRADIATION%STRAT_BG_AER_MASS_EXT)
 ! Allocate memory in radiation objects
+#ifdef HAVE_NVTX
 call nvtxStartRange("allocate")
+#endif
 CALL SINGLE_LEVEL%ALLOCATE(KLON, YRERAD%NSW, YRERAD%NLWEMISS, &
      &                     USE_SW_ALBEDO_DIRECT=.TRUE.)
 CALL THERMODYNAMICS%ALLOCATE(KLON, KLEV, USE_H2O_SAT=.TRUE.)
@@ -288,7 +292,9 @@ ELSE
   CALL AEROSOL%ALLOCATE(KLON, 1, KLEV, 6) ! Tegen climatology
 ENDIF
 CALL FLUX%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
+#ifdef HAVE_NVTX
 call nvtxEndRange
+#endif
 
 #ifdef _OPENACC
 !$ACC DATA COPYIN(yradiation, single_level, thermodynamics, gas, aerosol, ylcloud, flux) ASYNC(1)
@@ -316,7 +322,9 @@ call flux%create_device()
 !$ACC NO_CREATE(PSWDIRECTBAND, PSWDIFFUSEBAND, PRE_LIQ) ASYNC(1)
 
 
+#ifdef HAVE_NVTX
 call nvtxStartRange("thermodynamics setup")
+#endif
 ! Set thermodynamic profiles: simply copy over the half-level
 ! pressure and temperature
 !$ACC PARALLEL LOOP GANG VECTOR COLLAPSE (2) DEFAULT(PRESENT) ASYNC(1)
@@ -367,9 +375,11 @@ ENDDO
 ! Alternative approximate version using temperature and pressure from
 ! the thermodynamics structure
 CALL thermodynamics%calc_saturation_wrt_liquid(KIDIA, KFDIA, lacc=.true.)
-call nvtxEndRange
 
+#ifdef HAVE_NVTX
+call nvtxEndRange
 call nvtxStartRange("single level setup")
+#endif
 
 ! Set single-level fileds
 SINGLE_LEVEL%SOLAR_IRRADIANCE              = PSOLAR_IRRADIANCE
@@ -440,9 +450,11 @@ IF (YRERAD%NSOLARSPECTRUM == 1) THEN
        &        1.0054, 0.98413, 0.99863, 0.99907, 0.90589, 0.92213, 1.0 /)
   !$ACC ENTER DATA COPYIN(SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING) ASYNC(1)
 ENDIF
-call nvtxEndRange
 
+#ifdef HAVE_NVTX
+call nvtxEndRange
 call nvtxStartRange("cloud setup")
+#endif
 
 ! Set cloud fields
 !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
@@ -564,9 +576,12 @@ ENDIF
 ! Compute the dry mass of each layer neglecting humidity effects, in
 ! kg m-2, needed to scale some of the aerosol inputs
 CALL THERMODYNAMICS%GET_LAYER_MASS(KIDIA,KFDIA,ZLAYER_MASS)
-call nvtxEndRange
 
+#ifdef HAVE_NVTX
+call nvtxEndRange
 call nvtxStartRange("aerosol setup")
+#endif
+
 ! Copy over aerosol mass mixing ratio
 IF (YRERAD%NAERMACC == 1) THEN
 
@@ -643,9 +658,11 @@ ELSE
 
 ENDIF
 
+#ifdef HAVE_NVTX
 call nvtxEndRange
-
 call nvtxStartRange("gas setup")
+#endif
+
 ! Insert gas mixing ratios
 CALL GAS%PUT(IH2O,    IMASSMIXINGRATIO, PQ, LACC=.TRUE.)
 CALL GAS%PUT(ICO2,    IMASSMIXINGRATIO, PCO2, LACC=.TRUE.)
@@ -662,7 +679,10 @@ CALL GAS%PUT_WELL_MIXED(IO2, IVOLUMEMIXINGRATIO, 0.20944_JPRB, LACC=.TRUE.)
 ! the gas absorption model
 CALL SET_GAS_UNITS(RAD_CONFIG, GAS, LACC=.TRUE.)
 !$ACC WAIT(1)
+
+#ifdef HAVE_NVTX
 call nvtxEndRange
+#endif
 
 !call save_inputs('inputs_ifs.nc', rad_config, single_level, thermodynamics, &
 !     &           gas, ylcloud, aerosol, &
@@ -671,10 +691,16 @@ call nvtxEndRange
 !     &           iverbose=2)
 
 ! Call radiation scheme
+#ifdef HAVE_NVTX
 call nvtxStartRange("radiation")
+#endif
+
 CALL RADIATION(KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,&
      &  SINGLE_LEVEL, THERMODYNAMICS, GAS, YLCLOUD, AEROSOL, FLUX)
+
+#ifdef HAVE_NVTX
 call nvtxEndRange
+#endif
 
 ! Check fluxes are within physical bounds
 IF (YRERAD%NDUMPBADINPUTS /= 0 &
@@ -720,7 +746,9 @@ IF (N_OUTPUT_FLUXES < YRERAD%NDUMPINPUTS) THEN
 !$OMP END CRITICAL
 ENDIF
 
+#ifdef HAVE_NVTX
 call nvtxStartRange("compute fluxes")
+#endif
 ! Compute required output fluxes
 ! First the net fluxes
 !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
@@ -814,9 +842,10 @@ ENDDO
 !$ACC END PARALLEL
 
 !$ACC END DATA
+#ifdef HAVE_NVTX
 call nvtxEndRange
-
 call nvtxStartRange("cleanup")
+#endif
 
 #ifdef _OPENACC
 call rad_config%delete_device()
@@ -838,7 +867,9 @@ CALL YLCLOUD%DEALLOCATE
 CALL AEROSOL%DEALLOCATE
 CALL FLUX%DEALLOCATE
 
+#ifdef HAVE_NVTX
 call nvtxEndRange
+#endif
 
 END ASSOCIATE
 

@@ -90,6 +90,23 @@ if( HAVE_ACC )
     set( BUILD_SHARED_LIBS OFF CACHE BOOL "Build using shared libraries" FORCE )
 endif()
 
+if( CMAKE_VERSION VERSION_LESS 3.25 )
+    set( NVTX_TARGET CUDA::nvToolsExt )
+else()
+    set( NVTX_TARGET CUDA::nvtx3 )
+endif()
+ecbuild_add_option(
+    FEATURE NVTX
+    DEFAULT ON
+    DESCRIPTION "Enable NVTX markers in code"
+    REQUIRED_PACKAGES "CUDAToolkit COMPONENTS ${NVTX_TARGET}"
+    CONDITION HAVE_ACC
+)
+if( HAVE_NVTX )
+    list( APPEND NVTX_TARGET nvhpcwrapnvtx )
+    list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_NVTX )
+endif()
+
 set( _PRECISIONS "" )
 ecbuild_add_option(
     FEATURE DOUBLE_PRECISION

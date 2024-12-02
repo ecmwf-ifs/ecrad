@@ -47,6 +47,7 @@ ecbuild_add_executable(
     LIBS
         ifs.${PREC}
         driver_lib.${PREC}
+        $<${HAVE_NVTX}:${NVTX_TARGET}>
 )
 
 # For ecrad_ifs_driver_blocked we have to disable bounds checking
