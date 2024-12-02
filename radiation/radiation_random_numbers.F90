@@ -48,15 +48,15 @@ module radiation_random_numbers
   public :: rng_type, IRngMinstdVector, IRngNative, initialize_acc, &
     &  uniform_distribution_acc, IMinstdA0, IMinstdA, IMinstdM
 
-  enum, bind(c) 
+  enum, bind(c)
     enumerator IRngNative, &    ! Built-in Fortran-90 RNG
          &     IRngMinstdVector ! Vector MINSTD algorithm
   end enum
-  
+
   ! Maximum number of random numbers that can be computed in one call
   ! - this can be increased
   integer(kind=jpim), parameter :: NMaxStreams = 512
-  
+
   ! A requirement of the generator is that the operation mod(A*X,M) is
   ! performed with no loss of precision, so type used for A and X must
   ! be able to hold the largest possible value of A*X without
@@ -86,7 +86,7 @@ module radiation_random_numbers
   ! An alternative value of A that can be used to initialize the
   ! members of the state from a single seed
   RNG_STATE_TYPE , parameter :: IMinstdA0 = 16807
-  
+
   ! Scaling to convert the state to a uniform deviate in the range 0
   ! to 1 in working precision
   real(kind=jprb), parameter :: IMinstdScale = 1.0_jprb / real(IMinstdM,jprb)
@@ -140,7 +140,7 @@ contains
     else
       this%itype = IRngNative
     end if
-    
+
     if (present(iseed)) then
       this%iseed = iseed
     else
@@ -152,7 +152,7 @@ contains
     else
       this%nmaxstreams = NMaxStreams
     end if
-    
+
     if (this%itype == IRngMinstdVector) then
       ! ! OPTION 1: Use the C++ minstd_rand0 algorithm to populate the
       ! ! state: this loop is not vectorizable because the state in
@@ -177,7 +177,7 @@ contains
       do jstr = 1,this%nmaxstreams
         this%istate(jstr) = mod(IMinstdA * this%istate(jstr), IMinstdM)
       end do
-      
+
     else
       ! Native generator by default
       call random_seed(size=nseed)
@@ -204,7 +204,7 @@ contains
     integer :: imax, i
 
     if (this%itype == IRngMinstdVector) then
-      
+
       imax = min(this%nmaxstreams, size(randnum))
 
       ! C++ minstd_rand algorithm
@@ -239,7 +239,7 @@ contains
     integer :: imax, jblock, i
 
     if (this%itype == IRngMinstdVector) then
-      
+
       imax = min(this%nmaxstreams, size(randnum,1))
 
       ! C++ minstd_ran algorithm
@@ -274,7 +274,7 @@ contains
     integer :: imax, jblock, i
 
     if (this%itype == IRngMinstdVector) then
-      
+
       imax = min(this%nmaxstreams, size(randnum,1))
 
       ! C++ minstd_ran algorithm
@@ -312,14 +312,14 @@ contains
     integer(kind=jpim), intent(in)      :: iseed
     integer,            intent(in)      :: jseed
 
-    integer(kind=jpib), intent(out) :: istate
+    integer(kind=jpib) :: istate
 
     !$ACC ROUTINE SEQ
-    
+
     istate = REAL(ABS(iseed),jprb)
     ! Use a modified (and vectorized) C++ minstd_rand0 algorithm to populate the state
     istate = nint(mod( istate*jseed*(1._jprb-0.05_jprb*jseed+0.005_jprb*jseed**2)*IMinstdA0, IMinstdM))
-    
+
     ! One warmup of the C++ minstd_rand algorithm
     istate = mod(IMinstdA * istate, IMinstdM)
 
@@ -345,4 +345,3 @@ contains
 
 
 end module radiation_random_numbers
-

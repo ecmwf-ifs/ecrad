@@ -960,11 +960,11 @@ contains
 
     alpha1 = gamma1*gamma4 + gamma2*gamma3 ! Eq. 16
     alpha2 = gamma1*gamma3 + gamma2*gamma4 ! Eq. 17
-  #ifdef PARKIND1_SINGLE
+#ifdef PARKIND1_SINGLE
     k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-6_jprb))  ! Eq 18
-  #else
+#else
     k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-12_jprb)) ! Eq 18
-  #endif
+#endif
 
     exponential = exp(-k_exponent*od(jg))
 

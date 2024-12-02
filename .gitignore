@@ -4,6 +4,10 @@
 *_out.nc
 config_*.nam
 *_sza.nc
+/mod
+/practical/data
+/practical/ecrad
+/build
 *.mod
 /bin/ecrad
 /bin/ecrad_ifs

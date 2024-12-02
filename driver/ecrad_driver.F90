@@ -31,6 +31,10 @@ program ecrad_driver
   ! Section 1: Declarations
   ! --------------------------------------------------------
   use parkind1,                 only : jprb, jprd ! Working/double precision
+  use yomhook,                  only : dr_hook_init
+#ifdef HAVE_FIAT
+  use mpl_module,               only : mpl_init, mpl_end
+#endif
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
@@ -101,7 +105,7 @@ program ecrad_driver
   !integer    :: iband_uv(200)
   !real(jprb) :: weight_uv(200)
   !integer    :: jw
-  
+
   ! Photosynthetically active radiation weightings
   !integer    :: nweight_par
   !integer    :: iband_par(100)
@@ -116,6 +120,11 @@ program ecrad_driver
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
+  ! Initialise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_init
+#endif
+  call dr_hook_init()
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -185,7 +194,7 @@ program ecrad_driver
   !       &  nweight_par, iband_par, weight_par,&
   !       &  'photosynthetically active radiation, PAR')
   !end if
-  
+
   !if (config%do_sw .and. config%gas_optics_sw%spectral_def%ng > 0) then
   !  call config%get_uv_biological_weights(nweight_uv, iband_uv, weight_uv)
   !  if (driver_config%iverbose >= 3) then
@@ -459,5 +468,10 @@ program ecrad_driver
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
+
+  ! Finalise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_end(ldmeminfo=.false.)
+#endif
 
 end program ecrad_driver

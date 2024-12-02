@@ -3,7 +3,7 @@ TEST_PROGRAMS = test_cloud_generator test_spartacus_math \
 	test_fast_expm
 
 # In dependency order:
-SOURCES = ecrad_driver_read_input.F90 \
+SOURCES = print_matrix_mod.F90 ecrad_driver_read_input.F90 \
 	ecrad_driver_config.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
