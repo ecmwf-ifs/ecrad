@@ -65,6 +65,31 @@ ecbuild_add_option(
     REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran"
 )
 
+if( ${CMAKE_VERSION} VERSION_LESS "3.25" )
+  if ( ECRAD_ENABLE_ACC OR (NOT DEFINED ECRAD_ENABLE_ACC AND ENABLE_ACC) )
+    # See https://gitlab.kitware.com/cmake/cmake/-/issues/23691, fixed in CMake 3.25
+    # (TL;DR: FindOpenACC sets OpenACC_<LANG>_FOUND correctly but does not set
+    #  OpenACC_FOUND unless all three C, CXX, and Fortran have been found - even if
+    #  only one language has been requested via COMPONENTS)
+    find_package( OpenACC COMPONENTS Fortran )
+    if( OpenACC_Fortran_FOUND )
+      set( OpenACC_FOUND ON )
+    endif()
+  endif()
+endif()
+ecbuild_add_option(
+    FEATURE ACC
+    DEFAULT ON
+    DESCRIPTION "Use OpenACC to offload computations to GPU"
+    REQUIRED_PACKAGES "OpenACC COMPONENTS Fortran"
+)
+if( HAVE_ACC )
+    if( DEFINED BUILD_SHARED_LIBS AND BUILD_SHARED_LIBS )
+        ecbuild_warn( "OpenACC enabled: Switching to static linking" )
+    endif()
+    set( BUILD_SHARED_LIBS OFF CACHE BOOL "Build using shared libraries" FORCE )
+endif()
+
 set( _PRECISIONS "" )
 ecbuild_add_option(
     FEATURE DOUBLE_PRECISION

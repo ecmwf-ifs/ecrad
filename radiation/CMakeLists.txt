@@ -17,6 +17,7 @@ set( radiation_SOURCES
         radiation_check.F90
         radiation_cloud_cover.F90
         radiation_cloud_generator.F90
+        radiation_cloud_generator_acc.F90
         radiation_cloud_optics_data.F90
         radiation_cloud_optics.F90
         radiation_cloud.F90
@@ -46,6 +47,8 @@ set( radiation_SOURCES
         radiation_liquid_optics_socrates.F90
         radiation_lw_derivatives.F90
         radiation_matrix.F90
+        radiation_mcica_acc_lw.F90
+        radiation_mcica_acc_sw.F90
         radiation_mcica_lw.F90
         radiation_mcica_sw.F90
         radiation_monochromatic.F90
@@ -80,6 +83,8 @@ ecbuild_add_library(
         ecrad_utilities.${PREC}
         ifsrrtm.${PREC}
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+    PUBLIC_LIBS
+        $<${HAVE_ACC}:OpenACC::OpenACC_Fortran>
 )
 
 add_library( ecrad::ecrad.${PREC} ALIAS ecrad.${PREC} )

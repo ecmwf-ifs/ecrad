@@ -229,6 +229,8 @@ ecbuild_add_library(
         ecrad_base.${PREC}
         ecrad_utilities.${PREC}
         ecrad_ifsaux.${PREC}
+    PUBLIC_LIBS
+        $<${HAVE_ACC}:OpenACC::OpenACC_Fortran>
 )
 
 install(
