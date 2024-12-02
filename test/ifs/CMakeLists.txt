@@ -93,10 +93,28 @@ add_ecrad_ifs_test(
     ENABLED ON
 )
 
+# GPU default: McICA solver with exponential-random overlap using McICA ACC
+add_ecrad_ifs_test(
+    NAME mcica_acc
+	NAMELIST_OPTIONS
+        "sw_solver_name=\\\"McICA ACC\\\""
+        "lw_solver_name=\\\"McICA ACC\\\""
+    ENABLED ON
+)
+
 # Turn off aerosols
 add_ecrad_ifs_test(
     NAME noaer
     NAMELIST_OPTIONS "use_aerosols=false"
+    ENABLED ON
+)
+
+add_ecrad_ifs_test(
+    NAME noaer_acc
+    NAMELIST_OPTIONS
+        "use_aerosols=false"
+        "sw_solver_name=\\\"McICA ACC\\\""
+        "lw_solver_name=\\\"McICA ACC\\\""
     ENABLED ON
 )
 

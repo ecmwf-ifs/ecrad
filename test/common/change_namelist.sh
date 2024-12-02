@@ -17,14 +17,14 @@ OUTFILE=$2
 shift
 shift
 
-SEDLINE=""
+SEDARGS=()
 while [ "$1" ]
 do
     FOUND=$(echo $1 | grep '=')
     if [ ! "$FOUND" ]
     then
 	echo "Error in $0: argument '$1' not of the form key=value"
-	exit 1
+	exit
     fi
     KEY=$(echo $1 | awk -F= '{print $1}')
     VALUE=$(echo $1 | awk -F= '{print $2}')
@@ -35,8 +35,9 @@ do
 	exit 1
     fi
 
-    SEDLINE="$SEDLINE -e s|^[[:space:]!]*"$KEY".*|"$KEY"="$VALUE",|"
+    SEDARGS+=(-e "s|^[[:space:]!]*$KEY.*|$KEY=$VALUE,|")
     shift
 done
-echo sed $SEDLINE $INFILE ">" $OUTFILE
-sed $SEDLINE $INFILE > $OUTFILE
+set -x
+sed "${SEDARGS[@]}" "$INFILE" > "$OUTFILE"
+{ set +x; } 2>/dev/null
