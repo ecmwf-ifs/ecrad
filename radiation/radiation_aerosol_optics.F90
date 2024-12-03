@@ -592,7 +592,13 @@ contains
       !$ACC   PRESENT(thermodynamics, thermodynamics%h2o_sat_liq, thermodynamics%pressure_hl, &
       !$ACC           aerosol, aerosol%mixing_ratio, ssa_sw, ssa_lw, od_sw, od_lw, g_sw, g_lw, gas, &
       !$ACC           config, config%aerosol_optics, config%aerosol_optics%iclass, config%aerosol_optics%itype, &
-      !$ACC           config%aerosol_optics%mass_ext_sw_phobic, config%aerosol_optics%mass_ext_lw_phobic) &
+      !$ACC           config%aerosol_optics%mass_ext_sw_phobic, config%aerosol_optics%mass_ext_lw_phobic, &
+      !$ACC           config%aerosol_optics%ssa_sw_phobic, config%aerosol_optics%g_sw_phobic, &
+      !$ACC           config%aerosol_optics%ssa_lw_phobic, config%aerosol_optics%g_lw_phobic, &
+      !$ACC           config%aerosol_optics%mass_ext_sw_philic, config%aerosol_optics%mass_ext_lw_philic, &
+      !$ACC           config%aerosol_optics%ssa_sw_philic, config%aerosol_optics%g_sw_philic, &
+      !$ACC           config%aerosol_optics%ssa_lw_philic, config%aerosol_optics%g_lw_philic, &
+      !$ACC           config%aerosol_optics%rh_lower) &
       !$ACC   ASYNC(1)
 
 
@@ -658,8 +664,19 @@ contains
           ! saturation and the index to the relative-humidity index of
           ! hydrophilic-aerosol data
           rh  = h2o_mmr(jcol,jlev) / thermodynamics%h2o_sat_liq(jcol,jlev)
-          irhs(jlev,jcol) = calc_rh_index(config%aerosol_optics, rh)
+          ! irhs(jlev,jcol) = calc_rh_index(config%aerosol_optics, rh)
           ! irhs(jlev,jcol) = config%aerosol_optics%calc_rh_index(rh)
+          ! Inlined calc_rh_index to overcome a partially present error on GPU
+          if (.not. config%aerosol_optics%use_hydrophilic) then
+            irhs(jlev,jcol) = 0
+          else if (rh > config%aerosol_optics%rh_lower(config%aerosol_optics%nrh)) then
+            irhs(jlev,jcol) = config%aerosol_optics%nrh
+          else
+            irhs(jlev,jcol) = 1
+            do while (rh > config%aerosol_optics%rh_lower(irhs(jlev,jcol) + 1))
+              irhs(jlev,jcol) = irhs(jlev,jcol) + 1
+            end do
+          end if
 
           factor(jlev,jcol) = ( thermodynamics%pressure_hl(jcol,jlev+1) &
                &    -thermodynamics%pressure_hl(jcol,jlev  )  ) &
@@ -1140,23 +1157,23 @@ contains
 
     associate(ao => config%aerosol_optics)
 
-    imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
+      imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
 
-    if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.02_jprb) then
-      write(nulerr,'(a,e11.4,a)') '*** Error: requested wavelength ', &
-           &  wavelength, ' not within 2% of stored wavelengths'
-      call radiation_abort()
-     end if
+      if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.02_jprb) then
+        write(nulerr,'(a,e11.4,a)') '*** Error: requested wavelength ', &
+            &  wavelength, ' not within 2% of stored wavelengths'
+        call radiation_abort()
+      end if
 
-    if (ao%iclass(itype) == IAerosolClassHydrophobic) then
-      dry_aerosol_mass_extinction = ao%mass_ext_mono_phobic(imono,ao%itype(itype))
-    else if (ao%iclass(itype) == IAerosolClassHydrophilic) then
-      ! Take the value at the first relative-humidity bin for the
-      ! "dry" aerosol value
-      dry_aerosol_mass_extinction = ao%mass_ext_mono_philic(imono,1,ao%itype(itype))
-    else
-      dry_aerosol_mass_extinction = 0.0_jprb
-    end if
+      if (ao%iclass(itype) == IAerosolClassHydrophobic) then
+        dry_aerosol_mass_extinction = ao%mass_ext_mono_phobic(imono,ao%itype(itype))
+      else if (ao%iclass(itype) == IAerosolClassHydrophilic) then
+        ! Take the value at the first relative-humidity bin for the
+        ! "dry" aerosol value
+        dry_aerosol_mass_extinction = ao%mass_ext_mono_philic(imono,1,ao%itype(itype))
+      else
+        dry_aerosol_mass_extinction = 0.0_jprb
+      end if
 
     end associate
 
@@ -1210,32 +1227,32 @@ contains
 
     associate(ao => config%aerosol_optics)
 
-    imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
+      imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
 
-    if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.02_jprb) then
-      write(nulerr,'(a,e11.4,a)') '*** Error: requested wavelength ', &
-           &  wavelength, ' not within 2% of stored wavelengths'
-      call radiation_abort()
-     end if
+      if (abs(wavelength - ao%wavelength_mono(imono))/wavelength > 0.02_jprb) then
+        write(nulerr,'(a,e11.4,a)') '*** Error: requested wavelength ', &
+            &  wavelength, ' not within 2% of stored wavelengths'
+        call radiation_abort()
+      end if
 
-    ! Loop over position
-    do jcol = istartcol,iendcol
-      ext = 0.0_jprb
-      ! Get relative-humidity index
-      irh = ao%calc_rh_index(relative_humidity(jcol))
-      ! Add extinction coefficients from each aerosol type
-      do jtype = 1,config%n_aerosol_types
-        if (ao%iclass(jtype) == IAerosolClassHydrophobic) then
-          ext = ext + mixing_ratio(jcol,jtype) &
-               &    * ao%mass_ext_mono_phobic(imono,ao%itype(jtype))
-        else if (ao%iclass(jtype) == IAerosolClassHydrophilic) then
-          ext = ext + mixing_ratio(jcol,jtype) &
-               &    * ao%mass_ext_mono_philic(imono,irh,ao%itype(jtype))
-        end if
+      ! Loop over position
+      do jcol = istartcol,iendcol
+        ext = 0.0_jprb
+        ! Get relative-humidity index
+        irh = ao%calc_rh_index(relative_humidity(jcol))
+        ! Add extinction coefficients from each aerosol type
+        do jtype = 1,config%n_aerosol_types
+          if (ao%iclass(jtype) == IAerosolClassHydrophobic) then
+            ext = ext + mixing_ratio(jcol,jtype) &
+                &    * ao%mass_ext_mono_phobic(imono,ao%itype(jtype))
+          else if (ao%iclass(jtype) == IAerosolClassHydrophilic) then
+            ext = ext + mixing_ratio(jcol,jtype) &
+                &    * ao%mass_ext_mono_philic(imono,irh,ao%itype(jtype))
+          end if
+        end do
+
+        extinction(jcol) = ext
       end do
-
-      extinction(jcol) = ext
-    end do
 
     end associate
 
