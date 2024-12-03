@@ -317,7 +317,7 @@ program ecrad_ifs_driver
 
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call
-  !  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
+  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
@@ -458,7 +458,8 @@ program ecrad_ifs_driver
         !$acc&
 
         !$acc update device(zrgp(1:il,ifs_config%iinbeg:ifs_config%iinend,ib), &
-        !$acc&            zrgp(1:il,ifs_config%ioutend+1:ifs_config%ifldstot,ib))
+        !$acc&            zrgp(1:il,ifs_config%ioutend+1:ifs_config%ifldstot,ib)) &
+        !$acc& async(1)
 #endif /* COPY_ASYNC */
 
         ! Call the ECRAD radiation scheme
@@ -509,7 +510,7 @@ program ecrad_ifs_driver
           !$acc update host(zrgp(:,ifs_config%ioutbeg:ifs_config%ioutend,ib)) async(3) wait(1)
           !$acc exit data delete(zrgp(:,:,ib)) async(3)
 #else
-          !$acc update host(zrgp(1:il,ifs_config%ioutbeg:ifs_config%ioutend,ib))
+          !$acc update host(zrgp(1:il,ifs_config%ioutbeg:ifs_config%ioutend,ib)) async(1)
           !$acc end data
 #endif
       end do

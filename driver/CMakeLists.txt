@@ -37,6 +37,7 @@ ecbuild_add_executable(
     LIBS
         ifs.${PREC}
         driver_lib.${PREC}
+        $<${HAVE_NVTX}:${NVTX_TARGET}>
 )
 
 ecbuild_add_executable(

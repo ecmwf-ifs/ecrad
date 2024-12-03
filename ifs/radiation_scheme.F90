@@ -297,7 +297,7 @@ call nvtxEndRange
 #endif
 
 #ifdef _OPENACC
-!$ACC DATA COPYIN(yradiation, single_level, thermodynamics, gas, aerosol, ylcloud, flux) ASYNC(1)
+!$ACC DATA COPYIN(yradiation, rad_config, single_level, thermodynamics, gas, aerosol, ylcloud, flux) ASYNC(1)
 call rad_config%create_device()
 call single_level%create_device()
 call thermodynamics%create_device()

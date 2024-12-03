@@ -67,6 +67,9 @@ program ecrad_ifs_driver
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
+#ifdef HAVE_NVTX
+  use nvtx
+#endif
 
   implicit none
 
@@ -96,7 +99,7 @@ program ecrad_ifs_driver
   real(jprb), allocatable, dimension(:,:) :: pressure_fl, temperature_fl, zeros
   real(jprb), allocatable, dimension(:,:,:) :: tegen_aerosol
   real(jprb), allocatable, dimension(:) :: flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
-       &  flux_incoming, emissivity_out
+       &  emissivity_out
   real(jprb), allocatable, dimension(:,:) :: flux_diffuse_band, flux_direct_band
   real(jprb), allocatable, dimension(:,:) :: cloud_fraction, cloud_q_liq, cloud_q_ice
 
@@ -115,7 +118,7 @@ program ecrad_ifs_driver
   integer, external :: omp_get_thread_num
   real(kind=jprd), external :: omp_get_wtime
   ! Start/stop time in seconds
-  real(kind=jprd) :: tstart, tstop
+  real(kind=jprd) :: t0, tstart, tstop
 #endif
 
   ! For demonstration of get_sw_weights later on
@@ -295,7 +298,7 @@ program ecrad_ifs_driver
 
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call
-  !  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
+   call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
@@ -343,7 +346,6 @@ program ecrad_ifs_driver
   allocate(flux_uv(ncol))
   allocate(flux_par(ncol))
   allocate(flux_par_clear(ncol))
-  allocate(flux_incoming(ncol))
   allocate(emissivity_out(ncol))
   allocate(flux_diffuse_band(ncol,yradiation%yrerad%nsw))
   allocate(flux_direct_band(ncol,yradiation%yrerad%nsw))
@@ -368,6 +370,51 @@ program ecrad_ifs_driver
     cloud_q_ice = 0.0_jprb
   endif
 
+  ! --------------------------------------------------------
+  ! Section 4a: Offload data to GPU
+  ! --------------------------------------------------------
+
+#ifndef NO_OPENMP
+  t0 = omp_get_wtime()
+#endif
+
+#ifdef HAVE_NVTX
+     call nvtxStartRange("ecrad_offload")
+#endif
+
+#ifdef _OPENACC
+  !$ACC DATA COPYIN(yradiation, yradiation%rad_config, single_level, thermodynamics, &
+  !$ACC&            gas, aerosol, cloud, ccn_land, ccn_sea, longitude_rad, sin_latitude, &
+  !$ACC&            land_frac, pressure_fl, temperature_fl, cloud_fraction, cloud_q_liq, &
+  !$ACC&            cloud_q_ice, zeros, tegen_aerosol) &
+  !$ACC&     CREATE(flux) &
+  !$ACC&     COPYOUT(flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, emissivity_out, &
+  !$ACC&            flux_diffuse_band, flux_direct_band) &
+  !$ACC&     ASYNC(1)
+  call yradiation%rad_config%create_device()
+  call single_level%create_device()
+  call thermodynamics%create_device()
+  call gas%create_device()
+  call aerosol%create_device()
+  call cloud%create_device()
+  call flux%create_device()
+
+  call single_level%update_device()
+  call thermodynamics%update_device()
+  call gas%update_device()
+  call aerosol%update_device()
+  call cloud%update_device()
+  call flux%update_device()
+#endif
+
+#ifdef HAVE_NVTX
+     call nvtxEndRange
+#endif
+
+  ! --------------------------------------------------------
+  ! Section 4b: Call radiation_scheme per block
+  ! --------------------------------------------------------
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
@@ -377,10 +424,12 @@ program ecrad_ifs_driver
 #ifndef NO_OPENMP
   tstart = omp_get_wtime()
 #endif
-  do jrepeat = 1,driver_config%nrepeat
 
-!    if (driver_config%do_parallel) then
-      ! Run radiation scheme over blocks of columns in parallel
+#ifdef HAVE_NVTX
+     call nvtxStartRange("ecrad_it")
+#endif
+
+  do jrepeat = 1,driver_config%nrepeat
 
       ! Compute number of blocks to process
       nblock = (driver_config%iendcol - driver_config%istartcol &
@@ -433,19 +482,50 @@ program ecrad_ifs_driver
       end do
       !$OMP END PARALLEL DO
 
-!    else
-      ! Run radiation scheme serially
-!      if (driver_config%iverbose >= 3) then
-!        write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
-!      end if
-
-      ! Call the ECRAD radiation scheme
-!      call radiation_scheme(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
-!           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
-
-!    end if
-
   end do
+
+#ifdef HAVE_NVTX
+  call nvtxEndRange
+#endif
+
+#ifndef NO_OPENMP
+  tstop = omp_get_wtime()
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+#endif
+
+#ifdef HAVE_NVTX
+     call nvtxStartRange("ecrad_pullback")
+#endif
+
+#ifdef _OPENACC
+  call cloud%update_host()
+  call flux%update_host()
+
+  call yradiation%rad_config%delete_device()
+  call single_level%delete_device()
+  call thermodynamics%delete_device()
+  call gas%delete_device()
+  call aerosol%delete_device()
+  call cloud%delete_device()
+  call flux%delete_device()
+#endif
+
+  !$ACC WAIT(1)
+  !$ACC END DATA
+
+#ifdef HAVE_NVTX
+     call nvtxEndRange
+#endif
+
+#ifndef NO_OPENMP
+  tstop = omp_get_wtime()
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer with data pull-back: ', tstop-tstart, ' seconds'
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer, including all data offload and pull-back: ', tstop-t0, ' seconds'
+#endif
+
+  ! --------------------------------------------------------
+  ! Section 4c: Copy fluxes from blocked memory data
+  ! --------------------------------------------------------
 
   ! "up" fluxes are actually net fluxes at this point - we modify the
   ! upwelling flux so that net=dn-up, while the TOA and surface
@@ -465,11 +545,6 @@ program ecrad_ifs_driver
   flux%lw_up_clear = -flux%lw_up_clear
   flux%lw_up_clear(:,1) = flux%lw_up_clear(:,1)+flux%lw_dn_clear(:,1)
   flux%lw_up_clear(:,nlev+1) = flux%lw_up_clear(:,nlev+1)+flux%lw_dn_clear(:,nlev+1)
-
-#ifndef NO_OPENMP
-  tstop = omp_get_wtime()
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
-#endif
 
   ! --------------------------------------------------------
   ! Section 5: Check and save output
