@@ -1138,10 +1138,7 @@ contains
     ! Index to the monochromatic wavelength requested
     integer :: imono
 
-    ! Pointer to the aerosol optics coefficients for brevity of access
-    type(aerosol_optics_type), pointer :: ao
-
-    ao => config%aerosol_optics
+    associate(ao => config%aerosol_optics)
 
     imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
 
@@ -1160,6 +1157,8 @@ contains
     else
       dry_aerosol_mass_extinction = 0.0_jprb
     end if
+
+    end associate
 
   end function dry_aerosol_mass_extinction
 
@@ -1192,9 +1191,6 @@ contains
     ! Index to the monochromatic wavelength requested
     integer :: imono
 
-    ! Pointer to the aerosol optics coefficients for brevity of access
-    type(aerosol_optics_type), pointer :: ao
-
     ! Loop indices for column and aerosol type
     integer :: jcol, jtype
 
@@ -1212,7 +1208,7 @@ contains
       end if
     end do
 
-    ao => config%aerosol_optics
+    associate(ao => config%aerosol_optics)
 
     imono = minloc(abs(wavelength - ao%wavelength_mono), 1)
 
@@ -1240,6 +1236,8 @@ contains
 
       extinction(jcol) = ext
     end do
+
+    end associate
 
     if (lhook) call dr_hook('radiation_aerosol_optics:aerosol_extinction',1,hook_handle)
 
