@@ -82,6 +82,7 @@ ecbuild_add_option(
     DEFAULT ON
     DESCRIPTION "Use OpenACC to offload computations to GPU"
     REQUIRED_PACKAGES "OpenACC COMPONENTS Fortran"
+    CONDITION CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC"
 )
 if( HAVE_ACC )
     if( DEFINED BUILD_SHARED_LIBS AND BUILD_SHARED_LIBS )
