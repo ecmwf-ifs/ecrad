@@ -520,7 +520,7 @@ program ecrad_ifs_driver
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer with data pull-back: ', tstop-tstart, ' seconds'
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer, including all data offload and pull-back: ', tstop-t0, ' seconds'
+  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer, including data offload and pull-back: ', tstop-t0, ' seconds'
 #endif
 
   ! --------------------------------------------------------
