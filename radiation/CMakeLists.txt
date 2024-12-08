@@ -87,6 +87,87 @@ ecbuild_add_library(
         $<${HAVE_ACC}:OpenACC::OpenACC_Fortran>
 )
 
+# Improve performance via function inlining for NVHPC
+# This requires building an inline lib for Fortran, see
+# https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/index.html#fn-inline-use
+set( inlib_NAME ecrad.${PREC}.il )
+if( HAVE_ACC AND CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC" )
+    set( HAVE_INLIB ON )
+else()
+    set( HAVE_INLIB OFF )
+endif()
+
+if( HAVE_INLIB )
+
+    # List of source files from which functions should be inlined
+    set( inlib_SOURCES
+            radiation_random_numbers.F90
+            radiation_lw_derivatives.F90
+            radiation_adding_ica_lw.F90
+            radiation_adding_ica_sw.F90
+            radiation_cloud_generator_acc.F90
+            radiation_two_stream.F90
+    )
+    set( inlib_FUNCTIONS
+            initialize_acc uniform_distribution_acc
+            calc_lw_derivatives_ica2 modify_lw_derivatives_ica
+            adding_ica_lw fast_adding_ica_lw calc_fluxes_no_scattering_lw
+            adding_ica_sw
+            cloud_generator_acc
+            calc_ref_trans_sw calc_ref_trans_lw calc_reflectance_transmittance_sw
+                calc_no_scattering_transmittance_lw calc_two_stream_gammas_sw
+    )
+
+    # Additional sources that are required to compile inlib
+    list( APPEND inlib_SOURCES
+            radiation_matrix.F90
+    )
+
+    # Build the list of consumers
+    set( inlib_CONSUMERS ${radiation_SOURCES} )
+    list( REMOVE_ITEM inlib_CONSUMERS ${inlib_SOURCES} )
+
+    # Declare the inlib library as an object library, although the extraction
+    # pass does not actually generate object files. This makes sure we end up
+    # using the same compilation options as for the actual ecrad library.
+    # The ecrad library does not ingest the inlib library as a LIBRARY dependency,
+    # but instead we add an explicit inter-target dependency with add_dependencies
+    # to ensure the inline library is being built before the ecrad library.
+    ecbuild_add_library(
+        TARGET ${inlib_NAME}
+        TYPE OBJECT
+        SOURCES
+            ${inlib_SOURCES}
+        PUBLIC_INCLUDES
+            "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+            "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
+            "$<INSTALL_INTERFACE:${ecrad_${PREC}_INSTALL_INCLUDEDIR}>"
+        PRIVATE_LIBS
+            ecrad_base.${PREC}
+            ecrad_ifsaux.${PREC}
+            ecrad_utilities.${PREC}
+            ifsrrtm.${PREC}
+            $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+        PUBLIC_LIBS
+            $<${HAVE_ACC}:OpenACC::OpenACC_Fortran>
+    )
+
+    # Make sure the inline library is created first
+    add_dependencies( ecrad.${PREC} ${inlib_NAME} )
+
+    # The compile flags to add to the relevant source files
+    list( JOIN inlib_FUNCTIONS "," inlib_FUNCTIONS_CSV )
+    set( inlib_extract_FCFLAGS "-Mextract=lib:${inlib_NAME},reshape,${inlib_FUNCTIONS_CSV}" )
+    set( inlib_inline_FCFLAGS "-Minline=lib:${inlib_NAME},reshape,${inlib_FUNCTIONS_CSV};-Minfo=inline" )
+
+    # Add compile options to extract functions to inline
+    target_compile_options( ${inlib_NAME} PRIVATE ${inlib_extract_FCFLAGS} )
+
+    # Add compile options to ingest inlined functions to relevant source files
+    set_source_files_properties( ${inlib_CONSUMERS} PROPERTIES COMPILE_OPTIONS "${inlib_inline_FCFLAGS}" )
+
+endif()
+
 add_library( ecrad::ecrad.${PREC} ALIAS ecrad.${PREC} )
 install(
     FILES
@@ -111,4 +192,15 @@ install(
 if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
     set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
     set_source_files_properties( radiation_cloud_generator.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
+elseif( CMAKE_FORTRAN_COMPILER_ID MATCHES "PGI|NVHPC" )
+    if( HAVE_ACC )
+        set_source_files_properties(
+            radiation_mcica_acc_lw.F90
+            radiation_mcica_acc_sw.F90
+            radiation_two_stream.F90
+            radiation_lw_derivatives.F90
+            PROPERTIES COMPILE_OPTIONS
+            "-gpu=maxregcount:96"
+        )
+    endif()
 endif()
