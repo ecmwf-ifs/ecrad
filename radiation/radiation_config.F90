@@ -33,8 +33,6 @@
 ! files in this directory, please inform Robin Hogan.
 !
 
-#include "ecrad_config.h"
-
 module radiation_config
 
   use parkind1,                      only : jprb
@@ -49,6 +47,7 @@ module radiation_config
 
   implicit none
   public
+#include "ecrad_config.h"
 
   ! Configuration codes: use C-style enumerators to avoid having to
   ! remember the numbers
@@ -642,6 +641,8 @@ module radiation_config
      procedure :: set_aerosol_wavelength_mono
      procedure :: consolidate_sw_albedo_intervals
      procedure :: consolidate_lw_emiss_intervals
+     procedure :: get_gas_optics_name_sw
+     procedure :: get_solver_name_sw
 
   end type config_type
 
@@ -2168,5 +2169,17 @@ contains
     write(str, '(a,a,a,a)') message_str, ' "', trim(enum_str(val)), '"'
     write(nulout,'(a,a,a,a,i0,a)') str, ' (', name, '=', val,')'
   end subroutine print_enum
+
+  subroutine get_gas_optics_name_sw(this, out_str)
+    class(config_type),   intent(inout) :: this
+    character(len=*),   intent(out) :: out_str
+    write(out_str,'(a)') trim(GasModelName(this%i_gas_model_sw))
+  end subroutine get_gas_optics_name_sw
+
+  subroutine get_solver_name_sw(this, out_str)
+    class(config_type),   intent(inout) :: this
+    character(len=*),   intent(out) :: out_str
+    write(out_str,'(a)') trim(SolverName(this%i_solver_sw))
+  end subroutine get_solver_name_sw
 
 end module radiation_config

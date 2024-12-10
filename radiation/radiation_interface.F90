@@ -202,7 +202,10 @@ contains
 
     use parkind1,                 only : jprb
     use yomhook,                  only : lhook, dr_hook, jphook
-
+#ifdef USE_TIMING
+    ! Timing library
+    use gptl,                  only: gptlstart, gptlstop
+#endif
     use radiation_io,             only : nulout
     use radiation_config,         only : config_type, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD, &
@@ -305,6 +308,11 @@ contains
 
     real(jphook) :: hook_handle
 
+#ifdef USE_TIMING
+    integer :: ret
+    ret =  gptlstart('radiation_interface:radiation')
+#endif
+
     if (lhook) call dr_hook('radiation_interface:radiation',0,hook_handle)
 
     if (thermodynamics%pressure_hl(istartcol,2) &
@@ -324,7 +332,9 @@ contains
       call single_level%get_albedos(istartcol, iendcol, config, &
            &                        sw_albedo_direct, sw_albedo_diffuse, &
            &                        lw_albedo)
-
+#ifdef USE_TIMING
+    ret =  gptlstart('gas_optics')
+#endif     
       ! Compute gas absorption optical depth in shortwave and
       ! longwave, shortwave single scattering albedo (i.e. fraction of
       ! extinction due to Rayleigh scattering), Planck functions and
@@ -353,7 +363,10 @@ contains
                &  incoming_sw=incoming_sw)
         end if
       end if
-
+#ifdef USE_TIMING
+    ret =  gptlstop('gas_optics')
+    ret =  gptlstart('cloud_optics')
+#endif  
       if (config%do_clouds) then
         ! Crop the cloud fraction to remove clouds that have too small
         ! a fraction or water content; after this, we can safely
@@ -381,7 +394,10 @@ contains
                &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
         end if
       end if ! do_clouds
-
+#ifdef USE_TIMING
+    ret =  gptlstop('cloud_optics')
+    ret =  gptlstart('aerosol_optics')
+#endif  
       if (config%use_aerosols) then
         if (config%i_gas_model_sw == IGasModelMonochromatic) then
 !          call add_aerosol_optics_mono(nlev,istartcol,iendcol, &
@@ -399,7 +415,9 @@ contains
           g_lw(:,:,istartcol:iendcol)   = 0.0_jprb
         end if
       end if
-
+#ifdef USE_TIMING
+    ret =  gptlstop('aerosol_optics')
+#endif  
       ! For diagnostic purposes, save these intermediate variables to
       ! a NetCDF file
       if (config%do_save_radiative_properties) then
@@ -418,7 +436,9 @@ contains
              &  od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
              &  od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
       end if
-
+#ifdef USE_TIMING
+    ret =  gptlstart('solver_longwave')
+#endif  
       if (config%do_lw) then
         if (config%iverbose >= 2) then
           write(nulout,'(a)') 'Computing longwave fluxes'
@@ -438,7 +458,7 @@ contains
                &  planck_hl, lw_emission, lw_albedo, flux)
         else if (config%i_solver_lw == ISolverTripleclouds) then
           ! Compute fluxes using the Tripleclouds longwave solver
-          call solver_tripleclouds_lw(nlev,istartcol,iendcol, &
+          call solver_tripleclouds_lw(config%n_g_lw,nlev,istartcol,iendcol, &
                &  config, cloud, & 
                &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                &  planck_hl, lw_emission, lw_albedo, flux)
@@ -455,7 +475,10 @@ contains
                &  planck_hl, lw_emission, lw_albedo, flux)
         end if
       end if
-
+#ifdef USE_TIMING
+    ret =  gptlstop('solver_longwave')
+    ret =  gptlstart('solver_shortwave')
+#endif  
       if (config%do_sw) then
         if (config%iverbose >= 2) then
           write(nulout,'(a)') 'Computing shortwave fluxes'
@@ -477,7 +500,7 @@ contains
                &  incoming_sw, flux)
         else if (config%i_solver_sw == ISolverTripleclouds) then
           ! Compute fluxes using the Tripleclouds shortwave solver
-          call solver_tripleclouds_sw(nlev,istartcol,iendcol, &
+          call solver_tripleclouds_sw(config%n_g_sw,nlev,istartcol,iendcol, &
                &  config, single_level, cloud, & 
                &  od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, &
                &  g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, &
@@ -497,7 +520,9 @@ contains
                &  incoming_sw, flux)
         end if
       end if
-
+#ifdef USE_TIMING
+    ret =  gptlstop('solver_shortwave')
+#endif  
       ! Store surface downwelling, and TOA, fluxes in bands from
       ! fluxes in g points
       call flux%calc_surface_spectral(config, istartcol, iendcol)
@@ -506,7 +531,9 @@ contains
     end if
     
     if (lhook) call dr_hook('radiation_interface:radiation',1,hook_handle)
-
+#ifdef USE_TIMING
+    ret =  gptlstop('radiation_interface:radiation')
+#endif
   end subroutine radiation
 
 

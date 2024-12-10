@@ -18,13 +18,13 @@
 ! Modifications
 !   2020-10-07  R. Hogan  Ensure iobj1 initialized in case of alpha_obj==0
 
-#include "ecrad_config.h"
-
 module radiation_cloud_cover
 
   use parkind1, only           : jprb
 
   public
+
+#include "ecrad_config.h"
 
   ! Three overlap schemes.  Note that "Exponential" means that
   ! clear-sky regions have no special significance for computing the
