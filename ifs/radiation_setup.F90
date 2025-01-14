@@ -294,7 +294,11 @@ CONTAINS
 
       ! The default aerosol optics file is the following - please
       ! update here, not in radiation/module/radiation_config.F90
-      RAD_CONFIG%AEROSOL_OPTICS_OVERRIDE_FILE_NAME = 'aerosol_ifs_rrtm_46R1_with_NI_AM.nc'
+      IF (RAD_CONFIG%USE_GENERAL_AEROSOL_OPTICS) THEN
+        RAD_CONFIG%AEROSOL_OPTICS_OVERRIDE_FILE_NAME = 'aerosol_ifs_49R1_20230119.nc'
+      ELSE
+        RAD_CONFIG%AEROSOL_OPTICS_OVERRIDE_FILE_NAME = 'aerosol_ifs_rrtm_46R1_with_NI_AM.nc'
+      END IF
 
     ELSE
       ! Using Tegen climatology
@@ -523,25 +527,34 @@ CONTAINS
          &  PRADIATION%NWEIGHT_PAR, PRADIATION%IBAND_PAR, PRADIATION%WEIGHT_PAR,&
          &  'photosynthetically active radiation, PAR')
 
-    IF (YDERAD%NAERMACC > 0) THEN
-      ! With the MACC aerosol climatology we need to add in the
-      ! background aerosol afterwards using the Tegen arrays.  In this
-      ! case we first configure the background aerosol mass-extinction
-      ! coefficient at 550 nm, which corresponds to the 10th RRTMG
-      ! shortwave band.
-      PRADIATION%TROP_BG_AER_MASS_EXT  = DRY_AEROSOL_MASS_EXTINCTION(RAD_CONFIG,&
-           &                                   ITYPE_TROP_BG_AER, 550.0E-9_JPRB)
-      PRADIATION%STRAT_BG_AER_MASS_EXT = DRY_AEROSOL_MASS_EXTINCTION(RAD_CONFIG,&
-           &                                   ITYPE_STRAT_BG_AER, 550.0E-9_JPRB)
+    ! PRADIATION%TROP_BG_AER_MASS_EXT  = 0.0_JPRB
+    ! PRADIATION%STRAT_BG_AER_MASS_EXT = 0.0_JPRB
+    ! IF (YDERAD%NAERMACC > 0) THEN
+    !   ! With the MACC aerosol climatology we need to add in the
+    !   ! background aerosol afterwards using the Tegen arrays.  In this
+    !   ! case we first configure the background aerosol mass-extinction
+    !   ! coefficient at 550 nm, which corresponds to the 10th RRTMG
+    !   ! shortwave band.
+    !   IF (ITYPE_TROP_BG_AER > 0) THEN
+    !     PRADIATION%TROP_BG_AER_MASS_EXT  = DRY_AEROSOL_MASS_EXTINCTION(RAD_CONFIG,&
+    !         &                                   ITYPE_TROP_BG_AER, 550.0e-9_JPRB)
+    !     WRITE(NULOUT,'(a,i2,a,e12.4,a)') 'Tropospheric background:  aerosol type ',&
+    !         &  ITYPE_TROP_BG_AER, ', 550-nm mass-extinction coefficient ', &
+    !         &  PRADIATION%TROP_BG_AER_MASS_EXT, ' m2 kg-1'
+    !   ELSE
+    !     WRITE(NULOUT,'(a)') 'No tropospheric background aerosol'
+    !   ENDIF
 
-      WRITE(NULOUT,'(a,i0)') 'Tropospheric background uses aerosol type ',&
-           &                 ITYPE_TROP_BG_AER
-      WRITE(NULOUT,'(a,i0)') 'Stratospheric background uses aerosol type ',&
-           &                 ITYPE_STRAT_BG_AER
-    ELSE
-      PRADIATION%TROP_BG_AER_MASS_EXT  = 0.0_JPRB
-      PRADIATION%STRAT_BG_AER_MASS_EXT = 0.0_JPRB
-    ENDIF
+    !   IF (ITYPE_STRAT_BG_AER > 0) THEN
+    !     PRADIATION%STRAT_BG_AER_MASS_EXT = DRY_AEROSOL_MASS_EXTINCTION(RAD_CONFIG,&
+    !         &                                   ITYPE_STRAT_BG_AER, 550.0e-9_JPRB)
+    !     WRITE(NULOUT,'(a,i2,a,e12.4,a)') 'Stratospheric background: aerosol type ',&
+    !         &  ITYPE_STRAT_BG_AER, ', 550-nm mass-extinction coefficient ', &
+    !         &  PRADIATION%STRAT_BG_AER_MASS_EXT, ' m2 kg-1'
+    !   ELSE
+    !     WRITE(NULOUT,'(a)') 'No stratospheric background aerosol'
+    !   ENDIF
+    ! ENDIF
 
     IF (IVERBOSESETUP > 1) THEN
       WRITE(NULOUT,'(a)') '-------------------------------------------------------------------------------'
