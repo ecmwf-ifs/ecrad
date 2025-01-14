@@ -102,6 +102,13 @@ if( HAVE_BITIDENTITY_TESTING )
     list( APPEND ECRAD_COMPILE_DEFINITIONS BITIDENTITY_TESTING )
 endif()
 
+find_program( CDO NAMES cdo )
+if( "${CDO}" STREQUAL "CDO-NOTFOUND" )
+    ecbuild_info( "Could NOT find cdo" )
+else()
+    ecbuild_info( "Found program cdo [${CDO}]" )
+    set( HAVE_CDO ON CACHE BOOL "cdo binary" )
+endif()
 
 include(ecrad_compile_flags)
 

@@ -11,6 +11,12 @@ set( TEST_IFS_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian.nc" )
 set( TEST_IFS_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1.nam" )
 set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1_ecckd.nam" )
 
+if( "${PREC}" STREQUAL "sp" )
+    set( TEST_CDO_OPTIONS ",abslim=0.01" )
+else()
+    set( TEST_CDO_OPTIONS "" )
+endif()
+
 # Create symbolic link to test data
 file( CREATE_LINK "${PROJECT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data" SYMBOLIC )
 
@@ -37,6 +43,7 @@ function( add_ecrad_ifs_test )
         # or by copying the original file
         set( CONFIG_NAM "${CMAKE_CURRENT_BINARY_DIR}/config_${_PAR_NAME}.nam" )
         list( APPEND _PAR_NAMELIST_OPTIONS "directory_name=\\\"data\\\"" )
+        list( APPEND _PAR_NAMELIST_OPTIONS "nblocksize=8" )
         add_custom_command(
             OUTPUT ${CONFIG_NAM}
             COMMAND
@@ -79,6 +86,28 @@ function( add_ecrad_ifs_test )
             )
 
         endforeach()
+
+        IF( HAVE_CDO )
+
+            foreach( binary ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
+
+                set( ref_test_name ecrad_${PREC}_${_PAR_NAME}_net )
+                set( ver_test_name ${binary}_${_PAR_NAME}_net )
+
+                ecbuild_add_test(
+                    TARGET cdo_${ver_test_name}
+                    COMMAND ${CDO}
+                    ARGS
+                        diff,names=left${TEST_CDO_OPTIONS}
+                        output_${ver_test_name}.nc
+                        output_${ref_test_name}.nc
+                    TEST_DEPENDS
+                        ${ref_test_name}
+                        ${ver_test_name}
+                )
+            endforeach()
+
+        endif()
 
     endif()
 endfunction( add_ecrad_ifs_test )
