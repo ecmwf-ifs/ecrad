@@ -217,7 +217,7 @@ contains
 
     class(thermodynamics_type), intent(in)  :: this
     integer,                    intent(in)  :: istartcol, iendcol
-    real(jprb),                 intent(out) :: layer_mass(:,:)
+    real(jprb),                 intent(out) :: layer_mass(istartcol:iendcol,ubound(this%pressure_hl,2))
 
     integer    :: nlev, jl, jk
     real(jprb) :: inv_g
