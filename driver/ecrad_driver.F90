@@ -358,10 +358,13 @@ program ecrad_driver
 
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
-#ifndef NO_OPENMP
-  tstart = omp_get_wtime()
-#endif
   do jrepeat = 1,driver_config%nrepeat
+
+#ifndef NO_OPENMP
+    if (jrepeat == driver_config%nwarmup + 1) then
+      tstart = omp_get_wtime()
+    end if
+#endif
 
     if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
@@ -409,8 +412,10 @@ program ecrad_driver
   end do
 
 #ifndef NO_OPENMP
-  tstop = omp_get_wtime()
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  if (driver_config%nrepeat > driver_config%nwarmup) then
+    tstop = omp_get_wtime()
+    write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  end if
 #endif
 
 #ifdef _OPENACC

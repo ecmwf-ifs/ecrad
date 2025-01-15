@@ -421,15 +421,17 @@ program ecrad_ifs_driver
 
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
+  do jrepeat = 1,driver_config%nrepeat
+
 #ifndef NO_OPENMP
-  tstart = omp_get_wtime()
+    if (jrepeat == driver_config%nwarmup + 1) then
+      tstart = omp_get_wtime()
+    end if
 #endif
 
 #ifdef HAVE_NVTX
-     call nvtxStartRange("ecrad_it")
+    call nvtxStartRange("ecrad_it")
 #endif
-
-  do jrepeat = 1,driver_config%nrepeat
 
       ! Compute number of blocks to process
       nblock = (driver_config%iendcol - driver_config%istartcol &
@@ -489,8 +491,10 @@ program ecrad_ifs_driver
 #endif
 
 #ifndef NO_OPENMP
-  tstop = omp_get_wtime()
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  if (driver_config%nrepeat > driver_config%nwarmup) then
+    tstop = omp_get_wtime()
+    write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  end if
 #endif
 
 #ifdef HAVE_NVTX
@@ -518,9 +522,11 @@ program ecrad_ifs_driver
 #endif
 
 #ifndef NO_OPENMP
-  tstop = omp_get_wtime()
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer with data pull-back: ', tstop-tstart, ' seconds'
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer, including data offload and pull-back: ', tstop-t0, ' seconds'
+  if (driver_config%nrepeat > driver_config%nwarmup) then
+    tstop = omp_get_wtime()
+    write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer with data pull-back: ', tstop-tstart, ' seconds'
+    write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer, including data offload and pull-back: ', tstop-t0, ' seconds'
+  end if
 #endif
 
   ! --------------------------------------------------------

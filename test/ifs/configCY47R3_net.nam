@@ -21,6 +21,7 @@ iverbose    	   	= 2,
 istartcol               = 0,      ! Use full range of columns by default
 iendcol                 = 0,
 nrepeat                 = 1,
+nwarmup                 = 0,
 cloud_separation_scale_toa = 14000.0,
 cloud_separation_scale_surface = 2500.0,
 cloud_separation_scale_power = 3.5,

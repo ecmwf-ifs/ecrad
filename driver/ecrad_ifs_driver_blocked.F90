@@ -396,9 +396,6 @@ program ecrad_ifs_driver
 
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
-#ifndef NO_OPENMP
-  tstart = omp_get_wtime()
-#endif
   do jrepeat = 1,driver_config%nrepeat
 #ifdef HAVE_NVTX
      call nvtxStartRange("ecrad_it")
@@ -414,6 +411,12 @@ program ecrad_ifs_driver
     next_il = min(nproma,ncol)
     !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,1), &
     !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,1)) async(2)
+#endif
+
+#ifndef NO_OPENMP
+    if (jrepeat == driver_config%nwarmup + 1) then
+      tstart = omp_get_wtime()
+    end if
 #endif
 
 !    if (driver_config%do_parallel) then
@@ -536,8 +539,10 @@ program ecrad_ifs_driver
 !$acc wait
 
 #ifndef NO_OPENMP
-  tstop = omp_get_wtime()
-  write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  if (driver_config%nrepeat > driver_config%nwarmup) then
+    tstop = omp_get_wtime()
+    write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  end if
 #endif
 
   ! --------------------------------------------------------

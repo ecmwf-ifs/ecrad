@@ -25,7 +25,7 @@ module ecrad_driver_config
 
   ! Maximum number of spectral diagnostics
   integer, parameter :: NMaxSpectralDiag = 256
-  
+
   type driver_config_type
 
      ! Parallel settings
@@ -80,7 +80,7 @@ module ecrad_driver_config
      ! unassigned value in sw_diag_wavelength_bound after reading
      ! namelist
      integer :: n_sw_diag
-     
+
      ! Volume mixing ratios (m3 m-3) in model layers (or equivalently
      ! mole fractions (mol mol-1)) are typically stored in the input
      ! file with a name like co2_vmr, but the suffix can be overridden
@@ -93,7 +93,7 @@ module ecrad_driver_config
 
      ! Save inputs in "inputs.nc"
      logical :: do_save_inputs
-     
+
      ! Save aerosol optical properties to "aerosol_optics.nc"
      logical :: do_save_aerosol_optics
 
@@ -102,7 +102,7 @@ module ecrad_driver_config
 
      ! Save only net and surface/TOA fluxes, rather than up and down
      logical :: do_save_net_fluxes
-     
+
      ! Do we ignore the inv_inhom_effective_size variable and instead
      ! assume the scale of cloud inhomogeneities is the same as the
      ! scale of the clouds themselves?
@@ -110,6 +110,9 @@ module ecrad_driver_config
 
      ! Number of repeats (for benchmarking)
      integer :: nrepeat
+
+     ! Number of warmup iterations before starting the timing (for benchmarking)
+     integer :: nwarmup
 
      ! Do we correct unphysical inputs (e.g. negative gas concentrations)?
      logical :: do_correct_unphysical_inputs = .false.
@@ -173,18 +176,18 @@ contains
     real(jprb) :: cloud_separation_scale_surface
     real(jprb) :: cloud_separation_scale_toa
     real(jprb) :: cloud_separation_scale_power
-    real(jprb) :: h2o_scaling   
-    real(jprb) :: co2_scaling   
-    real(jprb) :: o3_scaling    
-    real(jprb) :: co_scaling    
-    real(jprb) :: ch4_scaling   
+    real(jprb) :: h2o_scaling
+    real(jprb) :: co2_scaling
+    real(jprb) :: o3_scaling
+    real(jprb) :: co_scaling
+    real(jprb) :: ch4_scaling
     real(jprb) :: n2o_scaling
-    real(jprb) :: o2_scaling    
-    real(jprb) :: cfc11_scaling 
-    real(jprb) :: cfc12_scaling 
+    real(jprb) :: o2_scaling
+    real(jprb) :: cfc11_scaling
+    real(jprb) :: cfc12_scaling
     real(jprb) :: hcfc22_scaling
-    real(jprb) :: ccl4_scaling  
-    real(jprb) :: no2_scaling   
+    real(jprb) :: ccl4_scaling
+    real(jprb) :: no2_scaling
     real(jprb) :: sw_diag_wavelength_bound(NMaxSpectralDiag+1)
     character(len=NMaxStringLength) :: sw_diag_file_name
     character(len=32) :: vmr_suffix_str
@@ -198,7 +201,7 @@ contains
          &  do_save_cloud_optics, do_ignore_inhom_effective_size, &
          &  do_correct_unphysical_inputs, do_write_hdf5, &
          &  do_write_double_precision
-    integer :: nrepeat
+    integer :: nrepeat, nwarmup
 
     ! Process a limited number of columns (iendcol=0 indicates to
     ! process from istartcol up to the end)
@@ -212,7 +215,7 @@ contains
 
     ! Loop index
     integer :: jdiag
-    
+
     namelist /radiation_driver/ fractional_std, &
          &  overlap_decorr_length, inv_effective_size, sw_albedo, &
          &  high_inv_effective_size, middle_inv_effective_size, &
@@ -223,7 +226,7 @@ contains
          &  solar_cycle_multiplier_override, &
          &  cloud_fraction_scaling, overlap_decorr_length_scaling, &
          &  skin_temperature, do_parallel, nblocksize, iverbose, &
-         &  nrepeat, do_save_inputs, do_ignore_inhom_effective_size, &
+         &  nrepeat, nwarmup, do_save_inputs, do_ignore_inhom_effective_size, &
          &  do_save_aerosol_optics, do_save_net_fluxes, do_save_cloud_optics, &
          &  cloud_separation_scale_toa, cloud_separation_scale_surface, &
          &  cloud_separation_scale_power, do_correct_unphysical_inputs, &
@@ -281,13 +284,14 @@ contains
     istartcol = 0
     iendcol = 0
     nrepeat = 1
+    nwarmup = 0
     do_correct_unphysical_inputs = .false.
     do_write_hdf5 = .false.
     do_write_double_precision = .false.
     experiment_name = ''
     sw_diag_wavelength_bound = this%sw_diag_wavelength_bound
     sw_diag_file_name = this%sw_diag_file_name
-    
+
     ! Open the namelist file and read the radiation_driver namelist
     open(unit=10, iostat=iosopen, file=trim(file_name))
     if (iosopen /= 0) then
@@ -319,6 +323,10 @@ contains
     this%nblocksize = nblocksize
     this%iverbose = iverbose
     this%nrepeat = nrepeat
+    this%nwarmup = nwarmup
+    if (iverbose > 0 .and. nrepeat <= nwarmup) then
+      write(nulerr,'(a)') '*** Warning: No timing data will be collected because nwarmup >= nrepeat'
+    end if
     if (istartcol < 1) then
       this%istartcol = 1
     else
@@ -393,7 +401,7 @@ contains
     this%no2_scaling    = no2_scaling
     this%vmr_suffix_str = trim(vmr_suffix_str)
     this%experiment_name= trim(experiment_name)
-    
+
     this%sw_diag_file_name = trim(sw_diag_file_name)
     this%sw_diag_wavelength_bound = sw_diag_wavelength_bound
     ! Work out number of shortwave diagnostics from first negative
@@ -405,7 +413,7 @@ contains
         exit
       end if
     end do
-    
+
   end subroutine read_config_from_namelist
 
 end module ecrad_driver_config

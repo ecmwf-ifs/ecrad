@@ -16,6 +16,7 @@ iverbose    	   	= 2,
 istartcol               = 0,      ! Use full range of columns by default
 iendcol                 = 0,
 nrepeat                 = 1,
+nwarmup                 = 0,
 cloud_separation_scale_toa = 14000.0,
 cloud_separation_scale_surface = 2500.0,
 cloud_separation_scale_power = 3.5,
@@ -41,7 +42,7 @@ ice_model_name		= "Fu-IFS",       ! Ice particle scattering model
 sw_solver_name          = "McICA",
 lw_solver_name          = "McICA",
 overlap_scheme_name     = "Exp-Ran",      ! Exp-Ran, Max-Ran or Exp-Exp
-cloud_fraction_threshold = 0.001e-3,      ! 
+cloud_fraction_threshold = 0.001e-3,      !
 do_lw_aerosol_scattering= false,          ! Aerosols scatter in the longwave?
 do_lw_cloud_scattering 	= true, 	  ! Clouds scatter in the longwave?
 cloud_inhom_decorr_scaling = 0.5,         ! Ratio of overlap decorr len of inhomogeneities to boundaries
@@ -52,8 +53,8 @@ do_3d_effects		= false,          ! Represent 3D effects?
 sw_entrapment_name      = "Explicit",     ! Zero, Edge-only, Explicit, Non-fractal, Maximum are possible
 ! Verbosity level: 0=none, 1=warning, 2=info, 3=progress, 4=detailed, 5=debug
 ! Separate verbosity specified for setup and ordinary execution
-iverbose    	   	= 1, 
-iverbosesetup  	   	= 3, 
+iverbose    	   	= 1,
+iverbosesetup  	   	= 3,
 use_aerosols		= true,           ! Include aerosols in radiation calculations?
 do_save_spectral_flux   = true,           ! Save spectral fluxes in output file?
 do_save_gpoint_flux     = false,           ! Save fluxes per g-point in output file?
