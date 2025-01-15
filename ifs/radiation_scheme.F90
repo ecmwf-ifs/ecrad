@@ -15,7 +15,9 @@ SUBROUTINE RADIATION_SCHEME &
      &  PFLUX_DIR, PFLUX_DIR_CLEAR, PFLUX_DIR_INTO_SUN, &
      &  PFLUX_UV, PFLUX_PAR, PFLUX_PAR_CLEAR, &
      &  PFLUX_SW_DN_TOA, PEMIS_OUT, PLWDERIVATIVE, &
-     &  PSWDIFFUSEBAND, PSWDIRECTBAND)
+     &  PSWDIFFUSEBAND, PSWDIRECTBAND, &
+     ! OPTIONAL ARGUMENTS for bit-identical results in tests
+     &  PRE_LIQ, PRE_ICE, ISEED, PCLOUD_OVERLAP)
 
 ! RADIATION_SCHEME - Interface to modular radiation scheme
 !
@@ -189,6 +191,12 @@ REAL(KIND=JPRB),  INTENT(OUT) :: PLWDERIVATIVE(KLON,KLEV+1)
 REAL(KIND=JPRB),  INTENT(OUT) :: PSWDIFFUSEBAND(KLON,YRADIATION%YRERAD%NSW)
 REAL(KIND=JPRB),  INTENT(OUT) :: PSWDIRECTBAND (KLON,YRADIATION%YRERAD%NSW)
 
+! Optional input arguments (Added for validating against ecrad standalone!)
+REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PRE_LIQ(KLON, KLEV)
+REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PRE_ICE(KLON, KLEV)
+INTEGER,         INTENT(IN), OPTIONAL :: ISEED(KLON)
+REAL(KIND=JPRB), INTENT(IN), OPTIONAL :: PCLOUD_OVERLAP(KLON, KLEV-1)
+
 ! LOCAL VARIABLES
 TYPE(SINGLE_LEVEL_TYPE)   :: SINGLE_LEVEL
 TYPE(THERMODYNAMICS_TYPE) :: THERMODYNAMICS
@@ -352,6 +360,12 @@ SINGLE_LEVEL%LW_EMISSIVITY(KIDIA:KFDIA,:)  = PSPECTRALEMISS(KIDIA:KFDIA,:)
 ! Simple initialization of the seeds for the Monte Carlo scheme
 call single_level%init_seed_simple(kidia, kfdia)
 
+! Added for bit-identity validation against ecrad standalone:
+! Overwrite seed with user-specified values
+if (present(iseed)) then
+   single_level%iseed(kidia:kfdia) = iseed(kidia:kfdia)
+end if
+
 ! Set the solar spectrum scaling, if required
 IF (YRERAD%NSOLARSPECTRUM == 1) THEN
   ALLOCATE(SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING(RAD_CONFIG%N_BANDS_SW))
@@ -367,17 +381,25 @@ YLCLOUD%Q_ICE(KIDIA:KFDIA,:)    = PQ_ICE(KIDIA:KFDIA,:) + PQ_SNOW(KIDIA:KFDIA,:)
 YLCLOUD%FRACTION(KIDIA:KFDIA,:) = PCLOUD_FRAC(KIDIA:KFDIA,:)
 
 ! Compute effective radii and convert to metres
+IF (PRESENT(PRE_LIQ)) THEN
+  YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = PRE_LIQ(KIDIA:KFDIA,:)
+ELSE
 CALL LIQUID_EFFECTIVE_RADIUS(YRERAD, &
      &  KIDIA, KFDIA, KLON, KLEV, &
      &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_LIQUID, PQ_RAIN, &
      &  PLAND_SEA_MASK, PCCN_LAND, PCCN_SEA, &
      &  ZRE_LIQUID_UM) !, PPERT=PPERT)
 YLCLOUD%RE_LIQ(KIDIA:KFDIA,:) = ZRE_LIQUID_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+ENDIF
 
+IF (PRESENT(PRE_ICE)) THEN
+  YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = PRE_ICE(KIDIA:KFDIA,:)
+ELSE
 CALL ICE_EFFECTIVE_RADIUS(YRERAD, KIDIA, KFDIA, KLON, KLEV, &
      &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PGEMU, &
      &  ZRE_ICE_UM) !, PPERT=PPERT)
 YLCLOUD%RE_ICE(KIDIA:KFDIA,:) = ZRE_ICE_UM(KIDIA:KFDIA,:) * 1.0E-6_JPRB
+ENDIF
 
 ! Get the cloud overlap decorrelation length (for cloud boundaries),
 ! in km, according to the parameterization specified by NDECOLAT,
@@ -395,6 +417,12 @@ DO JLON = KIDIA,KFDIA
       &                       ZDECORR_LEN_KM(JLON)*1000.0_JPRB,&
       &                       ISTARTCOL=JLON, IENDCOL=JLON)
 ENDDO
+
+! Added for bit-identity validation against ecrad standalone:
+! Overwrite overlap param with provided value
+if(present(PCLOUD_OVERLAP)) then
+  YLCLOUD%OVERLAP_PARAM(KIDIA:KFDIA,:) = PCLOUD_OVERLAP(KIDIA:KFDIA,:)
+endif
 
 ! Cloud water content fractional standard deviation is configurable
 ! from namelist NAERAD but must be globally constant. Before it was
