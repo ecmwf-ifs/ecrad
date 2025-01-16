@@ -414,7 +414,10 @@ program ecrad_driver
 #ifndef NO_OPENMP
   if (driver_config%nrepeat > driver_config%nwarmup) then
     tstop = omp_get_wtime()
-    write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+    write(nulout, '(a,g12.5,a)') 'Total time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+    write(nulout, '(a,g12.5,a)') 'Average time elapsed in radiative transfer: ', &
+      &                         (tstop-tstart)/(driver_config%nrepeat-driver_config%nwarmup), ' seconds'
+    write(nulout, '(a,i0)') 'Columns/s : ', int((ncol*(driver_config%nrepeat-driver_config%nwarmup))/(tstop-tstart))
   end if
 #endif
 
