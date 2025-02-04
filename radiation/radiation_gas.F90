@@ -239,14 +239,11 @@ contains
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
           size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, i2)
 
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, mixing_ratio) ASYNC(1)
-    !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
       do jc = i1,i2
         this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
       end do
     end do
-    !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
 
