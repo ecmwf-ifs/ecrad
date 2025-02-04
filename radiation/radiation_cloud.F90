@@ -19,7 +19,7 @@
 
 module radiation_cloud
 
-  use parkind1, only : jprb, jprd, jprm
+  use parkind1, only : jprb
 
   implicit none
   public
@@ -88,9 +88,7 @@ module radiation_cloud
     procedure :: create_fractional_std
     procedure :: create_inv_cloud_effective_size
     procedure :: create_inv_cloud_effective_size_eta
-    procedure :: param_cloud_effective_separation_eta_jprd
-    procedure :: param_cloud_effective_separation_eta_jprm
-    generic   :: param_cloud_effective_separation_eta => param_cloud_effective_separation_eta_jprd, param_cloud_effective_separation_eta_jprm
+    procedure :: param_cloud_effective_separation_eta
     procedure :: crop_cloud_fraction
     procedure :: out_of_physical_bounds
 
@@ -602,7 +600,7 @@ contains
   ! (m-1) parameterized according to the value of eta (=pressure
   ! divided by surface pressure): effective_separation =
   ! coeff_a + coeff_b*exp(-(eta**power)).  
-  subroutine param_cloud_effective_separation_eta_jprd(this, ncol, nlev, &
+  subroutine param_cloud_effective_separation_eta(this, ncol, nlev, &
        &  pressure_hl, separation_surf, separation_toa, power, &
        &  inhom_separation_factor, istartcol, iendcol)
 
@@ -611,7 +609,7 @@ contains
     class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     ! Pressure on half levels (Pa)
-    real(jprd),        intent(in)    :: pressure_hl(:,:)
+    real(jprb),        intent(in)    :: pressure_hl(:,:)
     ! Separation distances at surface and top-of-atmosphere, and power
     ! on eta
     real(jprb),           intent(in) :: separation_surf ! m
@@ -690,102 +688,7 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:param_cloud_effective_separation_eta',1,hook_handle)
 
-  end subroutine param_cloud_effective_separation_eta_jprd
-  
-  !---------------------------------------------------------------------
-  ! Create a matrix of inverse cloud and inhomogeneity effective size
-  ! (m-1) parameterized according to the value of eta (=pressure
-  ! divided by surface pressure): effective_separation =
-  ! coeff_a + coeff_b*exp(-(eta**power)).  
-  subroutine param_cloud_effective_separation_eta_jprm(this, ncol, nlev, &
-       &  pressure_hl, separation_surf, separation_toa, power, &
-       &  inhom_separation_factor, istartcol, iendcol)
-
-    use yomhook,                  only : lhook, dr_hook, jphook
-
-    class(cloud_type), intent(inout) :: this
-    integer,           intent(in)    :: ncol, nlev
-    ! Pressure on half levels (Pa)
-    real(jprm),        intent(in)    :: pressure_hl(:,:)
-    ! Separation distances at surface and top-of-atmosphere, and power
-    ! on eta
-    real(jprb),           intent(in) :: separation_surf ! m
-    real(jprb),           intent(in) :: separation_toa ! m
-    real(jprb),           intent(in) :: power
-    real(jprb), optional, intent(in) :: inhom_separation_factor
-    integer,    optional, intent(in) :: istartcol, iendcol
-
-    ! Ratio of layer midpoint pressure to surface pressure
-    real(jprb) :: eta(nlev)
-
-    ! Effective cloud separation (m)
-    real(jprb) :: eff_separation(nlev)
-
-    ! Coefficients used to compute effective separation distance
-    real(jprb) :: coeff_e, coeff_a, coeff_b, inhom_sep_factor
-
-    ! Indices of column, level and surface half-level
-    integer :: jcol, isurf
-
-    ! Local values of istartcol, iendcol
-    integer :: i1, i2
-
-    real(jphook) :: hook_handle
-
-    if (lhook) call dr_hook('radiation_cloud:param_cloud_effective_separation_eta',0,hook_handle)
-
-    if (present(inhom_separation_factor)) then
-      inhom_sep_factor = inhom_separation_factor
-    else
-      inhom_sep_factor = 1.0_jprb
-    end if
-
-    coeff_e = 1.0_jprb - exp(-1.0_jprb)
-    coeff_b = (separation_toa - separation_surf) / coeff_e
-    coeff_a = separation_toa - coeff_b
-
-    if (allocated(this%inv_cloud_effective_size)) then
-      deallocate(this%inv_cloud_effective_size)
-    end if
-     if (allocated(this%inv_inhom_effective_size)) then
-      deallocate(this%inv_inhom_effective_size)
-    end if
-   
-    allocate(this%inv_cloud_effective_size(ncol, nlev))
-    allocate(this%inv_inhom_effective_size(ncol, nlev))
-
-    if (present(istartcol)) then
-      i1 = istartcol
-    else
-      i1 = 1
-    end if
-
-    if (present(iendcol)) then
-      i2 = iendcol
-    else
-      i2 = ncol
-    end if
-
-    ! Locate the surface half-level
-    if (pressure_hl(1,1) > pressure_hl(1,2)) then
-      isurf = 1
-    else
-      isurf = nlev+1
-    end if
-
-    do jcol = i1,i2
-      eta = (pressure_hl(jcol,1:nlev)+pressure_hl(jcol,2:nlev+1)) &
-           &  * (0.5_jprb / pressure_hl(jcol,isurf))
-      eff_separation = coeff_a + coeff_b * exp(-eta**power)
-      this%inv_cloud_effective_size(jcol,:) = 1.0_jprb / (eff_separation &
-           &  * sqrt(max(1.0e-5_jprb,this%fraction(jcol,:)*(1.0_jprb-this%fraction(jcol,:)))))
-      this%inv_inhom_effective_size(jcol,:) = 1.0_jprb / (eff_separation * inhom_sep_factor &
-           &  * sqrt(max(1.0e-5_jprb,0.5_jprb*this%fraction(jcol,:)*(1.0_jprb-0.5_jprb*this%fraction(jcol,:)))))
-    end do
-
-    if (lhook) call dr_hook('radiation_cloud:param_cloud_effective_separation_eta',1,hook_handle)
-
-  end subroutine param_cloud_effective_separation_eta_jprm
+  end subroutine param_cloud_effective_separation_eta
 
 
   !---------------------------------------------------------------------
