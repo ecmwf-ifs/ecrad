@@ -226,18 +226,17 @@ contains
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
     real(jprd),           intent(in)    :: mixing_ratio(:,:)
-    real(jprd), optional, intent(in)    :: scale_factor
+    real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
 
     integer :: i1, i2, jc, jk
-
 
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
-          size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, i2)
+          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2)
 
     do jk = 1,this%nlev
       do jc = i1,i2
@@ -263,18 +262,17 @@ contains
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
     real(jprm),           intent(in)    :: mixing_ratio(:,:)
-    real(jprm), optional, intent(in)    :: scale_factor
+    real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
 
     integer :: i1, i2, jc, jk
-
 
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
-          size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, i2)
+          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2)
 
     do jk = 1,this%nlev
       do jc = i1,i2
