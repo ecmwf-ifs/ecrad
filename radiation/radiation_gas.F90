@@ -139,7 +139,7 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Put gas mixing ratio corresponding to gas ID "igas" with units
+  ! Put gas properties corresponding to gas ID "igas" with units
   ! "iunits"
   subroutine put_gas_check(this, igas, iunits, mixing_ratio_allocated, mixing_ratio_size_1, mixing_ratio_size_2, scale_factor, &
        istartcol, i1, i2)
