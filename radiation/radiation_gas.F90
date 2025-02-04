@@ -141,7 +141,7 @@ contains
   !---------------------------------------------------------------------
   ! Put gas properties corresponding to gas ID "igas" with units
   ! "iunits"
-  subroutine put_gas_check(this, igas, iunits, mixing_ratio_allocated, mixing_ratio_size_1, mixing_ratio_size_2, scale_factor, &
+  subroutine put_gas_check(this, igas, iunits, mixing_ratio_size_1, mixing_ratio_size_2, scale_factor, &
        istartcol, i1, i2)
 
     use radiation_io,   only : nulerr, radiation_abort
@@ -149,7 +149,6 @@ contains
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
-    logical,              intent(in)    :: mixing_ratio_allocated
     integer,              intent(in)    :: mixing_ratio_size_1
     integer,              intent(in)    :: mixing_ratio_size_2
     real(jprb), optional, intent(in)    :: scale_factor
@@ -170,7 +169,7 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. mixing_ratio_allocated) then
+    if (.not. allocated(this%mixing_ratio)) then
       write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unallocated radiation_gas object'
       call radiation_abort()
     end if
@@ -237,9 +236,8 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
-    call put_gas_check(this, igas, iunits,  allocated(this%mixing_ratio), &
-          size(mixing_ratio, 1), size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, &
-          i2)
+    call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
+          size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, i2)
 
     !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, mixing_ratio) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
@@ -278,9 +276,8 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
-    call put_gas_check(this, igas, iunits,  allocated(this%mixing_ratio), &
-          size(mixing_ratio, 1), size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, &
-          i2)
+    call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
+          size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, i2)
 
     do jk = 1,this%nlev
       do jc = i1,i2
