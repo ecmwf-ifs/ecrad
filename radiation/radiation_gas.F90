@@ -141,6 +141,82 @@ contains
   !---------------------------------------------------------------------
   ! Put gas mixing ratio corresponding to gas ID "igas" with units
   ! "iunits"
+  subroutine put_gas_check(this, igas, iunits, mixing_ratio_allocated, mixing_ratio_size_1, mixing_ratio_size_2, scale_factor, &
+       istartcol, i1, i2)
+
+    use radiation_io,   only : nulerr, radiation_abort
+
+    class(gas_type),      intent(inout) :: this
+    integer,              intent(in)    :: igas
+    integer,              intent(in)    :: iunits
+    logical,              intent(in)    :: mixing_ratio_allocated
+    integer,              intent(in)    :: mixing_ratio_size_1
+    integer,              intent(in)    :: mixing_ratio_size_2
+    real(jprb), optional, intent(in)    :: scale_factor
+    integer,    optional, intent(in)    :: istartcol
+    integer,              intent(out)   :: i1, i2
+
+    ! Check inputs
+    if (igas <= IGasNotPresent .or. iunits > NMaxGases) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas ID (', &
+           &   igas, ') must be in the range ', IGasNotPresent+1, ' to ', &
+           &   NMaxGases
+      call radiation_abort()
+    end if
+    if (iunits < IMassMixingRatio .or. iunits > IVolumeMixingRatio) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas units (', &
+           &   iunits, ') must be in the range ', IMassMixingRatio, ' to ', &
+           &   IVolumeMixingRatio
+      call radiation_abort()
+    end if
+
+    if (.not. mixing_ratio_allocated) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unallocated radiation_gas object'
+      call radiation_abort()
+    end if
+
+    if (present(istartcol)) then
+      i1 = istartcol
+    else
+      i1 = 1
+    end if
+
+    i2 = i1 + mixing_ratio_size_1 - 1
+
+    if (i1 < 1 .or. i2 < 1 .or. i1 > this%ncol .or. i2 > this%ncol) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put columns indexed ', &
+           &   i1, ' to ', i2, ' to array indexed 1 to ', this%ncol
+      call radiation_abort()
+    end if
+
+    if (mixing_ratio_size_2 /= this%nlev) then
+      write(nulerr,'(a,i0,a)') &
+           &  '*** Error: gas mixing ratio expected to have ', this%nlev, &
+           &  ' levels'
+      call radiation_abort()
+    end if
+
+    if (.not. this%is_present(igas)) then
+      ! Gas not present until now
+      this%ntype = this%ntype + 1
+      this%icode(this%ntype) = igas
+    end if
+    this%is_present(igas) = .true.
+    this%iunits(igas) = iunits
+    this%is_well_mixed(igas) = .false.
+
+    if (present(scale_factor)) then
+      this%scale_factor(igas) = scale_factor
+    else
+      this%scale_factor(igas) = 1.0_jprb
+    end if
+
+  end subroutine put_gas_check
+
+
+  !---------------------------------------------------------------------
+  ! Put gas mixing ratio corresponding to gas ID "igas" with units
+  ! "iunits"
   subroutine put_gas_jprd(this, igas, iunits, mixing_ratio, scale_factor, &
        istartcol)
 
@@ -161,65 +237,18 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
-    ! Check inputs
-    if (igas <= IGasNotPresent .or. iunits > NMaxGases) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas ID (', &
-           &   igas, ') must be in the range ', IGasNotPresent+1, ' to ', &
-           &   NMaxGases
-      call radiation_abort()
-    end if
-    if (iunits < IMassMixingRatio .or. iunits > IVolumeMixingRatio) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas units (', &
-           &   iunits, ') must be in the range ', IMassMixingRatio, ' to ', &
-           &   IVolumeMixingRatio
-      call radiation_abort()
-    end if
+    call put_gas_check(this, igas, iunits,  allocated(this%mixing_ratio), &
+          size(mixing_ratio, 1), size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, &
+          i2)
 
-    if (.not. allocated(this%mixing_ratio)) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unallocated radiation_gas object'
-      call radiation_abort()
-    end if
-
-    if (present(istartcol)) then
-      i1 = istartcol
-    else
-      i1 = 1
-    end if
-
-    i2 = i1 + size(mixing_ratio,1) - 1
-
-    if (i1 < 1 .or. i2 < 1 .or. i1 > this%ncol .or. i2 > this%ncol) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put columns indexed ', &
-           &   i1, ' to ', i2, ' to array indexed 1 to ', this%ncol
-      call radiation_abort()
-    end if
-
-    if (size(mixing_ratio,2) /= this%nlev) then
-      write(nulerr,'(a,i0,a)') &
-           &  '*** Error: gas mixing ratio expected to have ', this%nlev, &
-           &  ' levels'
-      call radiation_abort()
-    end if
-
-    if (.not. this%is_present(igas)) then
-      ! Gas not present until now
-      this%ntype = this%ntype + 1
-      this%icode(this%ntype) = igas
-    end if
-    this%is_present(igas) = .true.
-    this%iunits(igas) = iunits
-    this%is_well_mixed(igas) = .false.
-
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this, mixing_ratio) ASYNC(1)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
       do jc = i1,i2
         this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
       end do
     end do
-    if (present(scale_factor)) then
-      this%scale_factor(igas) = scale_factor
-    else
-      this%scale_factor(igas) = 1.0_jprb
-    end if
+    !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
 
@@ -249,65 +278,15 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
-    ! Check inputs
-    if (igas <= IGasNotPresent .or. iunits > NMaxGases) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas ID (', &
-           &   igas, ') must be in the range ', IGasNotPresent+1, ' to ', &
-           &   NMaxGases
-      call radiation_abort()
-    end if
-    if (iunits < IMassMixingRatio .or. iunits > IVolumeMixingRatio) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas units (', &
-           &   iunits, ') must be in the range ', IMassMixingRatio, ' to ', &
-           &   IVolumeMixingRatio
-      call radiation_abort()
-    end if
-
-    if (.not. allocated(this%mixing_ratio)) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unallocated radiation_gas object'
-      call radiation_abort()
-    end if
-
-    if (present(istartcol)) then
-      i1 = istartcol
-    else
-      i1 = 1
-    end if
-
-    i2 = i1 + size(mixing_ratio,1) - 1
-
-    if (i1 < 1 .or. i2 < 1 .or. i1 > this%ncol .or. i2 > this%ncol) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put columns indexed ', &
-           &   i1, ' to ', i2, ' to array indexed 1 to ', this%ncol
-      call radiation_abort()
-    end if
-
-    if (size(mixing_ratio,2) /= this%nlev) then
-      write(nulerr,'(a,i0,a)') &
-           &  '*** Error: gas mixing ratio expected to have ', this%nlev, &
-           &  ' levels'
-      call radiation_abort()
-    end if
-
-    if (.not. this%is_present(igas)) then
-      ! Gas not present until now
-      this%ntype = this%ntype + 1
-      this%icode(this%ntype) = igas
-    end if
-    this%is_present(igas) = .true.
-    this%iunits(igas) = iunits
-    this%is_well_mixed(igas) = .false.
+    call put_gas_check(this, igas, iunits,  allocated(this%mixing_ratio), &
+          size(mixing_ratio, 1), size(mixing_ratio, 2), REAL(scale_factor, jprb), istartcol, i1, &
+          i2)
 
     do jk = 1,this%nlev
       do jc = i1,i2
         this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
       end do
     end do
-    if (present(scale_factor)) then
-      this%scale_factor(igas) = scale_factor
-    else
-      this%scale_factor(igas) = 1.0_jprb
-    end if
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
 
