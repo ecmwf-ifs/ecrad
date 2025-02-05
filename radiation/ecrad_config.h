@@ -32,6 +32,21 @@
 #define DWD_VECTOR_OPTIMIZATIONS 1
 #endif
 
+
+! A requirement of the generator is that the operation mod(A*X,M) is
+! performed with no loss of precision, so type used for A and X must
+! be able to hold the largest possible value of A*X without
+! overflowing, going negative or losing precision. The largest
+! possible value is 48271*2147483647 = 103661183124337. This number
+! can be held in either a double-precision real number, or an 8-byte
+! integer. Either may be used, but on some hardwares it has been
+! found that operations on double-precision reals are faster. Select
+! which you prefer by defining USE_REAL_RNG_STATE for double
+! precision, or undefining it for an 8-byte integer.
+#if defined (__SX__)
+#define USE_REAL_RNG_STATE 1
+#endif
+
 ! In the IFS, an MPI version of easy_netcdf capability is used so that
 ! only one MPI task reads the data files and shares with the other
 ! tasks. The MPI version is not used for writing files.

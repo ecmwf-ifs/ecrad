@@ -39,6 +39,8 @@
 ! Modifications
 !   2022-12-01  R. Hogan  Fixed zeroed state in single precision
 
+#include "ecrad_config.h"
+
 module radiation_random_numbers
 
   use parkind1, only : jprb, jprd, jpim, jpib
@@ -55,18 +57,6 @@ module radiation_random_numbers
   ! Maximum number of random numbers that can be computed in one call
   ! - this can be increased
   integer(kind=jpim), parameter :: NMaxStreams = 512
-  
-  ! A requirement of the generator is that the operation mod(A*X,M) is
-  ! performed with no loss of precision, so type used for A and X must
-  ! be able to hold the largest possible value of A*X without
-  ! overflowing, going negative or losing precision. The largest
-  ! possible value is 48271*2147483647 = 103661183124337. This number
-  ! can be held in either a double-precision real number, or an 8-byte
-  ! integer. Either may be used, but on some hardwares it has been
-  ! found that operations on double-precision reals are faster. Select
-  ! which you prefer by defining USE_REAL_RNG_STATE for double
-  ! precision, or undefining it for an 8-byte integer.
-#define USE_REAL_RNG_STATE 1
 
   ! Define RNG_STATE_TYPE based on USE_REAL_RNG_STATE, where jprd
   ! refers to a double-precision number regardless of the working
