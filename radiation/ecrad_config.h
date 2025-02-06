@@ -47,16 +47,6 @@
 #define USE_REAL_RNG_STATE 1
 #endif
 
-! Define RNG_STATE_TYPE based on USE_REAL_RNG_STATE, where jprd
-! refers to a double-precision number regardless of the working
-! precision described by jprb, while jpib describes an 8-byte
-! integer
-#ifdef USE_REAL_RNG_STATE
-#define RNG_STATE_TYPE real(kind=jprd)
-#else
-#define RNG_STATE_TYPE integer(kind=jpib)
-#endif
-
 ! In the IFS, an MPI version of easy_netcdf capability is used so that
 ! only one MPI task reads the data files and shares with the other
 ! tasks. The MPI version is not used for writing files.

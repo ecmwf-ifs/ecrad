@@ -58,6 +58,16 @@ module radiation_random_numbers
   ! - this can be increased
   integer(kind=jpim), parameter :: NMaxStreams = 512
 
+  ! Define RNG_STATE_TYPE based on USE_REAL_RNG_STATE, where jprd
+  ! refers to a double-precision number regardless of the working
+  ! precision described by jprb, while jpib describes an 8-byte
+  ! integer
+#ifdef USE_REAL_RNG_STATE
+#define RNG_STATE_TYPE real(kind=jprd)
+#else
+#define RNG_STATE_TYPE integer(kind=jpib)
+#endif
+
   ! The constants used in the main random number generator
   RNG_STATE_TYPE , parameter :: IMinstdA  = 48271
   RNG_STATE_TYPE , parameter :: IMinstdM  = 2147483647
