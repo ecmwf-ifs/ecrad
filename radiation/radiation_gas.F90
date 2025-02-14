@@ -17,7 +17,7 @@
 
 module radiation_gas
 
-  use parkind1, only : jprb
+  use parkind1, only : jprb, jprd, jprm
   use radiation_gas_constants
 
   implicit none
@@ -65,7 +65,9 @@ module radiation_gas
    contains
      procedure :: allocate   => allocate_gas
      procedure :: deallocate => deallocate_gas
-     procedure :: put        => put_gas
+     procedure :: put_gas_jprd
+     procedure :: put_gas_jprm
+     generic   :: put => put_gas_jprd, put_gas_jprm
      procedure :: put_well_mixed => put_well_mixed_gas
      procedure :: scale      => scale_gas
      procedure :: set_units  => set_units_gas
@@ -137,27 +139,21 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Put gas mixing ratio corresponding to gas ID "igas" with units
+  ! Put gas properties corresponding to gas ID "igas" with units
   ! "iunits"
-  subroutine put_gas(this, igas, iunits, mixing_ratio, scale_factor, &
-       istartcol)
+  subroutine put_gas_check(this, igas, iunits, mixing_ratio_size_1, mixing_ratio_size_2, scale_factor, &
+       istartcol, i1, i2)
 
-    use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
-    real(jprb),           intent(in)    :: mixing_ratio(:,:)
+    integer,              intent(in)    :: mixing_ratio_size_1
+    integer,              intent(in)    :: mixing_ratio_size_2
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
-
-    integer :: i1, i2, jc, jk
-
-
-    real(jphook) :: hook_handle
-
-    if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
+    integer,              intent(out)   :: i1, i2
 
     ! Check inputs
     if (igas <= IGasNotPresent .or. iunits > NMaxGases) then
@@ -184,7 +180,7 @@ contains
       i1 = 1
     end if
 
-    i2 = i1 + size(mixing_ratio,1) - 1
+    i2 = i1 + mixing_ratio_size_1 - 1
 
     if (i1 < 1 .or. i2 < 1 .or. i1 > this%ncol .or. i2 > this%ncol) then
       write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put columns indexed ', &
@@ -192,7 +188,7 @@ contains
       call radiation_abort()
     end if
 
-    if (size(mixing_ratio,2) /= this%nlev) then
+    if (mixing_ratio_size_2 /= this%nlev) then
       write(nulerr,'(a,i0,a)') &
            &  '*** Error: gas mixing ratio expected to have ', this%nlev, &
            &  ' levels'
@@ -208,21 +204,85 @@ contains
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
 
-    do jk = 1,this%nlev
-      do jc = i1,i2
-        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
-      end do
-    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
 
+  end subroutine put_gas_check
+
+
+  !---------------------------------------------------------------------
+  ! Put gas mixing ratio corresponding to gas ID "igas" with units
+  ! "iunits"
+  subroutine put_gas_jprd(this, igas, iunits, mixing_ratio, scale_factor, &
+       istartcol)
+
+    use yomhook,        only : lhook, dr_hook, jphook
+    use radiation_io,   only : nulerr, radiation_abort
+
+    class(gas_type),      intent(inout) :: this
+    integer,              intent(in)    :: igas
+    integer,              intent(in)    :: iunits
+    real(jprd),           intent(in)    :: mixing_ratio(:,:)
+    real(jprb), optional, intent(in)    :: scale_factor
+    integer,    optional, intent(in)    :: istartcol
+
+    integer :: i1, i2, jc, jk
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
+
+    call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
+          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2)
+
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+      end do
+    end do
+
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
 
-  end subroutine put_gas
+  end subroutine put_gas_jprd
+  
 
+  !---------------------------------------------------------------------
+  ! Put gas mixing ratio corresponding to gas ID "igas" with units
+  ! "iunits"
+  subroutine put_gas_jprm(this, igas, iunits, mixing_ratio, scale_factor, &
+       istartcol)
+
+    use yomhook,        only : lhook, dr_hook, jphook
+    use radiation_io,   only : nulerr, radiation_abort
+
+    class(gas_type),      intent(inout) :: this
+    integer,              intent(in)    :: igas
+    integer,              intent(in)    :: iunits
+    real(jprm),           intent(in)    :: mixing_ratio(:,:)
+    real(jprb), optional, intent(in)    :: scale_factor
+    integer,    optional, intent(in)    :: istartcol
+
+    integer :: i1, i2, jc, jk
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
+
+    call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
+          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2)
+
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+      end do
+    end do
+
+    if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
+
+  end subroutine put_gas_jprm
 
   !---------------------------------------------------------------------
   ! Put well-mixed gas mixing ratio corresponding to gas ID "igas"
