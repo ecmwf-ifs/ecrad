@@ -140,7 +140,6 @@ contains
     allocate(this%fraction(ncol,nlev))
     allocate(this%overlap_param(ncol,nlev-1))
     allocate(this%fractional_std(ncol,nlev))
-    allocate(this%inv_cloud_effective_size(ncol,nlev))
 
     if (present(use_inhom_effective_size)) then
       if (use_inhom_effective_size) then
