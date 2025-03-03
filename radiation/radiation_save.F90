@@ -1027,7 +1027,7 @@ contains
        &                 gas, cloud, aerosol, lat, lon, iverbose)
     use yomhook,                  only : lhook, dr_hook, jphook
 
-    use radiation_config,         only : config_type
+    use radiation_config,         only : config_type, ISolverSpartacus
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_gas
@@ -1206,7 +1206,9 @@ contains
              &  dim2_name="column", dim1_name="level", units_str="1", &
              &  long_name="Fractional standard deviation of cloud optical depth")
       end if
-      if (allocated(cloud%inv_cloud_effective_size)) then
+      if ((config%i_solver_sw == ISolverSPARTACUS &
+           .or.   config%i_solver_lw == ISolverSPARTACUS) &
+           .and. allocated(cloud%inv_cloud_effective_size)) then
         call out_file%define_variable("inv_cloud_effective_size", &
              &   dim2_name="column", dim1_name="level", units_str="m-1", &
              &   long_name="Inverse of cloud effective horizontal size")
@@ -1281,7 +1283,9 @@ contains
       if (allocated(cloud%fractional_std)) then
         call out_file%put("fractional_std", cloud%fractional_std)
       end if
-      if (allocated(cloud%inv_cloud_effective_size)) then
+      if ((config%i_solver_sw == ISolverSPARTACUS &
+           .or.   config%i_solver_lw == ISolverSPARTACUS) &
+           .and. allocated(cloud%inv_cloud_effective_size)) then
         call out_file%put("inv_cloud_effective_size", cloud%inv_cloud_effective_size)
       end if
       if (allocated(cloud%inv_inhom_effective_size)) then
