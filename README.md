@@ -139,6 +139,9 @@ Fortran compiler.
    files `$FIATDIR/lib/libfiat.so` and
    `$FIATDIR/module/fiat/yomhook.mod` can be found at build time.
    
+   To compile without OpenMP:
+
+	   make OMPFLAG=-DNO_OPENMP
 
 ## TO TEST
 
