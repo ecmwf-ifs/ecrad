@@ -139,7 +139,7 @@ endif()
 ecbuild_add_option(
     FEATURE BITIDENTITY_TESTING
     DEFAULT OFF
-    DESCRIPTION "Prescribe effective radii, seed and cloud_fraction in blocked drivers for bit-identical results"
+    DESCRIPTION "Prescribe eff. radii, seed and cloud_fraction in blocked drivers for bit-identical results and validate with a Python script"
 )
 if( HAVE_BITIDENTITY_TESTING )
     list( APPEND ECRAD_COMPILE_DEFINITIONS BITIDENTITY_TESTING )
