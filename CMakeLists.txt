@@ -93,6 +93,16 @@ if( HAVE_PRINT_ENTRAPMENT_DATA )
     list( APPEND ECRAD_COMPILE_DEFINITIONS PRINT_ENTRAPMENT_DATA )
 endif()
 
+ecbuild_add_option(
+    FEATURE BITIDENTITY_TESTING
+    DEFAULT OFF
+    DESCRIPTION "Prescribe eff. radii, seed and cloud_fraction in blocked drivers for bit-identical results and validate with a Python script"
+)
+if( HAVE_BITIDENTITY_TESTING )
+    list( APPEND ECRAD_COMPILE_DEFINITIONS BITIDENTITY_TESTING )
+endif()
+
+
 include(ecrad_compile_flags)
 
 # Dummy drhook module (precision-independent)

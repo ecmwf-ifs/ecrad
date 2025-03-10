@@ -103,7 +103,9 @@ program ecrad_ifs_driver
   ! Bespoke data types to set-up the blocked memory layout
   type(ifs_config_type)        :: ifs_config
   real(kind=jprb), allocatable :: zrgp(:,:,:) ! monolithic IFS data structure
+#ifdef BITIDENTITY_TESTING
   integer, allocatable         :: iseed(:,:) ! Seed for random number generator
+#endif
 
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: nproma             ! block size
@@ -365,7 +367,11 @@ program ecrad_ifs_driver
   call ifs_copy_inputs_to_blocked(driver_config, ifs_config, yradiation,&
         & ncol, nlev, single_level, thermodynamics, gas, cloud, aerosol,&
         & sin_latitude, longitude_rad, land_frac, pressure_fl, temperature_fl,&
-        & zrgp, iseed=iseed)
+        & zrgp &
+#ifdef BITIDENTITY_TESTING
+        &, iseed=iseed &
+#endif
+        & )
 
   ! --------------------------------------------------------
   ! Section 4b: Call radiation_scheme with blocked memory data
@@ -437,6 +443,14 @@ program ecrad_ifs_driver
              &  zrgp(1,ifs_config%iparcf,ib),zrgp(1,ifs_config%itincf,ib), &
              &  zrgp(1,ifs_config%iemit,ib) ,zrgp(1,ifs_config%ilwderivative,ib), &
              &  zrgp(1,ifs_config%iswdiffuseband,ib), zrgp(1,ifs_config%iswdirectband,ib)&
+#ifdef BITIDENTITY_TESTING
+            ! To validate results against standalone ecrad, we overwrite effective
+            ! radii, cloud overlap and seed with input values
+             &  ,pre_liq=zrgp(1,ifs_config%ire_liq,ib), &
+             &  pre_ice=zrgp(1,ifs_config%ire_ice,ib), &
+             &  pcloud_overlap=zrgp(1,ifs_config%ioverlap,ib), &
+             &  iseed=iseed(:,ib) &
+#endif
              & )
       end do
       !$OMP END PARALLEL DO
