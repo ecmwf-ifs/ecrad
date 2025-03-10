@@ -44,6 +44,31 @@ ifdef SINGLE_PRECISION
 CPPFLAGS += -DPARKIND1_SINGLE
 endif
 
+# Option to declare number of g-points (inner dimension) at compile time, beneficial when NG is small   
+# make PROFILE=... NG_SW=32 NG_LW=32 (when using 32-term ECCKD models)
+ifdef NG_SW
+CPPFLAGS += -DNG_SW=$(NG_SW)
+endif
+ifdef NG_LW
+CPPFLAGS += -DNG_LW=$(NG_LW)
+endif
+
+# Use the General Purpose Timing Library (GPTL)?
+ifeq ($(GPTL_TIMING),1)
+CPPFLAGS += -DUSE_TIMING
+TIMING_INCLUDE = -I$(TIME_DIR)/include
+LDFLAGS += -L$(TIME_DIR)/lib -Wl,-rpath=$(TIME_DIR)/lib 
+LIBS_TIMING = -lgptlf -lgptl -rdynamic -lunwind # -rdynamic  
+else ifeq ($(GPTL_TIMING),2) 
+# Use GPTL with PAPI to estimate FLOPS and other performance metrics with hardware counters
+# only tested to work with gcc, other compilers probably need different flags
+CPPFLAGS += -DUSE_TIMING  -DUSE_PAPI
+TIMING_INCLUDE = -I$(TIME_DIR)/include 
+LDFLAGS  += -L$(TIME_DIR)/lib -Wl,-rpath=$(TIME_DIR)/lib 
+LIBS_TIMING = -lgptlf -lgptl  -rdynamic -lpapi -lunwind
+# LIBS_TIMING      += -lgptl -lpapi
+endif
+
 # If PRINT_ENTRAPMENT_DATA=1 was given on the "make" command line
 # then the SPARTACUS shortwave solver will write data to fort.101 and
 # fort.102
@@ -64,9 +89,9 @@ endif
 # Consolidate flags
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
-	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
+	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(TIMING_INCLUDE) $(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
-	-lifsrrtm -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+	-lifsrrtm -lifsaux $(FCLIBS) $(NETCDF_LIB) $(LIBS_TIMING) $(OMPFLAG)
 
 # Do we include Dr Hook from ECMWF's fiat library?
 ifdef FIATDIR
