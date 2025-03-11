@@ -27,7 +27,7 @@ function( add_ecrad_ifs_test )
     #  3. Using ecrad_ifs.${PREC} with net flux outputs
     #  4. Using ecrad_ifs_blocked.${PREC} with net flux outputs
 
-    set( options ENABLED )
+    set( options ENABLED XFAIL_VALIDATION )
     set( oneValueArgs NAME CONFIG_FILE )
     set( multiValueArgs NAMELIST_OPTIONS )
     cmake_parse_arguments( _PAR "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
@@ -62,7 +62,7 @@ function( add_ecrad_ifs_test )
             ARGS
                 ${CONFIG_NAM}
                 ${TEST_IFS_INPUT}
-                output_${_PAR_NAME}.nc
+                output_ecrad_${PREC}_${_PAR_NAME}.nc
             DEPENDS config_${_PAR_NAME}_${PREC}
         )
 
@@ -80,6 +80,36 @@ function( add_ecrad_ifs_test )
 
         endforeach()
 
+        # When bit-identity testing is enabled, we can check the output against the
+        # default standalone driver
+        if( HAVE_BITIDENTITY_TESTING AND TARGET nccmp )
+
+            foreach( binary ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
+
+                set( ref_test_name ecrad_${PREC}_${_PAR_NAME}_net )
+                set( ver_test_name ${binary}_${_PAR_NAME}_net )
+
+                ecbuild_add_test(
+                    TARGET nccmp_${ver_test_name}
+                    COMMAND nccmp
+                    ARGS
+                        --longwave-threshold=0.001
+                        --shortwave-threshold=0.1
+                        output_${ref_test_name}.nc
+                        output_${ver_test_name}.nc
+                    TEST_DEPENDS
+                        ${ref_test_name}
+                        ${ver_test_name}
+                )
+
+                if( ${_PAR_XFAIL_VALIDATION} )
+                    set_property( TEST nccmp_${ver_test_name} PROPERTY WILL_FAIL true )
+                endif()
+
+            endforeach()
+
+        endif()
+
     endif()
 endfunction( add_ecrad_ifs_test )
 
@@ -92,6 +122,26 @@ add_ecrad_ifs_test(
     NAME default
     ENABLED ON
 )
+
+# When the nccmp utility is available, we can check the output against the reference file
+# in the repository
+if( TARGET nccmp )
+    ecbuild_add_test(
+        TARGET nccmp_ecrad_${PREC}_default
+        COMMAND nccmp
+        ARGS
+            --longwave-threshold=0.001
+            --shortwave-threshold=0.1
+            output_ecrad_${PREC}_default.nc
+            ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_default_out_REFERENCE.nc
+        TEST_DEPENDS
+            ecrad_${PREC}_default
+    )
+
+    if( "${PREC}" STREQUAL "sp" )
+        set_property( TEST nccmp_ecrad_${PREC}_default PROPERTY WILL_FAIL true )
+    endif()
+endif()
 
 # Turn off aerosols
 add_ecrad_ifs_test(
@@ -132,6 +182,7 @@ add_ecrad_ifs_test(
 		"do_3d_effects=true"
 		"do_sw_delta_scaling_with_gases=false"
     ENABLED ON
+    XFAIL_VALIDATION
 )
 
 # 3D radiative transfer using the older "maximum entrapment"
@@ -144,6 +195,7 @@ add_ecrad_ifs_test(
 		"sw_entrapment_name=\\\"Maximum\\\""
 		"do_sw_delta_scaling_with_gases=false"
     ENABLED ON
+    XFAIL_VALIDATION
 )
 
 # "Cloudless" solver
@@ -200,4 +252,5 @@ add_ecrad_ifs_test(
         "lw_solver_name=\\\"SPARTACUS\\\""
         "do_3d_effects=true"
     ENABLED ON
+    XFAIL_VALIDATION
 )
