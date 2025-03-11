@@ -33,6 +33,7 @@ version 1.6.2
 	  for heating rates 0.002 K/d in the SW and 0.003 in the LW.
 	- Provide get_uv_biological_weights to enable calculation of UV
 	  index from shortwave g-points (ecCKD only)
+	- Added liquid optics Jahangir (2021) and Nielsen (2020)
 
  version 1.6.1
 	- Renamed ifsaux/yommp0.F90 to ifsaux/yommp0_ifsaux.F90 and initialize

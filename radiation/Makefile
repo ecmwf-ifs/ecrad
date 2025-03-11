@@ -17,6 +17,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_homogeneous_sw.F90 radiation_homogeneous_lw.F90 \
 	radiation_ice_optics_fu.F90 radiation_ice_optics_baran.F90 \
 	radiation_ice_optics_baran2017.F90 radiation_ice_optics_yi.F90 \
+	radiation_liquid_optics_jahangir.F90 radiation_liquid_optics_nielsen.F90 \
 	radiation_liquid_optics_socrates.F90 radiation_liquid_optics_slingo.F90 \
 	radiation_tripleclouds_sw.F90 radiation_tripleclouds_lw.F90 \
 	radiation_regions.F90 radiation_ecckd.F90 \

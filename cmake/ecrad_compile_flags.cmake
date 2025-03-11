@@ -27,7 +27,7 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(checkbounds_flags   "-check bounds")
   set(initsnan_flags      "-init=snan")
   set(inline_flags        "-finline-functions -finline-limit=1500 -Winline")
-  set(vectorization_flags "-assume byterecl,realloc_lhs")
+  set(vectorization_flags "-assume byterecl,realloc_lhs -march=core-avx2 -no-fma")
   set(fpmodel_flags       "-fpe0 -fp-model precise -fp-speculation=safe -ftz")
   set(transcendentals_flags "-fast-transcendentals")
 

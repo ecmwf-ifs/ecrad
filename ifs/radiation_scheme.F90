@@ -70,7 +70,7 @@ SUBROUTINE RADIATION_SCHEME &
 USE PARKIND1       , ONLY : JPIM, JPRB, JPRD
 USE YOMHOOK        , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMCST         , ONLY : RPI, RSIGMA ! Stefan-Boltzmann constant
-USE YOMLUN         , ONLY : NULERR
+USE YOMLUN         , ONLY : NULERR, NULOUT
 USE RADIATION_SETUP, ONLY : ITYPE_TROP_BG_AER, ITYPE_STRAT_BG_AER, TRADIATION
 
 ! Modules from ecRad radiation library
@@ -444,10 +444,31 @@ end if
 ! Set the solar spectrum scaling, if required
 IF (YRERAD%NSOLARSPECTRUM == 1) THEN
   ALLOCATE(SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING(RAD_CONFIG%N_BANDS_SW))
-  ! Ratio of SORCE (Coddington et al. 2016) and Kurucz solar spectra
+  ! RRTMG uses the old Kurucz solar spectrum. The following scalings
+  ! adjust it to match more recent measured spectra.
+  IF (YRERAD%NSOLARSPECTRUM == 1) THEN
+    ! The Whole Heliosphere Interval (WHI) 2008 reference spectrum for
+    ! solar minimum conditions in 2008:
+    ! https://lasp.colorado.edu/lisird/data/whi_ref_spectra This
+    ! spectrum only extends to wavelengths of 2.4 microns, so a Kurucz
+    ! is assumed to be correct for longer wavelengths. (Note that in
+    ! previous cycles this was incorrectly labelled as the Coddington
+    ! spectrum, which is below.)
   SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING &
-       &  = (/  1.0, 1.0, 1.0, 1.0478, 1.0404, 1.0317, 1.0231, &
-       &        1.0054, 0.98413, 0.99863, 0.99907, 0.90589, 0.92213, 1.0 /)
+         &  = [ 1.0000_JPRB,  1.0000_JPRB,  1.0000_JPRB,  1.0478_JPRB, &
+         &      1.0404_JPRB,  1.0317_JPRB,  1.0231_JPRB,  1.0054_JPRB, &
+         &      0.98413_JPRB, 0.99863_JPRB, 0.99907_JPRB, 0.90589_JPRB, &
+         &      0.92213_JPRB, 1.0000_JPRB ]
+  ELSE
+    ! The average of the last 33 years (3 solar cycles) of the
+    ! Coddington et al. (BAMS, 2016) climate data record, which covers
+    ! the entire spectrum
+    SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING &
+         &  = [ 0.99892_JPRB, 0.99625_JPRB, 1.00822_JPRB, 1.01587_JPRB, &
+         &      1.01898_JPRB, 1.01044_JPRB, 1.08441_JPRB, 0.99398_JPRB, &
+         &      1.00553_JPRB, 0.99533_JPRB, 1.01509_JPRB, 0.92331_JPRB, &
+         &      0.92681_JPRB, 0.99749_JPRB ]
+  ENDIF
   !$ACC ENTER DATA COPYIN(SINGLE_LEVEL%SPECTRAL_SOLAR_SCALING) ASYNC(1)
 ENDIF
 
@@ -479,19 +500,19 @@ IF (PRESENT(PRE_LIQ)) THEN
   ENDDO
   !$ACC END PARALLEL
 ELSE
-CALL LIQUID_EFFECTIVE_RADIUS(YRERAD, &
+  CALL LIQUID_EFFECTIVE_RADIUS(YRERAD, &
      &  KIDIA, KFDIA, KLON, KLEV, &
      &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_LIQUID, PQ_RAIN, &
      &  PLAND_SEA_MASK, PCCN_LAND, PCCN_SEA, &
      &  ZRE_LIQUID_UM) !, PPERT=PPERT)
-!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
-!$ACC LOOP GANG VECTOR COLLAPSE(2)
-DO JLEV = 1,KLEV
-  DO JLON = KIDIA,KFDIA
-    YLCLOUD%RE_LIQ(JLON,JLEV) = ZRE_LIQUID_UM(JLON,JLEV) * 1.0E-6_JPRB
+  !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
+  !$ACC LOOP GANG VECTOR COLLAPSE(2)
+  DO JLEV = 1,KLEV
+    DO JLON = KIDIA,KFDIA
+      YLCLOUD%RE_LIQ(JLON,JLEV) = ZRE_LIQUID_UM(JLON,JLEV) * 1.0E-6_JPRB
+    ENDDO
   ENDDO
-ENDDO
-!$ACC END PARALLEL
+  !$ACC END PARALLEL
 ENDIF
 
 IF (PRESENT(PRE_ICE)) THEN
@@ -504,17 +525,17 @@ IF (PRESENT(PRE_ICE)) THEN
   ENDDO
   !$ACC END PARALLEL
 ELSE
-CALL ICE_EFFECTIVE_RADIUS(YRERAD, KIDIA, KFDIA, KLON, KLEV, &
+  CALL ICE_EFFECTIVE_RADIUS(YRERAD, KIDIA, KFDIA, KLON, KLEV, &
      &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PGEMU, &
      &  ZRE_ICE_UM) !, PPERT=PPERT)
-!$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
-!$ACC LOOP GANG VECTOR COLLAPSE(2)
-DO JLEV = 1,KLEV
-  DO JLON = KIDIA,KFDIA
-    YLCLOUD%RE_ICE(JLON,JLEV) = ZRE_ICE_UM(JLON,JLEV) * 1.0E-6_JPRB
+  !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
+  !$ACC LOOP GANG VECTOR COLLAPSE(2)
+  DO JLEV = 1,KLEV
+    DO JLON = KIDIA,KFDIA
+      YLCLOUD%RE_ICE(JLON,JLEV) = ZRE_ICE_UM(JLON,JLEV) * 1.0E-6_JPRB
+    ENDDO
   ENDDO
-ENDDO
-!$ACC END PARALLEL
+  !$ACC END PARALLEL
 ENDIF
 
 ! Get the cloud overlap decorrelation length (for cloud boundaries),

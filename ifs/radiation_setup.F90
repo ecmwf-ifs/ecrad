@@ -49,9 +49,9 @@ USE radiation_config, ONLY :   config_type, &
        &                       ISolverMcICA, ISolverSpartacus, &
        &                       ISolverTripleclouds, ISolverCloudless, &
        &                       ILiquidModelSlingo, ILiquidModelSOCRATES, &
-       &                       IIceModelFu, IIceModelBaran, &
+       &                       IIceModelFu, IIceModelBaran, IIceModelYi, &
        &                       IOverlapExponential, IOverlapMaximumRandom, &
-       &                       IOverlapExponentialRandom,&
+       &                       IOverlapExponentialRandom, IGasModelECCKD, IGasModelIFSRRTMG,&
        &                       define_sw_albedo_intervals
 USE YOERAD, ONLY : TERAD
 USE YOE_SPECTRAL_PLANCK, ONLY : INIT
@@ -170,7 +170,7 @@ CONTAINS
 
     IF (IVERBOSESETUP > 1) THEN
       WRITE(NULOUT,'(a)') '-------------------------------------------------------------------------------'
-      WRITE(NULOUT,'(a)') 'RADIATION_SETUP: ecRad 1.5'
+    WRITE(NULOUT,'(a)') 'RADIATION_SETUP: ecRad 1.6'
     ENDIF
 
     ! Normal operation of the radiation scheme displays only errors
@@ -216,7 +216,7 @@ CONTAINS
 
     ! *** SETUP CLOUD OPTICS ***
 
-    ! Setup liquid optics
+    ! Setup liquid optics for RRTMG configuration
     IF (YDERAD%NLIQOPT == 2) THEN
       RAD_CONFIG%I_LIQ_MODEL = ILIQUIDMODELSLINGO
     ELSEIF (YDERAD%NLIQOPT == 4) THEN
@@ -226,19 +226,33 @@ CONTAINS
            &  YDERAD%NLIQOPT
       CALL ABOR1('RADIATION_SETUP: error interpreting NLIQOPT')
     ENDIF
+    ! Setup liquid optics for generalized cloud configuration
+    ! RAD_CONFIG%CLOUD_TYPE_NAME(1) = "mie_droplet"
 
     ! Setup ice optics
     IF (YDERAD%NICEOPT == 3) THEN
-      RAD_CONFIG%I_ICE_MODEL = IICEMODELFU
+      RAD_CONFIG%I_ICE_MODEL = IICEMODELFU ! ecRad-RRTMG configuration
+      ! RAD_CONFIG%CLOUD_TYPE_NAME(2) = "fu-muskatel_ice" ! ecRad generalized configuration
       IF (YDERAD%LFU_LW_ICE_OPTICS_BUG) THEN
         RAD_CONFIG%DO_FU_LW_ICE_OPTICS_BUG = .TRUE.
       ENDIF
     ELSEIF (YDERAD%NICEOPT == 4) THEN
       RAD_CONFIG%I_ICE_MODEL = IICEMODELBARAN
+      IF (RAD_CONFIG%I_GAS_MODEL_SW == IGasModelECCKD &
+          .OR. RAD_CONFIG%I_GAS_MODEL_LW == IGasModelECCKD) THEN
+        WRITE(NULERR,'(a,i0)') '*** Error: Baran ice optics unavailable with generalized cloud optics'
+        CALL ABOR1('RADIATION_SETUP: error interpreting NICEOPT')
+      ENDIF
+    ELSEIF (YDERAD%NICEOPT == 5) THEN
+      RAD_CONFIG%I_ICE_MODEL = IICEMODELYI
+      ! RAD_CONFIG%CLOUD_TYPE_NAME(2) = "baum-general-habit-mixture_ice"
+    ELSEIF (YDERAD%NICEOPT == 6) THEN
+      RAD_CONFIG%I_ICE_MODEL = IICEMODELFU ! ecRad-RRTMG configuration
+      ! RAD_CONFIG%CLOUD_TYPE_NAME(2) = "fu-muskatel-rough_ice" ! ecRad generalized configuration
     ELSE
       WRITE(NULERR,'(a,i0)') '*** Error: Unavailable ice optics model in modular radiation scheme: NICEOPT=', &
            &  YDERAD%NICEOPT
-!!      CALL ABOR1('RADIATION_SETUP: error interpreting NICEOPT')   !db fix
+      CALL ABOR1('RADIATION_SETUP: error interpreting NICEOPT')
     ENDIF
 
     ! For consistency with earlier versions of the IFS radiation
@@ -253,6 +267,7 @@ CONTAINS
 
     ! *** SETUP AEROSOLS ***
 
+    ! Configure aerosol properties in the RAD_CONFIG structure
     RAD_CONFIG%USE_AEROSOLS = .TRUE.
 
     ! If monochromatic aerosol properties are available they will be
@@ -478,16 +493,6 @@ CONTAINS
          &  YSPECTPLANCK%WAVLEN_BOUND, YSPECTPLANCK%INTERVAL_MAP, &
          &  DO_NEAREST=LL_DO_NEAREST_LW_EMISS)
 
-    ! Do we scale the incoming solar radiation in each band?
-    IF (YDERAD%NSOLARSPECTRUM == 1) THEN
-      IF (RAD_CONFIG%N_BANDS_SW /= 14) THEN
-        WRITE(NULERR,'(a)') '*** Error: Shortwave must have 14 bands to apply spectral scaling'
-        CALL ABOR1('RADIATION_SETUP: Shortwave must have 14 bands to apply spectral scaling')
-      ELSE
-        RAD_CONFIG%USE_SPECTRAL_SOLAR_SCALING = .TRUE.
-      ENDIF
-    ENDIF
-
     ! *** IMPLEMENT SETTINGS ***
 
     ! For advanced configuration, the configuration data for the
@@ -518,6 +523,18 @@ CONTAINS
     ! Use configuration data to set-up radiation scheme, including
     ! reading scattering datafiles
     CALL SETUP_RADIATION(RAD_CONFIG)
+
+    ! Do we scale the incoming solar radiation in each band?
+    IF (YDERAD%NSOLARSPECTRUM > 0 &
+       &  .AND. RAD_CONFIG%I_GAS_MODEL_SW == IGasModelIFSRRTMG) THEN
+      IF (RAD_CONFIG%N_BANDS_SW /= 14) THEN
+        WRITE(NULERR,'(a,i0,a)') '*** Error: ', RAD_CONFIG%N_BANDS_SW, &
+            &  ' shortwave bands but need 14 to apply spectral scaling'
+        CALL ABOR1('RADIATION_SETUP: Shortwave must have 14 bands to apply spectral scaling')
+      ELSE
+        RAD_CONFIG%USE_SPECTRAL_SOLAR_SCALING = .TRUE.
+      ENDIF
+    ENDIF
 
     ! Get spectral weightings for UV and PAR
     CALL RAD_CONFIG%GET_SW_WEIGHTS(0.2E-6_JPRB, 0.4415E-6_JPRB,&
