@@ -28,20 +28,23 @@ function( add_ecrad_ifs_test )
     #  4. Using ecrad_ifs_blocked.${PREC} with net flux outputs
 
     set( options ENABLED XFAIL_VALIDATION )
-    set( oneValueArgs NAME CONFIG_FILE )
+    set( oneValueArgs NAME CONFIG_FILE LW_THRESHOLD SW_THRESHOLD )
     set( multiValueArgs NAMELIST_OPTIONS )
     cmake_parse_arguments( _PAR "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
     if( ${_PAR_ENABLED} )
         # Setup namelist file for the test, either by overwriting options
         # or by copying the original file
+        if( NOT _PAR_CONFIG_FILE )
+            set( _PAR_CONFIG_FILE ${TEST_IFS_CONFIG} )
+        endif()
         set( CONFIG_NAM "${CMAKE_CURRENT_BINARY_DIR}/config_${_PAR_NAME}.nam" )
         list( APPEND _PAR_NAMELIST_OPTIONS "directory_name=\\\"data\\\"" )
         add_custom_command(
             OUTPUT ${CONFIG_NAM}
             COMMAND
-                change_namelist.sh ${TEST_IFS_CONFIG} ${CONFIG_NAM} ${_PAR_NAMELIST_OPTIONS}
-            DEPENDS ${TEST_IFS_CONFIG}
+                change_namelist.sh ${_PAR_CONFIG_FILE} ${CONFIG_NAM} ${_PAR_NAMELIST_OPTIONS}
+            DEPENDS ${_PAR_CONFIG_FILE}
         )
         add_custom_target( config_${_PAR_NAME}_${PREC} DEPENDS ${CONFIG_NAM} )
 
@@ -84,6 +87,13 @@ function( add_ecrad_ifs_test )
         # default standalone driver
         if( HAVE_BITIDENTITY_TESTING AND TARGET nccmp )
 
+            if( NOT _PAR_LW_THRESHOLD )
+                set( _PAR_LW_THRESHOLD 0.0 )
+            endif()
+            if( NOT _PAR_SW_THRESHOLD )
+                set( _PAR_SW_THRESHOLD 0.0 )
+            endif()
+
             foreach( binary ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
 
                 set( ref_test_name ecrad_${PREC}_${_PAR_NAME}_net )
@@ -93,8 +103,8 @@ function( add_ecrad_ifs_test )
                     TARGET nccmp_${ver_test_name}
                     COMMAND nccmp
                     ARGS
-                        --longwave-threshold=0.001
-                        --shortwave-threshold=0.1
+                        --longwave-threshold=${_PAR_LW_THRESHOLD}
+                        --shortwave-threshold=${_PAR_SW_THRESHOLD}
                         output_${ref_test_name}.nc
                         output_${ver_test_name}.nc
                     TEST_DEPENDS
@@ -225,6 +235,8 @@ add_ecrad_ifs_test(
     NAMELIST_OPTIONS
         "sw_solver_name=\\\"McICA\\\""
         "lw_solver_name=\\\"McICA\\\""
+    SW_THRESHOLD 1e-10
+    LW_THRESHOLD 1e-10
     ENABLED ON
 )
 
@@ -232,6 +244,8 @@ add_ecrad_ifs_test(
 add_ecrad_ifs_test(
     NAME ecckd_tc
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
+    SW_THRESHOLD 1e-10
+    LW_THRESHOLD 1e-10
     ENABLED ON
 )
 
@@ -240,6 +254,8 @@ add_ecrad_ifs_test(
     NAME ecckd_noaer
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
     NAMELIST_OPTIONS "use_aerosols=false"
+    SW_THRESHOLD 1e-10
+    LW_THRESHOLD 1e-10
     ENABLED ON
 )
 
