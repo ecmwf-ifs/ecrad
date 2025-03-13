@@ -80,10 +80,10 @@ class ecRADOutputError:
             self._print_error_header()
             for fail in self.failures:
                 print(
-                    '{:<30} {:<20} {:<20}'.format(
+                    '{:<30} {:<25} {:<25}'.format(
                         fail.name,
-                        f'{fail.values.item():.5f}',
-                        f'{self.threshold(fail.name):.5f}'
+                        f'{fail.values.item():.5g}',
+                        f'{self.threshold(fail.name):.5g}'
                     )
                 )
 
@@ -108,10 +108,10 @@ class ecRADOutputError:
         print('ecRAD output file:       ', Path(self.output.output_file))
         print('\t', self.output.data_set.history)
         print(80*'-')
-        print('{:<30} {:<20} {:<20}'.format('variable:', 'maximum error: (W/m^2)', 'threshold: (W/m^2)'))
+        print('{:<30} {:<25} {:<25}'.format('variable:', 'maximum error: (W/m^2)', 'threshold: (W/m^2)'))
 
 
-def verify_output(output_file, ref_file, lw_threshold=0.001, sw_threshold=0.1):
+def verify_output(output_file, ref_file, lw_threshold, sw_threshold):
     output_error = ecRADOutputError(
         output_file=output_file,
         ref_file=ref_file,
@@ -129,8 +129,8 @@ def cli():
     )
     parser.add_argument('reference_file', type=Path)
     parser.add_argument('output_file', type=Path)
-    parser.add_argument('-l', '--longwave-threshold', type=float, default=0.001)
-    parser.add_argument('-s', '--shortwave-threshold', type=float, default=0.1)
+    parser.add_argument('-l', '--longwave-threshold', type=float, default=0.0)
+    parser.add_argument('-s', '--shortwave-threshold', type=float, default=0.0)
     args = parser.parse_args()
     return verify_output(
         output_file=args.output_file,
