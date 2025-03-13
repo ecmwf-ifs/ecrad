@@ -35,7 +35,7 @@ do
 	exit 1
     fi
 
-    SEDARGS+=(-e "s|^[[:space:]!]*$KEY.*|$KEY=$VALUE,|")
+    SEDARGS+=(-e "s|^[[:space:]!]*\b$KEY\b.*|$KEY=$VALUE,|")
     shift
 done
 set -x
