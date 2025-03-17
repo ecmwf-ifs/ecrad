@@ -14,6 +14,37 @@ set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1_ecckd.nam" )
 # Create symbolic link to test data
 file( CREATE_LINK "${PROJECT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data" SYMBOLIC )
 
+function( add_ecrad_nccmp_test )
+    # Utility function to validate output from a test against a reference file
+
+    set( options ENABLED XFAIL_VALIDATION )
+    set( oneValueArgs NAME REFERENCE_NAME TEST_NAME LW_THRESHOLD SW_THRESHOLD )
+    set( multiValueArgs )
+    cmake_parse_arguments( _P "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
+
+    if( TARGET nccmp )
+
+        ecbuild_add_test(
+            TARGET nccmp_${_P_TEST_NAME}
+            COMMAND nccmp
+            ARGS
+                --longwave-threshold=${_P_LW_THRESHOLD}
+                --shortwave-threshold=${_P_SW_THRESHOLD}
+                output_${_P_REFERENCE_NAME}.nc
+                output_${_P_TEST_NAME}.nc
+            TEST_DEPENDS
+                ${_P_REFERENCE_NAME}
+                ${_P_TEST_NAME}
+        )
+
+        if( ${_P_XFAIL_VALIDATION} OR "${PREC}" STREQUAL "sp" )
+            set_property( TEST nccmp_${_P_TEST_NAME} PROPERTY WILL_FAIL true )
+        endif()
+
+    endif()
+
+endfunction( add_ecrad_nccmp_test )
+
 function( add_ecrad_ifs_test )
     # Utility function to add tests for a specified configuration,
     # taking CONFIG_FILE as a template and modifying entries
@@ -85,7 +116,7 @@ function( add_ecrad_ifs_test )
 
         # When bit-identity testing is enabled, we can check the output against the
         # default standalone driver
-        if( HAVE_BITIDENTITY_TESTING AND TARGET nccmp )
+        if( HAVE_BITIDENTITY_TESTING )
 
             if( NOT _PAR_LW_THRESHOLD )
                 set( _PAR_LW_THRESHOLD 0.0 )
@@ -94,26 +125,22 @@ function( add_ecrad_ifs_test )
                 set( _PAR_SW_THRESHOLD 0.0 )
             endif()
 
+            if( _PAR_XFAIL_VALIDATION )
+                set( NCCMP_OPTIONS XFAIL_VALIDATION )
+            else()
+                set( NCCMP_OPTIONS )
+            endif()
+
             foreach( binary ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
 
-                set( ref_test_name ecrad_${PREC}_${_PAR_NAME}_net )
-                set( ver_test_name ${binary}_${_PAR_NAME}_net )
-
-                ecbuild_add_test(
-                    TARGET nccmp_${ver_test_name}
-                    COMMAND nccmp
-                    ARGS
-                        --longwave-threshold=${_PAR_LW_THRESHOLD}
-                        --shortwave-threshold=${_PAR_SW_THRESHOLD}
-                        output_${ref_test_name}.nc
-                        output_${ver_test_name}.nc
-                    TEST_DEPENDS
-                        ${ref_test_name}
-                        ${ver_test_name}
-                )
-
-                if( ${_PAR_XFAIL_VALIDATION} )
-                    set_property( TEST nccmp_${ver_test_name} PROPERTY WILL_FAIL true )
+                if( TARGET ${binary} )
+                    add_ecrad_nccmp_test(
+                        REFERENCE_NAME ecrad_${PREC}_${_PAR_NAME}_net
+                        TEST_NAME ${binary}_${_PAR_NAME}_net
+                        LW_THRESHOLD ${_PAR_LW_THRESHOLD}
+                        SW_THRESHOLD ${_PAR_SW_THRESHOLD}
+                        ${NCCMP_OPTIONS}
+                    )
                 endif()
 
             endforeach()
@@ -135,23 +162,12 @@ add_ecrad_ifs_test(
 
 # When the nccmp utility is available, we can check the output against the reference file
 # in the repository
-if( TARGET nccmp )
-    ecbuild_add_test(
-        TARGET nccmp_ecrad_${PREC}_default
-        COMMAND nccmp
-        ARGS
-            --longwave-threshold=0.001
-            --shortwave-threshold=0.1
-            output_ecrad_${PREC}_default.nc
-            ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_default_out_REFERENCE.nc
-        TEST_DEPENDS
-            ecrad_${PREC}_default
-    )
-
-    if( "${PREC}" STREQUAL "sp" )
-        set_property( TEST nccmp_ecrad_${PREC}_default PROPERTY WILL_FAIL true )
-    endif()
-endif()
+add_ecrad_nccmp_test(
+    REFERENCE_NAME ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_default_out_REFERENCE.nc
+    TEST_NAME ecrad_${PREC}_default
+    LW_THRESHOLD 0.001
+    SW_THRESHOLD 0.1
+)
 
 # Turn off aerosols
 add_ecrad_ifs_test(
