@@ -18,11 +18,24 @@ function( add_ecrad_nccmp_test )
     # Utility function to validate output from a test against a reference file
 
     set( options ENABLED XFAIL_VALIDATION )
-    set( oneValueArgs NAME REFERENCE_NAME TEST_NAME LW_THRESHOLD SW_THRESHOLD )
+    set( oneValueArgs NAME REFERENCE_NAME REFERENCE_FILE TEST_NAME LW_THRESHOLD SW_THRESHOLD )
     set( multiValueArgs )
     cmake_parse_arguments( _P "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
     if( TARGET nccmp )
+
+        if( _P_REFERENCE_FILE )
+            if( _P_REFERENCE_NAME )
+                ecbuild_error( "Options REFERENCE_NAME and REFERENCE_FILE are mutually exclusive" )
+            endif()
+        else()
+            set( _P_REFERENCE_FILE output_${_P_REFERENCE_NAME}.nc )
+        endif()
+
+        set( DEPS ${_P_TEST_NAME} )
+        if( _P_REFERENCE_NAME )
+            list( APPEND DEPS ${_P_REFERENCE_NAME} )
+        endif()
 
         ecbuild_add_test(
             TARGET nccmp_${_P_TEST_NAME}
@@ -30,11 +43,9 @@ function( add_ecrad_nccmp_test )
             ARGS
                 --longwave-threshold=${_P_LW_THRESHOLD}
                 --shortwave-threshold=${_P_SW_THRESHOLD}
-                output_${_P_REFERENCE_NAME}.nc
+                ${_P_REFERENCE_FILE}
                 output_${_P_TEST_NAME}.nc
-            TEST_DEPENDS
-                ${_P_REFERENCE_NAME}
-                ${_P_TEST_NAME}
+            TEST_DEPENDS ${DEPS}
         )
 
         if( ${_P_XFAIL_VALIDATION} OR "${PREC}" STREQUAL "sp" )
@@ -163,7 +174,7 @@ add_ecrad_ifs_test(
 # When the nccmp utility is available, we can check the output against the reference file
 # in the repository
 add_ecrad_nccmp_test(
-    REFERENCE_NAME ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_default_out_REFERENCE.nc
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_default_out_REFERENCE.nc
     TEST_NAME ecrad_${PREC}_default
     LW_THRESHOLD 0.001
     SW_THRESHOLD 0.1
