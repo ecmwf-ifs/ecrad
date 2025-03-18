@@ -14,6 +14,48 @@ set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1_ecckd.nam" )
 # Create symbolic link to test data
 file( CREATE_LINK "${PROJECT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data" SYMBOLIC )
 
+function( add_ecrad_nccmp_test )
+    # Utility function to validate output from a test against a reference file
+
+    set( options ENABLED XFAIL_VALIDATION )
+    set( oneValueArgs NAME REFERENCE_NAME REFERENCE_FILE TEST_NAME LW_THRESHOLD SW_THRESHOLD )
+    set( multiValueArgs )
+    cmake_parse_arguments( _P "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
+
+    if( TARGET nccmp AND "${PREC}" STREQUAL "dp" )
+
+        if( _P_REFERENCE_FILE )
+            if( _P_REFERENCE_NAME )
+                ecbuild_error( "Options REFERENCE_NAME and REFERENCE_FILE are mutually exclusive" )
+            endif()
+        else()
+            set( _P_REFERENCE_FILE output_${_P_REFERENCE_NAME}.nc )
+        endif()
+
+        set( DEPS ${_P_TEST_NAME} )
+        if( _P_REFERENCE_NAME )
+            list( APPEND DEPS ${_P_REFERENCE_NAME} )
+        endif()
+
+        ecbuild_add_test(
+            TARGET nccmp_${_P_TEST_NAME}
+            COMMAND nccmp
+            ARGS
+                --longwave-threshold=${_P_LW_THRESHOLD}
+                --shortwave-threshold=${_P_SW_THRESHOLD}
+                ${_P_REFERENCE_FILE}
+                output_${_P_TEST_NAME}.nc
+            TEST_DEPENDS ${DEPS}
+        )
+
+        if( ${_P_XFAIL_VALIDATION} )
+            set_property( TEST nccmp_${_P_TEST_NAME} PROPERTY WILL_FAIL true )
+        endif()
+
+    endif()
+
+endfunction( add_ecrad_nccmp_test )
+
 function( add_ecrad_ifs_test )
     # Utility function to add tests for a specified configuration,
     # taking CONFIG_FILE as a template and modifying entries
@@ -27,21 +69,24 @@ function( add_ecrad_ifs_test )
     #  3. Using ecrad_ifs.${PREC} with net flux outputs
     #  4. Using ecrad_ifs_blocked.${PREC} with net flux outputs
 
-    set( options ENABLED )
-    set( oneValueArgs NAME CONFIG_FILE )
+    set( options ENABLED XFAIL_VALIDATION )
+    set( oneValueArgs NAME CONFIG_FILE LW_THRESHOLD SW_THRESHOLD )
     set( multiValueArgs NAMELIST_OPTIONS )
     cmake_parse_arguments( _PAR "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
     if( ${_PAR_ENABLED} )
         # Setup namelist file for the test, either by overwriting options
         # or by copying the original file
+        if( NOT _PAR_CONFIG_FILE )
+            set( _PAR_CONFIG_FILE ${TEST_IFS_CONFIG} )
+        endif()
         set( CONFIG_NAM "${CMAKE_CURRENT_BINARY_DIR}/config_${_PAR_NAME}.nam" )
         list( APPEND _PAR_NAMELIST_OPTIONS "directory_name=\\\"data\\\"" )
         add_custom_command(
             OUTPUT ${CONFIG_NAM}
             COMMAND
-                change_namelist.sh ${TEST_IFS_CONFIG} ${CONFIG_NAM} ${_PAR_NAMELIST_OPTIONS}
-            DEPENDS ${TEST_IFS_CONFIG}
+                change_namelist.sh ${_PAR_CONFIG_FILE} ${CONFIG_NAM} ${_PAR_NAMELIST_OPTIONS}
+            DEPENDS ${_PAR_CONFIG_FILE}
         )
         add_custom_target( config_${_PAR_NAME}_${PREC} DEPENDS ${CONFIG_NAM} )
 
@@ -62,7 +107,7 @@ function( add_ecrad_ifs_test )
             ARGS
                 ${CONFIG_NAM}
                 ${TEST_IFS_INPUT}
-                output_${_PAR_NAME}.nc
+                output_ecrad_${PREC}_${_PAR_NAME}.nc
             DEPENDS config_${_PAR_NAME}_${PREC}
         )
 
@@ -80,6 +125,39 @@ function( add_ecrad_ifs_test )
 
         endforeach()
 
+        # When bit-identity testing is enabled, we can check the output against the
+        # default standalone driver
+        if( HAVE_BITIDENTITY_TESTING )
+
+            if( NOT _PAR_LW_THRESHOLD )
+                set( _PAR_LW_THRESHOLD 0.0 )
+            endif()
+            if( NOT _PAR_SW_THRESHOLD )
+                set( _PAR_SW_THRESHOLD 0.0 )
+            endif()
+
+            if( _PAR_XFAIL_VALIDATION )
+                set( NCCMP_OPTIONS XFAIL_VALIDATION )
+            else()
+                set( NCCMP_OPTIONS )
+            endif()
+
+            foreach( binary ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
+
+                if( TARGET ${binary} )
+                    add_ecrad_nccmp_test(
+                        REFERENCE_NAME ecrad_${PREC}_${_PAR_NAME}_net
+                        TEST_NAME ${binary}_${_PAR_NAME}_net
+                        LW_THRESHOLD ${_PAR_LW_THRESHOLD}
+                        SW_THRESHOLD ${_PAR_SW_THRESHOLD}
+                        ${NCCMP_OPTIONS}
+                    )
+                endif()
+
+            endforeach()
+
+        endif()
+
     endif()
 endfunction( add_ecrad_ifs_test )
 
@@ -91,6 +169,15 @@ endfunction( add_ecrad_ifs_test )
 add_ecrad_ifs_test(
     NAME default
     ENABLED ON
+)
+
+# When the nccmp utility is available, we can check the output against the reference file
+# in the repository
+add_ecrad_nccmp_test(
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_default_out_REFERENCE.nc
+    TEST_NAME ecrad_${PREC}_default
+    LW_THRESHOLD 0.001
+    SW_THRESHOLD 0.1
 )
 
 # Turn off aerosols
@@ -132,6 +219,7 @@ add_ecrad_ifs_test(
 		"do_3d_effects=true"
 		"do_sw_delta_scaling_with_gases=false"
     ENABLED ON
+    XFAIL_VALIDATION
 )
 
 # 3D radiative transfer using the older "maximum entrapment"
@@ -144,6 +232,7 @@ add_ecrad_ifs_test(
 		"sw_entrapment_name=\\\"Maximum\\\""
 		"do_sw_delta_scaling_with_gases=false"
     ENABLED ON
+    XFAIL_VALIDATION
 )
 
 # "Cloudless" solver
@@ -173,6 +262,8 @@ add_ecrad_ifs_test(
     NAMELIST_OPTIONS
         "sw_solver_name=\\\"McICA\\\""
         "lw_solver_name=\\\"McICA\\\""
+    SW_THRESHOLD 1e-10
+    LW_THRESHOLD 1e-10
     ENABLED ON
 )
 
@@ -180,6 +271,8 @@ add_ecrad_ifs_test(
 add_ecrad_ifs_test(
     NAME ecckd_tc
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
+    SW_THRESHOLD 1e-10
+    LW_THRESHOLD 1e-10
     ENABLED ON
 )
 
@@ -188,6 +281,8 @@ add_ecrad_ifs_test(
     NAME ecckd_noaer
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
     NAMELIST_OPTIONS "use_aerosols=false"
+    SW_THRESHOLD 1e-10
+    LW_THRESHOLD 1e-10
     ENABLED ON
 )
 
@@ -200,4 +295,5 @@ add_ecrad_ifs_test(
         "lw_solver_name=\\\"SPARTACUS\\\""
         "do_3d_effects=true"
     ENABLED ON
+    XFAIL_VALIDATION
 )
