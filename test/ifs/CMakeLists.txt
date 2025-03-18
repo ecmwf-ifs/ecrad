@@ -22,7 +22,7 @@ function( add_ecrad_nccmp_test )
     set( multiValueArgs )
     cmake_parse_arguments( _P "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
-    if( TARGET nccmp )
+    if( TARGET nccmp AND "${PREC}" STREQUAL "dp" )
 
         if( _P_REFERENCE_FILE )
             if( _P_REFERENCE_NAME )
@@ -48,7 +48,7 @@ function( add_ecrad_nccmp_test )
             TEST_DEPENDS ${DEPS}
         )
 
-        if( ${_P_XFAIL_VALIDATION} OR "${PREC}" STREQUAL "sp" )
+        if( ${_P_XFAIL_VALIDATION} )
             set_property( TEST nccmp_${_P_TEST_NAME} PROPERTY WILL_FAIL true )
         endif()
 
