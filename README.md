@@ -1,15 +1,13 @@
-# ECRAD - ECMWF atmospheric radiation scheme
+# ecRad
 
-This document last updated 9 June 2022
-
-Robin Hogan <r.j.hogan@ecmwf.int>
+The ECMWF atmospheric radiation scheme
 
 For more complete information about compilation and usage of ecRad,
 please see the documentation on the
 [ecRad web site](https://confluence.ecmwf.int/display/ECRAD).
 
 
-## INTRODUCTION
+## Introduction
 
 This package contains the offline version of a radiation scheme
 suitable for use in atmospheric weather and climate models.  The code
@@ -62,7 +60,7 @@ implementation being that from the ECMWF Integrated Forecasting System
 read from a file at run-time.
 
 
-## PACKAGE OVERVIEW
+## Package overview
 
 The subdirectories are as follows:
 
@@ -94,10 +92,10 @@ The subdirectories are as follows:
 
 - `include` - automatically generated interface blocks for non-module routines
 
-- `practical` - exercises to get started with ecRad 
+- `practical` - exercises to get started with ecRad
 
 
-## TO COMPILE
+## Compilation
 
 1. Ensure you have a reasonably recent Fortran compiler - it needs to
 support modules with `contains` and `procedure` statements for
@@ -105,7 +103,7 @@ example.  Ensure you have the Fortran netCDF library installed
 (versions 3 or 4) and that the module file is compatible with your
 Fortran compiler.
 
-2. You can compile the code using 
+2. You can compile the code using
 
        make PROFILE=<prof>
 
@@ -117,20 +115,20 @@ Fortran compiler.
    `Makefile_include.gfortran`. Two additional profiles are provided,
    `ecmwf` which builds on the `gfortran` profile and `uor`
    (University of Reading) which is built on the `pgi` profile.
-   
+
    If the compile is successful then static libraries should appear in
    the `lib` directory, and then the executable `bin/ecrad`.
 
 3. To clean-up, type `make clean`.  To build an unoptimized version
    for debugging, you can do
-   
+
        make PROFILE=<prof> DEBUG=1
-   
+
    or you can specifically override the variables in `Makefile_include.<prof>`
    using, for example
-   
+
        make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"
-   
+
    To compile in single precision add `SINGLE_PRECISION=1` to the
    `make` command line.  To compile with the Dr Hook profiling system,
    first install ECMWF's [fiat library]([ecRad web
@@ -138,9 +136,9 @@ Fortran compiler.
    `FIATDIR=/path/to/fiat` to the `make` command line, such that the
    files `$FIATDIR/lib/libfiat.so` and
    `$FIATDIR/module/fiat/yomhook.mod` can be found at build time.
-   
 
-## TO TEST
+
+## Testing
 
 The offline driver is run via
 
@@ -192,7 +190,7 @@ enable this), but note that the g-points have been reordered in
 approximate order of optical depth if the SPARTACUS solver is chosen.
 
 
-## LICENCE
+## Licence
 
 (C) Copyright 2014- ECMWF.
 
@@ -211,14 +209,14 @@ the gas optics part of the Rapid Radiative Transfer Model for GCMS
 "3-clause BSD" license; for details, see ifsrrtm/AER-BSD3-LICENSE.
 
 
-# CONTRIBUTING
+# Contributing
 
-Contributions to ECRAD are welcome. 
-In order to do so, please open an issue where a feature request or bug can be discussed. 
+Contributions to ECRAD are welcome.
+In order to do so, please open an issue where a feature request or bug can be discussed.
 Then create a pull request with your contribution and sign the [contributors license agreement (CLA)](https://bol-claassistant.ecmwf.int/ecmwf-ifs/ecrad).
 
 
-## PUBLICATIONS
+## Publications
 
 The ecRad radiation scheme itself is described here:
 
@@ -257,9 +255,3 @@ The ecCKD gas optics scheme is described here:
 k-distribution gas-optics models for weather and climate
 applications. J. Adv. Modeling Earth Sys., in review.
 
-
-## CONTACT
-
-Please email Robin Hogan <r.j.hogan@ecmwf.int> with any queries or bug
-fixes, but note that ECMWF does not commit to providing support to
-users of this software.
