@@ -65,6 +65,25 @@ set( radiation_SOURCES
         radiation_two_stream.F90
 )
 
+# Compile flag overwrites
+if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
+    set_source_files_properties( radiation_cloud_generator.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
+    set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
+
+elseif( CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC" )
+    # The following are required to achieve bit-identical results to CY49R1
+    set_source_files_properties( radiation_cloud_optics.F90
+        PROPERTIES OVERRIDE_COMPILE_FLAGS_BIT
+        "${${PNAME}_Fortran_FLAGS} -O1 -Mvect=idiom -Mflushz -Mno-signed-zeros" )
+    set_source_files_properties( radiation_mcica_lw.F90
+        PROPERTIES OVERRIDE_COMPILE_FLAGS_BIT
+        "${${PNAME}_Fortran_FLAGS} -O1 -Mvect=idiom -Mflushz -Mno-signed-zeros" )
+    set_source_files_properties( radiation_two_stream.F90
+        PROPERTIES OVERRIDE_COMPILE_FLAGS_BIT
+        "${${PNAME}_Fortran_FLAGS} -O1 -Mvect=idiom -Mflushz -Mno-signed-zeros" )
+
+endif()
+
 ecbuild_add_library(
     TARGET
         ecrad.${PREC}
@@ -101,9 +120,3 @@ install(
         "${CMAKE_Fortran_MODULE_DIRECTORY}/radiation_thermodynamics.mod"
     DESTINATION ${ecrad_${PREC}_INSTALL_INCLUDEDIR}
 )
-
-# Compile flag overwrites
-if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
-    set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
-    set_source_files_properties( radiation_cloud_generator.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
-endif()
