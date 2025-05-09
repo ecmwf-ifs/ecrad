@@ -94,7 +94,7 @@ The subdirectories are as follows:
 
 - `include` - automatically generated interface blocks for non-module routines
 
-- `practical` - exercises to get started with ecRad 
+- `practical` - exercises to get started with ecRad
 
 
 ## TO COMPILE
@@ -105,7 +105,7 @@ example.  Ensure you have the Fortran netCDF library installed
 (versions 3 or 4) and that the module file is compatible with your
 Fortran compiler.
 
-2. You can compile the code using 
+2. You can compile the code using
 
        make PROFILE=<prof>
 
@@ -117,20 +117,20 @@ Fortran compiler.
    `Makefile_include.gfortran`. Two additional profiles are provided,
    `ecmwf` which builds on the `gfortran` profile and `uor`
    (University of Reading) which is built on the `pgi` profile.
-   
+
    If the compile is successful then static libraries should appear in
    the `lib` directory, and then the executable `bin/ecrad`.
 
 3. To clean-up, type `make clean`.  To build an unoptimized version
    for debugging, you can do
-   
+
        make PROFILE=<prof> DEBUG=1
-   
+
    or you can specifically override the variables in `Makefile_include.<prof>`
    using, for example
-   
+
        make PROFILE=<prof> OPTFLAGS=-O0 DEBUGFLAGS="-g -pg"
-   
+
    To compile in single precision add `SINGLE_PRECISION=1` to the
    `make` command line.  To compile with the Dr Hook profiling system,
    first install ECMWF's [fiat library]([ecRad web
@@ -138,7 +138,7 @@ Fortran compiler.
    `FIATDIR=/path/to/fiat` to the `make` command line, such that the
    files `$FIATDIR/lib/libfiat.so` and
    `$FIATDIR/module/fiat/yomhook.mod` can be found at build time.
-   
+
 
 ## TO TEST
 
@@ -190,6 +190,41 @@ intermediate radiative properties of the atmosphere for each g-point
 can be stored in `radiative_properties.nc` (edit the config namelist to
 enable this), but note that the g-points have been reordered in
 approximate order of optical depth if the SPARTACUS solver is chosen.
+
+## CMake BUILD PROCEDURE
+
+The ecRad radiation scheme can also be built using CMake and
+[ecbuild](https://github.com/ecmwf/ecbuild). This only requires CMake to be
+installed, if ecbuild cannot be found a compatible version will
+automatically be downloaded.
+
+CMake will perform an out-of-tree build, i.e., put all build artifacts into
+a different directory than the source files.
+With the code checked out into `<ecrad directory>`, the CMake build procedure
+is as follows:
+
+```sh
+cmake -B <build-directory> -S <ecrad directory>
+cmake --build <build-directory>
+```
+
+Optionally, the first command can be amended with `-Dfiat_ROOT=<fiat build dir>`
+to build against the optional [fiat](https://github.com/ecmwf-ifs/fiat) build
+dependency. Other build options are:
+
+* `DOUBLE_PRECISION`: build double-precision version (default: ON)
+* `SINGLE_PRECISION`: build single-precision version (default: OFF)
+* `OMP`: build with OpenMP thread-parallelism if supported by the compiler (default: ON)
+
+The options can be enabled/disabled by providing `-DENABLE_<OPTION>=ON|OFF` to the first command.
+
+CMake comes with a test suite that runs a set of configurations of ecrad.
+Execute the tests after successful compilation using:
+
+```sh
+cd <build-dir>
+ctest
+```
 
 
 ## LICENCE

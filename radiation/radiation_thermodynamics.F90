@@ -76,10 +76,10 @@ contains
     if (present(use_h2o_sat)) then
       use_h2o_sat_local = use_h2o_sat
     end if
-    
+
     if (use_h2o_sat_local) then
       allocate(this%h2o_sat_liq(ncol,nlev))
-    end if    
+    end if
 
     if (lhook) call dr_hook('radiation_thermodynamics:allocate',1,hook_handle)
 
@@ -109,7 +109,7 @@ contains
     end if
 
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',1,hook_handle)
-  
+
   end subroutine deallocate_thermodynamics_arrays
 
 
@@ -168,7 +168,7 @@ contains
 
     class(thermodynamics_type), intent(in)  :: this
     integer,                    intent(in)  :: istartcol, iendcol
-    real(jprb),                 intent(out) :: layer_mass(:,:)
+    real(jprb),                 intent(out) :: layer_mass(istartcol:iendcol,ubound(this%pressure_hl,2))
 
     integer    :: nlev
     real(jprb) :: inv_g
@@ -183,8 +183,8 @@ contains
     layer_mass(istartcol:iendcol,1:nlev) &
          &  = ( this%pressure_hl(istartcol:iendcol,2:nlev+1) &
          &     -this%pressure_hl(istartcol:iendcol,1:nlev  )  ) &
-         &  * inv_g 
-    
+         &  * inv_g
+
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',1,hook_handle)
 
   end subroutine get_layer_mass
@@ -214,7 +214,7 @@ contains
     layer_mass = ( this%pressure_hl(icol,2:nlev+1) &
              &    -this%pressure_hl(icol,1:nlev  )  ) &
              &   * inv_g
-    
+
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass_column',1,hook_handle)
 
   end subroutine get_layer_mass_column
@@ -260,7 +260,7 @@ contains
       ! don't take the logarithm of the first pressure in each column.
       layer_separation(i1:i2,1) = R_over_g * temperature_hl(i1:i2,2) &
            &                    * log(pressure_hl(i1:i2,3)/pressure_hl(i1:i2,2))
-      
+
       ! For other layers we take the separation between midpoints to
       ! be half the separation between the half-levels at the edge of
       ! the two adjacent layers
@@ -285,7 +285,7 @@ contains
 
     end if
 
-    if (lhook) call dr_hook('radiation_thermodynamics:get_layer_separation',1,hook_handle)    
+    if (lhook) call dr_hook('radiation_thermodynamics:get_layer_separation',1,hook_handle)
 
   end subroutine get_layer_separation
 
@@ -326,5 +326,5 @@ contains
     if (lhook) call dr_hook('radiation_thermodynamics:out_of_physical_bounds',1,hook_handle)
 
   end function out_of_physical_bounds
-  
+
 end module radiation_thermodynamics
