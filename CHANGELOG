@@ -1,4 +1,4 @@
- version 1.6.1
+ version 1.6.1 (9 May 2025)
 	- Renamed ifsaux/yommp0.F90 to ifsaux/yommp0_ifsaux.F90 and initialize
 	  from fiat/MPL or the dummy mpl_module in ifsaux
 	- Wrapped module variables in yoerdi.F90 and yoesw.F90 in derived types
