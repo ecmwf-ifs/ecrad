@@ -7,4 +7,4 @@ config_*.nam
 mod
 practical/data
 practical/ecrad
-build
+/build*
