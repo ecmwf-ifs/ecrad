@@ -13,14 +13,14 @@
 ! Email:   r.j.hogan@ecmwf.int
 !
 
-#include "ecrad_config.h"
-
 module radiation_aerosol_optics_description
 
   use parkind1,      only : jprb
 
   implicit none
   public
+
+#include "ecrad_config.h"
 
   !---------------------------------------------------------------------
   ! This type holds the metadata from an aerosol optical property

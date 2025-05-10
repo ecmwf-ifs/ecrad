@@ -18,12 +18,11 @@
 !   2022-03-27  R. Hogan  Add setup_general_aerosol_optics_legacy to use RRTM aerosol files with ecCKD
 !   2022-11-22  P. Ukkonen / R. Hogan  Optimizations to enhance vectorization
 
-#include "ecrad_config.h"
-
 module radiation_aerosol_optics
 
   implicit none
   public
+#include "ecrad_config.h"
 
 contains
 

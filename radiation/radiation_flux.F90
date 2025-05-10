@@ -20,14 +20,13 @@
 !   2021-01-20  R. Hogan  Added heating_rate_out_of_physical_bounds function
 !   2022-12-07  R. Hogan  Added top-of-atmosphere spectral output
 
-#include "ecrad_config.h"
-
 module radiation_flux
 
   use parkind1, only : jprb
 
   implicit none
   public
+#include "ecrad_config.h"
 
   !---------------------------------------------------------------------
   ! This derived type contains the output from the radiation

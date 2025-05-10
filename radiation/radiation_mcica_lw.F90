@@ -18,11 +18,11 @@
 !   2017-07-12  R. Hogan  Call fast adding method if only clouds scatter
 !   2017-10-23  R. Hogan  Renamed single-character variables
 
-#include "ecrad_config.h"
 
 module radiation_mcica_lw
 
   public
+#include "ecrad_config.h"
 
 contains
 

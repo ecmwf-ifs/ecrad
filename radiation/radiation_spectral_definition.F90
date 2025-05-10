@@ -14,8 +14,6 @@
 ! License: see the COPYING file for details
 !
 
-#include "ecrad_config.h"
-
 module radiation_spectral_definition
 
   use parkind1,    only : jprb
@@ -23,6 +21,8 @@ module radiation_spectral_definition
   implicit none
 
   public
+
+#include "ecrad_config.h"
 
   real(jprb), parameter :: SolarReferenceTemperature       = 5777.0_jprb ! K
   real(jprb), parameter :: TerrestrialReferenceTemperature = 273.15_jprb ! K

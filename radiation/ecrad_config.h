@@ -37,3 +37,15 @@
 ! tasks. The MPI version is not used for writing files.
 
 !#define EASY_NETCDF_READ_MPI 1
+
+! Allow size of inner dimension (number of g-points) to be known at compile time if NG_LW/NG_SW is defined
+#ifdef NG_LW
+  integer, parameter :: ng_lw = NG_LW
+#else
+#define ng_lw ng_lw_in
+#endif
+#ifdef NG_SW
+  integer, parameter :: ng_sw = NG_SW
+#else
+#define ng_sw ng_sw_in
+#endif

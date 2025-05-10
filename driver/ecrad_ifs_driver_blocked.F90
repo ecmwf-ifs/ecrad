@@ -65,7 +65,16 @@ program ecrad_ifs_driver
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
   use ifs_blocking
-
+#ifdef USE_TIMING
+#ifndef USE_PAPI
+  ! Timing library
+ use gptl,                  only: gptlstart, gptlstop, gptlinitialize, gptlpr, gptlfinalize, gptlsetoption, &
+                                  gptlpercent, gptloverhead, gptlpr_file
+#else
+#include "f90papi.h"
+#include "gptl.inc"
+#endif    
+#endif  
   implicit none
 
 #include "radiation_scheme.intfb.h"
@@ -137,7 +146,29 @@ program ecrad_ifs_driver
 
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
+#ifdef USE_TIMING
+  integer :: ret
+  integer values(8)
+  character(len=100) :: timing_file_name, name_gas_model, name_solver
+  character(5) :: prefix, suffix
+  !
+  ! Initialize timers
+  !
+  ret = gptlsetoption (gptlpercent, 1)        ! Turn on "% of" print
+  ret = gptlsetoption (gptloverhead, 0)       ! Turn off overhead estimate
 
+#ifdef USE_PAPI  
+#ifdef PARKIND1_SINGLE
+  ret = GPTLsetoption (PAPI_SP_OPS, 1);
+#else
+  ret = GPTLsetoption (PAPI_DP_OPS, 1);
+#endif
+! ret = GPTLsetoption (GPTL_IPC, 1);
+ret = GPTLsetoption (PAPI_L1_DCM, 1);
+ret = GPTLsetoption (GPTL_L3MRT, 1);
+#endif  
+  ret = gptlinitialize()
+#endif
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -365,6 +396,10 @@ program ecrad_ifs_driver
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
 
+#ifdef USE_TIMING
+    ret =  gptlstart('radiation')
+#endif   
+
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
 #ifndef NO_OPENMP
@@ -444,7 +479,9 @@ program ecrad_ifs_driver
 !    end if
 
   end do
-
+#ifdef USE_TIMING
+  ret =  gptlstop('radiation')
+#endif
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
@@ -497,5 +534,15 @@ program ecrad_ifs_driver
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
-
+#ifdef USE_TIMING
+  ! End timers
+  call yradiation%rad_config%get_gas_optics_name_sw(name_gas_model)
+  call yradiation%rad_config%get_solver_name_sw(name_solver)
+  call date_and_time(values=values)
+  write(timing_file_name,'(a,a,a,a,a,i0,a,i0,a,i4.4)') 'timing.', trim(name_gas_model), '_', trim(name_solver), &
+    & '_block', driver_config%nblocksize, '_nrep', driver_config%nrepeat, '_', values(8)
+  write(nulout,'(a,a)')  'Writing GPTL timing output to ', trim(timing_file_name)
+  ret = gptlpr_file(trim(timing_file_name))
+  ret = gptlfinalize()
+#endif
 end program ecrad_ifs_driver

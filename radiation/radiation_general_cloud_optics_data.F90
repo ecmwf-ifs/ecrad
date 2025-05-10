@@ -14,8 +14,6 @@
 ! License: see the COPYING file for details
 !
 
-#include "ecrad_config.h"
-
 module radiation_general_cloud_optics_data
 
   use parkind1, only : jprb
@@ -23,6 +21,8 @@ module radiation_general_cloud_optics_data
   implicit none
 
   public
+
+#include "ecrad_config.h"
 
   !---------------------------------------------------------------------
   ! This type holds the configuration information to compute optical
