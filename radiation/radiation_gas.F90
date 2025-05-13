@@ -409,13 +409,13 @@ contains
   ! scale_factor=1.0e-6. If the gas concentrations were currently
   ! dimensionless volume mixing ratios, then the values would be
   ! internally divided by 1.0e-6.
-  recursive subroutine set_units_gas(this, iunits, igas, scale_factor)
+  subroutine set_units_gas(this, iunits, igas, scale_factor)
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: iunits
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor
 
-    integer :: jg
+    integer :: jg, jlev, jcol, ig
 
     ! Scaling factor to convert from old to new
     real(jprb) :: sf
@@ -448,7 +448,12 @@ contains
         sf = sf * this%scale_factor(igas)
 
         if (sf /= 1.0_jprb) then
-          this%mixing_ratio(:,:,igas) = this%mixing_ratio(:,:,igas) * sf
+
+          do jlev=1,this%nlev
+            do jcol=1,this%ncol
+              this%mixing_ratio(jcol,jlev,igas) = this%mixing_ratio(jcol,jlev,igas) * sf
+            end do
+          end do
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
@@ -456,8 +461,34 @@ contains
         this%scale_factor(igas) = new_sf
       end if
     else
+      ! "Inlined" function in loop instead of recursive call to itself
       do jg = 1,this%ntype
-        call this%set_units(iunits, igas=this%icode(jg), scale_factor=new_sf)
+        sf     = 1.0_jprb / new_sf
+
+        ig = this%icode(jg)
+        if (this%is_present(ig)) then
+          if (iunits == IMassMixingRatio &
+               &   .and. this%iunits(ig) == IVolumeMixingRatio) then
+            sf = sf * GasMolarMass(ig) / AirMolarMass
+          else if (iunits == IVolumeMixingRatio &
+               &   .and. this%iunits(ig) == IMassMixingRatio) then
+            sf = sf * AirMolarMass / GasMolarMass(ig)
+          end if
+          sf = sf * this%scale_factor(ig)
+
+          if (sf /= 1.0_jprb) then
+
+            do jlev=1,this%nlev
+              do jcol=1,this%ncol
+                this%mixing_ratio(jcol,jlev,ig) = this%mixing_ratio(jcol,jlev,ig) * sf
+              end do
+            end do
+          end if
+          ! Store the new units and scale factor for this gas inside the
+          ! gas object
+          this%iunits(ig) = iunits
+          this%scale_factor(ig) = new_sf
+        end if
       end do
     end if
 
