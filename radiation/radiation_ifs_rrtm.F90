@@ -594,12 +594,16 @@ contains
               ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
             end do
           end do
-          if (present(incoming_sw)) then
+        end do
+
+        if (present(incoming_sw)) then
+          do jcol = istartcol,iendcol
             do jg = 1,config%n_g_sw
               incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
             end do
-          end if
-        end do
+          end do
+        end if
+
       end if
 
     end if
@@ -638,16 +642,16 @@ contains
          &   planck_hl
 
     ! Planck function values per band
-    real(jprb), dimension(istartcol:iendcol, config%n_bands_lw) :: planck_store
+    real(jprb), dimension(istartcol:iendcol,nlev+1, config%n_bands_lw) :: planck_store
 
     ! Look-up table variables for Planck function
-    real(jprb), dimension(istartcol:iendcol) :: frac
-    integer,    dimension(istartcol:iendcol) :: ind
+    real(jprb), dimension(istartcol:iendcol,nlev+1) :: frac
+    integer,    dimension(istartcol:iendcol,nlev+1) :: ind
 
     ! Temperature (K) of a half-level
     real(jprb) :: temperature
 
-    real(jprb) :: factor, planck_tmp(istartcol:iendcol,config%n_g_lw)
+    real(jprb) :: factor
     real(jprb) :: ZFLUXFAC
 
     integer :: jlev, jgreorder, jg, ig, iband, jband, jcol, ilevoffset
@@ -671,44 +675,48 @@ contains
         temperature = thermodynamics%temperature_hl(jcol,jlev+ilevoffset)
         if (temperature < 339.0_jprb .and. temperature >= 160.0_jprb) then
           ! Linear interpolation between -113 and 66 degC
-          ind(jcol)  = int(temperature - 159.0_jprb)
-          frac(jcol) = temperature - int(temperature)
+          ind(jcol,jlev)  = int(temperature - 159.0_jprb)
+          frac(jcol,jlev) = temperature - int(temperature)
         else if(temperature >= 339.0_jprb) then
           ! Extrapolation above 66 degC
-          ind(jcol)  = 180
-          frac(jcol) = temperature - 339.0_jprb
+          ind(jcol,jlev)  = 180
+          frac(jcol,jlev) = temperature - 339.0_jprb
         else
           ! Cap below -113 degC (to avoid possible negative Planck
           ! function values)
-          ind(jcol)  = 1
-          frac(jcol) = 0.0_jprb
+          ind(jcol,jlev)  = 1
+          frac(jcol,jlev) = 0.0_jprb
         end if
       end do
+    end do
 
-      ! Calculate Planck functions per band
-      do jband = 1,config%n_bands_lw
-        factor = zfluxfac * delwave(jband)
+    ! Calculate Planck functions per band
+    do jband = 1,config%n_bands_lw
+      do jlev = 1,nlev+1
         do jcol = istartcol,iendcol
-          planck_store(jcol,jband) = factor &
-               &  * (totplnk(ind(jcol),jband) &
-               &  + frac(jcol)*(totplnk(ind(jcol)+1,jband)-totplnk(ind(jcol),jband)))
+          factor = zfluxfac * delwave(jband)
+          planck_store(jcol,jlev,jband) = factor &
+              &  * (totplnk(ind(jcol,jlev),jband) &
+              &  + frac(jcol,jlev)*(totplnk(ind(jcol,jlev)+1,jband)-totplnk(ind(jcol,jlev),jband)))
         end do
       end do
+    end do
 
-      if (config%i_solver_lw == ISolverSpartacus) then
-        ! We need to rearrange the gas optics info in memory:
-        ! reordering the g points in order of approximately increasing
-        ! optical depth (for efficient 3D processing on only the
-        ! regions of the spectrum that are optically thin for gases)
-        ! and reorder in pressure since the the functions above treat
-        ! pressure decreasing with increasing index.
+    if (config%i_solver_lw == ISolverSpartacus) then
+      ! We need to rearrange the gas optics info in memory:
+      ! reordering the g points in order of approximately increasing
+      ! optical depth (for efficient 3D processing on only the
+      ! regions of the spectrum that are optically thin for gases)
+      ! and reorder in pressure since the the functions above treat
+      ! pressure decreasing with increasing index.
+      do jlev = 1,nlev+1
         if (jlev == 1) then
           ! Top-of-atmosphere half level - note that PFRAC is on model
           ! levels not half levels
           do jgreorder = 1,config%n_g_lw
             iband = config%i_band_from_reordered_g_lw(jgreorder)
             ig = config%i_g_from_reordered_g_lw(jgreorder)
-            planck_hl(jgreorder,1,:) = planck_store(:,iband) &
+            planck_hl(jgreorder,1,:) = planck_store(:,jlev,iband) &
                  &   * PFRAC(:,ig,nlev)
           end do
         else
@@ -716,30 +724,28 @@ contains
             iband = config%i_band_from_reordered_g_lw(jgreorder)
             ig = config%i_g_from_reordered_g_lw(jgreorder)
             planck_hl(jgreorder,jlev,:) &
-                   &   = planck_store(:,iband) &
+                   &   = planck_store(:,jlev,iband) &
                    &   * PFRAC(:,ig,nlev+2-jlev)
           end do
         end if
-      else
-        ! G points have not been reordered 
-        if (jlev == 1) then
-          ! Top-of-atmosphere half level - note that PFRAC is on model
-          ! levels not half levels
+      end do
+    else
+      do jcol = istartcol,iendcol
+        do jlev = 1,nlev+1
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_hl(jg,1,:) = planck_store(:,iband) * PFRAC(:,jg,nlev)
+            ! G points have not been reordered 
+            if (jlev == 1) then
+              ! Top-of-atmosphere half level - note that PFRAC is on model
+              ! levels not half levels
+              planck_hl(jg,1,jcol) = planck_store(jcol,1,iband) * PFRAC(jcol,jg,nlev)
+            else
+              planck_hl(jg,jlev,jcol) = planck_store(jcol,jlev,iband) * PFRAC(jcol,jg,nlev+2-jlev)
+            end if
           end do
-        else
-          do jg = 1,config%n_g_lw
-            iband = config%i_band_from_g_lw(jg)
-            planck_tmp(:,jg) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
-          end do
-          do jcol = istartcol,iendcol
-            planck_hl(:,jlev,jcol) = planck_tmp(jcol,:)
-          end do
-        end if
-      end if
-    end do
+        end do
+      end do
+    end if
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_atmos',1,hook_handle)
 
