@@ -47,6 +47,10 @@ program ecrad_ifs_driver
   ! Section 1: Declarations
   ! --------------------------------------------------------
   use parkind1,                 only : jprb, jprd ! Working/double precision
+  use yomhook,                  only : dr_hook_init
+#ifdef HAVE_FIAT
+  use mpl_module,               only : mpl_init, mpl_end
+#endif
 
   use radiation_io,             only : nulout
   use radiation_single_level,   only : single_level_type
@@ -133,6 +137,11 @@ program ecrad_ifs_driver
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
+  ! Initialise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_init
+#endif
+  call dr_hook_init()
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -412,7 +421,15 @@ program ecrad_ifs_driver
              &  flux%sw_dn_direct(:,nlev+1), flux%sw_dn_direct_clear(:,nlev+1), flux_sw_direct_normal, &
              &  flux_uv, flux_par, &
              &  flux_par_clear, flux%sw_dn(:,1), emissivity_out, flux%lw_derivatives, flux_diffuse_band, &
-             &  flux_direct_band)
+             &  flux_direct_band &
+#ifdef BITIDENTITY_TESTING
+            ! To validate results against standalone ecrad, we overwrite effective
+            ! radii, cloud overlap and seed with input values
+             &  ,pre_liq=cloud%re_liq, pre_ice=cloud%re_ice, &
+             &  pcloud_overlap=cloud%overlap_param, &
+             &  iseed=single_level%iseed &
+#endif
+             & )
       end do
       !$OMP END PARALLEL DO
 
@@ -474,5 +491,10 @@ program ecrad_ifs_driver
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
+
+  ! Finalise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_end(ldmeminfo=.false.)
+#endif
 
 end program ecrad_ifs_driver

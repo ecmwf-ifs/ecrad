@@ -31,6 +31,10 @@ program ecrad_driver
   ! Section 1: Declarations
   ! --------------------------------------------------------
   use parkind1,                 only : jprb, jprd ! Working/double precision
+  use yomhook,                  only : dr_hook_init
+#ifdef HAVE_FIAT
+  use mpl_module,               only : mpl_init, mpl_end
+#endif
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
@@ -51,7 +55,7 @@ program ecrad_driver
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
   use print_matrix_mod,         only : print_matrix
-  
+
   implicit none
 
   ! Uncomment this if you want to use the "satur" routine below
@@ -86,7 +90,7 @@ program ecrad_driver
 
   ! Mapping matrix for shortwave spectral diagnostics
   real(jprb), allocatable :: sw_diag_mapping(:,:)
-  
+
 #ifndef NO_OPENMP
   ! OpenMP functions
   integer, external :: omp_get_thread_num
@@ -116,6 +120,11 @@ program ecrad_driver
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
+  ! Initialise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_init
+#endif
+  call dr_hook_init()
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -206,7 +215,7 @@ program ecrad_driver
     !  call print_matrix(sw_diag_mapping, 'Shortwave diagnostic mapping', nulout)
     !end if
   end if
-  
+
   if (driver_config%do_save_aerosol_optics) then
     call config%aerosol_optics%save('aerosol_optics.nc', iverbose=driver_config%iverbose)
   end if
@@ -264,7 +273,7 @@ program ecrad_driver
          &  ncol, ')'
     stop 1
   end if
-  
+
   ! Store inputs
   if (driver_config%do_save_inputs) then
     call save_inputs('inputs.nc', config, single_level, thermodynamics, &
@@ -306,31 +315,31 @@ program ecrad_driver
        & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
        &                                            driver_config%do_correct_unphysical_inputs) &
        & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) 
-  
+       &                                            driver_config%do_correct_unphysical_inputs)
+
   ! Allocate memory for the flux profiles, which may include arrays
   ! of dimension n_bands_sw/n_bands_lw, so must be called after
   ! setup_radiation
   call flux%allocate(config, 1, ncol, nlev)
-  
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
-  
+
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
 #ifndef NO_OPENMP
-  tstart = omp_get_wtime() 
+  tstart = omp_get_wtime()
 #endif
   do jrepeat = 1,driver_config%nrepeat
-    
+
     if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
-      
+
       ! Compute number of blocks to process
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
-     
+
       !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
       do jblock = 1, nblock
         ! Specify the range of columns to process.
@@ -338,7 +347,7 @@ program ecrad_driver
              &    + driver_config%istartcol
         iendcol = min(istartcol + driver_config%nblocksize - 1, &
              &        driver_config%iendcol)
-          
+
         if (driver_config%iverbose >= 3) then
 #ifndef NO_OPENMP
           write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
@@ -347,26 +356,26 @@ program ecrad_driver
           write(nulout,'(a,i0,a,i0)')  'Processing columns ', istartcol, '-', iendcol
 #endif
         end if
-        
+
         ! Call the ECRAD radiation scheme
         call radiation(ncol, nlev, istartcol, iendcol, config, &
              &  single_level, thermodynamics, gas, cloud, aerosol, flux)
-        
+
       end do
       !$OMP END PARALLEL DO
-      
+
     else
       ! Run radiation scheme serially
       if (driver_config%iverbose >= 3) then
         write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
       end if
-      
+
       ! Call the ECRAD radiation scheme
       call radiation(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
            &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
-      
+
     end if
-    
+
   end do
 
 #ifndef NO_OPENMP
@@ -403,9 +412,14 @@ program ecrad_driver
          &  experiment_name=driver_config%experiment_name, &
          &  is_double_precision=driver_config%do_write_double_precision)
   end if
-  
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
+
+  ! Finalise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_end(ldmeminfo=.false.)
+#endif
 
 end program ecrad_driver

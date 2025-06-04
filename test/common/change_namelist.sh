@@ -35,7 +35,7 @@ do
 	exit 1
     fi
 
-    SEDLINE="$SEDLINE -e s|^[[:space:]!]*"$KEY".*|"$KEY"="$VALUE",|"
+    SEDLINE="$SEDLINE -e s|^[[:space:]!]*\b"$KEY"\b.*|"$KEY"="$VALUE",|"
     shift
 done
 echo sed $SEDLINE $INFILE ">" $OUTFILE

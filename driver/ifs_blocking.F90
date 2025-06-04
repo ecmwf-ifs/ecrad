@@ -29,7 +29,9 @@ module ifs_blocking
         &     ifrted, ifrsodc, ifrtedc, iemit, isudu, iuvdf, iparf, iparcf, itincf, ifdir, ifdif,     &
         &     ilwderivative, iswdirectband, iswdiffuseband, ifrso, iswfc, ifrth, ilwfc, iaer,         &
         &     iich4, iin2o, ino2, ic11, ic12, igix, iico2, iccno, ic22, icl4
+#ifdef BITIDENTITY_TESTING
     integer :: ire_liq, ire_ice, ioverlap
+#endif
     integer :: ifldstot
   end type ifs_config_type
 
@@ -182,9 +184,13 @@ subroutine ifs_setup_indices (driver_config, ifs_config, yradiation, nlev)
                                 ! end of local variables
 
                                   ! start of standalone inputs workaround variables
+#ifdef BITIDENTITY_TESTING
+  ! To validate results against standalone ecrad, we overwrite effective
+  ! radii, cloud overlap and seed with input values
   ifs_config%ire_liq =indrad(inext,nlev,.true.)
   ifs_config%ire_ice =indrad(inext,nlev,.true.)
   ifs_config%ioverlap =indrad(inext,nlev-1,.true.)
+#endif
                                   ! end of standalone inputs workaround variables
 
   ifldsin = iinend - iinbeg +1
@@ -254,9 +260,11 @@ subroutine ifs_setup_indices (driver_config, ifs_config, yradiation, nlev)
     write(nulout,'("ic12   =",i0)')ifs_config%ic12
     write(nulout,'("ic22   =",i0)')ifs_config%ic22
     write(nulout,'("icl4   =",i0)')ifs_config%icl4
+#ifdef BITIDENTITY_TESTING
     write(nulout,'("ire_liq=",i0)')ifs_config%ire_liq
     write(nulout,'("ire_ice=",i0)')ifs_config%ire_ice
     write(nulout,'("ioverlap=",i0)')ifs_config%ioverlap
+#endif
     write(nulout,'("ifldsin =",i0)')ifldsin
     write(nulout,'("ifldsout=",i0)')ifldsout
     write(nulout,'("ifldstot=",i0)')ifs_config%ifldstot
@@ -390,7 +398,7 @@ subroutine ifs_copy_inputs_to_blocked ( &
           zrgp(1:il,ifs_config%ialp+jalb-1,ib)  =  single_level%sw_albedo(ibeg:iend,jalb)
         end do
       end if
-      
+
       do jlev=1,nlev
         zrgp(1:il,ifs_config%iti+jlev-1,ib)   = temperature_fl(ibeg:iend,jlev) ! full level temperature
         zrgp(1:il,ifs_config%ipr+jlev-1,ib)   = pressure_fl(ibeg:iend,jlev) ! full level pressure
@@ -451,6 +459,9 @@ subroutine ifs_copy_inputs_to_blocked ( &
       ! enddo
 
       ! local workaround variables for standalone input files
+#ifdef BITIDENTITY_TESTING
+      ! To validate results against standalone ecrad, we overwrite effective
+      ! radii, cloud overlap and seed with input values
       if (rad_config%do_clouds) then
         do jlev=1,nlev
           ! missing full-level temperature and pressure as well as land-sea-mask
@@ -474,6 +485,7 @@ subroutine ifs_copy_inputs_to_blocked ( &
         enddo
         if(present(iseed)) iseed(1:il,ib) = 0
       endif ! do_clouds
+#endif
     enddo
     !$OMP END PARALLEL DO
 
