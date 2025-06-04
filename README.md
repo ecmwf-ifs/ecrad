@@ -1,15 +1,13 @@
-# ECRAD - ECMWF atmospheric radiation scheme
+# ecRad
 
-This document last updated 9 June 2022
-
-Robin Hogan <r.j.hogan@ecmwf.int>
+The ECMWF atmospheric radiation scheme
 
 For more complete information about compilation and usage of ecRad,
 please see the documentation on the
 [ecRad web site](https://confluence.ecmwf.int/display/ECRAD).
 
 
-## INTRODUCTION
+## Introduction
 
 This package contains the offline version of a radiation scheme
 suitable for use in atmospheric weather and climate models.  The code
@@ -62,7 +60,7 @@ implementation being that from the ECMWF Integrated Forecasting System
 read from a file at run-time.
 
 
-## PACKAGE OVERVIEW
+## Package overview
 
 The subdirectories are as follows:
 
@@ -97,7 +95,7 @@ The subdirectories are as follows:
 - `practical` - exercises to get started with ecRad
 
 
-## TO COMPILE
+## Compilation
 
 1. Ensure you have a reasonably recent Fortran compiler - it needs to
 support modules with `contains` and `procedure` statements for
@@ -140,7 +138,7 @@ Fortran compiler.
    `$FIATDIR/module/fiat/yomhook.mod` can be found at build time.
 
 
-## TO TEST
+## Testing
 
 The offline driver is run via
 
@@ -227,7 +225,7 @@ ctest
 ```
 
 
-## LICENCE
+## Licence
 
 (C) Copyright 2014- ECMWF.
 
@@ -246,14 +244,14 @@ the gas optics part of the Rapid Radiative Transfer Model for GCMS
 "3-clause BSD" license; for details, see ifsrrtm/AER-BSD3-LICENSE.
 
 
-# CONTRIBUTING
+# Contributing
 
-Contributions to ECRAD are welcome. 
-In order to do so, please open an issue where a feature request or bug can be discussed. 
+Contributions to ECRAD are welcome.
+In order to do so, please open an issue where a feature request or bug can be discussed.
 Then create a pull request with your contribution and sign the [contributors license agreement (CLA)](https://bol-claassistant.ecmwf.int/ecmwf-ifs/ecrad).
 
 
-## PUBLICATIONS
+## Publications
 
 The ecRad radiation scheme itself is described here:
 
@@ -292,9 +290,3 @@ The ecCKD gas optics scheme is described here:
 k-distribution gas-optics models for weather and climate
 applications. J. Adv. Modeling Earth Sys., in review.
 
-
-## CONTACT
-
-Please email Robin Hogan <r.j.hogan@ecmwf.int> with any queries or bug
-fixes, but note that ECMWF does not commit to providing support to
-users of this software.
