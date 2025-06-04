@@ -2,7 +2,7 @@
 SUBROUTINE RRTM_TAUMOL9 (KIDIA,KFDIA,KLEV,taug,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
  & colh2o,coln2o,colch4,coldry,laytrop,K_LAYSWTCH,K_LAYLOW,selffac,selffrac,indself,fracs, &
- & rat_h2och4,rat_h2och4_1,minorfrac,indminor)  
+ & rat_h2och4,rat_h2och4_1,minorfrac,indminor)
 
 !     BAND 9:  1180-1390 cm-1 (low - H2O,CH4; high - CH4)
 
@@ -21,46 +21,45 @@ SUBROUTINE RRTM_TAUMOL9 (KIDIA,KFDIA,KLEV,taug,&
 ! ---------------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
 
 USE PARRRTM  , ONLY : JPBAND
 USE YOERRTM  , ONLY : JPGPT  ,NG9   ,NGS8
 USE YOERRTWN , ONLY :      NSPA   ,NSPB
-USE YOERRTA9 , ONLY : ABSA   ,ABSB   ,FRACREFA, FRACREFB,SELFREF,FORREF,KA_MN2O, KB_MN2O   
+USE YOERRTA9 , ONLY : ABSA   ,ABSB   ,FRACREFA, FRACREFB,SELFREF,FORREF,KA_MN2O, KB_MN2O
 USE YOERRTRF, ONLY : CHI_MLS
 
 IMPLICIT NONE
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: oneminus
-REAL(KIND=JPRB)   ,INTENT(IN)    :: colh2o(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: coln2o(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: colch4(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: coldry(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYSWTCH(KIDIA:KFDIA) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYLOW(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: fracs(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colh2o(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: coln2o(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colch4(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: coldry(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYSWTCH(KIDIA:KFDIA)
+INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYLOW(KIDIA:KFDIA)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: fracs(KIDIA:KFDIA,JPGPT,KLEV)
 
 REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2och4(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2och4_1(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
 
@@ -124,7 +123,7 @@ REAL(KIND=JPRB) :: taufor,tauself,n2om1,n2om2,absn2o,tau_major(ng9),tau_major1(n
       ixc(lay) = icl
     enddo
 #else
-    laytrop_min = HUGE(laytrop_min) 
+    laytrop_min = HUGE(laytrop_min)
     laytrop_max = -HUGE(laytrop_max)
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
@@ -150,7 +149,7 @@ REAL(KIND=JPRB) :: taufor,tauself,n2om1,n2om2,absn2o,tau_major(ng9),tau_major1(n
       ! Lower atmosphere loop
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, js, js1, jmn2o, jpl, speccomb, & 
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, js, js1, jmn2o, jpl, speccomb, &
       !$ACC   speccomb1, speccomb_mn2o, speccomb_planck, fs, specmult, specparm, fs1, specmult1, specparm1, fmn2o, &
       !$ACC   specmult_mn2o, specparm_mn2o, fpl, specmult_planck, specparm_planck, adjfac, adjcoln2o, ratn2o, &
       !$ACC   chi_n2o, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, fac011, fac111, &
@@ -346,7 +345,7 @@ REAL(KIND=JPRB) :: taufor,tauself,n2om1,n2om2,absn2o,tau_major(ng9),tau_major1(n
 
       ! Upper atmosphere loop
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indm, adjfac, adjcoln2o, ratn2o, chi_n2o) 
+      !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indm, adjfac, adjcoln2o, ratn2o, chi_n2o)
       do lay = laytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
 
@@ -636,5 +635,5 @@ REAL(KIND=JPRB) :: taufor,tauself,n2om1,n2om2,absn2o,tau_major(ng9),tau_major1(n
       ENDIF
 
       !$ACC END DATA
-      
+
 END SUBROUTINE RRTM_TAUMOL9

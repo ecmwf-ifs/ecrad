@@ -2,7 +2,7 @@
 SUBROUTINE RRTM_TAUMOL5 (KIDIA,KFDIA,KLEV,taug,wx,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
  & colh2o,colco2, colo3,laytrop,selffac,selffrac,indself,fracs, &
- & rat_h2oco2, rat_h2oco2_1, rat_o3co2, rat_o3co2_1,minorfrac,indminor)  
+ & rat_h2oco2, rat_h2oco2_1, rat_o3co2, rat_o3co2_1,minorfrac,indminor)
 
 !     BAND 5:  700-820 cm-1 (low - H2O,CO2; high - O3,CO2)
 
@@ -21,11 +21,10 @@ SUBROUTINE RRTM_TAUMOL5 (KIDIA,KFDIA,KLEV,taug,wx,&
 ! ---------------------------------------------------------------------------
 
 USE PARKIND1  ,ONLY : JPIM     ,JPRB
-USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK
 
 USE PARRRTM  , ONLY : JPBAND ,JPXSEC
 USE YOERRTM  , ONLY : JPGPT  ,NG5    ,NGS4
-USE YOERRTWN , ONLY : NSPA   ,NSPB  
+USE YOERRTWN , ONLY : NSPA   ,NSPB
 USE YOERRTA5 , ONLY : ABSA   ,ABSB   ,CCL4   , FRACREFA, FRACREFB,SELFREF,FORREF, &
  & KA_MO3
 USE YOERRTRF, ONLY : CHI_MLS
@@ -34,34 +33,34 @@ IMPLICIT NONE
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
-INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV) 
+INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: wx(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
-REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac10(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: fac11(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: jp(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: jt1(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: oneminus
-REAL(KIND=JPRB)   ,INTENT(IN)    :: colh2o(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: colco2(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: colo3(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV) 
-INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: fracs(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colh2o(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colco2(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: colo3(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop(KIDIA:KFDIA)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffac(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: fracs(KIDIA:KFDIA,JPGPT,KLEV)
 
 REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2oco2(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2oco2_1(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_o3co2(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_o3co2_1(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
-REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV)
+REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
 ! ---------------------------------------------------------------------------
@@ -84,7 +83,7 @@ REAL(KIND=JPRB) :: taufor,tauself,tau_major(ng5),tau_major1(ng5), o3m1, o3m2, ab
 REAL(KIND=JPRB) :: fs, specmult, specparm, &
 & fs1, specmult1, specparm1, &
 & fpl, specmult_PLANCK, specparm_PLANCK, &
-& fmo3, specmult_MO3, specparm_MO3  
+& fmo3, specmult_MO3, specparm_MO3
     !     local integer arrays
     INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
@@ -96,7 +95,7 @@ REAL(KIND=JPRB) :: fs, specmult, specparm, &
     !$ACC             jt1, colh2o, colco2, colo3, laytrop, selffac, selffrac, &
     !$ACC             indself, fracs, rat_h2oco2, rat_h2oco2_1, rat_o3co2, &
     !$ACC             rat_o3co2_1, indfor, forfrac, forfac, minorfrac, indminor)
-    
+
 #ifndef _OPENACC
     laytrop_min = MINVAL(laytrop)
     laytrop_max = MAXVAL(laytrop)
@@ -121,7 +120,7 @@ REAL(KIND=JPRB) :: fs, specmult, specparm, &
       ixc(lay) = icl
     enddo
 #else
-    laytrop_min = HUGE(laytrop_min) 
+    laytrop_min = HUGE(laytrop_min)
     laytrop_max = -HUGE(laytrop_max)
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
@@ -136,10 +135,10 @@ REAL(KIND=JPRB) :: fs, specmult, specparm, &
 !     lower - o3, p = 317.34 mbar, t = 240.77 k
 !     lower - ccl4
 
-!     Compute the optical depth by interpolating in ln(pressure), 
+!     Compute the optical depth by interpolating in ln(pressure),
 !     temperature, and appropriate species.  Below LAYTROP, the water
-!     vapor self-continuum and foreign continuum is 
-!     interpolated (in temperature) separately.  
+!     vapor self-continuum and foreign continuum is
+!     interpolated (in temperature) separately.
 
       ! P = 473.420 mb
       refrat_planck_a = chi_mls(1,5)/chi_mls(2,5)
