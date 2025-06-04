@@ -189,6 +189,41 @@ can be stored in `radiative_properties.nc` (edit the config namelist to
 enable this), but note that the g-points have been reordered in
 approximate order of optical depth if the SPARTACUS solver is chosen.
 
+## CMake BUILD PROCEDURE
+
+The ecRad radiation scheme can also be built using CMake and
+[ecbuild](https://github.com/ecmwf/ecbuild). This only requires CMake to be
+installed, if ecbuild cannot be found a compatible version will
+automatically be downloaded.
+
+CMake will perform an out-of-tree build, i.e., put all build artifacts into
+a different directory than the source files.
+With the code checked out into `<ecrad directory>`, the CMake build procedure
+is as follows:
+
+```sh
+cmake -B <build-directory> -S <ecrad directory>
+cmake --build <build-directory>
+```
+
+Optionally, the first command can be amended with `-Dfiat_ROOT=<fiat build dir>`
+to build against the optional [fiat](https://github.com/ecmwf-ifs/fiat) build
+dependency. Other build options are:
+
+* `DOUBLE_PRECISION`: build double-precision version (default: ON)
+* `SINGLE_PRECISION`: build single-precision version (default: OFF)
+* `OMP`: build with OpenMP thread-parallelism if supported by the compiler (default: ON)
+
+The options can be enabled/disabled by providing `-DENABLE_<OPTION>=ON|OFF` to the first command.
+
+CMake comes with a test suite that runs a set of configurations of ecrad.
+Execute the tests after successful compilation using:
+
+```sh
+cd <build-dir>
+ctest
+```
+
 
 ## Licence
 
