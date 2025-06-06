@@ -561,7 +561,7 @@ contains
     call thermodynamics_rev%allocate(ncol, nlev)
     call cloud_rev%allocate(ncol, nlev)
     call flux_rev%allocate(config, istartcol, iendcol, nlev)
-    if (allocated(aerosol%mixing_ratio)) then
+    if (associated(aerosol%mixing_ratio)) then
       istartlev = nlev + 1 - aerosol%iendlev
       iendlev   = nlev + 1 - aerosol%istartlev
       call aerosol_rev%allocate(ncol, istartlev, iendlev, &
@@ -591,13 +591,13 @@ contains
            &  = cloud%fraction(istartcol:iendcol,nlev:1:-1)
       cloud_rev%overlap_param(istartcol:iendcol,:) &
            &  = cloud%overlap_param(istartcol:iendcol,nlev-1:1:-1)
-      if (allocated(cloud%fractional_std)) then
+      if (associated(cloud%fractional_std)) then
         cloud_rev%fractional_std(istartcol:iendcol,:) &
              &  = cloud%fractional_std(istartcol:iendcol,nlev:1:-1)
       else
         cloud_rev%fractional_std(istartcol:iendcol,:) = 0.0_jprb       
       end if
-      if (allocated(cloud%inv_cloud_effective_size)) then
+      if (associated(cloud%inv_cloud_effective_size)) then
         cloud_rev%inv_cloud_effective_size(istartcol:iendcol,:) &
              &  = cloud%inv_cloud_effective_size(istartcol:iendcol,nlev:1:-1)
       else
@@ -605,7 +605,7 @@ contains
       end if
     end if
 
-    if (allocated(aerosol%mixing_ratio)) then
+    if (associated(aerosol%mixing_ratio)) then
       aerosol_rev%mixing_ratio(:,istartlev:iendlev,:) &
            &  = aerosol%mixing_ratio(:,aerosol%iendlev:aerosol%istartlev:-1,:)
     end if
@@ -616,33 +616,33 @@ contains
          &  cloud_rev, aerosol_rev, flux_rev)
 
     ! Reorder fluxes
-    if (allocated(flux%lw_up)) then
+    if (associated(flux%lw_up)) then
       flux%lw_up(istartcol:iendcol,:) &
            &  = flux_rev%lw_up(istartcol:iendcol,nlev+1:1:-1)
       flux%lw_dn(istartcol:iendcol,:) &
            &  = flux_rev%lw_dn(istartcol:iendcol,nlev+1:1:-1)
-      if (allocated(flux%lw_up_clear)) then
+      if (associated(flux%lw_up_clear)) then
         flux%lw_up_clear(istartcol:iendcol,:) &
              &  = flux_rev%lw_up_clear(istartcol:iendcol,nlev+1:1:-1)
         flux%lw_dn_clear(istartcol:iendcol,:) &
              &  = flux_rev%lw_dn_clear(istartcol:iendcol,nlev+1:1:-1)
       end if
     end if
-    if (allocated(flux%sw_up)) then
+    if (associated(flux%sw_up)) then
       flux%sw_up(istartcol:iendcol,:) &
            &  = flux_rev%sw_up(istartcol:iendcol,nlev+1:1:-1)
       flux%sw_dn(istartcol:iendcol,:) &
            &  = flux_rev%sw_dn(istartcol:iendcol,nlev+1:1:-1)
-      if (allocated(flux%sw_dn_direct)) then
+      if (associated(flux%sw_dn_direct)) then
         flux%sw_dn_direct(istartcol:iendcol,:) &
              &  = flux_rev%sw_dn_direct(istartcol:iendcol,nlev+1:1:-1)
       end if
-      if (allocated(flux%sw_up_clear)) then
+      if (associated(flux%sw_up_clear)) then
         flux%sw_up_clear(istartcol:iendcol,:) &
              &  = flux_rev%sw_up_clear(istartcol:iendcol,nlev+1:1:-1)
         flux%sw_dn_clear(istartcol:iendcol,:) &
              &  = flux_rev%sw_dn_clear(istartcol:iendcol,nlev+1:1:-1)
-        if (allocated(flux%sw_dn_direct_clear)) then
+        if (associated(flux%sw_dn_direct_clear)) then
           flux%sw_dn_direct_clear(istartcol:iendcol,:) &
                &  = flux_rev%sw_dn_direct_clear(istartcol:iendcol,nlev+1:1:-1)
         end if
@@ -654,7 +654,7 @@ contains
     call gas_rev%deallocate
     call cloud_rev%deallocate
     call flux_rev%deallocate
-    if (allocated(aerosol%mixing_ratio)) then
+    if (associated(aerosol%mixing_ratio)) then
       call aerosol_rev%deallocate
     end if
 

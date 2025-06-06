@@ -45,7 +45,7 @@ module radiation_gas
 
     ! Mixing ratios of variable gases, dimensioned (ncol, nlev,
     ! NMaxGases)
-    real(jprb), allocatable, dimension(:,:,:) :: mixing_ratio
+    real(jprb), pointer, dimension(:,:,:) :: mixing_ratio=>null()
 
     ! Flag to indicate whether a gas is present
     logical :: is_present(NMaxGases) = .false.
@@ -120,7 +120,7 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:deallocate',0,hook_handle)
 
-    if (allocated(this%mixing_ratio)) then
+    if (associated(this%mixing_ratio)) then
        deallocate(this%mixing_ratio)
     end if
 
@@ -169,8 +169,8 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. allocated(this%mixing_ratio)) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unallocated radiation_gas object'
+    if (.not. associated(this%mixing_ratio)) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unassociated radiation_gas object'
       call radiation_abort()
     end if
 
@@ -320,8 +320,8 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. allocated(this%mixing_ratio)) then
-      write(nulerr,'(a)') '*** Error: attempt to put well-mixed gas data to unallocated radiation_gas object'
+    if (.not. associated(this%mixing_ratio)) then
+      write(nulerr,'(a)') '*** Error: attempt to put well-mixed gas data to unassociated radiation_gas object'
       call radiation_abort()
     end if
 
@@ -672,9 +672,12 @@ contains
     gas_rev%nlev = this%nlev
     gas_rev%icode = this%icode
 
-    if (allocated(gas_rev%mixing_ratio)) deallocate(gas_rev%mixing_ratio)
+    if (associated(gas_rev%mixing_ratio)) then
+      deallocate(gas_rev%mixing_ratio)
+      gas_rev%mixing_ratio=>null()
+    end if
 
-    if (allocated(this%mixing_ratio)) then
+    if (associated(this%mixing_ratio)) then
       allocate(gas_rev%mixing_ratio(istartcol:iendcol,this%nlev,NMaxGases))
       gas_rev%mixing_ratio(istartcol:iendcol,:,:) &
            &  = this%mixing_ratio(istartcol:iendcol,this%nlev:1:-1,:)

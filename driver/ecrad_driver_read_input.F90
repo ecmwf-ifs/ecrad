@@ -238,7 +238,7 @@ contains
         ! adjacent layers, stored in cloud%overlap_param
         call cloud%set_overlap_param(thermodynamics, &
              &    driver_config%overlap_decorr_length_override)
-      else if (.not. allocated(cloud%overlap_param)) then 
+      else if (.not. associated(cloud%overlap_param)) then 
         if (driver_config%iverbose >= 1) then
           write(nulout,'(a,g10.3,a)') 'Warning: overlap decorrelation length set to ', &
                &  decorr_length_default, ' m'
@@ -276,7 +276,7 @@ contains
         end if
         call cloud%create_fractional_std(ncol, nlev, &
              &  driver_config%fractional_std_override)
-      else if (.not. allocated(cloud%fractional_std)) then
+      else if (.not. associated(cloud%fractional_std)) then
         call cloud%create_fractional_std(ncol, nlev, 0.0_jprb)
         if (driver_config%iverbose >= 1) then
           write(nulout,'(a)') 'Warning: cloud optical depth fractional standard deviation set to zero'
@@ -445,7 +445,7 @@ contains
           ! Scale cloud effective size
           cloud%inv_cloud_effective_size = cloud%inv_cloud_effective_size &
                &                         / driver_config%effective_size_scaling
-          if (allocated(cloud%inv_inhom_effective_size)) then
+          if (associated(cloud%inv_inhom_effective_size)) then
             if (driver_config%iverbose >= 2) then
               write(nulout, '(a,g10.3)') '  Scaling effective size of clouds and their inhomogeneities with ', &
                    &                           driver_config%effective_size_scaling

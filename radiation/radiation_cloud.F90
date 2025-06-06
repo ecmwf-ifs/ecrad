@@ -34,21 +34,21 @@ module radiation_cloud
     ! For maximum flexibility, an arbitrary number "ntype" of
     ! hydrometeor types can be stored, dimensioned (ncol,nlev,ntype)
     integer                                   :: ntype = 0
-    real(jprb), allocatable, dimension(:,:,:) :: &
-         &  mixing_ratio, &  ! mass mixing ratio (kg/kg)
-         &  effective_radius ! (m)
+    real(jprb), pointer, dimension(:,:,:) :: &
+         &  mixing_ratio=>null(), &  ! mass mixing ratio (kg/kg)
+         &  effective_radius=>null() ! (m)
 
     ! For backwards compatibility, we also allow for the two
     ! traditional cloud types, liquid cloud droplets and ice cloud
     ! particles, dimensioned (ncol,nlev)
     real(jprb), pointer, dimension(:,:) :: &
-         &  q_liq,  q_ice,  & ! mass mixing ratio (kg/kg)
-         &  re_liq, re_ice    ! effective radius (m)
+         &  q_liq=>null(),  q_ice=>null(),  & ! mass mixing ratio (kg/kg)
+         &  re_liq=>null(), re_ice=>null()    ! effective radius (m)
 
     ! For the moment, the different types of hydrometeor are assumed
     ! to be mixed with each other, so there is just one cloud fraction
     ! variable varying from 0 to 1
-    real(jprb), allocatable, dimension(:,:) :: fraction
+    real(jprb), pointer, dimension(:,:) :: fraction=>null()
 
     ! The fractional standard deviation of cloud optical depth in the
     ! cloudy part of the gridbox.  In the Tripleclouds representation
@@ -57,18 +57,20 @@ module radiation_cloud
     ! with the cloud optical depth scaled by 1+fractional_std and the
     ! other scaled by 1-fractional_std. This variable is dimensioned
     ! (ncol,nlev)
-    real(jprb), allocatable, dimension(:,:) :: fractional_std
+    real(jprb), pointer, dimension(:,:) :: fractional_std=>null()
 
     ! The inverse of the effective horizontal size of the clouds in
     ! the gridbox, used to compute the cloud edge length per unit
     ! gridbox area for use in representing 3D effects. This variable
     ! is dimensioned (ncol,nlev).
-    real(jprb), allocatable, dimension(:,:) :: inv_cloud_effective_size ! m-1
+    real(jprb), pointer, dimension(:,:) :: &
+         &  inv_cloud_effective_size=>null() ! m-1
 
     ! Similarly for the in-cloud heterogeneities, used to compute the
     ! edge length between the optically thin and thick cloudy regions
     ! of the gridbox.
-    real(jprb), allocatable, dimension(:,:) :: inv_inhom_effective_size ! m-1
+    real(jprb), pointer, dimension(:,:) :: &
+         &  inv_inhom_effective_size=>null() ! m-1
 
     ! The following variable describes the overlap of cloud boundaries
     ! in adjacent layers, with dimensions (ncol,nlev-1): 1 corresponds
@@ -76,7 +78,7 @@ module radiation_cloud
     ! ecRad configuration, it may be the "alpha" overlap parameter of
     ! Hogan and Illingworth (2000) or the "beta" overlap parameter of
     ! Shonk et al. (2010).
-    real(jprb), allocatable, dimension(:,:) :: overlap_param
+    real(jprb), pointer, dimension(:,:) :: overlap_param=>null()
 
   contains
     procedure :: allocate   => allocate_cloud_arrays
@@ -98,7 +100,7 @@ contains
 
   !---------------------------------------------------------------------
   ! Allocate arrays for describing clouds and precipitation, although
-  ! in the offline code these are allocated when they are read from
+  ! in the offline code these are associated when they are read from
   ! the NetCDF file
   subroutine allocate_cloud_arrays(this, ncol, nlev, ntype, use_inhom_effective_size)
 
@@ -169,15 +171,34 @@ contains
     nullify(this%re_liq)
     nullify(this%re_ice)
 
-    if (allocated(this%mixing_ratio))     deallocate(this%mixing_ratio)
-    if (allocated(this%effective_radius)) deallocate(this%effective_radius)
-    if (allocated(this%fraction))         deallocate(this%fraction)
-    if (allocated(this%overlap_param))    deallocate(this%overlap_param)
-    if (allocated(this%fractional_std))   deallocate(this%fractional_std)
-    if (allocated(this%inv_cloud_effective_size)) &
-         &  deallocate(this%inv_cloud_effective_size)
-    if (allocated(this%inv_inhom_effective_size)) &
-         &  deallocate(this%inv_inhom_effective_size)
+    if (associated(this%mixing_ratio)) then
+      deallocate(this%mixing_ratio)
+      this%mixing_ratio=>null()
+    end if
+    if (associated(this%effective_radius)) then
+      deallocate(this%effective_radius)
+      this%effective_radius=>null()
+    end if
+    if (associated(this%fraction)) then
+      deallocate(this%fraction)
+      this%fraction=>null()
+    end if
+    if (associated(this%overlap_param)) then
+      deallocate(this%overlap_param)
+      this%overlap_param=>null()
+    end if
+    if (associated(this%fractional_std)) then
+      deallocate(this%fractional_std)
+      this%fractional_std=>null()
+    end if
+    if (associated(this%inv_cloud_effective_size)) then
+      deallocate(this%inv_cloud_effective_size)
+      this%inv_cloud_effective_size=>null()
+    end if
+    if (associated(this%inv_inhom_effective_size)) then
+      deallocate(this%inv_inhom_effective_size)
+      this%inv_inhom_effective_size=>null()
+    end if
 
     if (lhook) call dr_hook('radiation_cloud:deallocate',1,hook_handle)
 
@@ -188,8 +209,8 @@ contains
   ! Compute and store the overlap parameter from the provided overlap
   ! decorrelation length (in metres).  If istartcol and/or iendcol are
   ! provided then only columns in this range are computed.  If the
-  ! overlap_param array has not been allocated then it will be
-  ! allocated to be of the correct size relative to the pressure
+  ! overlap_param array has not been associated then it will be
+  ! associated to be of the correct size relative to the pressure
   ! field. This version assumes a fixed decorrelation_length for all
   ! columns.
   subroutine set_overlap_param_fix(this, thermodynamics, decorrelation_length, &
@@ -236,7 +257,7 @@ contains
       i2 = ncol
     end if
 
-    if (.not. allocated(this%overlap_param)) then
+    if (.not. associated(this%overlap_param)) then
       ! If pressure is of size (ncol,nlev+1) then overlap_param is of
       ! size (ncol,nlev-1), since overlap parameter is only defined here
       ! for interfaces between model layers, not for the interface to
@@ -294,8 +315,8 @@ contains
   ! Compute and store the overlap parameter from the provided overlap
   ! decorrelation length (in metres), which may vary with column. Only
   ! columns from istartcol to iendcol are computed.  If the
-  ! overlap_param array has not been allocated then it will be
-  ! allocated to be of the correct size relative to the pressure
+  ! overlap_param array has not been associated then it will be
+  ! associated to be of the correct size relative to the pressure
   ! field.
   subroutine set_overlap_param_var(this, thermodynamics, decorrelation_length, &
        &                           istartcol, iendcol)
@@ -325,7 +346,7 @@ contains
     ncol = size(thermodynamics%pressure_hl,dim=1)
     nlev = size(thermodynamics%pressure_hl,dim=2)-1
 
-    if (.not. allocated(this%overlap_param)) then
+    if (.not. associated(this%overlap_param)) then
       ! If pressure is of size (ncol,nlev+1) then overlap_param is of
       ! size (ncol,nlev-1), since overlap parameter is only defined here
       ! for interfaces between model layers, not for the interface to
@@ -383,8 +404,8 @@ contains
   ! Compute and store the overlap parameter from the provided overlap
   ! decorrelation length (in metres).  If istartcol and/or iendcol are
   ! provided then only columns in this range are computed.  If the
-  ! overlap_param array has not been allocated then it will be
-  ! allocated to be of the correct size relative to the pressure
+  ! overlap_param array has not been associated then it will be
+  ! associated to be of the correct size relative to the pressure
   ! field. This is the APPROXIMATE method as it assumes a fixed
   ! atmospheric scale height, which leads to differences particularly
   ! in low cloud.
@@ -433,7 +454,7 @@ contains
       i2 = ncol
     end if
 
-    if (.not. allocated(this%overlap_param)) then
+    if (.not. associated(this%overlap_param)) then
       ! If pressure is of size (ncol,nlev+1) then overlap_param is of
       ! size (ncol,nlev-1), since overlap parameter is only defined here
       ! for interfaces between model layers, not for the interface to
@@ -478,7 +499,7 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',0,hook_handle)
 
-    if (allocated(this%fractional_std)) then
+    if (associated(this%fractional_std)) then
        deallocate(this%fractional_std)
     end if
     
@@ -505,7 +526,7 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:create_inv_cloud_effective_size',0,hook_handle)
 
-    if (allocated(this%inv_cloud_effective_size)) then
+    if (associated(this%inv_cloud_effective_size)) then
        deallocate(this%inv_cloud_effective_size)
     end if
     
@@ -552,7 +573,7 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:create_inv_cloud_effective_size_eta',0,hook_handle)
 
-    if (allocated(this%inv_cloud_effective_size)) then
+    if (associated(this%inv_cloud_effective_size)) then
       deallocate(this%inv_cloud_effective_size)
     end if
     
@@ -646,10 +667,10 @@ contains
     coeff_b = (separation_toa - separation_surf) / coeff_e
     coeff_a = separation_toa - coeff_b
 
-    if (allocated(this%inv_cloud_effective_size)) then
+    if (associated(this%inv_cloud_effective_size)) then
       deallocate(this%inv_cloud_effective_size)
     end if
-     if (allocated(this%inv_inhom_effective_size)) then
+     if (associated(this%inv_inhom_effective_size)) then
       deallocate(this%inv_inhom_effective_size)
     end if
    
