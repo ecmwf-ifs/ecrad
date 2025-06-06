@@ -324,21 +324,21 @@ program ecrad_ifs_driver
   call flux%allocate(yradiation%rad_config, 1, ncol, nlev)
 
   ! set relevant fluxes to zero
-  if(allocated(flux%lw_up)) flux%lw_up(:,:) = 0._jprb
-  if(allocated(flux%lw_dn)) flux%lw_dn(:,:) = 0._jprb
-  if(allocated(flux%sw_up)) flux%sw_up(:,:) = 0._jprb
-  if(allocated(flux%sw_dn)) flux%sw_dn(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_direct)) flux%sw_dn_direct(:,:) = 0._jprb
-  if(allocated(flux%lw_up_clear)) flux%lw_up_clear(:,:) = 0._jprb
-  if(allocated(flux%lw_dn_clear)) flux%lw_dn_clear(:,:) = 0._jprb
-  if(allocated(flux%sw_up_clear)) flux%sw_up_clear(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_clear)) flux%sw_dn_clear(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_direct_clear)) flux%sw_dn_direct_clear(:,:) = 0._jprb
+  if(associated(flux%lw_up)) flux%lw_up(:,:) = 0._jprb
+  if(associated(flux%lw_dn)) flux%lw_dn(:,:) = 0._jprb
+  if(associated(flux%sw_up)) flux%sw_up(:,:) = 0._jprb
+  if(associated(flux%sw_dn)) flux%sw_dn(:,:) = 0._jprb
+  if(associated(flux%sw_dn_direct)) flux%sw_dn_direct(:,:) = 0._jprb
+  if(associated(flux%lw_up_clear)) flux%lw_up_clear(:,:) = 0._jprb
+  if(associated(flux%lw_dn_clear)) flux%lw_dn_clear(:,:) = 0._jprb
+  if(associated(flux%sw_up_clear)) flux%sw_up_clear(:,:) = 0._jprb
+  if(associated(flux%sw_dn_clear)) flux%sw_dn_clear(:,:) = 0._jprb
+  if(associated(flux%sw_dn_direct_clear)) flux%sw_dn_direct_clear(:,:) = 0._jprb
 
-  if(allocated(flux%lw_dn_surf_canopy)) flux%lw_dn_surf_canopy(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_diffuse_surf_canopy)) flux%sw_dn_diffuse_surf_canopy(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_direct_surf_canopy)) flux%sw_dn_direct_surf_canopy(:,:) = 0._jprb
-  if(allocated(flux%lw_derivatives)) flux%lw_derivatives(:,:) = 0._jprb
+  if(associated(flux%lw_dn_surf_canopy)) flux%lw_dn_surf_canopy(:,:) = 0._jprb
+  if(associated(flux%sw_dn_diffuse_surf_canopy)) flux%sw_dn_diffuse_surf_canopy(:,:) = 0._jprb
+  if(associated(flux%sw_dn_direct_surf_canopy)) flux%sw_dn_direct_surf_canopy(:,:) = 0._jprb
+  if(associated(flux%lw_derivatives)) flux%lw_derivatives(:,:) = 0._jprb
 
   ! Allocate memory for additional arrays
   allocate(ccn_land(ncol))

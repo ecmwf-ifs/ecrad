@@ -389,7 +389,7 @@ subroutine ifs_copy_inputs_to_blocked ( &
         zrgp(1:il,ifs_config%iald+jalb-1,ib)  =  single_level%sw_albedo(ibeg:iend,jalb)
       enddo
 
-      if (allocated(single_level%sw_albedo_direct)) then
+      if (associated(single_level%sw_albedo_direct)) then
         do jalb=1,yderad%nsw
           zrgp(1:il,ifs_config%ialp+jalb-1,ib)  =  single_level%sw_albedo_direct(ibeg:iend,jalb)
         end do

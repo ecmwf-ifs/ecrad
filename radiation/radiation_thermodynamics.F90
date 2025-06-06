@@ -27,16 +27,16 @@ module radiation_thermodynamics
   !---------------------------------------------------------------------
   ! Derived type for storing pressure and temperature at half levels
   type thermodynamics_type
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  pressure_hl, &   ! (ncol,nlev+1) pressure (Pa)
-          &  temperature_hl   ! (ncol,nlev+1) temperature (K)
+     real(jprb), pointer, dimension(:,:) :: &
+          &  pressure_hl=>null(), &   ! (ncol,nlev+1) pressure (Pa)
+          &  temperature_hl=>null()   ! (ncol,nlev+1) temperature (K)
 
      ! The following is a function of pressure and temperature: you
      ! can calculate it according to your favourite formula, or the
      ! calc_saturation_wrt_liquid subroutine can be used to do this
      ! approximately
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  h2o_sat_liq ! (ncol,nlev) specific humidity at liquid
+     real(jprb), pointer, dimension(:,:) :: &
+          &  h2o_sat_liq=>null() ! (ncol,nlev) specific humidity at liquid
                          ! saturation (kg/kg)
    contains
      procedure :: allocate   => allocate_thermodynamics_arrays
@@ -98,14 +98,17 @@ contains
 
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',0,hook_handle)
 
-    if (allocated(this%pressure_hl)) then
+    if (associated(this%pressure_hl)) then
       deallocate(this%pressure_hl)
+      this%pressure_hl => null()
     end if
-    if (allocated(this%temperature_hl)) then
+    if (associated(this%temperature_hl)) then
       deallocate(this%temperature_hl)
+      this%temperature_hl => null()
     end if
-    if (allocated(this%h2o_sat_liq)) then
+    if (associated(this%h2o_sat_liq)) then
       deallocate(this%h2o_sat_liq)
+      this%h2o_sat_liq => null()
     end if
 
     if (lhook) call dr_hook('radiation_thermodynamics:deallocate',1,hook_handle)
@@ -138,7 +141,7 @@ contains
     ncol = size(this%pressure_hl,1)
     nlev = size(this%pressure_hl,2) - 1
 
-    if (.not. allocated(this%h2o_sat_liq)) then
+    if (.not. associated(this%h2o_sat_liq)) then
       allocate(this%h2o_sat_liq(ncol,nlev))
     end if
 

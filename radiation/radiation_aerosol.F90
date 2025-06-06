@@ -31,15 +31,15 @@ module radiation_aerosol
      ! (ncol,istartlev:iendlev,config%n_aerosol_types), where ncol is
      ! the number of columns, istartlev:iendlev is the range of model
      ! levels where aerosols are present
-     real(jprb), allocatable, dimension(:,:,:) :: &
-          &  mixing_ratio  ! mass mixing ratio (kg/kg)
+     real(jprb), pointer, dimension(:,:,:) :: &
+          &  mixing_ratio=>null()  ! mass mixing ratio (kg/kg)
 
      ! Alternatively, if is_direct=true, the optical properties are
      ! provided directly and are dimensioned
      ! (nband,istartlev:iendlev,ncol)
-     real(jprb), allocatable, dimension(:,:,:) :: &
-          &  od_sw, ssa_sw, g_sw, & ! Shortwave optical properties
-          &  od_lw, ssa_lw, g_lw    ! Longwave optical properties
+     real(jprb), pointer, dimension(:,:,:) :: &
+          &  od_sw=>null(), ssa_sw=>null(), g_sw=>null(), & ! Shortwave optical properties
+          &  od_lw=>null(), ssa_lw=>null(), g_lw=>null()    ! Longwave optical properties
 
      ! Range of levels in which the aerosol properties are provided
      integer :: istartlev, iendlev
@@ -59,7 +59,7 @@ contains
 
   !---------------------------------------------------------------------
   ! Allocate array for describing aerosols, although in the offline
-  ! code these are allocated when they are read from the NetCDF file
+  ! code these are associated when they are read from the NetCDF file
   subroutine allocate_aerosol_arrays(this, ncol, istartlev, iendlev, ntype)
 
     use yomhook,     only : lhook, dr_hook, jphook
@@ -138,13 +138,34 @@ contains
 
     if (lhook) call dr_hook('radiation_aerosol:deallocate',0,hook_handle)
 
-    if (allocated(this%mixing_ratio)) deallocate(this%mixing_ratio)
-    if (allocated(this%od_sw))        deallocate(this%od_sw)
-    if (allocated(this%ssa_sw))       deallocate(this%ssa_sw)
-    if (allocated(this%g_sw))         deallocate(this%g_sw)
-    if (allocated(this%od_lw))        deallocate(this%od_lw)
-    if (allocated(this%ssa_lw))       deallocate(this%ssa_lw)
-    if (allocated(this%g_lw))         deallocate(this%g_lw)
+    if (associated(this%mixing_ratio)) then
+      deallocate(this%mixing_ratio)
+      this%mixing_ratio=>null()
+    end if
+    if (associated(this%od_sw)) then
+      deallocate(this%od_sw)
+      this%od_sw=>null()
+    end if
+    if (associated(this%ssa_sw)) then
+      deallocate(this%ssa_sw)
+      this%ssa_sw=>null()
+    end if
+    if (associated(this%g_sw)) then
+      deallocate(this%g_sw)
+      this%g_sw=>null()
+    end if
+    if (associated(this%od_lw)) then
+      deallocate(this%od_lw)
+      this%od_lw=>null()
+    end if
+    if (associated(this%ssa_lw)) then
+      deallocate(this%ssa_lw)
+      this%ssa_lw=>null()
+    end if
+    if (associated(this%g_lw)) then
+      deallocate(this%g_lw)
+      this%g_lw=>null()
+    end if
  
     if (lhook) call dr_hook('radiation_aerosol:deallocate',1,hook_handle)
 
