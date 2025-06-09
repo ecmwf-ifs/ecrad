@@ -61,8 +61,8 @@ module radiation_ecckd
     ! Number of entries
     integer :: nplanck = 0
     ! Temperature of first element of look-up table and increment (K)
-    real(jprb), allocatable :: temperature1_planck ! FIX: why are these allocatable?
-    real(jprb), allocatable :: d_temperature_planck
+    real(jprb) :: temperature1_planck
+    real(jprb) :: d_temperature_planck
     ! Planck function (black body flux into a horizontal plane) in W
     ! m-2, dimensioned (ng,nplanck)
     real(jprb), allocatable :: planck_function(:,:)
@@ -561,12 +561,11 @@ contains
 
             multiplier = multiplier * local_concentration_scaling(igascode)
             do jlev = 1,nlev
-              ! FIX: bring out repeated use of multiplier
               optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
-                   &        + (multiplier(jlev)*tw1(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)) &
-                   &                +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev))) &
-                   &        + (multiplier(jlev)*tw2(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)+1) &
-                   &                +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev)+1))
+                   &   + multiplier(jlev) * ((tw1(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)) &
+                   &                                       +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev))) &
+                   &                        +(tw2(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)+1) &
+                   &                                       +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev)+1)))
             end do
 
           case (IConcDependenceRelativeLinear)
@@ -578,10 +577,10 @@ contains
             
             do jlev = 1,nlev
               optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
-                   &        + (multiplier(jlev)*tw1(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)) &
-                   &                +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev))) &
-                   &        + (multiplier(jlev)*tw2(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)+1) &
-                   &                +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev)+1))
+                   &     + multiplier(jlev) * ((tw1(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)) &
+                   &                                         +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev))) &
+                   &                         + (tw2(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)+1) &
+                   &                                         +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev)+1)))
             end do
 
           case (IConcDependenceNone)
@@ -589,10 +588,10 @@ contains
             molar_abs => this%single_gas(jgas)%molar_abs
             do jlev = 1,nlev
               optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
-                   &  + (simple_multiplier(jlev)*tw1(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)) &
-                   &                              +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev))) &
-                   &  + (simple_multiplier(jlev)*tw2(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)+1) &
-                   &                              +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev)+1))
+                   &   + simple_multiplier(jlev) * ((tw1(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)) &
+                   &                                              +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev))) &
+                   &                              + (tw2(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)+1) &
+                   &                                              +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev)+1)))
             end do
 
           case (IConcDependenceLUT)
