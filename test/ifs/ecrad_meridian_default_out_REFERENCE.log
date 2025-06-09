@@ -1,4 +1,4 @@
-../../bin/ecrad configCY49R1.nam ecrad_meridian.nc ecrad_meridian_default_out.nc
+../../build/bin/ecrad configCY49R1.nam ecrad_meridian.nc ecrad_meridian_default_out.nc
 -------------------------- OFFLINE ECRAD RADIATION SCHEME --------------------------
 Copyright (C) 2014- ECMWF
 Contact: Robin Hogan (r.j.hogan@ecmwf.int)
@@ -8,7 +8,8 @@ General settings:
   Clear-sky calculations are ON                              (do_clear=T)
   Saving intermediate radiative properties OFF               (do_save_radiative_properties=F)
   Saving spectral flux profiles ON                           (do_save_spectral_flux=T)
-  Gas model is "RRTMG-IFS"                                   (i_gas_model=1)
+  Shortwave gas model is "RRTMG-IFS"                         (i_gas_model_sw=1)
+  Longwave gas model is "RRTMG-IFS"                          (i_gas_model_lw=1)
   Aerosols are ON                                            (use_aerosols=T)
   General aerosol optics ON                                  (use_general_aerosol_optics=T)
   Clouds are ON
@@ -43,23 +44,24 @@ Solver settings:
   Longwave cloud scattering is ON                            (do_lw_cloud_scattering=T)
   Longwave aerosol scattering is OFF                         (do_lw_aerosol_scattering=F)
   Use vectorizable McICA cloud generator OFF                 (use_vectorizable_generator=F)
+Warning: McICA solver cannot store full profiles of spectral fluxes
 Reading RRTMG longwave data file ../../data/RADRRTM
 Reading RRTMG shortwave data file ../../data/RADSRTM
 Surface shortwave albedo
   Mapping from 6 values to 14 bands (wavenumber ranges in cm-1)
   2600 to  3250: 0.00 0.00 0.00 0.00 0.00 1.00
   3250 to  4000: 0.00 0.00 0.00 0.00 0.00 1.00
-  4000 to  4650: 0.00 0.00 0.00 0.00 0.69 0.31
+  4000 to  4650: 0.00 0.00 0.00 0.00 0.71 0.29
   4650 to  5150: 0.00 0.00 0.00 0.00 1.00 0.00
   5150 to  6150: 0.00 0.00 0.00 0.00 1.00 0.00
   6150 to  7700: 0.00 0.00 0.00 0.00 1.00 0.00
   7700 to  8050: 0.00 0.00 0.00 0.00 1.00 0.00
   8050 to 12850: 0.00 0.00 0.00 0.93 0.07 0.00
- 12850 to 16000: 0.00 0.00 0.48 0.52 0.00 0.00
+ 12850 to 16000: 0.00 0.00 0.46 0.54 0.00 0.00
  16000 to 22650: 0.00 0.00 1.00 0.00 0.00 0.00
- 22650 to 29000: 0.00 0.99 0.01 0.00 0.00 0.00
+ 22650 to 29000: 0.00 0.98 0.02 0.00 0.00 0.00
  29000 to 38000: 0.00 1.00 0.00 0.00 0.00 0.00
- 38000 to 50000: 0.83 0.17 0.00 0.00 0.00 0.00
+ 38000 to 50000: 0.66 0.34 0.00 0.00 0.00 0.00
    820 to  2600: 0.00 0.00 0.00 0.00 0.00 1.00
 Surface longwave emissivity
 Mapping from 16 longwave intervals to emissivity intervals: 1 1 1 1 1 2 2 2 1 1 1 1 1 1 1 1
@@ -104,6 +106,6 @@ Reading NetCDF file ecrad_meridian.nc
   Warning: variable co_vmr not found
   Warning: variable no2_vmr not found
 Performing radiative transfer calculations
-Time elapsed in radiative transfer:  0.77346E-01 seconds
+Time elapsed in radiative transfer:  0.11930     seconds
 Writing NetCDF file ecrad_meridian_default_out.nc
 ------------------------------------------------------------------------------------

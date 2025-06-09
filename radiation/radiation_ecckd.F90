@@ -61,7 +61,7 @@ module radiation_ecckd
     ! Number of entries
     integer :: nplanck = 0
     ! Temperature of first element of look-up table and increment (K)
-    real(jprb), allocatable :: temperature1_planck
+    real(jprb), allocatable :: temperature1_planck ! FIX: why are these allocatable?
     real(jprb), allocatable :: d_temperature_planck
     ! Planck function (black body flux into a horizontal plane) in W
     ! m-2, dimensioned (ng,nplanck)
@@ -560,8 +560,8 @@ contains
             multiplier = simple_multiplier * mole_fraction_fl(jcol,:,igascode)
 
             multiplier = multiplier * local_concentration_scaling(igascode)
-            
             do jlev = 1,nlev
+              ! FIX: bring out repeated use of multiplier
               optical_depth_fl(:,jlev,jcol) = optical_depth_fl(:,jlev,jcol) &
                    &        + (multiplier(jlev)*tw1(jlev)) * (pw1(jlev) * molar_abs(:,ip1(jlev),it1(jlev)) &
                    &                +pw2(jlev) * molar_abs(:,ip1(jlev)+1,it1(jlev))) &

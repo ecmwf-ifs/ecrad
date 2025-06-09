@@ -41,7 +41,7 @@ module radiation_aerosol_optics_data
           &     IAerosolClassHydrophobic, IAerosolClassHydrophilic
   end enum
 
-  integer, parameter :: NMaxStringLength = 2000
+  integer, parameter :: NMaxStringLength = 20000
   integer, parameter :: NMaxLineLength   = 200
 
   !---------------------------------------------------------------------

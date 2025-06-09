@@ -48,7 +48,7 @@ contains
   !---------------------------------------------------------------------
   ! Setup cloud optics coefficients by reading them from a file
   subroutine setup_cloud_optics(this, liq_file_name, ice_file_name, iverbose)
-    
+
     use yomhook,              only : lhook, dr_hook, jphook
 #ifdef EASY_NETCDF_READ_MPI
     use easy_netcdf_read_mpi, only : netcdf_file

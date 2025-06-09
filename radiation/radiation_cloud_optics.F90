@@ -39,7 +39,8 @@ contains
     use radiation_config, only : config_type, IIceModelFu, IIceModelBaran, &
          &                       IIceModelBaran2016, IIceModelBaran2017, &
          &                       IIceModelYi, &
-         &                       ILiquidModelSOCRATES, ILiquidModelSlingo
+         &                       ILiquidModelSOCRATES, ILiquidModelSlingo, &
+         &                       ILiquidModelJahangir,ILiquidModelNielsen
     use radiation_ice_optics_fu, only    : NIceOpticsCoeffsFuSW, &
          &                                 NIceOpticsCoeffsFuLW
     use radiation_ice_optics_baran, only : NIceOpticsCoeffsBaran, &
@@ -51,7 +52,8 @@ contains
     use radiation_liquid_optics_socrates, only : NLiqOpticsCoeffsSOCRATES
     use radiation_liquid_optics_slingo, only : NLiqOpticsCoeffsSlingoSW, &
          &                                     NLiqOpticsCoeffsLindnerLiLW
-
+    use radiation_liquid_optics_jahangir, only : NLiqOpticsCoeffsJahangir
+    use radiation_liquid_optics_nielsen, only : NLiqOpticsCoeffsNielsenSW
     type(config_type), intent(inout) :: config
 
     real(jphook) :: hook_handle
@@ -98,6 +100,22 @@ contains
              &  '*** Error: number of longwave liquid cloud optical coefficients (', &
              &  size(config%cloud_optics%liq_coeff_lw, 2), &
              &  ') does not match number expected (', NLiqOpticsCoeffsLindnerLiLw,')'
+        call radiation_abort()
+      end if
+    else if (config%i_liq_model == ILiquidModelJahangir) then
+      if (size(config%cloud_optics%liq_coeff_sw, 2) /= NLiqOpticsCoeffsJahangir)then
+        write(nulerr,'(a,i0,a,i0,a,i0,a)') &
+             &  '*** Error: number of liquid cloud optical coefficients (', &
+             &  size(config%cloud_optics%liq_coeff_sw, 2), &
+             &  ') does not match number expected (',NLiqOpticsCoeffsJahangir,')'
+        call radiation_abort()
+      end if
+    else if (config%i_liq_model == ILiquidModelNielsen) then
+      if (size(config%cloud_optics%liq_coeff_sw, 2) /= NLiqOpticsCoeffsNielsenSW) then
+        write(nulerr,'(a,i0,a,i0,a,i0,a)') &
+             &  '*** Error: number of liquid cloud optical coefficients (', &
+             &  size(config%cloud_optics%liq_coeff_sw, 2), &
+             &  ') does not match number expected (',NLiqOpticsCoeffsNielsenSW,')'
         call radiation_abort()
       end if
     end if
@@ -209,7 +227,8 @@ contains
     use radiation_config, only : config_type, IIceModelFu, IIceModelBaran, &
          &                       IIceModelBaran2016, IIceModelBaran2017, &
          &                       IIceModelYi, &
-         &                       ILiquidModelSOCRATES, ILiquidModelSlingo
+         &                       ILiquidModelSOCRATES, ILiquidModelSlingo,&
+         &                       ILiquidModelJahangir,ILiquidModelNielsen
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type
     use radiation_constants, only         : AccelDueToGravity
@@ -221,6 +240,8 @@ contains
     use radiation_ice_optics_yi, only     : calc_ice_optics_yi_sw, &
          &                                  calc_ice_optics_yi_lw
     use radiation_liquid_optics_socrates, only:calc_liq_optics_socrates
+    use radiation_liquid_optics_jahangir, only:calc_liq_optics_jahangir
+    use radiation_liquid_optics_nielsen, only:calc_liq_optics_nielsen
     use radiation_liquid_optics_slingo, only:calc_liq_optics_slingo, &
          &                                   calc_liq_optics_lindner_li
 

@@ -61,6 +61,12 @@ $(info *** Building with NetCDF4/HDF5 support)
 CPPFLAGS += -DNC_NETCDF4
 endif
 
+# Optionally overwrite effective radii, seed, and cloud fraction
+# in IFS variants to retain bit-identical results
+ifdef BITIDENTITY_TESTING
+CPPFLAGS += -DBITIDENTITY_TESTING
+endif
+
 # Consolidate flags
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \

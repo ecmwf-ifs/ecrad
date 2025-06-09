@@ -17,7 +17,7 @@ USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
 
 USE YOERRTO16, ONLY : KAO,KBO ,SELFREFO,FORREFO ,FRACREFAO,FRACREFBO,KAO_D,KBO_D
-USE YOMMP0    , ONLY : NPROC, MYPROC
+USE YOMMP0_IFSAUX    , ONLY : NPROC, MYPROC
 
 
 !     ------------------------------------------------------------------
@@ -87,12 +87,12 @@ ENDIF
 
 !     ------------------------------------------------------------------
 
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
+!     The array KAO contains absorption coefs at the 16 chosen g-values
 !     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
+!     species parameters (see taumol.f for definition).  The first
+!     index in the array, JS, runs from 1 to 9, and corresponds to
+!     different values of the binary species parameter.  For instance,
+!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8,
 !     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
 !     in the array, JT, which runs from 1 to 5, corresponds to different
 !     temperatures.  More specifically, JT = 3 means that the data are for
@@ -104,13 +104,13 @@ ENDIF
 !     which g-interval the absorption coefficients are for.
 
 
-!     The array KBO contains absorption coefs at the 16 chosen g-values 
-!     for a range of pressure levels < ~100mb and temperatures. The first 
-!     index in the array, JT, which runs from 1 to 5, corresponds to 
-!     different temperatures.  More specifically, JT = 3 means that the 
-!     data are for the reference temperature TREF for this pressure 
+!     The array KBO contains absorption coefs at the 16 chosen g-values
+!     for a range of pressure levels < ~100mb and temperatures. The first
+!     index in the array, JT, which runs from 1 to 5, corresponds to
+!     different temperatures.  More specifically, JT = 3 means that the
+!     data are for the reference temperature TREF for this pressure
 !     level, JT = 2 refers to the temperature TREF-15, JT = 1 is for
-!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.  
+!     TREF-30, JT = 4 is for TREF+15, and JT = 5 is for TREF+30.
 !     The second index, JP, runs from 13 to 59 and refers to the JPth
 !     reference pressure level (see taumol.f for the value of these
 !     pressure levels in mb).  The third index, IG, goes from 1 to 16,
@@ -118,9 +118,9 @@ ENDIF
 
 
 !     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
+!     foreign-continuum (including the energy term).  The first
+!     index refers to reference temperature (296,260,224,260) and
+!     pressure (970,475,219,3 mbar) levels.  The second index
 !     runs over the g-channel (1 to 16).
 
       FORREFO(1,:) = (/ &

@@ -11,13 +11,17 @@
 
 MODULE YOMLUN_IFSAUX
 
+#ifdef HAVE_FIAT
+USE EC_LUN    ,ONLY : NULOUT, NULERR
+#else
 USE PARKIND1  ,ONLY : JPIM
+#endif
 
 IMPLICIT NONE
 
-PUBLIC
-
 SAVE
+PRIVATE
+PUBLIC :: NULOUT, NULERR
 
 !     ------------------------------------------------------------------
 
@@ -26,8 +30,10 @@ SAVE
 !     NULOUT :   output unit
 !     NULERR :   unit number for comparison with reference run
 
+#ifndef HAVE_FIAT
 INTEGER(KIND=JPIM) :: NULOUT = 6
 INTEGER(KIND=JPIM) :: NULERR = 0
+#endif
 
 !     ------------------------------------------------------------------
 END MODULE YOMLUN_IFSAUX

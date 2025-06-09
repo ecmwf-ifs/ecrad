@@ -7,7 +7,7 @@ config_*.nam
 mod
 /practical/data
 /practical/ecrad
-/build
+/build*
 /bin/ecrad
 /bin/ecrad_ifs
 /bin/ecrad_ifs_blocked

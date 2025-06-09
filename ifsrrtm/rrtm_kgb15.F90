@@ -17,7 +17,7 @@ USE YOMHOOK   ,ONLY : LHOOK,   DR_HOOK, JPHOOK
 USE YOMLUN    ,ONLY : NULRAD
 USE MPL_MODULE,ONLY : MPL_BROADCAST
 USE YOMTAG    ,ONLY : MTAGRAD
-USE YOMMP0    , ONLY : NPROC, MYPROC
+USE YOMMP0_IFSAUX    , ONLY : NPROC, MYPROC
 
 USE YOERRTO15, ONLY : KAO,KAO_MN2  ,SELFREFO,FORREFO   ,FRACREFAO, KAO_D
 
@@ -80,12 +80,12 @@ ENDIF
 
 !     ------------------------------------------------------------------
 
-!     The array KAO contains absorption coefs at the 16 chosen g-values 
+!     The array KAO contains absorption coefs at the 16 chosen g-values
 !     for a range of pressure levels> ~100mb, temperatures, and binary
-!     species parameters (see taumol.f for definition).  The first 
-!     index in the array, JS, runs from 1 to 9, and corresponds to 
-!     different values of the binary species parameter.  For instance, 
-!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8, 
+!     species parameters (see taumol.f for definition).  The first
+!     index in the array, JS, runs from 1 to 9, and corresponds to
+!     different values of the binary species parameter.  For instance,
+!     JS=1 refers to dry air, JS = 2 corresponds to the paramter value 1/8,
 !     JS = 3 corresponds to the parameter value 2/8, etc.  The second index
 !     in the array, JT, which runs from 1 to 5, corresponds to different
 !     temperatures.  More specifically, JT = 3 means that the data are for
@@ -97,16 +97,16 @@ ENDIF
 !     which g-interval the absorption coefficients are for.
 
 
-!     The array KA_Mxx contains the absorption coefficient for 
+!     The array KA_Mxx contains the absorption coefficient for
 !     a minor species at the 16 chosen g-values for a reference pressure
 !     level below 100~ mb.   The first index in the array, JS, runs
 !     from 1 to 10, and corresponds to different gas column amount ratios,
 !     as expressed through the binary species parameter eta, defined as
-!     eta = gas1/(gas1 + (rat) * gas2), where rat is the 
-!     ratio of the reference MLS column amount value of gas 1 
-!     to that of gas2.  The second index refers to temperature 
-!     in 7.2 degree increments.  For instance, JT = 1 refers to a 
-!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index 
+!     eta = gas1/(gas1 + (rat) * gas2), where rat is the
+!     ratio of the reference MLS column amount value of gas 1
+!     to that of gas2.  The second index refers to temperature
+!     in 7.2 degree increments.  For instance, JT = 1 refers to a
+!     temperature of 188.0, JT = 2 refers to 195.2, etc. The third index
 !     runs over the g-channel (1 to 16).
 
        KAO_MN2( 1, :, 1) = (/ &
@@ -831,9 +831,9 @@ ENDIF
      & 1.30365E-06_JPRB, 1.27620E-06_JPRB, 1.24934E-06_JPRB, 1.22304E-06_JPRB/)
 
 !     The array FORREFO contains the coefficient of the water vapor
-!     foreign-continuum (including the energy term).  The first 
-!     index refers to reference temperature (296,260,224,260) and 
-!     pressure (970,475,219,3 mbar) levels.  The second index 
+!     foreign-continuum (including the energy term).  The first
+!     index refers to reference temperature (296,260,224,260) and
+!     pressure (970,475,219,3 mbar) levels.  The second index
 !     runs over the g-channel (1 to 16).
 
       FORREFO(1,:) = (/ &
