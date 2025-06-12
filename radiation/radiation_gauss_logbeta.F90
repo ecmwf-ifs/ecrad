@@ -178,6 +178,10 @@ contains
         nodes(jg,1:myorder)   = exp(nodes(jg,1:myorder)*(w1(jg)*scale_factor(ifsd(jg)) &
         &                                               +w2(jg)*scale_factor(ifsd(jg)+1)) &
         &                     + w1(jg)*add_offset(ifsd(jg)) + w2(jg)*add_offset(ifsd(jg)+1))
+        ! Optionally provide a local normalization to ensure the mean
+        ! optical depth is exactly the requested value
+        !nodes(jg,1:myorder) = nodes(jg,1:myorder) &
+        !     &                / sum(weights(jg,1:myorder)*nodes(jg,1:myorder))
       end do
       weights(:,myorder+1:) = 0.0_jprb
       nodes(:,myorder+1:)  = 1.0_jprb

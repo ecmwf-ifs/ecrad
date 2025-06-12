@@ -27,6 +27,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_tcrad_lw.F90 radiation_gen_gauss_laguerre.F90 \
 	radiation_optimal_columns.F90 radiation_gauss_lognormal.F90 \
 	radiation_gauss_gamma.F90 radiation_gauss_logbeta.F90 \
+	radiation_gauss_logbeta_skewness.F90 \
 	radiation_aerosol_optics_description.F90 radiation_disort_lw.F90 \
 	radiation_gaussian_quadrature.F90 radiation_disort_sw.F90
 

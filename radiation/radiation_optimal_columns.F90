@@ -35,7 +35,8 @@ contains
     !use radiation_gen_gauss_laguerre, only : calc_gen_gauss_laguerre
     !use radiation_gauss_lognormal, only : calc_gauss_lognormal
     !use radiation_gauss_gamma, only : calc_gauss_gamma
-    use radiation_gauss_logbeta, only : calc_gauss_logbeta
+    !use radiation_gauss_logbeta, only : calc_gauss_logbeta
+    use radiation_gauss_logbeta_skewness, only : calc_gauss_logbeta_skewness
 
     implicit none
 
@@ -250,7 +251,7 @@ contains
            &        *(1.0_jprb-total_cloud_cover)/total_cloud_cover)/total_cloud_cover))
       ! ...from which we calculate the fractional standard deviation.
       cloudy_fsd_od_local = cloudy_std_od / cloudy_od
-      
+
       if (present(cloudy_fsd_od)) then
         cloudy_fsd_od = cloudy_fsd_od_local
       end if
@@ -261,7 +262,8 @@ contains
       !call calc_gen_gauss_laguerre(ng, nsub, cloudy_fsd_od_local, weight, node)
       !call calc_gauss_lognormal(ng, nsub, cloudy_fsd_od_local, weight, node)
       !call calc_gauss_gamma(ng, nsub, cloudy_fsd_od_local, weight, node)
-      call calc_gauss_logbeta(ng, nsub, cloudy_fsd_od_local, weight, node)
+      !call calc_gauss_logbeta(ng, nsub, cloudy_fsd_od_local, weight, node)
+      call calc_gauss_logbeta_skewness(ng, nsub, cloudy_fsd_od_local, -0.25_jprb, weight, node)
 
       ! Scale the results into the output "weight" and "od_out"
       ! variables
