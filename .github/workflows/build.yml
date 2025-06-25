@@ -187,7 +187,7 @@ jobs:
         dependency_cmake_options: |
           ecmwf-ifs/fiat: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_TESTS=OFF"
         cmake_options:    "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_options }} -DENABLE_SINGLE_PRECISION=ON -DENABLE_BITIDENTITY_TESTING=ON"
-        ctest_options: "${{ matrix.ctest_options }}"
+        ctest_options: "--output-on-failure ${{ matrix.ctest_options }}"
 
 #    - name: Codecov Upload
 #      if: steps.build-test.outputs.coverage_file
