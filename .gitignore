@@ -1,8 +1,10 @@
 *.o
 *.a
 *~
+.*.swp
 *_out.nc
 config_*.nam
+__pycache__
 *_sza.nc
 mod
 /practical/data
