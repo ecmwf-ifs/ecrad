@@ -53,14 +53,32 @@ module ecrad4py
       call setup_radiation(config)
     end subroutine setup
 
+    function get_IVolumeMixingRatio() bind(C, name='get_IVolumeMixingRatio_')
+      use radiation_gas,               only : IVolumeMixingRatio
+      use, intrinsic :: iso_c_binding, only: c_int64_t
+      integer(kind=c_int64_t) :: get_IVolumeMixingRatio
+      get_IVolumeMixingRatio=int(IVolumeMixingRatio, kind(get_IVolumeMixingRatio))
+    end function get_IVolumeMixingRatio
+
+    function get_IMassMixingRatio() bind(C, name='get_IMassMixingRatio_')
+      use radiation_gas,               only : IMassMixingRatio
+      use, intrinsic :: iso_c_binding, only: c_int64_t
+      integer(kind=c_int64_t) :: get_IMassMixingRatio
+      get_IMassMixingRatio=int(IMassMixingRatio, kind(get_IMassMixingRatio))
+    end function get_IMassMixingRatio
+
     subroutine run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance, &
                   &spectral_solar_cycle_multiplier, &
                   &cos_solar_zenith_angle, cloud_fraction, fractional_std, &
                   &q_liquid, re_liquid, q_ice, re_ice, iseed, overlap_param, &
                   &skin_temperature, nalbedobands, sw_albedo, sw_albedo_direct, &
-                  &nemissivitygpoints, lw_emissivity, q, o3, &
+                  &nemissivitygpoints, lw_emissivity, &
+                  &q_unit, q, co2_unit, co2, o3_unit, o3, n2o_unit, n2o, &
+                  &co_unit, co, ch4_unit, ch4, o2_unit, o2, cfc11_unit, cfc11, &
+                  &cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2, &
                   &lw_up, lw_dn, sw_up, sw_dn) bind(C, name='run_')
 
+      use, intrinsic :: iso_c_binding, only: c_int64_t
       use parkind1,                 only : jprb, jprd ! Working/double precision
 
       use radiation_interface,      only : radiation, set_gas_units
@@ -95,8 +113,30 @@ module ecrad4py
       real(kind=jprd), dimension(ncol, nalbedobands), intent(in) :: sw_albedo_direct
       integer, intent(in) :: nemissivitygpoints
       real(kind=jprd), dimension(ncol, nemissivitygpoints), intent(in) :: lw_emissivity
-      real(kind=jprd), dimension(ncol, nlev), intent(in) :: q ! vapour mixing ratio
-      real(kind=jprd), dimension(ncol, nlev), intent(in) :: o3 ! o3 mixing ratio
+      integer(kind=c_int64_t), optional, intent(in) :: q_unit ! vapour unit: mass or volume mixing ratio
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: q ! vapour mass/volume mixing ratio value
+      integer(kind=c_int64_t), optional, intent(in) :: co2_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) ::co2
+      integer(kind=c_int64_t), optional, intent(in) :: o3_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: o3
+      integer(kind=c_int64_t), optional, intent(in) :: n2o_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: n2o
+      integer(kind=c_int64_t), optional, intent(in) :: co_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: co
+      integer(kind=c_int64_t), optional, intent(in) :: ch4_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: ch4
+      integer(kind=c_int64_t), optional, intent(in) :: o2_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: o2
+      integer(kind=c_int64_t), optional, intent(in) :: cfc11_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: cfc11
+      integer(kind=c_int64_t), optional, intent(in) :: cfc12_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: cfc12
+      integer(kind=c_int64_t), optional, intent(in) :: hcfc22_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: hcfc22
+      integer(kind=c_int64_t), optional, intent(in) :: ccl4_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: ccl4
+      integer(kind=c_int64_t), optional, intent(in) :: no2_unit
+      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: no2
       real(kind=jprd), dimension(ncol, nlev+1), intent(out) :: lw_up
       real(kind=jprd), dimension(ncol, nlev+1), intent(out) :: lw_dn
       real(kind=jprd), dimension(ncol, nlev+1), intent(out) :: sw_up
@@ -187,10 +227,30 @@ module ecrad4py
 
       ! Loop through all radiatively important gases
       do jgas = 1, NMaxGases
-        if (jgas == IH2O) then
-          call gas%put(IH2O, IMassMixingRatio, q)
-        else if (jgas == IO3) then
-          call gas%put(IO3, IMassMixingRatio, o3)
+        if (jgas == IH2O .and. present(q_unit) .and. present(q)) then
+          call gas%put(IH2O, int(q_unit), q)
+        else if (jgas == ICO2 .and. present(co2_unit) .and. present(co2)) then
+          call gas%put(ICO2, int(co2_unit), co2)
+        else if (jgas == IO3 .and. present(o3_unit) .and. present(o3)) then
+          call gas%put(IO3, int(o3_unit), o3)
+        else if (jgas == IN2O .and. present(n2o_unit) .and. present(n2o)) then
+          call gas%put(IN2O, int(n2o_unit), n2o)
+        else if (jgas == ICO .and. present(co_unit) .and. present(co)) then
+          call gas%put(ICO, int(co_unit), co)
+        else if (jgas == ICH4 .and. present(ch4_unit) .and. present(ch4)) then
+          call gas%put(ICH4, int(ch4_unit), ch4)
+        else if (jgas == IO2 .and. present(o2_unit) .and. present(o2)) then
+          call gas%put(IO2, int(o2_unit), o2)
+        else if (jgas == ICFC11 .and. present(cfc11_unit) .and. present(cfc11)) then
+          call gas%put(ICFC11, int(cfc11_unit), cfc11)
+        else if (jgas == ICFC12 .and. present(cfc12_unit) .and. present(cfc12)) then
+          call gas%put(ICFC12, int(cfc12_unit), cfc12)
+        else if (jgas == IHCFC22 .and. present(hcfc22_unit) .and. present(hcfc22)) then
+          call gas%put(IHCFC22, int(hcfc22_unit), hcfc22)
+        else if (jgas == ICCl4 .and. present(ccl4_unit) .and. present(ccl4)) then
+          call gas%put(ICCl4, int(ccl4_unit), ccl4)
+        else if (jgas == INO2 .and. present(no2_unit) .and. present(no2)) then
+          call gas%put(INO2, int(no2_unit), no2)
         else
           gas_var_name = trim(GasLowerCaseName(jgas))
           !irank = file%get_rank(trim(gas_var_name))
