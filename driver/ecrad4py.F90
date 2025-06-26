@@ -78,7 +78,7 @@ module ecrad4py
                   &cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2, &
                   &lw_up, lw_dn, sw_up, sw_dn) bind(C, name='run_')
 
-      use, intrinsic :: iso_c_binding, only: c_int64_t
+      use, intrinsic :: iso_c_binding, only: c_int64_t, c_double
       use parkind1,                 only : jprb, jprd ! Working/double precision
 
       use radiation_interface,      only : radiation, set_gas_units
@@ -93,54 +93,54 @@ module ecrad4py
                                          & IHCFC22, ICCl4, INO2, GasName, GasLowerCaseName, NMaxGases
       use radiation_flux,           only : flux_type
 
-      integer, intent(in) :: ncol, nlev
-      real(kind=jprd), dimension(ncol, nlev+1), intent(in) :: pressure_hl ! pressure (Pa) on half-levels
-      real(kind=jprd), dimension(ncol, nlev+1), intent(in) :: temperature_hl ! temperature (K) on half-levels
-      real(kind=jprd), intent(in) :: solar_irradiance ! solar irradiance (W m-2)
-      real(kind=jprd), intent(in) :: spectral_solar_cycle_multiplier ! +1.0 solar max, -1.0 min, 0.0 mean solar spectrum
-      real(kind=jprd), dimension(ncol), intent(in) :: cos_solar_zenith_angle ! cosine of the solar zenith angle
-      real(kind=jprd), dimension(ncol, nlev), intent(in) :: cloud_fraction ! cloud fraction
-      real(kind=jprd), dimension(ncol, nlev), intent(in) :: fractional_std ! fractional standard deviation of in-cloud water content
-      real(kind=jprd), dimension(ncol, nlev), intent(in) :: q_liquid ! liquid specific content (kg/kg)
-      real(kind=jprd), dimension(ncol, nlev), intent(in) :: re_liquid ! liquid effective radius (m)
-      real(kind=jprd), dimension(ncol, nlev), intent(in) :: q_ice ! ice specific content (kg/kg)
-      real(kind=jprd), dimension(ncol, nlev), intent(in) :: re_ice ! ice effective radius (m)
-      integer, dimension(ncol), intent(in) :: iseed ! Seed for random number generator in McICA
-      real(kind=jprd), dimension(ncol, nlev-1) :: overlap_param ! overlap of cloud boundaries
-      real(kind=jprd), dimension(ncol), intent(in) :: skin_temperature ! Ts (K)
-      integer, intent(in) :: nalbedobands
-      real(kind=jprd), dimension(ncol, nalbedobands), intent(in) :: sw_albedo
-      real(kind=jprd), dimension(ncol, nalbedobands), intent(in) :: sw_albedo_direct
-      integer, intent(in) :: nemissivitygpoints
-      real(kind=jprd), dimension(ncol, nemissivitygpoints), intent(in) :: lw_emissivity
+      integer(kind=c_int64_t), intent(in) :: ncol, nlev
+      real(kind=c_double), dimension(ncol, nlev+1), intent(in) :: pressure_hl ! pressure (Pa) on half-levels
+      real(kind=c_double), dimension(ncol, nlev+1), intent(in) :: temperature_hl ! temperature (K) on half-levels
+      real(kind=c_double), intent(in) :: solar_irradiance ! solar irradiance (W m-2)
+      real(kind=c_double), intent(in) :: spectral_solar_cycle_multiplier ! +1.0 solar max, -1.0 min, 0.0 mean solar spectrum
+      real(kind=c_double), dimension(ncol), intent(in) :: cos_solar_zenith_angle ! cosine of the solar zenith angle
+      real(kind=c_double), dimension(ncol, nlev), intent(in) :: cloud_fraction ! cloud fraction
+      real(kind=c_double), dimension(ncol, nlev), intent(in) :: fractional_std ! fractional standard deviation of in-cloud water content
+      real(kind=c_double), dimension(ncol, nlev), intent(in) :: q_liquid ! liquid specific content (kg/kg)
+      real(kind=c_double), dimension(ncol, nlev), intent(in) :: re_liquid ! liquid effective radius (m)
+      real(kind=c_double), dimension(ncol, nlev), intent(in) :: q_ice ! ice specific content (kg/kg)
+      real(kind=c_double), dimension(ncol, nlev), intent(in) :: re_ice ! ice effective radius (m)
+      integer(kind=c_int64_t), dimension(ncol), intent(in) :: iseed ! Seed for random number generator in McICA
+      real(kind=c_double), dimension(ncol, nlev-1) :: overlap_param ! overlap of cloud boundaries
+      real(kind=c_double), dimension(ncol), intent(in) :: skin_temperature ! Ts (K)
+      integer(kind=c_int64_t), intent(in) :: nalbedobands
+      real(kind=c_double), dimension(ncol, nalbedobands), intent(in) :: sw_albedo
+      real(kind=c_double), dimension(ncol, nalbedobands), intent(in) :: sw_albedo_direct
+      integer(kind=c_int64_t), intent(in) :: nemissivitygpoints
+      real(kind=c_double), dimension(ncol, nemissivitygpoints), intent(in) :: lw_emissivity
       integer(kind=c_int64_t), optional, intent(in) :: q_unit ! vapour unit: mass or volume mixing ratio
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: q ! vapour mass/volume mixing ratio value
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: q ! vapour mass/volume mixing ratio value
       integer(kind=c_int64_t), optional, intent(in) :: co2_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) ::co2
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) ::co2
       integer(kind=c_int64_t), optional, intent(in) :: o3_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: o3
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: o3
       integer(kind=c_int64_t), optional, intent(in) :: n2o_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: n2o
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: n2o
       integer(kind=c_int64_t), optional, intent(in) :: co_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: co
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: co
       integer(kind=c_int64_t), optional, intent(in) :: ch4_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: ch4
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: ch4
       integer(kind=c_int64_t), optional, intent(in) :: o2_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: o2
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: o2
       integer(kind=c_int64_t), optional, intent(in) :: cfc11_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: cfc11
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: cfc11
       integer(kind=c_int64_t), optional, intent(in) :: cfc12_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: cfc12
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: cfc12
       integer(kind=c_int64_t), optional, intent(in) :: hcfc22_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: hcfc22
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: hcfc22
       integer(kind=c_int64_t), optional, intent(in) :: ccl4_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: ccl4
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: ccl4
       integer(kind=c_int64_t), optional, intent(in) :: no2_unit
-      real(kind=jprd), dimension(ncol, nlev), optional, intent(in) :: no2
-      real(kind=jprd), dimension(ncol, nlev+1), intent(out) :: lw_up
-      real(kind=jprd), dimension(ncol, nlev+1), intent(out) :: lw_dn
-      real(kind=jprd), dimension(ncol, nlev+1), intent(out) :: sw_up
-      real(kind=jprd), dimension(ncol, nlev+1), intent(out) :: sw_dn
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: no2
+      real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_up
+      real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_dn
+      real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: sw_up
+      real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: sw_dn
 
       type(single_level_type) :: single_level
       type(thermodynamics_type) :: thermodynamics
@@ -152,7 +152,7 @@ module ecrad4py
       character(40)             :: gas_var_name
       integer                   :: jgas
 
-      ! Pressure and temperature (SI units) are on half-levels, i.e. of length (ncol,nlev+1)
+      ! Pressure and temperature (SI units) are on half-levels, i.e. of length (ncol, nlev+1)
       thermodynamics%pressure_hl = pressure_hl
       thermodynamics%temperature_hl = temperature_hl
 
@@ -172,8 +172,8 @@ module ecrad4py
         cloud%fraction = cloud_fraction
         cloud%fractional_std = fractional_std
         cloud%ntype=2
-        allocate(cloud%mixing_ratio(ncol, nlev, cloud%ntype))
-        allocate(cloud%effective_radius(ncol, nlev, cloud%ntype))
+        allocate(cloud%mixing_ratio(int(ncol), nlev, cloud%ntype))
+        allocate(cloud%effective_radius(int(ncol), nlev, cloud%ntype))
 
         cloud%mixing_ratio(:,:,1) = q_liquid
         cloud%mixing_ratio(:,:,2) = q_ice
@@ -184,8 +184,8 @@ module ecrad4py
         cloud%re_liq => cloud%effective_radius(:,:,1)
         cloud%re_ice => cloud%effective_radius(:,:,2)
 
-        call single_level%init_seed_simple(1,ncol) ! Simple initialization of the seeds for the Monte Carlo scheme
-        single_level%iseed = iseed
+        call single_level%init_seed_simple(1, int(ncol)) ! Simple initialization of the seeds for the Monte Carlo scheme
+        single_level%iseed = int(iseed)
 
         cloud%overlap_param = overlap_param
 
@@ -220,10 +220,10 @@ module ecrad4py
       endif
 
       ! Water vapour and ozone are always in terms of mass mixing ratio
-      ! (kg/kg) and always 2D arrays with dimensions (ncol,nlev), unlike
+      ! (kg/kg) and always 2D arrays with dimensions (ncol, nlev), unlike
       ! other gases (see below)
 
-      call gas%allocate(ncol, nlev)
+      call gas%allocate(int(ncol), int(nlev))
 
       ! Loop through all radiatively important gases
       do jgas = 1, NMaxGases
@@ -275,15 +275,15 @@ module ecrad4py
       call set_gas_units(config, gas)
     
       ! Compute saturation with respect to liquid (needed for aerosol hydration) call...
-      call thermodynamics%calc_saturation_wrt_liquid(1, ncol)
+      call thermodynamics%calc_saturation_wrt_liquid(1, int(ncol))
     
       ! Allocate memory for the flux profiles, which may include arrays
       ! of dimension n_bands_sw/n_bands_lw, so must be called after
       ! setup_radiation
-      call flux%allocate(config, 1, ncol, nlev)
+      call flux%allocate(config, 1, int(ncol), int(nlev))
         
       ! Call the ECRAD radiation scheme
-      call radiation(ncol, nlev, 1, ncol, &
+      call radiation(int(ncol), int(nlev), 1, int(ncol), &
            &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
     
       ! --------------------------------------------------------
