@@ -23,6 +23,8 @@ def driver(namel_file, input_file, output_file):
     """
     # Setup
     pyecrad.setup(namel_file)
+    IVolumeMixingRatio = pyecrad.get_IVolumeMixingRatio()
+    IMassMixingRatio = pyecrad.get_IMassMixingRatio()
 
     # Open output file
     with netCDF4.Dataset(output_file, 'w') as nco:
@@ -46,6 +48,21 @@ def driver(namel_file, input_file, output_file):
             iseed = numpy.ones((nci.dimensions['column'].size, ))
             sw_albedo_direct = sw_albedo
 
+            shape = (nci.dimensions['level'].size, nci.dimensions['column'].size)
+            gases = {}
+            for gas in ('co2', 'o3', 'n2o', 'co', 'ch4', 'o2', 'cfc11',
+                      'cfc12', 'hcfc22', 'ccl4', 'no2'):
+                if gas + '_vmr' in nci.variables:
+                    gases[gas + '_unit'] = IVolumeMixingRatio
+                    if len(nci[gas + '_vmr'].shape) == 0:
+                        gases[gas] = numpy.ndarray(shape)
+                        gases[gas][...] = nci[gas + '_vmr'][...]
+                    else:
+                        gases[gas] = nci[gas + '_vmr'][...].T
+                elif gas + '_mmr' in nci.variables:
+                    gases[gas + '_unit'] = IMassMixingRatio
+                    gases[gas] = nci[gas + '_mmr'][...].T
+
             result = pyecrad.run(
                 nci.dimensions['column'].size, nci.dimensions['level'].size,
                 nci['pressure_hl'][...].T, nci['temperature_hl'][...].T,
@@ -56,7 +73,8 @@ def driver(namel_file, input_file, output_file):
                 nci['q_ice'][...].T, nci['re_ice'][...].T,
                 iseed, nci['overlap_param'][...].T,
                 nci['skin_temperature'][...], nalbedobands, sw_albedo, sw_albedo_direct,
-                nemissivitygpoints, lw_emissivity, nci['q'][...].T, nci['o3_mmr'][...].T)
+                nemissivitygpoints, lw_emissivity,
+                q_unit=IMassMixingRatio, q=nci['q'][...].T, **gases)
 
             # Copy dimensions
             for name, dimension in nci.dimensions.items():

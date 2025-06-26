@@ -20,6 +20,7 @@ ctypesFF, handle = ctypesForFortran.ctypesForFortranFactory(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../lib/libecrad4py.so"))
 
 def close():
+    """Close the shared lib"""
     ctypesForFortran.dlclose(handle)
 
 @ctypesFF()
@@ -36,13 +37,35 @@ def setup(namelist_file_name, directory_name=None):
              (str, (1, 511), IN)],
             None)
 
+@ctypesFF()
+def get_IVolumeMixingRatio():
+    """
+    Ecrad value for volume mixing ratio
+    """
+    return ([], [], (numpy.int64, None))
+
+@ctypesFF()
+def get_IMassMixingRatio():
+    """
+    Ecrad value for mass mixing ratio
+    """
+    return ([], [], (numpy.int64, None))
+
+
 @ctypesFF(castInput=True)
 def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
         spectral_solar_cycle_multiplier,
         cos_solar_zenith_angle, cloud_fraction, fractional_std,
         q_liquid, re_liquid, q_ice, re_ice, iseed, overlap_param,
         skin_temperature, nalbedobands, sw_albedo, sw_albedo_direct,
-        nemissivitygpoints, lw_emissivity, q, o3):
+        nemissivitygpoints, lw_emissivity,
+        q_unit=MISSING, q=MISSING, co2_unit=MISSING, co2=MISSING,
+        o3_unit=MISSING, o3=MISSING, n2o_unit=MISSING, n2o=MISSING,
+        co_unit=MISSING, co=MISSING, ch4_unit=MISSING, ch4=MISSING,
+        o2_unit=MISSING, o2=MISSING, cfc11_unit=MISSING, cfc11=MISSING,
+        cfc12_unit=MISSING, cfc12=MISSING, hcfc22_unit=MISSING, hcfc22=MISSING,
+        ccl4_unit=MISSING, ccl4=MISSING, no2_unit=MISSING, no2=MISSING):
+
     """
     Ecrad simulation
     """
@@ -51,7 +74,10 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
              cos_solar_zenith_angle, cloud_fraction, fractional_std,
              q_liquid, re_liquid, q_ice, re_ice, numpy.array(iseed), overlap_param,
              skin_temperature, nalbedobands, sw_albedo, sw_albedo_direct,
-             nemissivitygpoints, lw_emissivity, q, o3],
+             nemissivitygpoints, lw_emissivity,
+             q_unit, q, co2_unit, co2, o3_unit, o3, n2o_unit, n2o,
+             co_unit, co, ch4_unit, ch4, o2_unit, o2, cfc11_unit, cfc11,
+             cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2],
             [(numpy.int64, None, IN),  # ncol
              (numpy.int64, None, IN),  # nlev
              (numpy.float64, (nlev + 1, ncol), IN),  # pressure (Pa) on half-levels
@@ -73,8 +99,30 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
              (numpy.float64, (nalbedobands, ncol), IN),  # sw_albedo_direct
              (numpy.int64, None, IN),  # nemissivitygpoints
              (numpy.float64, (nemissivitygpoints, ncol), IN),  # lw_emissivity
+             (numpy.int64, None, IN),  # vapour unit
              (numpy.float64, (nlev, ncol), IN),  # vapour mixing ratio
+             (numpy.int64, None, IN),  # co2 unit
+             (numpy.float64, (nlev, ncol), IN),  # co2 mixing ratio
+             (numpy.int64, None, IN),  # o3 unit
              (numpy.float64, (nlev, ncol), IN),  # o3 mixing ratio
+             (numpy.int64, None, IN),  # n2o_unit
+             (numpy.float64, (nlev, ncol), IN),  # n2o mixing ratio
+             (numpy.int64, None, IN),  # co_unit
+             (numpy.float64, (nlev, ncol), IN),  # co mixing ratio
+             (numpy.int64, None, IN),  # ch4_unit
+             (numpy.float64, (nlev, ncol), IN),  # ch4 mixing ratio
+             (numpy.int64, None, IN),  # o2_unit
+             (numpy.float64, (nlev, ncol), IN),  # o2 mixing ratio
+             (numpy.int64, None, IN),  # cfc11_unit
+             (numpy.float64, (nlev, ncol), IN),  # cfc11 mixing ratio
+             (numpy.int64, None, IN),  # cfc12_unit
+             (numpy.float64, (nlev, ncol), IN),  # cfc12 mixing ratio
+             (numpy.int64, None, IN),  # hcfc22_unit
+             (numpy.float64, (nlev, ncol), IN),  # hcfc22 mixing ratio
+             (numpy.int64, None, IN),  # ccl4_unit
+             (numpy.float64, (nlev, ncol), IN),  # ccl4 mixing ratio
+             (numpy.int64, None, IN),  # no2_unit
+             (numpy.float64, (nlev, ncol), IN),  # no2 mixing ratio
 
              (numpy.float64, (nlev + 1, ncol), OUT),  # lw_up
              (numpy.float64, (nlev + 1, ncol), OUT),  # lw_dn
