@@ -28,14 +28,25 @@ module ecrad4py
 
   contains
 
-    subroutine setup(namelist_file_name, directory_name)
+    subroutine setup(namelist_file_name, directory_name) bind(C, name='setup_')
       use radiation_interface,      only : setup_radiation
-      character(len=512), intent(in) :: namelist_file_name
-      character(len=511), intent(in) :: directory_name
+      use, intrinsic :: iso_c_binding, only: c_char
+      character(kind=c_char), dimension(512), intent(in) :: namelist_file_name
+      character(kind=c_char), dimension(511), intent(in) :: directory_name
+      character(len=size(namelist_file_name)) :: string_namelist_file_name
+      character(len=size(directory_name)) :: string_directory_name
+      integer :: jk
+
+      do jk=1, size(namelist_file_name)
+        string_namelist_file_name(jk:jk)=namelist_file_name(jk)
+      enddo
+      do jk=1, size(directory_name)
+        string_directory_name(jk:jk)=directory_name(jk)
+      enddo
 
       ! Read "radiation" namelist into radiation configuration type
-      call config%read(file_name=namelist_file_name)
-      config%directory_name = directory_name
+      call config%read(file_name=string_namelist_file_name)
+      config%directory_name = string_directory_name
 
       ! Setup the radiation scheme: load the coefficients for gas and
       ! cloud optics, currently from RRTMG
@@ -48,7 +59,7 @@ module ecrad4py
                   &q_liquid, re_liquid, q_ice, re_ice, iseed, overlap_param, &
                   &skin_temperature, nalbedobands, sw_albedo, sw_albedo_direct, &
                   &nemissivitygpoints, lw_emissivity, q, o3, &
-                  &lw_up, lw_dn, sw_up, sw_dn)
+                  &lw_up, lw_dn, sw_up, sw_dn) bind(C, name='run_')
 
       use parkind1,                 only : jprb, jprd ! Working/double precision
 
