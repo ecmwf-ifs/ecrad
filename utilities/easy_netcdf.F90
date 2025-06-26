@@ -863,9 +863,9 @@ contains
   subroutine get_real_vector_pointer(this, var_name, vector)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)           :: this
-    character(len=*), intent(in) :: var_name
-    real(jprb), pointer, intent(out) :: vector(:)
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    real(jprb), pointer, intent(inout)  :: vector(:)
 
     integer                      :: n  ! Length of vector
     integer                      :: istatus
@@ -983,9 +983,9 @@ contains
   subroutine get_char_vector_pointer(this, var_name, vector)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)           :: this
-    character(len=*), intent(in) :: var_name
-    character(len=1), pointer, intent(out) :: vector(:)
+    class(netcdf_file)                        :: this
+    character(len=*), intent(in)              :: var_name
+    character(len=1), pointer, intent(inout)  :: vector(:)
 
     integer                      :: n  ! Length of vector
     integer                      :: istatus
@@ -1103,9 +1103,9 @@ contains
   subroutine get_int_vector_pointer(this, var_name, vector)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)           :: this
-    character(len=*), intent(in) :: var_name
-    integer, pointer, intent(out) :: vector(:)
+    class(netcdf_file)              :: this
+    character(len=*), intent(in)    :: var_name
+    integer, pointer, intent(inout) :: vector(:)
 
     integer                      :: n  ! Length of vector
     integer                      :: istatus
@@ -1238,10 +1238,10 @@ contains
   subroutine get_real_vector_indexed_pointer(this, var_name, vector, index)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)           :: this
-    character(len=*), intent(in) :: var_name
-    integer, intent(in)          :: index
-    real(jprb), pointer, intent(out) :: vector(:)
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    integer, intent(in)                 :: index
+    real(jprb), pointer, intent(inout)  :: vector(:)
 
     integer                      :: n  ! Length of vector
     integer                      :: istatus
@@ -1427,10 +1427,10 @@ contains
   subroutine get_real_matrix_pointer(this, var_name, matrix, do_transp)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)           :: this
-    character(len=*), intent(in) :: var_name
-    real(jprb), pointer, intent(out) :: matrix(:,:)
-    logical, optional, intent(in):: do_transp ! Transpose data?
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    real(jprb), pointer, intent(inout)  :: matrix(:,:)
+    logical, optional, intent(in)       :: do_transp ! Transpose data?
 
     real(jprb), pointer      :: tmp_matrix(:,:)
     integer                      :: ndimlen1, ndimlen2
@@ -1659,10 +1659,10 @@ contains
   subroutine get_char_matrix_pointer(this, var_name, matrix, do_transp)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)           :: this
-    character(len=*), intent(in) :: var_name
-    character(len=1), pointer, intent(inout) :: matrix(:,:)
-    logical, optional, intent(in):: do_transp ! Transpose data?
+    class(netcdf_file)                        :: this
+    character(len=*), intent(in)              :: var_name
+    character(len=1), pointer, intent(inout)  :: matrix(:,:)
+    logical, optional, intent(in)             :: do_transp ! Transpose data?
 
     character(len=1), pointer:: tmp_matrix(:,:)
     integer                      :: ndimlen1, ndimlen2
@@ -1905,11 +1905,11 @@ contains
   subroutine get_real_matrix_indexed_pointer(this, var_name, matrix, index, do_transp)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)           :: this
-    character(len=*), intent(in) :: var_name
-    integer, intent(in)          :: index
-    real(jprb), pointer, intent(out) :: matrix(:,:)
-    logical, optional, intent(in):: do_transp ! Transpose data?
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    integer, intent(in)                 :: index
+    real(jprb), pointer, intent(inout)  :: matrix(:,:)
+    logical, optional, intent(in)       :: do_transp ! Transpose data?
 
     real(jprb), pointer      :: tmp_matrix(:,:)
     integer                      :: ndimlen1, ndimlen2
@@ -2165,11 +2165,11 @@ contains
   subroutine get_real_matrix_indexed2_pointer(this, var_name, matrix, index3, index4, do_transp)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)           :: this
-    character(len=*), intent(in) :: var_name
-    integer, intent(in)          :: index3, index4
-    real(jprb), pointer, intent(out) :: matrix(:,:)
-    logical, optional, intent(in):: do_transp ! Transpose data?
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    integer, intent(in)                 :: index3, index4
+    real(jprb), pointer, intent(inout)  :: matrix(:,:)
+    logical, optional, intent(in)       :: do_transp ! Transpose data?
 
     real(jprb), pointer      :: tmp_matrix(:,:)
     integer                      :: ndimlen1, ndimlen2
@@ -2433,10 +2433,10 @@ contains
   subroutine get_real_array3_pointer(this, var_name, var, ipermute)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)                   :: this
-    character(len=*), intent(in)         :: var_name
-    real(jprb), pointer, intent(out) :: var(:,:,:)
-    integer, optional, intent(in)        :: ipermute(3)
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    real(jprb), pointer, intent(inout)  :: var(:,:,:)
+    integer, optional, intent(in)       :: ipermute(3)
 
     real(jprb), pointer   :: var_permute(:,:,:)
     integer                   :: ndimlen1, ndimlen2, ndimlen3
@@ -2715,11 +2715,11 @@ contains
   subroutine get_real_array3_indexed_pointer(this, var_name, var, index, ipermute)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)                   :: this
-    character(len=*), intent(in)         :: var_name
-    integer, intent(in)                  :: index
-    real(jprb), pointer, intent(out) :: var(:,:,:)
-    integer, optional, intent(in)        :: ipermute(3)
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    integer, intent(in)                 :: index
+    real(jprb), pointer, intent(inout)  :: var(:,:,:)
+    integer, optional, intent(in)       :: ipermute(3)
 
     real(jprb), pointer   :: var_permute(:,:,:)
     integer                   :: ndimlen1, ndimlen2, ndimlen3
@@ -3021,11 +3021,11 @@ contains
   subroutine get_real_array3_indexed2_pointer(this, var_name, var, index4, index5, ipermute)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)                   :: this
-    character(len=*), intent(in)         :: var_name
-    integer, intent(in)                  :: index4, index5
-    real(jprb), pointer, intent(out) :: var(:,:,:)
-    integer, optional, intent(in)        :: ipermute(3)
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    integer, intent(in)                 :: index4, index5
+    real(jprb), pointer, intent(inout)  :: var(:,:,:)
+    integer, optional, intent(in)       :: ipermute(3)
 
     real(jprb), pointer   :: var_permute(:,:,:)
     integer                   :: ndimlen1, ndimlen2, ndimlen3
@@ -3358,11 +3358,11 @@ contains
   subroutine get_real_array4_pointer(this, var_name, var, ipermute, ld_first_touch)
     use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_get_var, nf90_strerror
 
-    class(netcdf_file)                   :: this
-    character(len=*), intent(in)         :: var_name
-    real(jprb), pointer, intent(out) :: var(:,:,:,:)
-    integer, optional, intent(in)        :: ipermute(4)
-    logical, optional, intent(in)        :: ld_first_touch
+    class(netcdf_file)                  :: this
+    character(len=*), intent(in)        :: var_name
+    real(jprb), pointer, intent(inout)  :: var(:,:,:,:)
+    integer, optional, intent(in)       :: ipermute(4)
+    logical, optional, intent(in)       :: ld_first_touch
 
     real(jprb), pointer   :: var_permute(:,:,:,:)
     integer                   :: ndimlen1, ndimlen2, ndimlen3, ndimlen4
@@ -4302,73 +4302,6 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Save a matrix with name var_name in the file, transposing its
-  ! dimensions if either optional argument transp is .true., or the
-  ! transpose_matrices method has already been called.
-  subroutine put_real_matrix_pointer(this, var_name, var, do_transp)
-    use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_put_var, nf90_strerror
-
-    class(netcdf_file)             :: this
-    character(len=*), intent(in)   :: var_name
-    real(jprb), intent(in)         :: var(:,:)
-    real(jprb), pointer        :: var_transpose(:,:)
-    logical, optional, intent(in):: do_transp
-
-    integer :: ivarid, ndims, nvarlen, istatus
-    integer(kind=jpib) :: ntotal
-    integer :: ndimlens(NF90_MAX_VAR_DIMS)
-
-    logical :: do_transpose
-
-    if (present(do_transp)) then
-      do_transpose = do_transp
-    else
-      do_transpose = this%do_transpose_2d
-    end if
-
-    call this%end_define_mode()
-
-    call this%get_variable_id(var_name, ivarid)
-    call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
-
-    nvarlen = size(var,1)*size(var,2)
-
-    ! Check the total size of the variable to be stored (but receiving
-    ! ntotal is zero then there must be an unlimited dimension)
-    if (ntotal /= size(var,kind=jpib) .and. ntotal /= 0) then
-      write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write matrix of total size ', &
-           & nvarlen, ' to ', var_name, ' which has total size ', ntotal
-      call my_abort('Error writing NetCDF file')
-    end if
-
-    if (do_transpose) then
-      ! Save the matrix with transposition
-      if (this%iverbose >= 3) then
-        write(nulout,'(a,a,a)') '  Writing ', var_name, &
-             & ' (transposing dimensions)'
-      end if
-      allocate(var_transpose(size(var,2), size(var,1)))
-      var_transpose = transpose(var)
-      istatus = nf90_put_var(this%ncid, ivarid, var_transpose)
-      deallocate(var_transpose)
-    else
-      ! Save the matrix without transposition
-      if (this%iverbose >= 3) then
-        write(nulout,'(a,a)') '  Writing ', var_name
-      end if
-      istatus = nf90_put_var(this%ncid, ivarid, var)
-    end if
-
-    if (istatus /= NF90_NOERR) then
-      write(nulerr,'(a,a,a,a)') '*** Error writing matrix ', var_name, &
-           &                    ': ', trim(nf90_strerror(istatus))
-      call my_abort('Error writing NetCDF file')
-    end if
-
-  end subroutine put_real_matrix_pointer
-
-
-  !---------------------------------------------------------------------
   ! Save a matrix slice with name var_name in the file, transposing its
   ! dimensions if either optional argument transp is .true., or the
   ! transpose_matrices method has already been called.
@@ -4461,98 +4394,6 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Save a matrix slice with name var_name in the file, transposing its
-  ! dimensions if either optional argument transp is .true., or the
-  ! transpose_matrices method has already been called.
-  subroutine put_real_matrix_indexed_pointer(this, var_name, var, index3, index4, do_transp)
-    use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_put_var, nf90_strerror
-
-    class(netcdf_file)             :: this
-    character(len=*), intent(in)   :: var_name
-    real(jprb), intent(in)         :: var(:,:)
-    integer, intent(in)            :: index3
-    integer, intent(in), optional  :: index4
-
-    real(jprb), pointer        :: var_transpose(:,:)
-    logical, optional, intent(in)  :: do_transp
-
-    integer :: ivarid, ndims, nvarlen, istatus
-    integer(kind=jpib) :: ntotal
-    integer :: ndimlens(NF90_MAX_VAR_DIMS)
-    integer :: vstart(NF90_MAX_VAR_DIMS)
-    integer :: vcount(NF90_MAX_VAR_DIMS)
-
-    character(len=512) :: var_slice_name
-
-    logical :: do_transpose
-
-    if (present(do_transp)) then
-      do_transpose = do_transp
-    else
-      do_transpose = this%do_transpose_2d
-    end if
-
-    call this%end_define_mode()
-
-    call this%get_variable_id(var_name, ivarid)
-    call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
-
-    nvarlen = size(var,1)*size(var,2)
-
-    ! Check the total size of the variable to be stored (but receiving
-    ! ntotal is zero then there must be an unlimited dimension)
-    ntotal = ntotal / ndimlens(ndims)
-    if (present(index4)) then
-      ntotal = ntotal / ndimlens(ndims-1)
-      write(var_slice_name,'(a,a,i0,a,i0,a)') var_name, '(:,:,', index3, ',', index4, ')'
-    else
-      write(var_slice_name,'(a,a,i0,a)') var_name, '(:,:,', index3, ')'
-    end if
-    if (ntotal /= size(var,kind=jpib) .and. ntotal /= 0) then
-      write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write matrix of total size ', &
-           & nvarlen, ' to ', trim(var_slice_name), ' which has total size ', ntotal
-      call my_abort('Error writing NetCDF file')
-    end if
-
-    vstart(1:ndims-1) = 1
-    vcount(1:ndims-1) = ndimlens(1:ndims-1)
-    vcount(ndims)     = 1
-    if (present(index4)) then
-      vstart(ndims)   = index4
-      vstart(ndims-1) = index3
-      vcount(ndims-1) = 1
-    else
-      vstart(ndims)   = index3
-    end if
-
-    if (do_transpose) then
-      ! Save the matrix with transposition
-      if (this%iverbose >= 3) then
-        write(nulout,'(a,a,a)') '  Writing ', trim(var_slice_name), &
-             & ' (transposing dimensions)'
-      end if
-      allocate(var_transpose(size(var,2), size(var,1)))
-      var_transpose = transpose(var)
-      istatus = nf90_put_var(this%ncid, ivarid, var_transpose, start=vstart, count=vcount)
-      deallocate(var_transpose)
-    else
-      ! Save the matrix without transposition
-      if (this%iverbose >= 3) then
-        write(nulout,'(a,a)') '  Writing ', trim(var_slice_name)
-      end if
-      istatus = nf90_put_var(this%ncid, ivarid, var, start=vstart, count=vcount)
-    end if
-
-    if (istatus /= NF90_NOERR) then
-      write(nulerr,'(a,a,a)') '*** Error writing ', trim(var_slice_name), &
-           &                    ': ', trim(nf90_strerror(istatus))
-      call my_abort('Error writing NetCDF file')
-    end if
-
-  end subroutine put_real_matrix_indexed_pointer
-
-
-  !---------------------------------------------------------------------
   ! Save a 3D array with name var_name in the file.  The optional
   ! argument permute specifies that the dimensions should first be
   ! permuted according to the three integers therein (or if
@@ -4638,94 +4479,6 @@ contains
     end if
 
   end subroutine put_real_array3
-
-
-  !---------------------------------------------------------------------
-  ! Save a 3D array with name var_name in the file.  The optional
-  ! argument permute specifies that the dimensions should first be
-  ! permuted according to the three integers therein (or if
-  ! permute_3d_arrays has already been called). ipermute is
-  ! interpretted such that if OLD and NEW are 3-element vectors
-  ! containing the size of each dimension in memory and in the written
-  ! file, respectively, then NEW=OLD(ipermute).
-  subroutine put_real_array3_pointer(this, var_name, var, ipermute)
-    use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, nf90_put_var, nf90_strerror
-
-    class(netcdf_file)             :: this
-    character(len=*), intent(in)   :: var_name
-    real(jprb), intent(in)         :: var(:,:,:)
-    real(jprb), pointer        :: var_permute(:,:,:)
-    integer, optional, intent(in)  :: ipermute(3)
-
-    integer :: ivarid, ndims, nvarlen, istatus
-    integer(kind=jpib) :: ntotal
-    integer :: ndimlens(NF90_MAX_VAR_DIMS)
-
-    logical :: do_permute          ! Do we permute?
-    integer :: i_permute_3d(3)
-    integer :: n_dimlens_permuted(3)
-    integer :: i_order(3)
-
-    ! Decide whether to permute
-    if (present(ipermute)) then
-      do_permute   = .true.
-      i_permute_3d = ipermute
-    else
-      do_permute   = this%do_permute_3d
-      i_permute_3d = this%i_permute_3d
-    end if
-
-    call this%end_define_mode()
-
-    ! Check total size
-    call this%get_variable_id(var_name, ivarid)
-    call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
-    nvarlen = size(var,1)*size(var,2)*size(var,3)
-    if (ntotal /= size(var,kind=jpib)) then
-      write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write array of total size ', &
-           & nvarlen, ' to ', var_name, ' which has total size ', ntotal
-      call my_abort('Error writing NetCDF file')
-    end if
-
-    if (do_permute) then
-      ! Save array after permuting dimensions
-      if (this%iverbose >= 3) then
-        write(nulout,'(a,a,a,i0,i0,i0,a)') '  Writing ', var_name, &
-             & ' (permuting dimensions: ', i_permute_3d, ')'
-      end if
-      n_dimlens_permuted = (/ size(var,i_permute_3d(1)), &
-           &                  size(var,i_permute_3d(2)), &
-           &                  size(var,i_permute_3d(3))  /)
-      !! FIX: This makes it look like the dimensions have stayed the same
-      ! if (this%iverbose >= 4) then
-      !   write(nulout,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') '    (', &
-      !        &  n_dimlens_permuted(1), ',', n_dimlens_permuted(2), &
-      !        &  ',', n_dimlens_permuted(3), ') -> (', ndimlens(1), &
-      !        &  ',', ndimlens(2), ',', ndimlens(3), ')'
-      ! end if
-      allocate(var_permute(n_dimlens_permuted(1), &
-           &   n_dimlens_permuted(2), n_dimlens_permuted(3)))
-      ! Due to the odd way that ORDER works in Fortran RESHAPE, we
-      ! need to do this:
-      i_order(i_permute_3d) = (/ 1, 2, 3 /)
-      var_permute = reshape(var, n_dimlens_permuted, order=i_order)
-      istatus = nf90_put_var(this%ncid, ivarid, var_permute)
-      deallocate(var_permute)
-    else
-      ! Save array without permuting dimensions
-      if (this%iverbose >= 3) then
-        write(nulout,'(a,a)') '  Writing ', var_name
-      end if
-      istatus = nf90_put_var(this%ncid, ivarid, var)
-    end if
-
-    if (istatus /= NF90_NOERR) then
-      write(nulerr,'(a,a,a,a)') '*** Error writing array ', var_name, &
-           &                    ': ', trim(nf90_strerror(istatus))
-      call my_abort('Error writing NetCDF file')
-    end if
-
-  end subroutine put_real_array3_pointer
 
 
 #ifdef NC_NETCDF4
@@ -4962,97 +4715,5 @@ contains
 
   end subroutine copy_variable
 
-
-  !---------------------------------------------------------------------
-  ! Copy variable from "infile" to "this"
-  subroutine copy_variable_pointer(this, infile, var_name)
-    use netcdf, only: NF90_MAX_VAR_DIMS, NF90_NOERR, NF90_DOUBLE, NF90_FLOAT, &
-        &             nf90_inquire_variable, nf90_strerror
-
-    class(netcdf_file)             :: this
-    class(netcdf_file), intent(in) :: infile
-    character(len=*),   intent(in) :: var_name
-
-    integer :: ivarid_in, ivarid_out
-    integer :: ndims
-    integer :: ndimlens(NF90_MAX_VAR_DIMS)
-    integer(kind=jpib) :: ntotal, ntotal_out
-    integer :: data_type
-    integer :: istatus
-
-    ! We use the Fortran-77 functions because they don't check that
-    ! the rank of the arguments is correct
-    integer, external :: nf_get_var_double, nf_put_var_double
-    integer, external :: nf_get_var_int, nf_put_var_int
-
-    real(kind=jprd), pointer :: data_real(:)
-    integer,         pointer :: data_int(:)
-
-    ! If we are in define mode, exit define mode
-    call this%end_define_mode()
-
-    if (this%iverbose >= 4) then
-      write(nulout,'(a,a)') '  Copying ', trim(var_name)
-    end if
-
-    call infile%get_variable_id(var_name, ivarid_in)
-    call infile%get_array_dimensions(ivarid_in, ndims, ndimlens, ntotal)
-    istatus = nf90_inquire_variable(infile%ncid, ivarid_in, xtype=data_type)
-    if (istatus /= NF90_NOERR) then
-      write(nulerr,'(a,a,a,a)') '*** Error reading variable "', var_name, '": ', &
-           &  trim(nf90_strerror(istatus))
-      call my_abort('Error reading NetCDF file')
-    end if
-
-    call this%get_variable_id(var_name, ivarid_out)
-    call this%get_array_dimensions(ivarid_out, ndims, ndimlens, ntotal_out)
-    if (ntotal /= ntotal_out) then
-      write(nulerr,'(a)') '*** Error: size mismatch between input and output variables'
-      call my_abort('Error writing NetCDF file')
-    end if
-
-    if (data_type == NF90_DOUBLE .or. data_type == NF90_FLOAT) then
-      allocate(data_real(ntotal))
-      !istatus = nf90_get_var(infile%ncid, ivarid_in, data_real(1))
-      istatus = nf_get_var_double(infile%ncid, ivarid_in, data_real)
-      if (istatus /= NF90_NOERR) then
-        deallocate(data_real)
-        write(nulerr,'(a,a,a,a)') '*** Error reading variable "', var_name, '": ', &
-             &  trim(nf90_strerror(istatus))
-        call my_abort('Error reading NetCDF file')
-      end if
-
-      !istatus = nf90_put_var(this%ncid, ivarid_out, data_real)
-      istatus = nf_put_var_double(this%ncid, ivarid_out, data_real)
-      deallocate(data_real)
-      if (istatus /= NF90_NOERR) then
-        write(nulerr,'(a,a,a,a)') '*** Error writing variable "', var_name, '": ', &
-             &  trim(nf90_strerror(istatus))
-        call my_abort('Error writing NetCDF file')
-      end if
-
-    else
-      allocate(data_int(ntotal))
-      !istatus = nf90_get_var(infile%ncid, ivarid_in, data_int)
-      istatus = nf_get_var_int(infile%ncid, ivarid_in, data_int)
-      if (istatus /= NF90_NOERR) then
-        deallocate(data_int)
-
-        write(nulerr,'(a,a,a,a)') '*** Error reading variable "', var_name, '": ', &
-             &  trim(nf90_strerror(istatus))
-        call my_abort('Error reading NetCDF file')
-      end if
-
-      !istatus = nf90_put_var(this%ncid, ivarid_out, data_int)
-      istatus = nf_put_var_int(this%ncid, ivarid_out, data_int)
-      deallocate(data_int)
-      if (istatus /= NF90_NOERR) then
-        write(nulerr,'(a,a,a,a)') '*** Error writing variable "', var_name, '": ', &
-             &  trim(nf90_strerror(istatus))
-        call my_abort('Error writing NetCDF file')
-      end if
-    end if
-
-  end subroutine copy_variable_pointer
 
 end module easy_netcdf
