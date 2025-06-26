@@ -46,7 +46,6 @@ def driver(namel_file, input_file, output_file):
             solar_irradiance = 1366.0  # default value set in ecrad_driver_read_input.F90
             spectral_solar_cycle_multiplier = 0.  # default value set in ecrad_driver_read_input.F90
             iseed = numpy.ones((nci.dimensions['column'].size, ))
-            sw_albedo_direct = sw_albedo
 
             shape = (nci.dimensions['level'].size, nci.dimensions['column'].size)
             gases = {}
@@ -72,8 +71,8 @@ def driver(namel_file, input_file, output_file):
                 nci['q_liquid'][...].T, nci['re_liquid'][...].T,
                 nci['q_ice'][...].T, nci['re_ice'][...].T,
                 iseed, nci['overlap_param'][...].T,
-                nci['skin_temperature'][...], nalbedobands, sw_albedo, sw_albedo_direct,
-                nemissivitygpoints, lw_emissivity,
+                nci['skin_temperature'][...], nalbedobands, sw_albedo,
+                nemissivitygpoints=nemissivitygpoints, lw_emissivity=lw_emissivity,
                 q_unit=IMassMixingRatio, q=nci['q'][...].T, **gases)
 
             # Copy dimensions

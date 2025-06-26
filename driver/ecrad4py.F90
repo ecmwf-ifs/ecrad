@@ -110,7 +110,7 @@ module ecrad4py
       real(kind=c_double), dimension(ncol), intent(in) :: skin_temperature ! Ts (K)
       integer(kind=c_int64_t), intent(in) :: nalbedobands
       real(kind=c_double), dimension(ncol, nalbedobands), intent(in) :: sw_albedo
-      real(kind=c_double), dimension(ncol, nalbedobands), intent(in) :: sw_albedo_direct
+      real(kind=c_double), dimension(ncol, nalbedobands), optional, intent(in) :: sw_albedo_direct
       integer(kind=c_int64_t), intent(in) :: nemissivitygpoints
       real(kind=c_double), dimension(ncol, nemissivitygpoints), intent(in) :: lw_emissivity
       integer(kind=c_int64_t), optional, intent(in) :: q_unit ! vapour unit: mass or volume mixing ratio
@@ -206,7 +206,9 @@ module ecrad4py
 
       single_level%skin_temperature = skin_temperature
       single_level%sw_albedo = sw_albedo
-      single_level%sw_albedo_direct = sw_albedo_direct
+      if(present(sw_albedo_direct)) then
+        single_level%sw_albedo_direct = sw_albedo_direct
+      endif
       single_level%lw_emissivity = lw_emissivity
 
       ! --------------------------------------------------------
