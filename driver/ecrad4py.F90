@@ -76,7 +76,7 @@ module ecrad4py
                   &q_unit, q, co2_unit, co2, o3_unit, o3, n2o_unit, n2o, &
                   &co_unit, co, ch4_unit, ch4, o2_unit, o2, cfc11_unit, cfc11, &
                   &cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2, &
-                  &naerosols, aerosols, &
+                  &naerosols, aerosols, inv_cloud_effective_size, inv_inhom_effective_size, &
                   &lw_up, lw_dn, lw_up_clear, lw_dn_clear, cloud_cover_lw, &
                   &sw_up, sw_dn, sw_up_clear, sw_dn_clear, cloud_cover_sw) bind(C, name='run_')
 
@@ -142,6 +142,8 @@ module ecrad4py
       real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: no2
       integer(kind=c_int64_t), intent(in) :: naerosols
       real(kind=c_double), dimension(ncol, nlev, naerosols), optional, intent(in) :: aerosols
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: inv_cloud_effective_size
+      real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: inv_inhom_effective_size
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_up
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_dn
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_up_clear
@@ -204,8 +206,15 @@ module ecrad4py
         ! Cloud properties needed by SPARTACUS
         ! --------------------------------------------------------
         if (config%i_solver_sw == ISolverSPARTACUS .or. config%i_solver_lw == ISolverSPARTACUS) then
-          print*, '*** Error: SPARTACUS solver not implemented'
-          stop
+          if (present(inv_cloud_effective_size)) then
+            cloud%inv_cloud_effective_size = inv_cloud_effective_size
+            if (present(inv_inhom_effective_size)) then
+              cloud%inv_inhom_effective_size = inv_inhom_effective_size
+            endif
+          else
+            print*, '*** Error: inv_cloud_effective_size array absent with SPARTACUS solver'
+            stop
+          endif
         endif ! Spartacus
       endif ! Cloud
 
@@ -227,8 +236,8 @@ module ecrad4py
       ! --------------------------------------------------------
 
       if (config%use_aerosols) then
-        if(present(aerosols)) then
-          aerosol%mixing_ratio=aerosols
+        if (present(aerosols)) then
+          aerosol%mixing_ratio = aerosols
         else
           print*, '*** Error: aerosols array absent with config%use_aerosols==.true.'
           call flush()
