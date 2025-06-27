@@ -67,7 +67,7 @@ module ecrad4py
       get_IMassMixingRatio=int(IMassMixingRatio, kind(get_IMassMixingRatio))
     end function get_IMassMixingRatio
 
-    subroutine run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance, &
+    subroutine run(ncol, nlev, nblocksize, pressure_hl, temperature_hl, solar_irradiance, &
                   &spectral_solar_cycle_multiplier, &
                   &cos_solar_zenith_angle, cloud_fraction, fractional_std, &
                   &q_liquid, re_liquid, q_ice, re_ice, iseed, overlap_param, &
@@ -95,8 +95,9 @@ module ecrad4py
                                          & IH2O, ICO2, IO3, IN2O, ICO, ICH4, IO2, ICFC11, ICFC12, &
                                          & IHCFC22, ICCl4, INO2, GasName, GasLowerCaseName, NMaxGases
       use radiation_flux,           only : flux_type
+      use radiation_io,             only : radiation_abort
 
-      integer(kind=c_int64_t), intent(in) :: ncol, nlev
+      integer(kind=c_int64_t), intent(in) :: ncol, nlev, nblocksize
       real(kind=c_double), dimension(ncol, nlev+1), intent(in) :: pressure_hl ! pressure (Pa) on half-levels
       real(kind=c_double), dimension(ncol, nlev+1), intent(in) :: temperature_hl ! temperature (K) on half-levels
       real(kind=c_double), intent(in) :: solar_irradiance ! solar irradiance (W m-2)
@@ -164,6 +165,7 @@ module ecrad4py
 
       character(40)             :: gas_var_name
       integer                   :: jgas
+      integer                   :: jblock, nblock, istartcol, iendcol
 
       ! Pressure and temperature (SI units) are on half-levels, i.e. of length (ncol, nlev+1)
       thermodynamics%pressure_hl = pressure_hl
@@ -212,8 +214,7 @@ module ecrad4py
               cloud%inv_inhom_effective_size = inv_inhom_effective_size
             endif
           else
-            print*, '*** Error: inv_cloud_effective_size array absent with SPARTACUS solver'
-            stop
+            call radiation_abort('inv_cloud_effective_size array absent with SPARTACUS solver')
           endif
         endif ! Spartacus
       endif ! Cloud
@@ -239,9 +240,7 @@ module ecrad4py
         if (present(aerosols)) then
           aerosol%mixing_ratio = aerosols
         else
-          print*, '*** Error: aerosols array absent with config%use_aerosols==.true.'
-          call flush()
-          stop
+          call radiation_abort('aerosols array absent with config%use_aerosols==.true.')
         endif
       endif
 
@@ -309,17 +308,26 @@ module ecrad4py
       call flux%allocate(config, 1, int(ncol), int(nlev))
         
       ! Call the ECRAD radiation scheme
-      call radiation(int(ncol), int(nlev), 1, int(ncol), &
-           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
+      if (nblocksize <= 0) then
+        call radiation(int(ncol), int(nlev), 1, int(ncol), &                              
+             &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
+      else
+        nblock = (int(ncol) - 1 + int(nblocksize)) / int(nblocksize)
+        !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
+        do jblock = 1, nblock
+          istartcol = (jblock - 1) * int(nblocksize) + 1
+          iendcol = min(istartcol + int(nblocksize) - 1, int(ncol))
+          call radiation(int(ncol), int(nlev), istartcol, iendcol, &
+               &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
+        enddo
+      endif
     
       ! --------------------------------------------------------
       ! Output
       ! --------------------------------------------------------
       if (config%i_gas_model_lw == IGasModelMonochromatic .and. &
          &config%mono_lw_wavelength > 0.0_jprb) then
-          print*, '*** Error: lw flux unit is W m-3'
-          call flush()
-          stop
+          call radiation_abort('lw flux unit is W m-3')
       endif
     
       if (config%do_lw) then

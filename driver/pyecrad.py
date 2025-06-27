@@ -53,7 +53,7 @@ def get_IMassMixingRatio():
 
 
 @ctypesFF(castInput=True)
-def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
+def run(ncol, nlev, nblocksize, pressure_hl, temperature_hl, solar_irradiance,
         spectral_solar_cycle_multiplier,
         cos_solar_zenith_angle, cloud_fraction, fractional_std,
         q_liquid, re_liquid, q_ice, re_ice, iseed, overlap_param,
@@ -71,7 +71,7 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
     """
     Ecrad simulation
     """
-    return ([ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
+    return ([ncol, nlev, nblocksize, pressure_hl, temperature_hl, solar_irradiance,
              spectral_solar_cycle_multiplier,
              cos_solar_zenith_angle, cloud_fraction, fractional_std,
              q_liquid, re_liquid, q_ice, re_ice, numpy.array(iseed), overlap_param,
@@ -83,6 +83,7 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
              naerosols, aerosols, inv_cloud_effective_size, inv_inhom_effective_size],
             [(numpy.int64, None, IN),  # ncol
              (numpy.int64, None, IN),  # nlev
+             (numpy.int64, None, IN),  # nblocksize
              (numpy.float64, (nlev + 1, ncol), IN),  # pressure (Pa) on half-levels
              (numpy.float64, (nlev + 1, ncol), IN),  # temperature (K) on half-levels
              (numpy.float64, None, IN),  # solar irradiance (W m-2)

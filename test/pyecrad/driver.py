@@ -65,8 +65,10 @@ def driver(namel_file, input_file, output_file):
             aerosols = numpy.moveaxis(nci['aerosol_mmr'][...], [0, 1, 2], [0, 2, 1])
             naerosols = aerosols.shape[-1]
 
+            nblocksize = 32
+
             result = pyecrad.run(
-                nci.dimensions['column'].size, nci.dimensions['level'].size,
+                nci.dimensions['column'].size, nci.dimensions['level'].size, nblocksize,
                 nci['pressure_hl'][...].T, nci['temperature_hl'][...].T,
                 solar_irradiance, spectral_solar_cycle_multiplier,
                 nci['cos_solar_zenith_angle'][...],
