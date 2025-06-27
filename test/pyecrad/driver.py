@@ -90,23 +90,41 @@ def driver(namel_file, input_file, output_file):
             nco['pressure_hl'].setncatts(nci['pressure_hl'].__dict__)
 
         # Save outputs
-        lw_up, lw_dn, sw_up, sw_dn = result
-        for name, long_name, units, standard_name, value in \
-            [('flux_dn_sw', 'Downwelling shortwave flux', 'W m-2',
-              'downwelling_shortwave_flux_in_air', sw_dn),
-             ('flux_up_sw', 'Upwelling shortwave flux', 'W m-2',
-              'upwelling_shortwave_flux_in_air', sw_up),
+        (lw_up, lw_dn, lw_up_clear, lw_dn_clear, cloud_cover_lw,
+         sw_up, sw_dn, sw_up_clear, sw_dn_clear, cloud_cover_sw) = result
+        for name, long_name, units, standard_name, vdim, value in \
+            [('flux_up_lw', 'Upwelling longwave flux', 'W m-2',
+              'upwelling_longwave_flux_in_air', 'half_level', lw_up),
              ('flux_dn_lw', 'Downwelling longwave flux', 'W m-2',
-              'downwelling_longwave_flux_in_air', lw_dn),
-             ('flux_up_lw', 'Upwelling longwave flux', 'W m-2',
-              'upwelling_longwave_flux_in_air', lw_up),
+              'downwelling_longwave_flux_in_air', 'half_level', lw_dn),
+             ('flux_up_lw_clear', 'Upwelling clear-sky longwave flux', 'W m-2',
+              None, 'half_level', lw_up_clear),
+             ('flux_dn_lw_clear', 'Downwelling clear-sky longwave flux', 'W m-2',
+              None, 'half_level', lw_dn_clear),
+             ('cloud_cover_lw', 'Total cloud cover diagnosed by longwave solver', '1',
+              'cloud_area_fraction', None, cloud_cover_lw),
+
+             ('flux_up_sw', 'Upwelling shortwave flux', 'W m-2',
+              'upwelling_shortwave_flux_in_air', 'half_level', sw_up),
+             ('flux_dn_sw', 'Downwelling shortwave flux', 'W m-2',
+              'downwelling_shortwave_flux_in_air', 'half_level', sw_dn),
+             ('flux_up_sw_clear', 'Upwelling clear-sky shortwave flux', 'W m-2',
+              None, 'half_level', sw_up_clear),
+             ('flux_dn_sw_clear', 'Downwelling clear-sky shortwave flux', 'W m-2',
+              None, 'half_level', sw_dn_clear),
+             ('cloud_cover_sw', 'Total cloud cover diagnosed by shortwave solver', '1',
+              'cloud_area_fraction', None, cloud_cover_sw),
             ]:
-            dimension = (nco.dimensions['column'], nco.dimensions['half_level'])
+            if vdim is None:
+                dimension = (nco.dimensions['column'], )
+            else:
+                dimension = (nco.dimensions['column'], nco.dimensions[vdim])
             flux = nco.createVariable(name, value.dtype, dimension)
             flux[...] = value.T
             flux.long_name = long_name
             flux.units = units
-            flux.standard_name = standard_name
+            if standard_name is not None:
+                flux.standard_name = standard_name
 
 
 if __name__ == '__main__':

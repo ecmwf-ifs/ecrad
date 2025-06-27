@@ -77,9 +77,11 @@ module ecrad4py
                   &co_unit, co, ch4_unit, ch4, o2_unit, o2, cfc11_unit, cfc11, &
                   &cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2, &
                   &naerosols, aerosols, &
-                  &lw_up, lw_dn, sw_up, sw_dn) bind(C, name='run_')
+                  &lw_up, lw_dn, lw_up_clear, lw_dn_clear, cloud_cover_lw, &
+                  &sw_up, sw_dn, sw_up_clear, sw_dn_clear, cloud_cover_sw) bind(C, name='run_')
 
       use, intrinsic :: iso_c_binding, only: c_int64_t, c_double
+      use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_quiet_nan
       use parkind1,                 only : jprb, jprd ! Working/double precision
 
       use radiation_interface,      only : radiation, set_gas_units
@@ -142,8 +144,14 @@ module ecrad4py
       real(kind=c_double), dimension(ncol, nlev, naerosols), optional, intent(in) :: aerosols
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_up
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_dn
+      real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_up_clear
+      real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_dn_clear
+      real(kind=c_double), dimension(ncol), intent(out) :: cloud_cover_lw
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: sw_up
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: sw_dn
+      real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: sw_up_clear
+      real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: sw_dn_clear
+      real(kind=c_double), dimension(ncol), intent(out) :: cloud_cover_sw
 
       type(single_level_type) :: single_level
       type(thermodynamics_type) :: thermodynamics
@@ -308,16 +316,46 @@ module ecrad4py
       if (config%do_lw) then
         lw_up = flux%lw_up
         lw_dn = flux%lw_dn
+        if (config%do_clear) then
+          lw_up_clear = flux%lw_up_clear
+          lw_dn_clear = flux%lw_dn_clear
+        else
+          lw_up_clear = ieee_value(lw_up_clear, ieee_quiet_nan)
+          lw_dn_clear = ieee_value(lw_dn_clear, ieee_quiet_nan)
+        endif
+        if (config%do_clouds) then
+          cloud_cover_lw = flux%cloud_cover_lw
+        else
+          cloud_cover_lw = ieee_value(cloud_cover_lw, ieee_quiet_nan)
+        endif
       else
-        lw_up = 0.
-        lw_dn = 0.
+        lw_up = ieee_value(lw_up, ieee_quiet_nan)
+        lw_dn = ieee_value(lw_dn, ieee_quiet_nan)
+        lw_up_clear = ieee_value(lw_up_clear, ieee_quiet_nan)
+        lw_dn_clear = ieee_value(lw_dn_clear, ieee_quiet_nan)
+        cloud_cover_lw = ieee_value(cloud_cover_lw, ieee_quiet_nan)
       endif
       if (config%do_sw) then
          sw_up = flux%sw_up
          sw_dn = flux%sw_dn
+         if (config%do_clear) then
+           sw_up_clear = flux%sw_up_clear
+           sw_dn_clear = flux%sw_dn_clear
+         else
+           sw_up_clear = ieee_value(sw_up_clear, ieee_quiet_nan)
+           sw_dn_clear = ieee_value(sw_dn_clear, ieee_quiet_nan)
+         endif
+         if (config%do_clouds) then
+          cloud_cover_sw = flux%cloud_cover_sw
+        else
+          cloud_cover_sw = ieee_value(cloud_cover_sw, ieee_quiet_nan)
+        endif
       else
-        sw_up = 0.
-        sw_dn = 0.
+        sw_up = ieee_value(sw_up, ieee_quiet_nan)
+        sw_dn = ieee_value(sw_dn, ieee_quiet_nan)
+        sw_up_clear = ieee_value(sw_up_clear, ieee_quiet_nan)
+        sw_dn_clear = ieee_value(sw_dn_clear, ieee_quiet_nan)
+        cloud_cover_sw = ieee_value(cloud_cover_sw, ieee_quiet_nan)
       endif
       if (config%do_clouds) then
         deallocate(cloud%mixing_ratio)
