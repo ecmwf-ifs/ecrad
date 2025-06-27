@@ -76,6 +76,7 @@ module ecrad4py
                   &q_unit, q, co2_unit, co2, o3_unit, o3, n2o_unit, n2o, &
                   &co_unit, co, ch4_unit, ch4, o2_unit, o2, cfc11_unit, cfc11, &
                   &cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2, &
+                  &naerosols, aerosols, &
                   &lw_up, lw_dn, sw_up, sw_dn) bind(C, name='run_')
 
       use, intrinsic :: iso_c_binding, only: c_int64_t, c_double
@@ -137,6 +138,8 @@ module ecrad4py
       real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: ccl4
       integer(kind=c_int64_t), optional, intent(in) :: no2_unit
       real(kind=c_double), dimension(ncol, nlev), optional, intent(in) :: no2
+      integer(kind=c_int64_t), intent(in) :: naerosols
+      real(kind=c_double), dimension(ncol, nlev, naerosols), optional, intent(in) :: aerosols
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_up
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: lw_dn
       real(kind=c_double), dimension(ncol, nlev+1), intent(out) :: sw_up
@@ -216,9 +219,13 @@ module ecrad4py
       ! --------------------------------------------------------
 
       if (config%use_aerosols) then
-        print*, '*** Error: aerosols not implemented'
-        call flush()
-        stop
+        if(present(aerosols)) then
+          aerosol%mixing_ratio=aerosols
+        else
+          print*, '*** Error: aerosols array absent with config%use_aerosols==.true.'
+          call flush()
+          stop
+        endif
       endif
 
       ! Water vapour and ozone are always in terms of mass mixing ratio
