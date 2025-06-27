@@ -62,6 +62,9 @@ def driver(namel_file, input_file, output_file):
                     gases[gas + '_unit'] = IMassMixingRatio
                     gases[gas] = nci[gas + '_mmr'][...].T
 
+            aerosols = numpy.moveaxis(nci['aerosol_mmr'][...], [0, 1, 2], [0, 2, 1])
+            naerosols = aerosols.shape[-1]
+
             result = pyecrad.run(
                 nci.dimensions['column'].size, nci.dimensions['level'].size,
                 nci['pressure_hl'][...].T, nci['temperature_hl'][...].T,
@@ -73,7 +76,8 @@ def driver(namel_file, input_file, output_file):
                 iseed, nci['overlap_param'][...].T,
                 nci['skin_temperature'][...], nalbedobands, sw_albedo,
                 nemissivitygpoints=nemissivitygpoints, lw_emissivity=lw_emissivity,
-                q_unit=IMassMixingRatio, q=nci['q'][...].T, **gases)
+                q_unit=IMassMixingRatio, q=nci['q'][...].T, **gases,
+                naerosols=naerosols, aerosols=aerosols.T)
 
             # Copy dimensions
             for name, dimension in nci.dimensions.items():

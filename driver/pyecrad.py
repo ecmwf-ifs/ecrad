@@ -64,7 +64,8 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
         co_unit=MISSING, co=MISSING, ch4_unit=MISSING, ch4=MISSING,
         o2_unit=MISSING, o2=MISSING, cfc11_unit=MISSING, cfc11=MISSING,
         cfc12_unit=MISSING, cfc12=MISSING, hcfc22_unit=MISSING, hcfc22=MISSING,
-        ccl4_unit=MISSING, ccl4=MISSING, no2_unit=MISSING, no2=MISSING):
+        ccl4_unit=MISSING, ccl4=MISSING, no2_unit=MISSING, no2=MISSING,
+        naerosols=0, aerosols=MISSING):
 
     """
     Ecrad simulation
@@ -77,7 +78,8 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
              nemissivitygpoints, lw_emissivity,
              q_unit, q, co2_unit, co2, o3_unit, o3, n2o_unit, n2o,
              co_unit, co, ch4_unit, ch4, o2_unit, o2, cfc11_unit, cfc11,
-             cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2],
+             cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2,
+             naerosols, aerosols],
             [(numpy.int64, None, IN),  # ncol
              (numpy.int64, None, IN),  # nlev
              (numpy.float64, (nlev + 1, ncol), IN),  # pressure (Pa) on half-levels
@@ -123,6 +125,8 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
              (numpy.float64, (nlev, ncol), IN),  # ccl4 mixing ratio
              (numpy.int64, None, IN),  # no2_unit
              (numpy.float64, (nlev, ncol), IN),  # no2 mixing ratio
+             (numpy.int64, None, IN),  # naerosols
+             (numpy.float64, (naerosols, nlev, ncol), IN),  # aerosols mixing ratio
 
              (numpy.float64, (nlev + 1, ncol), OUT),  # lw_up
              (numpy.float64, (nlev + 1, ncol), OUT),  # lw_dn
