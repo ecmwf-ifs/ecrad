@@ -130,7 +130,13 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
 
              (numpy.float64, (nlev + 1, ncol), OUT),  # lw_up
              (numpy.float64, (nlev + 1, ncol), OUT),  # lw_dn
+             (numpy.float64, (nlev + 1, ncol), OUT),  # lw_up_clear
+             (numpy.float64, (nlev + 1, ncol), OUT),  # lw_dn_clear
+             (numpy.float64, (ncol, ), OUT),  # cloud_cover_lw
              (numpy.float64, (nlev + 1, ncol), OUT),  # sw_up
              (numpy.float64, (nlev + 1, ncol), OUT),  # sw_dn
+             (numpy.float64, (nlev + 1, ncol), OUT),  # sw_up_clear
+             (numpy.float64, (nlev + 1, ncol), OUT),  # sw_dn_clear
+             (numpy.float64, (ncol, ), OUT),  # cloud_cover_sw
 
             ], None)
