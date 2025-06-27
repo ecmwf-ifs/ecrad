@@ -65,7 +65,8 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
         o2_unit=MISSING, o2=MISSING, cfc11_unit=MISSING, cfc11=MISSING,
         cfc12_unit=MISSING, cfc12=MISSING, hcfc22_unit=MISSING, hcfc22=MISSING,
         ccl4_unit=MISSING, ccl4=MISSING, no2_unit=MISSING, no2=MISSING,
-        naerosols=0, aerosols=MISSING):
+        naerosols=0, aerosols=MISSING,
+        inv_cloud_effective_size=MISSING, inv_inhom_effective_size=MISSING):
 
     """
     Ecrad simulation
@@ -79,7 +80,7 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
              q_unit, q, co2_unit, co2, o3_unit, o3, n2o_unit, n2o,
              co_unit, co, ch4_unit, ch4, o2_unit, o2, cfc11_unit, cfc11,
              cfc12_unit, cfc12, hcfc22_unit, hcfc22, ccl4_unit, ccl4, no2_unit, no2,
-             naerosols, aerosols],
+             naerosols, aerosols, inv_cloud_effective_size, inv_inhom_effective_size],
             [(numpy.int64, None, IN),  # ncol
              (numpy.int64, None, IN),  # nlev
              (numpy.float64, (nlev + 1, ncol), IN),  # pressure (Pa) on half-levels
@@ -127,6 +128,8 @@ def run(ncol, nlev, pressure_hl, temperature_hl, solar_irradiance,
              (numpy.float64, (nlev, ncol), IN),  # no2 mixing ratio
              (numpy.int64, None, IN),  # naerosols
              (numpy.float64, (naerosols, nlev, ncol), IN),  # aerosols mixing ratio
+             (numpy.float64, (nlev, ncol), IN),  # inv_cloud_effective_size
+             (numpy.float64, (nlev, ncol), IN),  # inv_inhom_effective_size
 
              (numpy.float64, (nlev + 1, ncol), OUT),  # lw_up
              (numpy.float64, (nlev + 1, ncol), OUT),  # lw_dn
