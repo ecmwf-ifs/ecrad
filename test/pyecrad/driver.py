@@ -11,7 +11,7 @@ import numpy
 import netCDF4
 
 # Import pyecrad module
-spec = importlib.util.spec_from_file_location( 'pyecrad', '../../driver/pyecrad.py')
+spec = importlib.util.spec_from_file_location('pyecrad', '../../pyecrad/__init__.py')
 pyecrad = importlib.util.module_from_spec(spec)
 sys.modules['pyecrad'] = pyecrad
 spec.loader.exec_module(pyecrad)
@@ -34,7 +34,7 @@ def driver(namel_file, input_file, output_file):
                 nalbedobands = nci['sw_albedo'].shape[0]
                 sw_albedo = nci['sw_albedo'][...]
             else:
-                nalbedobands =  1
+                nalbedobands = 1
                 sw_albedo = nci['sw_albedo'][...][numpy.newaxis, ...]
             if len(nci['lw_emissivity'].shape) == 2:
                 nemissivitygpoints = nci['lw_emissivity'].shape[0]

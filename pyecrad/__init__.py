@@ -9,7 +9,6 @@ import numpy
 import ctypesForFortran
 from ctypesForFortran import (IN, OUT, INOUT, MISSING, MANDATORY_AFTER_OPTIONAL as MAO,
                               string2array)
-
 IN = ctypesForFortran.IN
 OUT = ctypesForFortran.OUT
 INOUT = ctypesForFortran.INOUT
@@ -17,11 +16,20 @@ MISSING = ctypesForFortran.MISSING
 MAO = ctypesForFortran.MANDATORY_AFTER_OPTIONAL
 
 ctypesFF, handle = ctypesForFortran.ctypesForFortranFactory(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../lib/libecrad4py.so"))
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "./libecrad4py.so"))
+
+version_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "VERSION")
+if os.path.exists(version_file):
+    with open(version_file, 'r', encoding='utf-8') as f:
+        __version__ = f.read().strip()
+else:
+    __version__ = 'unknown'
+
 
 def close():
     """Close the shared lib"""
     ctypesForFortran.dlclose(handle)
+
 
 @ctypesFF()
 def setup(namelist_file_name, directory_name=None):
@@ -30,12 +38,13 @@ def setup(namelist_file_name, directory_name=None):
     :param namelist_file_name: namelist file name
     """
     if directory_name is None:
-        directory_name = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data")
+        directory_name = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
     return ([string2array(namelist_file_name, 512),
              string2array(directory_name, 511)],
             [(str, (1, 512), IN),
              (str, (1, 511), IN)],
             None)
+
 
 @ctypesFF()
 def get_IVolumeMixingRatio():
@@ -43,6 +52,7 @@ def get_IVolumeMixingRatio():
     Ecrad value for volume mixing ratio
     """
     return ([], [], (numpy.int64, None))
+
 
 @ctypesFF()
 def get_IMassMixingRatio():

@@ -10,7 +10,7 @@ OBJECTS := $(SOURCES:.F90=.o)
 EXECUTABLE = ../bin/ecrad
 IFS_EXECUTABLE = ../bin/ecrad_ifs
 IFS_BLOCKED_EXECUTABLE = ../bin/ecrad_ifs_blocked
-PYSO = ../lib/libecrad4py.so
+PYSO = ../pyecrad/libecrad4py.so
 
 all: driver ifs_driver test_programs python
 

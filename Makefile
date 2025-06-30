@@ -159,8 +159,10 @@ ifsdriver: libifsaux libifsrrtm libutilities libradiation libifs
 test_programs: driver
 	cd driver && $(MAKE) test_programs
 
-python: driver
+python: build
 	cd driver && $(MAKE) python
+	cp -f VERSION pyecrad/
+	rm -rf pyecrad/data; cp -r data pyecrad/
 
 symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
@@ -200,6 +202,9 @@ clean-mods:
 
 clean-symlinks:
 	rm -f practical/ecrad practical/data
+
+clean-python:
+	rm -rf tmp dist wheelhouse
 
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~

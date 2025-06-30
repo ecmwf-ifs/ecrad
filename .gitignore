@@ -1,10 +1,10 @@
 *.o
 *.a
+*.so
 *~
 .*.swp
 *_out.nc
 config_*.nam
-__pycache__
 *_sza.nc
 mod
 /practical/data
@@ -13,3 +13,14 @@ mod
 /bin/ecrad
 /bin/ecrad_ifs
 /bin/ecrad_ifs_blocked
+
+# Python binding
+/pyecrad/VERSION
+/pyecrad/data
+/tmp
+/dist
+/wheelhouse
+__pycache__
+pyecrad.egg-info
+/test/pyecrad/control.nc
+/test/pyecrad/experiment.nc

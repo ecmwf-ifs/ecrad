@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyecrad"
+dynamic = ["version"]
+dependencies = ["ctypesForFortran >=1.3.0, !=2.0.*, !=2.1.*",
+                "numpy",
+               ]
+authors = [
+  {name = "Sébastien Riette", email = "sebastien.riette@meteo.fr" },
+]
+description = "ecRad python binding"
+readme = "README.md"
+requires-python = ">= 3.10"
+license = "Apache-2.0"
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+
+[tool.setuptools.packages.find]
+include = ["pyecrad*"]
+
+[tool.setuptools.package-data]
+pyecrad = ['libecrad4py.so',
+           'VERSION',
+           'data/*',
+          ]
