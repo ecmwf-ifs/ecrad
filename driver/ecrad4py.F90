@@ -24,18 +24,20 @@ module ecrad4py
 
   implicit none
 
-  type(config_type)         :: config
+  type(config_type), dimension(:), allocatable :: config
 
   contains
 
-    subroutine setup(namelist_file_name, directory_name) bind(C, name='setup_')
+    subroutine setup(namelist_file_name, directory_name, iconfig) bind(C, name='setup_')
       use radiation_interface,      only : setup_radiation
-      use, intrinsic :: iso_c_binding, only: c_char
+      use, intrinsic :: iso_c_binding, only: c_char, c_int64_t
       character(kind=c_char), dimension(512), intent(in) :: namelist_file_name
       character(kind=c_char), dimension(511), intent(in) :: directory_name
+      integer(kind=c_int64_t), intent(out) :: iconfig
       character(len=size(namelist_file_name)) :: string_namelist_file_name
       character(len=size(directory_name)) :: string_directory_name
       integer :: jk
+      type(config_type), dimension(:), allocatable :: config_tmp
 
       do jk=1, size(namelist_file_name)
         string_namelist_file_name(jk:jk)=namelist_file_name(jk)
@@ -44,13 +46,26 @@ module ecrad4py
         string_directory_name(jk:jk)=directory_name(jk)
       enddo
 
+      if (.not. allocated(config)) then
+          iconfig = 1
+          allocate(config(iconfig))
+      else
+          allocate(config_tmp(size(config)))
+          config_tmp(:) = config(:)
+          iconfig = size(config) + 1
+          deallocate(config)
+          allocate(config(iconfig))
+          config(:iconfig - 1) = config_tmp(:)
+          deallocate(config_tmp)
+      endif
+
       ! Read "radiation" namelist into radiation configuration type
-      call config%read(file_name=string_namelist_file_name)
-      config%directory_name = string_directory_name
+      call config(iconfig)%read(file_name=string_namelist_file_name)
+      config(iconfig)%directory_name = string_directory_name
 
       ! Setup the radiation scheme: load the coefficients for gas and
       ! cloud optics, currently from RRTMG
-      call setup_radiation(config)
+      call setup_radiation(config(iconfig))
     end subroutine setup
 
     function get_IVolumeMixingRatio() bind(C, name='get_IVolumeMixingRatio_')
@@ -67,7 +82,7 @@ module ecrad4py
       get_IMassMixingRatio=int(IMassMixingRatio, kind(get_IMassMixingRatio))
     end function get_IMassMixingRatio
 
-    subroutine run(ncol, nlev, nblocksize, pressure_hl, temperature_hl, solar_irradiance, &
+    subroutine run(iconfig, ncol, nlev, nblocksize, pressure_hl, temperature_hl, solar_irradiance, &
                   &spectral_solar_cycle_multiplier, &
                   &cos_solar_zenith_angle, cloud_fraction, fractional_std, &
                   &q_liquid, re_liquid, q_ice, re_ice, iseed, overlap_param, &
@@ -97,7 +112,7 @@ module ecrad4py
       use radiation_flux,           only : flux_type
       use radiation_io,             only : radiation_abort
 
-      integer(kind=c_int64_t), intent(in) :: ncol, nlev, nblocksize
+      integer(kind=c_int64_t), intent(in) :: iconfig, ncol, nlev, nblocksize
       real(kind=c_double), dimension(ncol, nlev+1), intent(in) :: pressure_hl ! pressure (Pa) on half-levels
       real(kind=c_double), dimension(ncol, nlev+1), intent(in) :: temperature_hl ! temperature (K) on half-levels
       real(kind=c_double), intent(in) :: solar_irradiance ! solar irradiance (W m-2)
@@ -183,7 +198,7 @@ module ecrad4py
       ! Cloud 
       ! --------------------------------------------------------
 
-      if (config%do_clouds) then
+      if (config(iconfig)%do_clouds) then
         cloud%fraction = cloud_fraction
         cloud%fractional_std = fractional_std
         cloud%ntype=2
@@ -207,7 +222,8 @@ module ecrad4py
         ! --------------------------------------------------------
         ! Cloud properties needed by SPARTACUS
         ! --------------------------------------------------------
-        if (config%i_solver_sw == ISolverSPARTACUS .or. config%i_solver_lw == ISolverSPARTACUS) then
+        if (config(iconfig)%i_solver_sw == ISolverSPARTACUS .or. \
+            config(iconfig)%i_solver_lw == ISolverSPARTACUS) then
           if (present(inv_cloud_effective_size)) then
             cloud%inv_cloud_effective_size = inv_cloud_effective_size
             if (present(inv_inhom_effective_size)) then
@@ -236,7 +252,7 @@ module ecrad4py
       ! Aerosol and gas concentrations
       ! --------------------------------------------------------
 
-      if (config%use_aerosols) then
+      if (config(iconfig)%use_aerosols) then
         if (present(aerosols)) then
           aerosol%mixing_ratio = aerosols
         else
@@ -297,7 +313,7 @@ module ecrad4py
     
       ! Ensure the units of the gas mixing ratios are what is required
       ! by the gas absorption model
-      call set_gas_units(config, gas)
+      call set_gas_units(config(iconfig), gas)
     
       ! Compute saturation with respect to liquid (needed for aerosol hydration) call...
       call thermodynamics%calc_saturation_wrt_liquid(1, int(ncol))
@@ -305,12 +321,12 @@ module ecrad4py
       ! Allocate memory for the flux profiles, which may include arrays
       ! of dimension n_bands_sw/n_bands_lw, so must be called after
       ! setup_radiation
-      call flux%allocate(config, 1, int(ncol), int(nlev))
+      call flux%allocate(config(iconfig), 1, int(ncol), int(nlev))
         
       ! Call the ECRAD radiation scheme
       if (nblocksize <= 0) then
         call radiation(int(ncol), int(nlev), 1, int(ncol), &                              
-             &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
+             &  config(iconfig), single_level, thermodynamics, gas, cloud, aerosol, flux)
       else
         nblock = (int(ncol) - 1 + int(nblocksize)) / int(nblocksize)
         !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
@@ -318,29 +334,29 @@ module ecrad4py
           istartcol = (jblock - 1) * int(nblocksize) + 1
           iendcol = min(istartcol + int(nblocksize) - 1, int(ncol))
           call radiation(int(ncol), int(nlev), istartcol, iendcol, &
-               &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
+               &  config(iconfig), single_level, thermodynamics, gas, cloud, aerosol, flux)
         enddo
       endif
     
       ! --------------------------------------------------------
       ! Output
       ! --------------------------------------------------------
-      if (config%i_gas_model_lw == IGasModelMonochromatic .and. &
-         &config%mono_lw_wavelength > 0.0_jprb) then
+      if (config(iconfig)%i_gas_model_lw == IGasModelMonochromatic .and. &
+         &config(iconfig)%mono_lw_wavelength > 0.0_jprb) then
           call radiation_abort('lw flux unit is W m-3')
       endif
     
-      if (config%do_lw) then
+      if (config(iconfig)%do_lw) then
         lw_up = flux%lw_up
         lw_dn = flux%lw_dn
-        if (config%do_clear) then
+        if (config(iconfig)%do_clear) then
           lw_up_clear = flux%lw_up_clear
           lw_dn_clear = flux%lw_dn_clear
         else
           lw_up_clear = ieee_value(lw_up_clear, ieee_quiet_nan)
           lw_dn_clear = ieee_value(lw_dn_clear, ieee_quiet_nan)
         endif
-        if (config%do_clouds) then
+        if (config(iconfig)%do_clouds) then
           cloud_cover_lw = flux%cloud_cover_lw
         else
           cloud_cover_lw = ieee_value(cloud_cover_lw, ieee_quiet_nan)
@@ -352,17 +368,17 @@ module ecrad4py
         lw_dn_clear = ieee_value(lw_dn_clear, ieee_quiet_nan)
         cloud_cover_lw = ieee_value(cloud_cover_lw, ieee_quiet_nan)
       endif
-      if (config%do_sw) then
+      if (config(iconfig)%do_sw) then
          sw_up = flux%sw_up
          sw_dn = flux%sw_dn
-         if (config%do_clear) then
+         if (config(iconfig)%do_clear) then
            sw_up_clear = flux%sw_up_clear
            sw_dn_clear = flux%sw_dn_clear
          else
            sw_up_clear = ieee_value(sw_up_clear, ieee_quiet_nan)
            sw_dn_clear = ieee_value(sw_dn_clear, ieee_quiet_nan)
          endif
-         if (config%do_clouds) then
+         if (config(iconfig)%do_clouds) then
           cloud_cover_sw = flux%cloud_cover_sw
         else
           cloud_cover_sw = ieee_value(cloud_cover_sw, ieee_quiet_nan)
@@ -374,7 +390,7 @@ module ecrad4py
         sw_dn_clear = ieee_value(sw_dn_clear, ieee_quiet_nan)
         cloud_cover_sw = ieee_value(cloud_cover_sw, ieee_quiet_nan)
       endif
-      if (config%do_clouds) then
+      if (config(iconfig)%do_clouds) then
         deallocate(cloud%mixing_ratio)
         deallocate(cloud%effective_radius)
       endif

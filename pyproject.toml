@@ -7,6 +7,8 @@ name = "pyecrad"
 dynamic = ["version"]
 dependencies = ["ctypesForFortran >=1.3.0, !=2.0.*, !=2.1.*",
                 "numpy",
+                "f90nml",
+                "netCDF4",
                ]
 authors = [
   {name = "Sébastien Riette", email = "sebastien.riette@meteo.fr" },
