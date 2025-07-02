@@ -9,7 +9,7 @@
 
 set( ifsaux_SOURCES
         yomcst.F90
-        yomdyncore.F90
+        yomdyncore_ecrad.F90
         yomlun_ifsaux.F90
         yomlun.F90
         yommp0_ifsaux.F90
