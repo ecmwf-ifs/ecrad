@@ -28,6 +28,7 @@ ecbuild_add_executable(
         ecrad_driver.F90
     LIBS
         driver_lib.${PREC}
+    LINKER_LANGUAGE Fortran
 )
 
 ecbuild_add_executable(
@@ -37,6 +38,7 @@ ecbuild_add_executable(
     LIBS
         ifs.${PREC}
         driver_lib.${PREC}
+    LINKER_LANGUAGE Fortran
 )
 
 ecbuild_add_executable(
@@ -47,6 +49,7 @@ ecbuild_add_executable(
     LIBS
         ifs.${PREC}
         driver_lib.${PREC}
+    LINKER_LANGUAGE Fortran
 )
 
 # For ecrad_ifs_driver_blocked we have to disable bounds checking
