@@ -57,17 +57,17 @@ if( CMAKE_BUILD_TYPE MATCHES "Debug" )
     if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
         set_source_files_properties(
             "ecrad_ifs_driver_blocked.F90"
-            PROPERTIES COMPILE_FLAGS "-fcheck=no-bounds"
+            PROPERTIES COMPILE_OPTIONS "-fcheck=no-bounds"
         )
     elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
         set_source_files_properties(
             "ecrad_ifs_driver_blocked.F90"
-            PROPERTIES COMPILE_FLAGS "-check nobounds"
+            PROPERTIES COMPILE_OPTIONS "-check nobounds"
         )
     elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC")
         set_source_files_properties(
             "ecrad_ifs_driver_blocked.F90"
-            PROPERTIES COMPILE_FLAGS "-Mnobounds"
+            PROPERTIES COMPILE_OPTIONS "-Mnobounds"
         )
     endif()
 endif()
