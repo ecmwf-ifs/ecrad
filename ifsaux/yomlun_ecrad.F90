@@ -7,7 +7,7 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
 
-MODULE YOMLUN
+MODULE YOMLUN_ECRAD
 
 USE PARKIND1,      ONLY : JPIM
 USE YOMLUN_IFSAUX, ONLY : NULOUT, NULERR
@@ -21,4 +21,4 @@ SAVE
 INTEGER(KIND=JPIM) :: NULRAD = 25
 
 !     ------------------------------------------------------------------
-END MODULE YOMLUN
+END MODULE YOMLUN_ECRAD

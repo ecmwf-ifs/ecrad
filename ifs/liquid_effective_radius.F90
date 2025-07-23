@@ -34,7 +34,7 @@ USE PARKIND1 , ONLY : JPIM, JPRB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOERAD   , ONLY : TERAD
 USE YOERDU   , ONLY : REPLOG, REPSCW
-USE YOMLUN   , ONLY : NULERR
+USE YOMLUN_ECRAD  , ONLY : NULERR
 USE YOMCST   , ONLY : RD, RPI
 
 ! -------------------------------------------------------------------

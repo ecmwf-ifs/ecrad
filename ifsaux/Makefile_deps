@@ -2,6 +2,6 @@ abor1.o: parkind1.o yomlun_ifsaux.o
 mpl_module.o: parkind1.o
 yomcst.o: parkind1.o
 yomdyncore_ecrad.o: parkind1.o
-yomlun.o: parkind1.o yomlun_ifsaux.o
+yomlun_ecrad.o: parkind1.o yomlun_ifsaux.o
 yomlun_ifsaux.o: parkind1.o
 yomtag.o: parkind1.o

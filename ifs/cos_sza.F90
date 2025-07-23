@@ -1,6 +1,6 @@
 SUBROUTINE COS_SZA(KSTART,KEND,KCOL,PGEMU,PGELAM,LDRADIATIONTIMESTEP,PMU0)
 
-!**** *COS_SZA*   
+!**** *COS_SZA*
 !
 ! (C) Copyright 2015- ECMWF.
 !
@@ -28,7 +28,7 @@ SUBROUTINE COS_SZA(KSTART,KEND,KCOL,PGEMU,PGELAM,LDRADIATIONTIMESTEP,PMU0)
 !     ----------
 !        *CALL* *COS_SZA(...)
 
-!        Explicit arguments : 
+!        Explicit arguments :
 !        ------------------
 !            PGEMU - Sine of latitude
 !            PGELAM - Geographic longitude in radians
@@ -82,7 +82,7 @@ USE YOMCST   , ONLY : RPI, RDAY
 USE YOMRIP   , ONLY : YRRIP
 USE YOERIP   , ONLY : YRERIP
 USE YOERAD   , ONLY : YRERAD
-USE YOMLUN   , ONLY : NULOUT
+USE YOMLUN_ECRAD  , ONLY : NULOUT
 
 !     ------------------------------------------------------------------
 
@@ -189,7 +189,7 @@ IF (LDRADIATIONTIMESTEP) THEN
         ! range 0 to 2PI)
         IF (YRERIP%RWSOVRM + PGELAM(JCOL) < 2.0_JPRB*RPI) THEN
           ZHOURANGLESTART = ZSOLARTIMESTART + PGELAM(JCOL) - RPI
-          ZHOURANGLEEND   = ZSOLARTIMEEND   + PGELAM(JCOL) - RPI 
+          ZHOURANGLEEND   = ZSOLARTIMEEND   + PGELAM(JCOL) - RPI
         ELSE
           ZHOURANGLESTART = ZSOLARTIMESTART + PGELAM(JCOL) - 3.0_JPRB*RPI
           ZHOURANGLEEND   = ZSOLARTIMEEND   + PGELAM(JCOL) - 3.0_JPRB*RPI
@@ -288,7 +288,7 @@ ELSE
         ! range 0 to 2PI)
         IF (YRRIP%RWSOVR + PGELAM(JCOL) < 2.0_JPRB*RPI) THEN
           ZHOURANGLESTART = ZSOLARTIMESTART + PGELAM(JCOL) - RPI
-          ZHOURANGLEEND   = ZSOLARTIMEEND   + PGELAM(JCOL) - RPI 
+          ZHOURANGLEEND   = ZSOLARTIMEEND   + PGELAM(JCOL) - RPI
         ELSE
           ZHOURANGLESTART = ZSOLARTIMESTART + PGELAM(JCOL) - 3.0_JPRB*RPI
           ZHOURANGLEEND   = ZSOLARTIMEEND   + PGELAM(JCOL) - 3.0_JPRB*RPI
