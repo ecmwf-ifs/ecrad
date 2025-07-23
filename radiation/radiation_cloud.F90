@@ -382,7 +382,7 @@ contains
       ! !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1) IF(LLACC)
     ! end if
 
-    !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1)
+    !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1) IF(LLACC)
     if (thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1)) then
       ! Pressure is increasing with index (order of layers is
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
