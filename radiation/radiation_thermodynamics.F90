@@ -210,7 +210,7 @@ contains
   !---------------------------------------------------------------------
   ! Calculate the dry mass of each layer, neglecting humidity effects.
   ! The first version is for all columns.
-  subroutine get_layer_mass(this,istartcol,iendcol,layer_mass)
+  subroutine get_layer_mass(this,istartcol,iendcol,layer_mass,lacc)
 
     use yomhook,              only : lhook, dr_hook, jphook
     use radiation_constants,  only : AccelDueToGravity
@@ -218,18 +218,26 @@ contains
     class(thermodynamics_type), intent(in)  :: this
     integer,                    intent(in)  :: istartcol, iendcol
     real(jprb),                 intent(out) :: layer_mass(istartcol:iendcol,ubound(this%pressure_hl,2))
+    logical, optional,          intent(in)  :: lacc
 
     integer    :: nlev, jl, jk
     real(jprb) :: inv_g
+    logical    :: llacc
 
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',0,hook_handle)
 
+    if (present(lacc)) then
+        llacc = lacc
+    else
+        llacc = .false.
+    endif
+
     nlev  = ubound(this%pressure_hl,2) - 1
     inv_g = 1.0_jprb / AccelDueToGravity
 
-    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
+    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     DO jl=istartcol, iendcol
       DO jk=1, nlev
