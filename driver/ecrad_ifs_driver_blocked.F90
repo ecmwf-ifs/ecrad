@@ -529,6 +529,14 @@ program ecrad_ifs_driver
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
 
+  ! Clean up temporary derived types
+  call single_level%deallocate()
+  call thermodynamics%deallocate()
+  call gas%deallocate()
+  call cloud%deallocate()
+  call aerosol%deallocate()
+  call flux%deallocate()
+
   ! Finalise MPI if not done yet
 #ifdef HAVE_FIAT
   call mpl_end(ldmeminfo=.false.)
