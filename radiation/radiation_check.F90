@@ -73,7 +73,7 @@ contains
       end if
 
     end if
-    
+
   end function out_of_bounds_1d
 
 
@@ -83,7 +83,7 @@ contains
   ! check only a subset of the array, specify i1 and i2 for the range
   ! of the first dimension and j1 and j2 for the range of the second.
   function out_of_bounds_2d(var, var_name, boundmin, boundmax, do_fix, &
-       &                    i1, i2, j1, j2) result (is_bad)
+       &                    i1, i2, j1, j2, lacc) result (is_bad)
 
     use radiation_io,     only : nulout
 
@@ -92,17 +92,27 @@ contains
     real(jprb),              intent(in) :: boundmin, boundmax
     logical,                 intent(in) :: do_fix
     integer,       optional, intent(in) :: i1, i2, j1, j2
+    logical,       optional, intent(in) :: lacc
 
     ! Local copies of indices
     integer :: ii1, ii2, jj1, jj2
 
     logical                       :: is_bad
+    logical                       :: llacc
 
     real(jprb) :: varmin, varmax
+
+    if (present(lacc)) then
+      llacc = lacc
+    else
+      llacc = .false.
+    endif
 
     is_bad = .false.
 
     if (allocated(var)) then
+
+      !$ACC update host(var) if(llacc) wait(1)
 
       if (present(i1) .and. present(i2)) then
         ii1 = i1
@@ -118,24 +128,30 @@ contains
         jj1 = lbound(var,2)
         jj2 = ubound(var,2)
       end if
-      varmin = minval(var(ii1:ii2,jj1:jj2))
-      varmax = maxval(var(ii1:ii2,jj1:jj2))
 
-      if (varmin < boundmin .or. varmax > boundmax) then
-        write(nulout,'(a,a,a,g12.4,a,g12.4,a,g12.4,a,g12.4)',advance='no') &
-             &  '*** Warning: ', var_name, ' range', varmin, ' to', varmax,&
-             &  ' is out of physical range', boundmin, 'to', boundmax
+      if (any(var(ii1:ii2,jj1:jj2) /= var(ii1:ii2,jj1:jj2))) then
+        write(nulout,'(a,a,a)') '*** Warning: ', var_name, ' contains NaN'
         is_bad = .true.
-        if (do_fix) then
-          var(ii1:ii2,jj1:jj2) = max(boundmin, min(boundmax, var(ii1:ii2,jj1:jj2)))
-          write(nulout,'(a)') ': corrected'
-        else
-          write(nulout,'(1x)')
+      else
+        varmin = minval(var(ii1:ii2,jj1:jj2))
+        varmax = maxval(var(ii1:ii2,jj1:jj2))
+
+        if (varmin < boundmin .or. varmax > boundmax) then
+          write(nulout,'(a,a,a,g12.4,a,g12.4,a,g12.4,a,g12.4)',advance='no') &
+              &  '*** Warning: ', var_name, ' range', varmin, ' to', varmax,&
+              &  ' is out of physical range', boundmin, 'to', boundmax
+          is_bad = .true.
+          if (do_fix) then
+            var(ii1:ii2,jj1:jj2) = max(boundmin, min(boundmax, var(ii1:ii2,jj1:jj2)))
+            write(nulout,'(a)') ': corrected'
+          else
+            write(nulout,'(1x)')
+          end if
         end if
       end if
 
     end if
-    
+
   end function out_of_bounds_2d
 
 
@@ -206,7 +222,7 @@ contains
       end if
 
     end if
-    
+
   end function out_of_bounds_3d
 
 end module radiation_check

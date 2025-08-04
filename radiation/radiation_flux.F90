@@ -782,29 +782,32 @@ contains
   ! Return .true. if the most important flux variables are out of a
   ! physically sensible range, optionally only considering columns
   ! between istartcol and iendcol
-  function out_of_physical_bounds(this, istartcol, iendcol) result(is_bad)
+  function out_of_physical_bounds(this, istartcol, iendcol, lacc) result(is_bad)
 
     use yomhook,          only : lhook, dr_hook, jphook
     use radiation_check,  only : out_of_bounds_2d
 
     class(flux_type), intent(inout) :: this
     integer, optional,intent(in) :: istartcol, iendcol
+    logical, optional,intent(in) :: lacc
     logical                      :: is_bad
 
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:out_of_physical_bounds',0,hook_handle)
 
-    is_bad =    out_of_bounds_2d(this%lw_up, 'lw_up', 10.0_jprb, 900.0_jprb, .false., i1=istartcol, i2=iendcol) &
-         & .or. out_of_bounds_2d(this%lw_dn, 'lw_dn', 0.0_jprb,  800.0_jprb, .false., i1=istartcol, i2=iendcol) &
-         & .or. out_of_bounds_2d(this%sw_up, 'sw_up', 0.0_jprb, 1500.0_jprb, .false., i1=istartcol, i2=iendcol) &
-         & .or. out_of_bounds_2d(this%sw_dn, 'sw_dn', 0.0_jprb, 1500.0_jprb, .false., i1=istartcol, i2=iendcol) &
-         & .or. out_of_bounds_2d(this%sw_dn_direct, 'sw_dn_direct', 0.0_jprb, 1500.0_jprb, .false., i1=istartcol, i2=iendcol) &
-         & .or. out_of_bounds_2d(this%lw_derivatives, 'lw_derivatives', 0.0_jprb, 1.0_jprb, .false., i1=istartcol, i2=iendcol) &
+    is_bad =    out_of_bounds_2d(this%lw_up, 'lw_up', 10.0_jprb, 900.0_jprb, .false., i1=istartcol, i2=iendcol, lacc=lacc) &
+         & .or. out_of_bounds_2d(this%lw_dn, 'lw_dn', 0.0_jprb,  800.0_jprb, .false., i1=istartcol, i2=iendcol, lacc=lacc) &
+         & .or. out_of_bounds_2d(this%sw_up, 'sw_up', 0.0_jprb, 1500.0_jprb, .false., i1=istartcol, i2=iendcol, lacc=lacc) &
+         & .or. out_of_bounds_2d(this%sw_dn, 'sw_dn', 0.0_jprb, 1500.0_jprb, .false., i1=istartcol, i2=iendcol, lacc=lacc) &
+         & .or. out_of_bounds_2d(this%sw_dn_direct, 'sw_dn_direct', 0.0_jprb, 1500.0_jprb, &
+         &                       .false., i1=istartcol, i2=iendcol, lacc=lacc) &
+         & .or. out_of_bounds_2d(this%lw_derivatives, 'lw_derivatives', 0.0_jprb, 1.0_jprb, &
+         &                       .false., i1=istartcol, i2=iendcol, lacc=lacc) &
          & .or. out_of_bounds_2d(this%sw_dn_surf_band, 'sw_dn_surf_band', 0.0_jprb, 1500.0_jprb, &
-         &                       .false., j1=istartcol, j2=iendcol) &
+         &                       .false., j1=istartcol, j2=iendcol, lacc=lacc) &
          & .or. out_of_bounds_2d(this%sw_dn_surf_clear_band, 'sw_dn_surf_clear_band', 0.0_jprb, 1500.0_jprb, &
-         &                       .false., j1=istartcol, j2=iendcol)
+         &                       .false., j1=istartcol, j2=iendcol, lacc=lacc)
 
     if (lhook) call dr_hook('radiation_flux:out_of_physical_bounds',1,hook_handle)
 
