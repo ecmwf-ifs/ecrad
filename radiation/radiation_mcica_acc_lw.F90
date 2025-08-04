@@ -172,6 +172,13 @@ contains
       call radiation_abort()
     end if
 
+#ifdef _OPENACC
+    if (config%do_lw_aerosol_scattering) then
+      write(nulerr,'(a)') '*** Error: No support for longwave aerosol scattering on GPU'
+      call radiation_abort()
+    end if
+#endif
+
     ng = config%n_g_lw
 
     !$ACC DATA CREATE(flux_up, flux_dn, flux_up_clear, flux_dn_clear, &
@@ -464,10 +471,9 @@ contains
           call adding_ica_lw(ng, nlev, reflectance, transmittance, source_up, source_dn, &
                &  emission(:,jcol), albedo(:,jcol), &
                &  flux_up(:,:,jcol), flux_dn(:,:,jcol))
-        else if (config%do_lw_cloud_scattering) then
-#else
-        if(config%do_lw_cloud_scattering) then
+        else
 #endif
+        if(config%do_lw_cloud_scattering) then
           ! Use adding method to compute fluxes but optimize for the
           ! presence of clear-sky layers
           call fast_adding_ica_lw(ng, nlev, reflectance, transmittance, source_up, source_dn, &
@@ -483,6 +489,9 @@ contains
                &  transmittance, source_up, source_dn, emission(:,jcol), albedo(:,jcol), &
                &  flux_up(:,:,jcol), flux_dn(:,:,jcol))
         end if
+#ifndef _OPENACC
+        end if
+#endif
 
         ! Cloudy flux profiles currently assume completely overcast
         ! skies; perform weighted average with clear-sky profile
