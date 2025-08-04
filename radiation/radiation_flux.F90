@@ -427,6 +427,10 @@ contains
     ! canopy fluxes
     real(jprb) :: lw_dn_surf_band(config%n_bands_lw,istartcol:iendcol)
 
+    ! Indirect indexing temporaries
+    integer :: i_emiss_from_reordered_g_lw(config%n_g_lw)
+    integer :: i_albedo_from_reordered_g_sw(config%n_g_sw)
+
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',0,hook_handle)
@@ -517,12 +521,19 @@ contains
         end do
         !$ACC END PARALLEL
       else if (config%do_nearest_spectral_sw_albedo) then
+        !$ACC DATA CREATE(i_albedo_from_reordered_g_sw)
+        !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
+        !$ACC LOOP GANG VECTOR
+        do jg = 1,config%n_g_sw
+          i_albedo_from_reordered_g_sw(jg) = config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw(jg))
+        end do
+        !$ACC END PARALLEL
         if (use_indexed_sum_vec) then
           call indexed_sum_vec(this%sw_dn_direct_surf_g, &
-               &               config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
+               &               i_albedo_from_reordered_g_sw, &
                &               this%sw_dn_direct_surf_canopy, istartcol, iendcol)
           call indexed_sum_vec(this%sw_dn_diffuse_surf_g, &
-               &               config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
+               &               i_albedo_from_reordered_g_sw, &
                &               this%sw_dn_diffuse_surf_canopy, istartcol, iendcol)
         else
           !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
@@ -530,14 +541,15 @@ contains
           !$ACC LOOP GANG
           do jcol = istartcol,iendcol
             call indexed_sum(this%sw_dn_direct_surf_g(:,jcol), &
-                 &           config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
+                 &           i_albedo_from_reordered_g_sw, &
                  &           this%sw_dn_direct_surf_canopy(:,jcol))
             call indexed_sum(this%sw_dn_diffuse_surf_g(:,jcol), &
-                 &           config%i_albedo_from_band_sw(config%i_band_from_reordered_g_sw), &
+                 &           i_albedo_from_reordered_g_sw, &
                  &           this%sw_dn_diffuse_surf_canopy(:,jcol))
           end do
           !$ACC END PARALLEL
         end if
+        !$ACC END DATA
       else
         ! More accurate calculations using weights, but requires
         ! this%sw_dn_[direct_]surf_band to be defined, i.e.
@@ -597,37 +609,32 @@ contains
         end do
         !$ACC END PARALLEL
       else if (config%do_nearest_spectral_lw_emiss) then
+        !$ACC DATA CREATE(i_emiss_from_reordered_g_lw)
+        !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
+        !$ACC LOOP GANG VECTOR
+        do jg = 1,config%n_g_lw
+          i_emiss_from_reordered_g_lw(jg) = config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw(jg))
+        end do
+        !$ACC END PARALLEL
         if (use_indexed_sum_vec) then
           call indexed_sum_vec(this%lw_dn_surf_g, &
-               &               config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
+               &               i_emiss_from_reordered_g_lw, &
                &               this%lw_dn_surf_canopy, istartcol, iendcol)
+              !  &               config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
         else
-#ifdef _OPENACC
+!          !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) VECTOR_LENGTH(1)
           !$ACC PARALLEL DEFAULT(PRESENT) &
           !$ACC    NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC    VECTOR_LENGTH(32*(config%n_g_lw-1)/32+1) ASYNC(1)
-                    !$ACC LOOP GANG
-          do jcol = istartcol,iendcol
-            ! Inlined indexed_sum because of an on-device segfault due to the nested
-            ! array index-subscript passed as `ind` to indexed_sum
-            this%lw_dn_surf_canopy(:,jcol) = 0.0
-            !$ACC LOOP VECTOR
-            do jg = 1,config%n_g_lw
-              jband = config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw(jg))
-              !$ACC ATOMIC UPDATE
-              this%lw_dn_surf_canopy(jband,jcol) = this%lw_dn_surf_canopy(jband,jcol) + this%lw_dn_surf_g(jg,jcol)
-              !$ACC END ATOMIC
-            end do
-          end do
-          !$ACC END PARALLEL
-#else
+          !$ACC LOOP GANG
           do jcol = istartcol,iendcol
             call indexed_sum(this%lw_dn_surf_g(:,jcol), &
-                 &           config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
+               &             i_emiss_from_reordered_g_lw, &
                  &           this%lw_dn_surf_canopy(:,jcol))
           end do
-#endif
+          !$ACC END PARALLEL
         end if
+        !$ACC END DATA
       else
         !$ACC DATA CREATE(lw_dn_surf_band) ASYNC(1)
         ! Compute fluxes in each longwave emissivity interval using
@@ -899,7 +906,7 @@ contains
     istart = lbound(source,1)
     iend   = ubound(source,1)
 
-    !$ACC LOOP VECTOR
+    !$ACC LOOP VECTOR PRIVATE(ig)
     do jg = istart, iend
       ig = ind(jg)
       !$ACC ATOMIC UPDATE
