@@ -237,7 +237,6 @@ add_ecrad_ifs_test(
 		"do_3d_effects=true"
 		"do_sw_delta_scaling_with_gases=false"
     ENABLED ON
-    XFAIL_VALIDATION
 )
 
 # 3D radiative transfer using the older "maximum entrapment"
@@ -250,7 +249,6 @@ add_ecrad_ifs_test(
 		"sw_entrapment_name=\\\"Maximum\\\""
 		"do_sw_delta_scaling_with_gases=false"
     ENABLED ON
-    XFAIL_VALIDATION
 )
 
 # "Cloudless" solver
@@ -304,7 +302,7 @@ add_ecrad_ifs_test(
     ENABLED ON
 )
 
-# ecCKD gas optics with SPARTACUS solver (not currently correct)
+# ecCKD gas optics with SPARTACUS solver
 add_ecrad_ifs_test(
     NAME ecckd_spartacus
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
@@ -312,6 +310,7 @@ add_ecrad_ifs_test(
         "sw_solver_name=\\\"SPARTACUS\\\""
         "lw_solver_name=\\\"SPARTACUS\\\""
         "do_3d_effects=true"
+    SW_THRESHOLD 1e-10
+    LW_THRESHOLD 1e-8
     ENABLED ON
-    XFAIL_VALIDATION
 )
