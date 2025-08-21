@@ -20,7 +20,7 @@ SAVE
 ! Aqua planet?
 LOGICAL, PARAMETER :: LAQUA = .false.
 ! Small-planet factor
-REAL(KIND=JPRB)    :: RPLRG = 1.0
+REAL(KIND=JPRB), PARAMETER :: RPLRG = 1.0_JPRB
 
 
 END MODULE YOMDYNCORE_ECRAD

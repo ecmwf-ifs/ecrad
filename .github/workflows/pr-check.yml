@@ -1,0 +1,38 @@
+name: check-pr
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [ master, develop ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-pr:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: 0.6.12
+          enable-cache: false
+
+      - name: Install prtk
+        env:
+            PRTK_READ_ACCESS_TOKEN: ${{ secrets.PRTK_READ_ACCESS }}
+        run: |
+          uv tool install "git+https://${PRTK_READ_ACCESS_TOKEN}@github.com/ecmwf-ifs/prtk"
+
+      - name: Assign reviewers
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          prtk assign-reviewers --pr-number ${{ github.event.pull_request.number }}
