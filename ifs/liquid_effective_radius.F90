@@ -1,12 +1,4 @@
-SUBROUTINE LIQUID_EFFECTIVE_RADIUS &
-     & (YDERAD,KIDIA, KFDIA, KLON, KLEV, &
-     &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_LIQ, PQ_RAIN, &
-     &  PLAND_FRAC, PCCN_LAND, PCCN_SEA, &
-     &  PRE_UM) !, PPERT)
-
-! LIQUID_EFFECTIVE_RADIUS
-!
-! (C) Copyright 2015- ECMWF.
+! (C) Copyright 2005- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -14,6 +6,14 @@ SUBROUTINE LIQUID_EFFECTIVE_RADIUS &
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+!
+SUBROUTINE LIQUID_EFFECTIVE_RADIUS &
+     & (YDERAD, KIDIA, KFDIA, KLON, KLEV, &
+     &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_LIQ, PQ_RAIN, &
+     &  PLAND_FRAC, PCCN_LAND, PCCN_SEA, &
+     &  PRE_UM, LACC)
+
+! LIQUID_EFFECTIVE_RADIUS
 !
 ! PURPOSE
 ! -------
@@ -27,7 +27,9 @@ SUBROUTINE LIQUID_EFFECTIVE_RADIUS &
 ! MODIFICATIONS
 ! -------------
 !
-!
+!   M Leutbecher (Oct 2020) SPP abstraction
+!   L Descamps   (Jul 2023) 3 hard-coded values transformed in YDERAD parameters
+!   for MF EPS Random parameters
 ! -------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB
@@ -66,6 +68,10 @@ REAL(KIND=JPRB),   INTENT(IN) :: PCCN_SEA(KLON)
 ! Effective radius
 REAL(KIND=JPRB),  INTENT(OUT) :: PRE_UM(KLON,KLEV) ! (microns)
 
+! OPTIONAL INPUT ARGUMENT
+
+LOGICAL,          INTENT(IN), OPTIONAL :: LACC
+
 ! PARAMETERS
 
 ! Minimum and maximum effective radius, in microns
@@ -86,6 +92,8 @@ REAL(KIND=JPRB) :: ZWOOD_FACTOR, ZRATIO
 
 INTEGER(KIND=JPIM) :: JL, JK
 
+LOGICAL :: LLACC
+
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 ! -------------------------------------------------------------------
@@ -98,12 +106,16 @@ IF (LHOOK) CALL DR_HOOK('LIQUID_EFFECTIVE_RADIUS',0,ZHOOK_HANDLE)
 
 ! -------------------------------------------------------------------
 
-IRADLP=YDERAD%NRADLP
+! Liquid optical properties from namelist / suecrad.F90
+IRADLP = YDERAD%NRADLP
+
+LLACC = .FALSE.
+IF (PRESENT(LACC)) LLACC = LACC
 
 SELECT CASE(IRADLP)
 CASE(0)
   ! Very old parameterization as a function of pressure, used in ERA-15
-  !$ACC KERNELS DEFAULT(NONE) PRESENT(PRE_UM, PPRESSURE)
+  !$ACC KERNELS DEFAULT(NONE) PRESENT(PRE_UM, PPRESSURE) ASYNC(1) IF(LLACC)
   PRE_UM(KIDIA:KFDIA,:) = 10.0_JPRB&
        &  + (100000.0_JPRB-PPRESSURE(KIDIA:KFDIA,:))*3.5_JPRB
   !$ACC END KERNELS
@@ -111,7 +123,7 @@ CASE(0)
 CASE(1)
   ! Simple distinction between land (10um) and ocean (13um) by Zhang
   ! and Rossow
-  !$ACC PARALLEL DEFAULT(NONE) PRESENT(PRE_UM, PLAND_FRAC) ASYNC(1)
+  !$ACC PARALLEL DEFAULT(NONE) PRESENT(PRE_UM, PLAND_FRAC) ASYNC(1) IF(LLACC)
   !$ACC LOOP GANG VECTOR
   DO JL = KIDIA,KFDIA
     IF (PLAND_FRAC(JL) < 0.5_JPRB) THEN
@@ -125,7 +137,7 @@ CASE(1)
 CASE(2)
   ! Martin et al. (JAS 1994)
   !$ACC PARALLEL DEFAULT(NONE) PRESENT(PLAND_FRAC, YDERAD, PCCN_SEA, PCCN_LAND, &
-  !$ACC     PQ_LIQ, PQ_RAIN, PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PRE_UM) ASYNC(1)
+  !$ACC     PQ_LIQ, PQ_RAIN, PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PRE_UM) ASYNC(1) IF(LLACC)
   !$ACC LOOP GANG VECTOR PRIVATE(ZCCN, ZSPECTRAL_DISPERSION, ZNTOT_CM3, ZRATIO, &
   !$ACC     ZAIR_DENSITY_GM3, ZLWC_GM3, ZRWC_GM3, ZRAIN_RATIO, ZWOOD_FACTOR, ZRE_CUBED)
   DO JL = KIDIA,KFDIA
@@ -137,7 +149,8 @@ CASE(2)
       ELSE
         ZCCN = YDERAD%RCCNSEA
       ENDIF
-      ZSPECTRAL_DISPERSION = 0.77_JPRB
+     ZSPECTRAL_DISPERSION = 0.77_JPRB
+      ! ZSPECTRAL_DISPERSION = YDERAD%RRATSEA
       ! Cloud droplet concentration in cm-3 (activated CCN) over
       ! ocean
       ZNTOT_CM3 = -1.15E-03_JPRB*ZCCN*ZCCN + 0.963_JPRB*ZCCN + 5.30_JPRB
@@ -148,13 +161,15 @@ CASE(2)
       ELSE
         ZCCN=YDERAD%RCCNLND
       ENDIF
-      ZSPECTRAL_DISPERSION = 0.69_JPRB
+     ZSPECTRAL_DISPERSION = 0.69_JPRB
+      ! ZSPECTRAL_DISPERSION = YDERAD%RRATLAND
       ! Cloud droplet concentration in cm-3 (activated CCN) over
       ! land
       ZNTOT_CM3 = -2.10E-04_JPRB*ZCCN*ZCCN + 0.568_JPRB*ZCCN - 27.9_JPRB
     ENDIF
 
-    ZRATIO = (0.222_JPRB/ZSPECTRAL_DISPERSION)**0.333_JPRB
+   ZRATIO = (0.222_JPRB/ZSPECTRAL_DISPERSION)**0.333_JPRB
+    ! ZRATIO = (YDERAD%RRATDRI/ZSPECTRAL_DISPERSION)**0.333_JPRB
 
     !$ACC LOOP SEQ
     DO JK = 1,KLEV

@@ -1,10 +1,4 @@
-SUBROUTINE CLOUD_OVERLAP_DECORR_LEN &
-     & (KIDIA, KFDIA, KLON, PGEMU, KDECOLAT, &
-     &  PDECORR_LEN_EDGES_KM, PDECORR_LEN_WATER_KM, PDECORR_LEN_RATIO)
-
-! CLOUD_OVERLAP_DECORR_LEN
-!
-! (C) Copyright 2016- ECMWF.
+! (C) Copyright 2005- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -12,6 +6,12 @@ SUBROUTINE CLOUD_OVERLAP_DECORR_LEN &
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+
+SUBROUTINE CLOUD_OVERLAP_DECORR_LEN &
+     & (KIDIA, KFDIA, KLON, PGEMU, KDECOLAT, &
+     &  PDECORR_LEN_EDGES_KM, PDECORR_LEN_WATER_KM, PDECORR_LEN_RATIO, LACC)
+
+! CLOUD_OVERLAP_DECORR_LEN
 !
 ! PURPOSE
 ! -------
@@ -29,6 +29,9 @@ SUBROUTINE CLOUD_OVERLAP_DECORR_LEN &
 !
 ! MODIFICATIONS
 ! -------------
+! -------------
+! L. Descamps, M-F, Feb 2020 : Two hard-coded values are tranformed into
+! parameters that can be perturbed in random parameters scheme for PEARP
 !
 ! -------------------------------------------------------------------
 
@@ -64,11 +67,15 @@ REAL(KIND=JPRB), INTENT(OUT), OPTIONAL :: PDECORR_LEN_WATER_KM(KLON)
 ! Ratio of water-content to cloud-edge decorrelation lengths
 REAL(KIND=JPRB), INTENT(OUT), OPTIONAL :: PDECORR_LEN_RATIO
 
+LOGICAL,         INTENT(IN),  OPTIONAL :: LACC
+
 ! LOCAL VARIABLES
 
 REAL(KIND=JPRB) :: ZRADIANS_TO_DEGREES, ZABS_LAT_DEG, ZCOS_LAT
 
 INTEGER(KIND=JPIM) :: JL
+
+LOGICAL :: LLACC
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
@@ -76,12 +83,18 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 IF (LHOOK) CALL DR_HOOK('CLOUD_OVERLAP_DECORR_LEN',0,ZHOOK_HANDLE)
 
+IF (PRESENT(LACC)) THEN
+  LLACC = LACC
+ELSE
+  LLACC = .FALSE.
+ENDIF
+
 ! -------------------------------------------------------------------
 
 IF (KDECOLAT == 0) THEN
 
   ! Decorrelation lengths are constant values
-  !$ACC KERNELS DEFAULT(PRESENT) ASYNC(1)
+  !$ACC KERNELS DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
   PDECORR_LEN_EDGES_KM(KIDIA:KFDIA) = RDECORR_CF
   IF (PRESENT(PDECORR_LEN_WATER_KM)) THEN
     PDECORR_LEN_WATER_KM(KIDIA:KFDIA) = RDECORR_CW
@@ -97,7 +110,7 @@ ELSE
 
   IF (KDECOLAT == 1) THEN
     ! Shonk et al. (2010) Eq. 13 formula
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(PGEMU, PDECORR_LEN_EDGES_KM) ASYNC(1)
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(PGEMU, PDECORR_LEN_EDGES_KM) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR PRIVATE(ZABS_LAT_DEG)
     DO JL = KIDIA,KFDIA
       ZABS_LAT_DEG = ABS(ASIN(PGEMU(JL)) * ZRADIANS_TO_DEGREES)
@@ -105,27 +118,28 @@ ELSE
     ENDDO
     !$ACC END PARALLEL
   ELSE ! KDECOLAT == 2
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(PGEMU, PDECORR_LEN_EDGES_KM) ASYNC(1)
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(PGEMU, PDECORR_LEN_EDGES_KM) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR PRIVATE(ZCOS_LAT)
     DO JL = KIDIA,KFDIA
       ! Shonk et al. (2010) but smoothed over the equator
       ZCOS_LAT = COS(ASIN(PGEMU(JL)))
-      PDECORR_LEN_EDGES_KM(JL) = 0.75_JPRB + 2.149_JPRB * ZCOS_LAT*ZCOS_LAT
+     PDECORR_LEN_EDGES_KM(JL) = 0.75_JPRB + (2.149_JPRB * ZCOS_LAT*ZCOS_LAT)
+      ! PDECORR_LEN_EDGES_KM(JL) =ZCA+(ZCB*ZCOS_LAT*ZCOS_LAT)
     ENDDO
     !$ACC END PARALLEL
   ENDIF
 
   ! Both KDECOLAT = 1 and 2 assume that the decorrelation length for
   ! cloud water content is half that for cloud edges
-  !$ACC KERNELS DEFAULT(PRESENT) ASYNC(1)
   IF (PRESENT(PDECORR_LEN_WATER_KM)) THEN
+  !$ACC KERNELS DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     PDECORR_LEN_WATER_KM(KIDIA:KFDIA) = PDECORR_LEN_EDGES_KM(KIDIA:KFDIA) * 0.5_JPRB
+  !$ACC END KERNELS
   ENDIF
 
   IF (PRESENT(PDECORR_LEN_RATIO)) THEN
     PDECORR_LEN_RATIO = 0.5_JPRB
   ENDIF
-  !$ACC END KERNELS
 
 ENDIF
 

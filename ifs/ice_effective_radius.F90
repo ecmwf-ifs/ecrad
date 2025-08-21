@@ -1,11 +1,4 @@
-SUBROUTINE ICE_EFFECTIVE_RADIUS &
-     & (YDERAD,KIDIA, KFDIA, KLON, KLEV, &
-     &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PGEMU, &
-     &  PRE_UM) !, PPERT)
-
-! ICE_EFFECTIVE_RADIUS
-!
-! (C) Copyright 2016- ECMWF.
+! (C) Copyright 2005- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
 ! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -13,6 +6,13 @@ SUBROUTINE ICE_EFFECTIVE_RADIUS &
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
+!
+SUBROUTINE ICE_EFFECTIVE_RADIUS &
+     & (YDERAD, KIDIA, KFDIA, KLON, KLEV, &
+     &  PPRESSURE, PTEMPERATURE, PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PGEMU, &
+     &  PRE_UM, LACC)
+
+! ICE_EFFECTIVE_RADIUS
 !
 ! PURPOSE
 ! -------
@@ -26,7 +26,9 @@ SUBROUTINE ICE_EFFECTIVE_RADIUS &
 ! MODIFICATIONS
 ! -------------
 !
-!
+!   M Leutbecher  (Oct 2020) SPP abstraction
+!   L Descamps    (Jul 2023) Perturb Ice effective radius for MF EPS Random
+!                            parameters
 ! -------------------------------------------------------------------
 
 USE PARKIND1 , ONLY : JPIM, JPRB
@@ -63,8 +65,7 @@ REAL(KIND=JPRB),   INTENT(IN) :: PGEMU(KLON) ! Sine of latitude
 REAL(KIND=JPRB),  INTENT(OUT) :: PRE_UM(KLON,KLEV) ! (microns)
 
 ! OPTIONAL INPUT ARGUMENT
-! SPP perturbation pattern
-! REAL(KIND=JPRB),  INTENT(IN), OPTIONAL :: PPERT(KLON,YSPP%N2DRAD)
+LOGICAL,          INTENT(IN), OPTIONAL :: LACC
 
 ! LOCAL VARIABLES
 
@@ -81,6 +82,8 @@ REAL(KIND=JPRB) :: ZMIN_DIAMETER_UM(KLON)
 
 INTEGER(KIND=JPIM) :: JL, JK
 
+LOGICAL :: LLACC
+
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
 ! -------------------------------------------------------------------
@@ -93,16 +96,19 @@ IF (LHOOK) CALL DR_HOOK('ICE_EFFECTIVE_RADIUS',0,ZHOOK_HANDLE)
 
 ! -------------------------------------------------------------------
 
+LLACC = .FALSE.
+IF(PRESENT(LACC)) LLACC = LACC
+
 SELECT CASE(YDERAD%NRADIP)
 CASE(0)
   ! Ice effective radius fixed at 40 microns
-  !$ACC KERNELS
+  !$ACC KERNELS ASYNC(1) IF(LLACC)
   PRE_UM(KIDIA:KFDIA,:) = 40.0_JPRB
   !$ACC END KERNELS
 
 CASE(1,2)
   ! Ice effective radius from Liou and Ou (1994)
-  !$ACC PARALLEL DEFAULT(NONE) PRESENT(PRE_UM, PTEMPERATURE, YDERAD) ASYNC(1)
+  !$ACC PARALLEL DEFAULT(NONE) PRESENT(PRE_UM, PTEMPERATURE, YDERAD) ASYNC(1) IF(LLACC)
   !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ZTEMPERATURE_C)
   DO JK = 1,KLEV
     DO JL = KIDIA,KFDIA
@@ -134,17 +140,17 @@ CASE(3)
   ! effective diameter to effective radius.
   ZDEFAULT_RE_UM = 80.0_JPRB * YDERAD%RRE2DE
 
-  !$ACC DATA CREATE(ZMIN_DIAMETER_UM)
+  !$ACC DATA CREATE(ZMIN_DIAMETER_UM) ASYNC(1) IF(LLACC)
 
   ! Minimum effective diameter may vary with latitude
   IF (YDERAD%NMINICE == 0) THEN
     ! Constant effective diameter
-    !$ACC KERNELS DEFAULT(NONE) PRESENT(YDERAD)
+    !$ACC KERNELS DEFAULT(NONE) PRESENT(YDERAD) ASYNC(1) IF(LLACC)
     ZMIN_DIAMETER_UM(KIDIA:KFDIA) = YDERAD%RMINICE
     !$ACC END KERNELS
   ELSE
     ! Ice effective radius varies with latitude, smaller at poles
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(YDERAD, PGEMU) ASYNC(1)
+    !$ACC PARALLEL DEFAULT(NONE) PRESENT(YDERAD, PGEMU) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR
     DO JL = KIDIA,KFDIA
       ZMIN_DIAMETER_UM(JL) = 20.0_JPRB + (YDERAD%RMINICE - 20.0_JPRB)&
@@ -154,7 +160,7 @@ CASE(3)
   ENDIF
 
   !$ACC PARALLEL DEFAULT(NONE) PRESENT(PCLOUD_FRAC, PQ_ICE, PQ_SNOW, PPRESSURE, PTEMPERATURE, &
-  !$ACC     ZMIN_DIAMETER_UM, YDERAD, PRE_UM) ASYNC(1)
+  !$ACC     ZMIN_DIAMETER_UM, YDERAD, PRE_UM) ASYNC(1) IF(LLACC)
   !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ZAIR_DENSITY_GM3, ZIWC_INCLOUD_GM3, ZTEMPERATURE_C, &
   !$ACC     ZAIWC, ZBIWC, ZDIAMETER_UM)
   DO JK = 1,KLEV
