@@ -812,9 +812,8 @@ contains
     end do
 
     ! Calculate Planck functions per band
-      !$ACC LOOP SEQ PRIVATE(factor)
+      !$ACC LOOP GANG VECTOR COLLAPSE(3) PRIVATE(factor)
     do jband = 1,config%n_bands_lw
-      !$ACC LOOP GANG(STATIC:1) VECTOR COLLAPSE(2)
       do jlev = 1,nlev+1
         do jcol = istartcol,iendcol
           factor = zfluxfac * delwave(jband)
@@ -855,8 +854,9 @@ contains
       end do
     else
 #endif
-      !$ACC LOOP GANG VECTOR COLLAPSE(2)
+      !$ACC LOOP GANG VECTOR PRIVATE(iband)
       do jcol = istartcol,iendcol
+        !$ACC LOOP SEQ
         do jlev = 1,nlev+1
           !$ACC LOOP SEQ
           do jg = 1,config%n_g_lw
