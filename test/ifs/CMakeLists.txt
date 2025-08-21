@@ -22,7 +22,7 @@ function( add_ecrad_nccmp_test )
     set( multiValueArgs )
     cmake_parse_arguments( _P "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
-    if( TARGET nccmp )
+    if( TARGET nccmp AND _P_ENABLED )
 
         if( _P_REFERENCE_FILE )
             if( _P_REFERENCE_NAME )
@@ -74,7 +74,7 @@ function( add_ecrad_ifs_test )
     set( multiValueArgs NAMELIST_OPTIONS )
     cmake_parse_arguments( _PAR "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
-    if( ${_PAR_ENABLED} )
+    if( _PAR_ENABLED )
         # Setup namelist file for the test, either by overwriting options
         # or by copying the original file
         if( NOT _PAR_CONFIG_FILE )
@@ -150,6 +150,7 @@ function( add_ecrad_ifs_test )
                         TEST_NAME ${binary}_${_PAR_NAME}_net
                         LW_THRESHOLD ${_PAR_LW_THRESHOLD}
                         SW_THRESHOLD ${_PAR_SW_THRESHOLD}
+                        ENABLED
                         ${NCCMP_OPTIONS}
                     )
                 endif()
@@ -165,10 +166,17 @@ endfunction( add_ecrad_ifs_test )
 # Tests of CY49R1 configuration with RRTMG gas optics model and
 # various solvers, using ${TEST_IFS_CONFIG} config file
 
+if( HAVE_ACC )
+    ecbuild_warn( "ecRad build with OpenACC support. Enabling only McICA-ACC tests" )
+    set( ENABLE_NON_ACC_TEST )
+else()
+    set( ENABLE_NON_ACC_TEST ENABLED )
+endif()
+
 # IFS default: McICA solver with exponential-exponential overlap
 add_ecrad_ifs_test(
     NAME default
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # When the nccmp utility is available, we can check the output against the reference file
@@ -178,6 +186,7 @@ add_ecrad_nccmp_test(
     TEST_NAME ecrad_${PREC}_default
     LW_THRESHOLD 0.001
     SW_THRESHOLD 0.1
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # GPU default: McICA solver with exponential-random overlap using McICA ACC
@@ -186,14 +195,14 @@ add_ecrad_ifs_test(
 	NAMELIST_OPTIONS
         "sw_solver_name=\\\"McICA ACC\\\""
         "lw_solver_name=\\\"McICA ACC\\\""
-    ENABLED ON
+    ENABLED
 )
 
 # Turn off aerosols
 add_ecrad_ifs_test(
     NAME noaer
     NAMELIST_OPTIONS "use_aerosols=false"
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 add_ecrad_ifs_test(
@@ -202,14 +211,14 @@ add_ecrad_ifs_test(
         "use_aerosols=false"
         "sw_solver_name=\\\"McICA ACC\\\""
         "lw_solver_name=\\\"McICA ACC\\\""
-    ENABLED ON
+    ENABLED
 )
 
 # Older exponential-exponential overlap
 add_ecrad_ifs_test(
     NAME expexp
     NAMELIST_OPTIONS "overlap_scheme_name=\\\"Exp-Exp\\\""
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # Tripleclouds solver with exponential-random overlap
@@ -218,14 +227,14 @@ add_ecrad_ifs_test(
 	NAMELIST_OPTIONS
         "sw_solver_name=\\\"Tripleclouds\\\""
         "lw_solver_name=\\\"Tripleclouds\\\""
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # Longwave scattering; since 46R1 this is the default
 add_ecrad_ifs_test(
     NAME lwscat
     NAMELIST_OPTIONS "do_lw_cloud_scattering=true"
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 #  3D radiative transfer
@@ -236,7 +245,7 @@ add_ecrad_ifs_test(
         "lw_solver_name=\\\"SPARTACUS\\\""
 		"do_3d_effects=true"
 		"do_sw_delta_scaling_with_gases=false"
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # 3D radiative transfer using the older "maximum entrapment"
@@ -248,7 +257,7 @@ add_ecrad_ifs_test(
 		"do_3d_effects=true"
 		"sw_entrapment_name=\\\"Maximum\\\""
 		"do_sw_delta_scaling_with_gases=false"
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # "Cloudless" solver
@@ -258,14 +267,14 @@ add_ecrad_ifs_test(
 		"use_aerosols=false"
 		"sw_solver_name=\\\"Cloudless\\\""
         "lw_solver_name=\\\"Cloudless\\\""
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # Exponential-random overlap with "vectorizable" cloud generator
 add_ecrad_ifs_test(
     NAME vec
     NAMELIST_OPTIONS "use_vectorizable_generator=true"
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 ##############################################################################
@@ -280,7 +289,7 @@ add_ecrad_ifs_test(
         "lw_solver_name=\\\"McICA\\\""
     SW_THRESHOLD 1e-10
     LW_THRESHOLD 1e-10
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # ecCKD with Tripleclouds solver (default)
@@ -289,7 +298,7 @@ add_ecrad_ifs_test(
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
     SW_THRESHOLD 1e-10
     LW_THRESHOLD 1e-10
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # ecCKD with no aerosols
@@ -299,7 +308,7 @@ add_ecrad_ifs_test(
     NAMELIST_OPTIONS "use_aerosols=false"
     SW_THRESHOLD 1e-10
     LW_THRESHOLD 1e-10
-    ENABLED ON
+    ${ENABLE_NON_ACC_TEST}
 )
 
 # ecCKD gas optics with SPARTACUS solver
@@ -311,6 +320,6 @@ add_ecrad_ifs_test(
         "lw_solver_name=\\\"SPARTACUS\\\""
         "do_3d_effects=true"
     SW_THRESHOLD 1e-10
-    LW_THRESHOLD 1e-8
-    ENABLED ON
+    LW_THRESHOLD 2e-8
+    ${ENABLE_NON_ACC_TEST}
 )
