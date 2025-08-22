@@ -1,0 +1,190 @@
+name: build-hpc
+
+# Controls when the action will run
+on:
+
+  # Trigger the workflow on all pushes to main and develop, except on tag creation
+  push:
+    branches:
+    - master-acc
+    - feature/master-acc-build-hpc
+    tags-ignore:
+    - '**'
+
+  # Trigger the workflow on all pull requests
+  pull_request: ~
+
+  # Allow workflow to be dispatched on demand
+  workflow_dispatch: ~
+
+  # Trigger after public PR approved for CI
+  pull_request_target:
+    types: [labeled]
+
+env:
+  ECRAD_TOOLS: ${{ github.workspace }}/.github/tools
+  CTEST_PARALLEL_LEVEL: 1
+  CACHE_SUFFIX: v1        # Increase to force new cache to be created
+
+jobs:
+  ci-hpc:
+    name: ci-hpc
+    if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
+
+    strategy:
+      fail-fast: false    # false: try to complete all jobs
+
+      matrix:
+        name:
+          - ac-gpu nvhpc
+          # - lumi-g cce
+
+        include:
+          - name: ac-gpu nvhpc
+            site: ac-batch
+            troika_user_secret: HPC_CI_SSH_USER
+            sbatch_options: |
+              #SBATCH --time=00:20:00
+              #SBATCH --nodes=1
+              #SBATCH --ntasks=2
+              #SBATCH --cpus-per-task=32
+              #SBATCH --gpus-per-task=1
+              #SBATCH --mem=200G
+              #SBATCH --qos=dg
+            modules:
+              - cmake
+              - ninja
+              - prgenv/nvidia
+              - nvidia/24.5
+              - netcdf4
+              - python3
+            cmake_options: -G Ninja
+
+          # - name: lumi-g cce
+          #   site: lumi
+          #   troika_user_secret: LUMI_CI_SSH_USER
+          #   account_secret: LUMI_CI_PROJECT
+          #   sbatch_options: |
+          #     #SBATCH --time=00:40:00
+          #     #SBATCH --nodes=1
+          #     #SBATCH --ntasks-per-node=8
+          #     #SBATCH --gpus-per-task=1
+          #     #SBATCH --partition=standard-g
+          #     #SBATCH --account={0}
+          #   modules:
+          #     - CrayEnv
+          #     - PrgEnv-cray
+          #     - cce/17.0.1
+          #     - craype-accel-amd-gfx90a
+          #     - rocm/6.0.3
+          #     - cray-hdf5
+          #     - cray-netcdf
+          #     - cray-python
+          #     - buildtools
+          #   output_dir: /scratch/{0}/github-actions/ecrad/${{ github.run_id }}/${{ github.run_attempt }}
+          #   workdir: /scratch/{0}/github-actions/ecrad/${{ github.run_id }}/${{ github.run_attempt }}
+          #   cmake_options: >
+          #     -DOpenMP_C_LIB_NAMES=craymp -DOpenMP_CXX_LIB_NAMES=craymp
+          #     -DOpenMP_Fortran_LIB_NAMES=craymp -DOpenMP_craymp_LIBRARY=craymp
+          #     -DENABLE_OMP=ON
+          #   env_vars:
+          #     - MPICH_SMP_SINGLE_COPY_MODE=NONE
+          #     - CMAKE_BUILD_PARALLEL_LEVEL=1
+
+
+    runs-on: [self-hosted, linux, hpc]
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: ecmwf/reusable-workflows/ci-hpc-generic@v2
+        with:
+          site: ${{ matrix.site }}
+          troika_user: ${{ secrets[matrix.troika_user_secret] }}
+          sbatch_options: ${{ format(matrix.sbatch_options, secrets[matrix.account_secret]) }}
+          output_dir: ${{ format(matrix.output_dir, secrets[matrix.account_secret]) || '' }}
+          workdir: ${{ format(matrix.workdir, secrets[matrix.account_secret]) || '' }}
+          template_data: |
+            site: ${{ matrix.site }}
+            cmake_options:
+              - -DENABLE_ACC=ON
+              - -DENABLE_BITIDENTITY_TESTING=ON
+              - -DENABLE_SINGLE_PRECISION=ON
+              - ${{ matrix.cmake_options || '' }}
+            ctest_options: ${{ matrix.ctest_options || '' }}
+            dependencies:
+              ecmwf/ecbuild:
+                version: develop
+              ecmwf-ifs/fiat:
+                version: develop
+                cmake_options:
+                  - -DENABLE_TESTS=OFF
+                  - -DENABLE_MPI=OFF
+                  - ${{ matrix.cmake_options || '' }}
+          template: |
+            REPO=${{ github.event.pull_request.head.repo.full_name || github.repository }}
+            SHA=${{ github.event.pull_request.head.sha || github.sha }}
+
+            # Cleanup function
+            cleanup() {
+              {% for name in dependencies.keys() %}
+                rm -r {{name}}
+              {% endfor %}
+
+              rm -r $REPO
+              rm -r build
+            }
+            error_trap() {
+              cleanup
+
+              echo "Finished: FAILURE"
+              exit 1
+            }
+
+            trap error_trap ERR
+
+            {% for module in "${{ join(matrix.modules, ',') }}".split(',') %}
+              module load {{module}}
+            {% endfor %}
+
+            {% for var in "${{ join(matrix.env_vars, ',') }}".split(',') %}
+              export {{var}}
+            {% endfor %}
+
+            export CMAKE_TEST_LAUNCHER="srun;-n;1"
+            export DR_HOOK_ASSERT_MPI_INITIALIZED=0
+            BASEDIR=$PWD
+            {% for name, options in dependencies.items() %}
+                mkdir -p {{name}}
+                pushd {{name}}
+                git init
+                git remote add origin ${{ github.server_url }}/{{name}}
+                git fetch origin {{options['version']}}
+                git reset --hard FETCH_HEAD
+                cmake -S . -B build \
+                  {% for name in dependencies %}
+                    {% set org, proj = name.split('/') %}
+                    -D{{proj}}_ROOT=$BASEDIR/{{name}}/installation \
+                  {% endfor %}
+                  {{ options['cmake_options']|join(' ') }}
+                cmake --build build
+                cmake --install build --prefix installation
+                popd
+            {% endfor %}
+            mkdir -p $REPO
+            pushd $REPO
+            git init
+            git remote add origin ${{ github.server_url }}/$REPO
+            git fetch origin $SHA
+            git reset --hard FETCH_HEAD
+            popd
+            cmake -S $REPO -B build \
+              {% for name in dependencies %}
+                {% set org, proj = name.split('/') %}
+                -D{{proj}}_ROOT=$BASEDIR/{{name}}/installation \
+              {% endfor %}
+              {{ cmake_options|join(' ') }}
+            cmake --build build
+
+            ctest --test-dir build --output-on-failure {{ ctest_options }}
+
+            cleanup
