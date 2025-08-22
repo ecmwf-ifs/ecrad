@@ -53,7 +53,6 @@ jobs:
             compiler_cxx: nvc++
             compiler_fc: nvfortran
             caching: true
-            # caching: false
 
           - name : linux intel-classic
             os: ubuntu-22.04
@@ -93,15 +92,12 @@ jobs:
         printenv
 
     - name: Cache Dependencies
-      # There seems to be a problem with cached NVHPC dependencies, leading to SIGILL perhaps due to slightly different architectures
       if: matrix.caching
       id: deps-cache
-      # uses: pat-s/always-upload-cache@v2.1.5
       uses: actions/cache@v4
       with:
         path: ${{ env.DEPS_DIR }}
         key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ env.CACHE_SUFFIX }}
-        save-always: true
 
     # Free up disk space for nvhpc
     - name: Free Disk Space (Ubuntu)
@@ -146,6 +142,7 @@ jobs:
         source /opt/intel/oneapi/setvars.sh
         printenv >> $GITHUB_ENV
         echo "CACHE_SUFFIX=$CC-$($CC -dumpversion)" >> $GITHUB_ENV
+
     - name: Install HDF5
       run: |
         if [[ -f ${{ env.DEPS_DIR }}/hdf5/lib/libhdf5.settings ]]; then
@@ -174,7 +171,7 @@ jobs:
 
     - name: Build & Test
       id: build-test
-      uses: ecmwf-actions/build-package@v2
+      uses: ecmwf/build-package@v2
       with:
         self_coverage: false
         force_build: true
