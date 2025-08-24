@@ -73,6 +73,7 @@ export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
 	$(OPTFLAGS) $(DEBUGFLAGS) $(NETCDF_INCLUDE) $(OMPFLAG)
 export LIBS    = $(LDFLAGS) -L../lib -lradiation -lutilities \
 	-lifsrrtm -lifsaux $(FCLIBS) $(NETCDF_LIB) $(OMPFLAG)
+export SHAREDLIBFLAGS
 
 # Do we include Dr Hook from ECMWF's fiat library?
 ifdef FIATDIR
@@ -158,6 +159,11 @@ ifsdriver: libifsaux libifsrrtm libutilities libradiation libifs
 test_programs: driver
 	cd driver && $(MAKE) test_programs
 
+python: build
+	cd driver && $(MAKE) python
+	cp -f VERSION pyecrad/
+	rm -rf pyecrad/data; cp -r data pyecrad/
+
 symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
 	cd practical && ln -s ../data
@@ -196,6 +202,9 @@ clean-mods:
 
 clean-symlinks:
 	rm -f practical/ecrad practical/data
+
+clean-python:
+	rm -rf tmp dist wheelhouse
 
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
