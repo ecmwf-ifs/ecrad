@@ -70,9 +70,22 @@ set( radiation_SOURCES
         radiation_two_stream.F90
 )
 
+if( BUILD_SHARED_LIBS )
+    if( HAVE_ACC )
+        ecbuild_warn( "OpenACC enabled: Forcing static linking for ecrad.${PREC}" )
+        set( LIBRARY_TYPE STATIC )
+    else()
+        set( LIBRARY_TYPE SHARED )
+    endif()
+else()
+    set( LIBRARY_TYPE STATIC )
+endif()
+
 ecbuild_add_library(
     TARGET
         ecrad.${PREC}
+    TYPE
+        ${LIBRARY_TYPE}
     SOURCES
         ${radiation_SOURCES}
     PUBLIC_INCLUDES

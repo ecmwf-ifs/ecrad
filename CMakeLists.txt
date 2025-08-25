@@ -84,12 +84,6 @@ ecbuild_add_option(
     REQUIRED_PACKAGES "OpenACC COMPONENTS Fortran"
     CONDITION CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC"
 )
-if( HAVE_ACC )
-    if( DEFINED BUILD_SHARED_LIBS AND BUILD_SHARED_LIBS )
-        ecbuild_warn( "OpenACC enabled: Switching to static linking" )
-    endif()
-    set( BUILD_SHARED_LIBS OFF CACHE BOOL "Build using shared libraries" FORCE )
-endif()
 
 if( CMAKE_VERSION VERSION_LESS 3.25 )
     set( NVTX_TARGET CUDA::nvToolsExt )
