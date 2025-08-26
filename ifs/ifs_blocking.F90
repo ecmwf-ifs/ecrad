@@ -52,14 +52,12 @@ integer(kind=jpim) function indrad(knext,kflds,lduse)
 
 end function indrad
 
-subroutine ifs_setup_indices (driver_config, ifs_config, yradiation, nlev)
+subroutine ifs_setup_indices (ifs_config, yradiation, nlev, lldebug)
 
   use radiation_io,             only : nulout
-  use ecrad_driver_config,      only : driver_config_type
   use radiation_setup,          only : tradiation
 
   ! Configuration specific to this driver
-  type(driver_config_type), intent(in)     :: driver_config
   type(ifs_config_type), intent(inout)     :: ifs_config
 
   ! Configuration for the radiation scheme, IFS style
@@ -67,12 +65,12 @@ subroutine ifs_setup_indices (driver_config, ifs_config, yradiation, nlev)
 
   integer, intent(inout) :: nlev
 
+  logical, intent(in) :: lldebug
+
   integer :: ifldsin, ifldsout, inext, iinbeg, iinend, ioutbeg, ioutend
   logical :: llactaero
-  logical :: lldebug
 
   ! Extract some config values
-  lldebug=(driver_config%iverbose>4)     ! debug
   llactaero = .false.
   if(yradiation%rad_config%n_aerosol_types > 0 .and.&
     & yradiation%rad_config%n_aerosol_types <= 21 .and. yradiation%yrerad%naermacc == 0) then
@@ -273,7 +271,7 @@ subroutine ifs_setup_indices (driver_config, ifs_config, yradiation, nlev)
 end subroutine ifs_setup_indices
 
 subroutine ifs_copy_inputs_to_blocked ( &
-  & driver_config, ifs_config, yradiation, ncol, nlev, &
+  & ifs_config, yradiation, ncol, nlev, nproma, &
   & single_level, thermodynamics, gas, cloud, aerosol, &
   & sin_latitude, longitude_rad, land_frac, pressure_fl, temperature_fl, &
   & zrgp, thermodynamics_out, iseed)
@@ -284,20 +282,16 @@ subroutine ifs_copy_inputs_to_blocked ( &
         &   IH2O, ICO2, IO3, IN2O, ICH4, ICFC11, ICFC12, IHCFC22, ICCL4
   use radiation_cloud,          only : cloud_type
   use radiation_aerosol,        only : aerosol_type
-  use ecrad_driver_config,      only : driver_config_type
   use radiation_setup,          only : tradiation
 
   implicit none
-
-  ! Configuration specific to this driver
-  type(driver_config_type), intent(in)     :: driver_config
 
   type(ifs_config_type), intent(in)     :: ifs_config
 
   ! Configuration for the radiation scheme, IFS style
   type(tradiation), intent(in)          :: yradiation
 
-  integer, intent(in) :: ncol, nlev         ! Number of columns and levels
+  integer, intent(in) :: ncol, nlev, nproma         ! Number of columns, levels, columns per block
 
   ! Derived types for the inputs to the radiation scheme
   type(single_level_type), intent(in)   :: single_level
@@ -319,13 +313,12 @@ subroutine ifs_copy_inputs_to_blocked ( &
   ! Seed for random number generator
   integer, intent(out), allocatable, optional :: iseed(:,:)
 
-  ! number of column blocks, block size
-  integer :: ngpblks, nproma
+  ! number of column blocks
+  integer :: ngpblks
 
   integer :: jrl, ibeg, iend, il, ib, ifld, jemiss, jalb, jlev, joff, jaer
 
   ! Extract some config values
-  nproma=driver_config%nblocksize        ! nproma size
   ngpblks=(ncol-1)/nproma+1              ! number of column blocks
 
   ! Allocate blocked data structure
@@ -497,22 +490,18 @@ subroutine ifs_copy_inputs_to_blocked ( &
 end subroutine ifs_copy_inputs_to_blocked
 
 subroutine ifs_copy_fluxes_from_blocked(&
-    & driver_config, ifs_config, yradiation, ncol, nlev,&
+    & ifs_config, yradiation, ncol, nlev, nproma, &
     & zrgp, flux, flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear,&
     & emissivity_out, flux_diffuse_band, flux_direct_band)
-  use ecrad_driver_config,      only : driver_config_type
   use radiation_setup,          only : tradiation
   use radiation_flux,           only : flux_type
-
-  ! Configuration specific to this driver
-  type(driver_config_type), intent(in)     :: driver_config
 
   type(ifs_config_type), intent(in)     :: ifs_config
 
   ! Configuration for the radiation scheme, IFS style
   type(tradiation), intent(in)          :: yradiation
 
-  integer, intent(in) :: ncol, nlev         ! Number of columns and levels
+  integer, intent(in) :: ncol, nlev, nproma   ! Number of columns, levels, columns per block
 
   ! monolithic IFS data structure passed to radiation scheme
   real(kind=jprb), intent(inout), allocatable :: zrgp(:,:,:)
@@ -525,13 +514,12 @@ subroutine ifs_copy_fluxes_from_blocked(&
                                                  & flux_par_clear, emissivity_out
   real(jprb), dimension(:,:), intent(inout) :: flux_diffuse_band, flux_direct_band
 
-  ! number of column blocks, block size
-  integer :: ngpblks, nproma
+  ! number of column blocks
+  integer :: ngpblks
 
   integer :: jrl, ibeg, iend, il, ib, jlev, jg
 
   ! Extract some config values
-  nproma=driver_config%nblocksize        ! nproma size
   ngpblks=(ncol-1)/nproma+1              ! number of column blocks
 
     !  -------------------------------------------------------
