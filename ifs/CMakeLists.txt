@@ -19,12 +19,15 @@ set( ifs_SOURCES
         yoe_spectral_planck.F90
         cloud_overlap_decorr_len.F90
         yoerad.F90
+        ifs_blocking.F90
 )
 
 ecbuild_add_library(
     TARGET ifs.${PREC}
     TYPE OBJECT
     SOURCES ${ifs_SOURCES}
+    PUBLIC_INCLUDES
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/module_ifs>"
     PRIVATE_LIBS
         ecrad.${PREC}
         ecrad_base.${PREC}
@@ -33,4 +36,8 @@ ecbuild_add_library(
         $<${HAVE_NVTX}:${NVTX_TARGET}>
         $<${HAVE_ROCTX}:${ROCTX_LIBRARIES}>
     PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
+)
+set_target_properties( ifs.${PREC}
+    PROPERTIES
+        Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module_ifs"
 )

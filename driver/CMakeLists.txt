@@ -17,10 +17,16 @@ ecbuild_add_library(
     PUBLIC_DEFINITIONS
         $<$<NOT:${HAVE_OMP}>:NO_OPENMP>
         ${GPU_OFFLOAD}GPU
+    PUBLIC_INCLUDES
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/module_driver_lib>"
     PUBLIC_LIBS
         ecrad.${PREC}
         ecrad_base.${PREC}
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+)
+set_target_properties( driver_lib.${PREC}
+    PROPERTIES
+        Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module_driver_lib"
 )
 
 ecbuild_add_executable(
@@ -48,7 +54,6 @@ ecbuild_add_executable(
     TARGET ecrad_ifs_blocked_${PREC}
     SOURCES
         ecrad_ifs_driver_blocked.F90
-        ifs_blocking.F90
     LIBS
         ifs.${PREC}
         driver_lib.${PREC}
