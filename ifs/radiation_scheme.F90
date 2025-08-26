@@ -792,7 +792,7 @@ IF (YRERAD%NDUMPBADINPUTS /= 0 &
      &  .AND. (N_BAD_FLUXES == 0 .OR. N_BAD_FLUXES < YRERAD%NDUMPBADINPUTS)) THEN
   IF (FLUX%OUT_OF_PHYSICAL_BOUNDS(KIDIA,KFDIA, LACC=LLACC)) THEN
 !$OMP CRITICAL
-#if defined(WITH_ECRAD_ACC) && defined(_OPENACC)
+#if defined(_OPENACC)
     IF(LLACC) THEN
       !$ACC WAIT
       CALL SINGLE_LEVEL%UPDATE_HOST()
@@ -829,7 +829,7 @@ ENDIF
 ! regardless of whether bad fluxes have been detected?
 IF (N_OUTPUT_FLUXES < YRERAD%NDUMPINPUTS) THEN
 !$OMP CRITICAL
-#if defined(WITH_ECRAD_ACC) && defined(_OPENACC)
+#if defined(_OPENACC)
     IF(LLACC) THEN
       !$ACC WAIT
       CALL SINGLE_LEVEL%UPDATE_HOST()
@@ -954,7 +954,7 @@ call nvtxStartRange("cleanup")
 #endif
 
 !$ACC END DATA
-#if defined(WITH_ECRAD_ACC) && defined(_OPENACC)
+#if defined(_OPENACC)
 IF (LLACC) THEN
   CALL FLUX%DELETE_DEVICE()
   CALL YLCLOUD%DELETE_DEVICE()
