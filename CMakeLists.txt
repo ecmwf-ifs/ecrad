@@ -57,6 +57,13 @@ ecbuild_add_option(
 if( HAVE_FIAT AND fiat_HAVE_MPI )
     list( APPEND ECRAD_COMPILE_DEFINITIONS EASY_NETCDF_READ_MPI )
 endif()
+find_program(FYPP fypp)
+ecbuild_add_option(
+    FEATURE FYPP
+    DEFAULT OFF
+    DESCRIPTION "Use FYPP to re-generate Fortran code for FIELD_API-based driver variant"
+    CONDITION NOT FYPP-NOTFOUND
+)
 
 ecbuild_add_option(
     FEATURE OMP
