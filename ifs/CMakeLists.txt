@@ -20,7 +20,34 @@ set( ifs_SOURCES
         cloud_overlap_decorr_len.F90
         yoerad.F90
         ifs_blocking.F90
+${CMAKE_CURRENT_BINARY_DIR}/radintg_zrgp_mod.F90
 )
+
+macro( ecrad_ifs_process_fypp fypp_file )
+    # If FYPP has been enabled, regenerate the F90 source files otherwise simply link
+    # or copy commited versions
+    if( HAVE_FYPP )
+        add_custom_command(
+            OUTPUT
+                ${CMAKE_CURRENT_BINARY_DIR}/${fypp_file}.F90
+            COMMAND
+                ${FYPP} -m os -m field_config -M ${CMAKE_CURRENT_SOURCE_DIR}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${fypp_file}.fypp
+                ${CMAKE_CURRENT_BINARY_DIR}/${fypp_file}.F90
+            DEPENDS
+                ${CMAKE_CURRENT_SOURCE_DIR}/${fypp_file}.fypp
+                ${CMAKE_CURRENT_SOURCE_DIR}/radiation_fields_config.yaml
+        )
+    else()
+        file( CREATE_LINK
+            ${CMAKE_CURRENT_SOURCE_DIR}/${fypp_file}.F90
+            ${CMAKE_CURRENT_BINARY_DIR}/${fypp_file}.F90
+            SYMBOLIC COPY_ON_ERROR
+        )
+    endif()
+endmacro()
+
+ecrad_ifs_process_fypp( radintg_zrgp_mod )
 
 ecbuild_add_library(
     TARGET ifs.${PREC}
