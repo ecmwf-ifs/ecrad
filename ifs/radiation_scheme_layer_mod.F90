@@ -241,9 +241,37 @@ LEPO3RA=.FALSE.
 
 !$OMP PARALLEL &
 !$OMP&  PRIVATE(KIDIA,KFDIA,IBL,&
-!$OMP&    P_igi,P_imu0,P_iamu0,P_iemiss,P_its,P_islm,P_iccnl,P_iccno,P_ibas,P_itop,P_igelam,P_igemu,P_iclon,P_islon,P_iald,P_ialp,P_iti,P_ipr,P_iqs,P_iwv,P_iclc,P_ilwa,P_iiwa,P_iswa,P_irwa,P_irra,P_idp,P_ioz,P_iecpo3,P_ihpr,P_iaprs,P_ihti,P_ire_liq,P_ire_ice,P_ioverlap,P_iaero,P_ifrsod,P_ifrted,P_ifrsodc,P_ifrtedc,P_iemit,P_isudu,P_iuvdf,P_iparf,P_iparcf,P_itincf,P_ifdir,P_ifdif,P_icdir,P_ilwderivative,P_iswdirectband,P_iswdiffuseband,P_ifrso,P_iswfc,P_ifrth,P_ilwfc,P_iaer,P_iico2,P_iich4,P_iin2o,P_ino2,P_ic11,P_ic12,P_ic22,P_icl4,P_igix) &
+!$OMP&    F_igi,F_imu0,F_iamu0,F_iemiss,F_its, &
+!$OMP&    F_islm,F_iccnl,F_iccno,F_ibas,F_itop, &
+!$OMP&    F_igelam,F_igemu,F_iclon,F_islon,F_iald, &
+!$OMP&    F_ialp,F_iti,F_ipr,F_iqs,F_iwv, &
+!$OMP&    F_iclc,F_ilwa,F_iiwa,F_iswa,F_irwa, &
+!$OMP&    F_irra,F_idp,F_ioz,F_iecpo3,F_ihpr, &
+!$OMP&    F_iaprs,F_ihti,F_ire_liq,F_ire_ice,F_ioverlap, &
+!$OMP&    F_iaero,F_ifrsod,F_ifrted,F_ifrsodc,F_ifrtedc, &
+!$OMP&    F_iemit,F_isudu,F_iuvdf,F_iparf,F_iparcf, &
+!$OMP&    F_itincf,F_ifdir,F_ifdif,F_icdir,F_ilwderivative, &
+!$OMP&    F_iswdirectband,F_iswdiffuseband,F_ifrso,F_iswfc,F_ifrth, &
+!$OMP&    F_ilwfc,F_iaer,F_iico2,F_iich4,F_iin2o, &
+!$OMP&    F_ino2,F_ic11,F_ic12,F_ic22,F_icl4, &
+!$OMP&    F_igix &
+!$OMP&  ) &
 !$OMP&  PRIVATE(&
-!$OMP&    F_igi,F_imu0,F_iamu0,F_iemiss,F_its,F_islm,F_iccnl,F_iccno,F_ibas,F_itop,F_igelam,F_igemu,F_iclon,F_islon,F_iald,F_ialp,F_iti,F_ipr,F_iqs,F_iwv,F_iclc,F_ilwa,F_iiwa,F_iswa,F_irwa,F_irra,F_idp,F_ioz,F_iecpo3,F_ihpr,F_iaprs,F_ihti,F_ire_liq,F_ire_ice,F_ioverlap,F_iaero,F_ifrsod,F_ifrted,F_ifrsodc,F_ifrtedc,F_iemit,F_isudu,F_iuvdf,F_iparf,F_iparcf,F_itincf,F_ifdir,F_ifdif,F_icdir,F_ilwderivative,F_iswdirectband,F_iswdiffuseband,F_ifrso,F_iswfc,F_ifrth,F_ilwfc,F_iaer,F_iico2,F_iich4,F_iin2o,F_ino2,F_ic11,F_ic12,F_ic22,F_icl4,F_igix)
+!$OMP&    P_igi,P_imu0,P_iamu0,P_iemiss,P_its, &
+!$OMP&    P_islm,P_iccnl,P_iccno,P_ibas,P_itop, &
+!$OMP&    P_igelam,P_igemu,P_iclon,P_islon,P_iald, &
+!$OMP&    P_ialp,P_iti,P_ipr,P_iqs,P_iwv, &
+!$OMP&    P_iclc,P_ilwa,P_iiwa,P_iswa,P_irwa, &
+!$OMP&    P_irra,P_idp,P_ioz,P_iecpo3,P_ihpr, &
+!$OMP&    P_iaprs,P_ihti,P_ire_liq,P_ire_ice,P_ioverlap, &
+!$OMP&    P_iaero,P_ifrsod,P_ifrted,P_ifrsodc,P_ifrtedc, &
+!$OMP&    P_iemit,P_isudu,P_iuvdf,P_iparf,P_iparcf, &
+!$OMP&    P_itincf,P_ifdir,P_ifdif,P_icdir,P_ilwderivative, &
+!$OMP&    P_iswdirectband,P_iswdiffuseband,P_ifrso,P_iswfc,P_ifrth, &
+!$OMP&    P_ilwfc,P_iaer,P_iico2,P_iich4,P_iin2o, &
+!$OMP&    P_ino2,P_ic11,P_ic12,P_ic22,P_icl4, &
+!$OMP&    P_igix &
+!$OMP&  )
 
 CALL GET_STACK_MEMBER(ZRGP_FIELDS%FIELD_WRAPPER, 1, F_igi)
 CALL GET_STACK_MEMBER(ZRGP_FIELDS%FIELD_WRAPPER, 2, F_imu0)
