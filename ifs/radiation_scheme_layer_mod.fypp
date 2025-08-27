@@ -19,6 +19,9 @@
 #:set variable_cnt = {v_name: variable_names.count(v_name) for v_name in variable_names}
 #:set variable_names = list(dict.fromkeys(variable_names))
 #:set variable_dim = {v.name: 2 if v.dim[0] == 1 else 3 for v in variables}
+#:def chunked_join(iterable, linebreak)
+${linebreak.join(','.join(iterable[i:i+5]) for i in range(0, len(iterable), 5))}$
+#:enddef chunked_join
 #:endmute
 
 #:set active_args = [ &
@@ -149,9 +152,11 @@ LEPO3RA=.FALSE.
 
 !$OMP PARALLEL &
 !$OMP&  PRIVATE(KIDIA,KFDIA,IBL,&
-!$OMP&    ${','.join(f'P_{v_name}' for v_name in variable_names)}$) &
+!$OMP&    ${chunked_join([f'F_{v_name}' for v_name in variable_names], ', &\n!$OMP&    ')}$ &
+!$OMP&  ) &
 !$OMP&  PRIVATE(&
-!$OMP&    ${','.join(f'F_{v_name}' for v_name in variable_names)}$)
+!$OMP&    ${chunked_join([f'P_{v_name}' for v_name in variable_names], ', &\n!$OMP&    ')}$ &
+!$OMP&  )
 
 #:for idx, v in enumerate(variables)
 #:if variable_cnt[v.name] > 1
