@@ -57,6 +57,14 @@ ecbuild_add_option(
 if( HAVE_FIAT AND fiat_HAVE_MPI )
     list( APPEND ECRAD_COMPILE_DEFINITIONS EASY_NETCDF_READ_MPI )
 endif()
+
+ecbuild_add_option(
+    FEATURE FIELD_API
+    DEFAULT ON
+    DESCRIPTION "Enable FIELD_API-based driver variant"
+    REQUIRED_PACKAGES "field_api"
+)
+
 find_program(FYPP fypp)
 ecbuild_add_option(
     FEATURE FYPP
