@@ -1,0 +1,219 @@
+! (C) Copyright 2015- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+
+#:mute
+#:set radiation_config_file = os.path.dirname(os.path.abspath(_THIS_FILE_)) + '/radiation_fields_config.yaml'
+#:set radiation_config = field_config.VariableConfiguration(radiation_config_file)
+#:set zrgp_in = radiation_config.groups['ZRGP_IN']
+#:set zrgp_out = radiation_config.groups['ZRGP_OUT']
+#:set zrgp_local = radiation_config.groups['ZRGP_LOCAL']
+#:set variables = zrgp_in.variables + zrgp_out.variables + zrgp_local.variables
+#:set variable_names = [v.name for v in variables]
+#:set variable_cnt = {v_name: variable_names.count(v_name) for v_name in variable_names}
+#:set variable_names = list(dict.fromkeys(variable_names))
+#:set variable_dim = {v.name: 2 if v.dim[0] == 1 else 3 for v in variables}
+#:endmute
+
+#:set active_args = [ &
+&      'iamu0', 'its', 'iald', 'ialp', &
+&      'iemiss', &
+&      'iccnl', 'iccno' , &
+&      'igelam','igemu', 'islm', &
+&      'ipr', 'iti', &
+&      'iaprs','ihti', &
+&      'iwv','iico2','iich4','iin2o', &
+&      'ino2','ic11','ic12', 'ic22', &
+&      'icl4','ioz', &
+&      'iclc','ilwa','iiwa','irwa', &
+&      'iswa', &
+&      'iaer', 'iaero', 'iaero', &
+&      'ifrso','ifrth','iswfc','ilwfc', &
+&      'ifrsod','ifrted', &
+&      'ifrsodc','ifrtedc', &
+&      'ifdir','icdir','isudu', &
+&      'iuvdf','iparf', &
+&      'iparcf','itincf', &
+&      'iemit','ilwderivative', &
+&      'iswdiffuseband','iswdirectband', &
+&      'ire_liq', 'ire_ice', 'ioverlap', &
+&    ]
+
+MODULE RADIATION_SCHEME_LAYER_MOD
+
+IMPLICIT NONE
+
+PRIVATE
+PUBLIC :: RADIATION_SCHEME_LAYER, RADIATION_SCHEME_LAYER_PARALLEL
+
+CONTAINS
+
+SUBROUTINE RADIATION_SCHEME_LAYER &
+     & (YRADIATION, ZRGP_FIELDS, NGPTOT, NRPROMA, NFLEVG, &
+     &  NFSD, KAEROSOL, PSOLAR_IRRADIANCE, ISEED)
+
+! Modules from ifs or ifsaux libraries
+USE RADIATION_SETUP , ONLY : TRADIATION
+USE PARKIND1        , ONLY : JPIM, JPRB
+USE RADINTG_ZRGP_MOD, ONLY : RADINTG_ZRGP_TYPE
+
+IMPLICIT NONE
+
+! INPUT ARGUMENTS
+
+TYPE(TRADIATION)   ,INTENT(IN), TARGET :: YRADIATION
+TYPE(RADINTG_ZRGP_TYPE), INTENT(INOUT) :: ZRGP_FIELDS
+
+! *** Array dimensions and ranges
+INTEGER(KIND=JPIM),INTENT(IN)   :: NGPTOT   ! Number of columns
+INTEGER(KIND=JPIM),INTENT(IN)   :: NRPROMA   ! Number of columns
+INTEGER(KIND=JPIM),INTENT(IN)   :: NFLEVG   ! Number of levels
+INTEGER(KIND=JPIM),INTENT(IN)   :: NFSD
+INTEGER(KIND=JPIM),INTENT(IN)   :: KAEROSOL ! Number of aerosol types
+
+! *** Single-level fields
+REAL(KIND=JPRB),   INTENT(IN)   :: PSOLAR_IRRADIANCE ! (W m-2)
+
+INTEGER, OPTIONAL, INTENT(IN)   :: ISEED(:,:)
+
+CALL RADIATION_SCHEME_LAYER_PARALLEL( &
+    & YRADIATION, ZRGP_FIELDS, NGPTOT, NRPROMA, NFLEVG, &
+    & NFSD, KAEROSOL, PSOLAR_IRRADIANCE, ISEED=ISEED )
+
+END SUBROUTINE RADIATION_SCHEME_LAYER
+
+SUBROUTINE RADIATION_SCHEME_LAYER_PARALLEL &
+     & (YRADIATION, ZRGP_FIELDS, NGPTOT, NRPROMA, NFLEVG, &
+     &  NFSD, KAEROSOL, PSOLAR_IRRADIANCE, ISEED)
+
+USE FIELD_MODULE
+USE FIELD_FACTORY_MODULE
+
+! Modules from ifs or ifsaux libraries
+USE RADIATION_SETUP , ONLY : TRADIATION
+USE PARKIND1        , ONLY : JPIM, JPRB
+USE YOMHOOK         , ONLY : LHOOK, DR_HOOK, JPHOOK
+USE RADINTG_ZRGP_MOD, ONLY : RADINTG_ZRGP_TYPE
+
+IMPLICIT NONE
+
+! INPUT ARGUMENTS
+
+TYPE(TRADIATION)   ,INTENT(IN), TARGET :: YRADIATION
+TYPE(RADINTG_ZRGP_TYPE), INTENT(INOUT) :: ZRGP_FIELDS
+
+! *** Array dimensions and ranges
+INTEGER(KIND=JPIM),INTENT(IN)   :: NGPTOT   ! Number of columns
+INTEGER(KIND=JPIM),INTENT(IN)   :: NRPROMA   ! Number of columns
+INTEGER(KIND=JPIM),INTENT(IN)   :: NFLEVG   ! Number of levels
+INTEGER(KIND=JPIM),INTENT(IN)   :: NFSD
+INTEGER(KIND=JPIM),INTENT(IN)   :: KAEROSOL ! Number of aerosol types
+
+! *** Single-level fields
+REAL(KIND=JPRB),   INTENT(IN)   :: PSOLAR_IRRADIANCE ! (W m-2)
+
+INTEGER, OPTIONAL, INTENT(IN)   :: ISEED(:,:)
+
+INTEGER(KIND=JPIM) :: KIDIA, KFDIA, IBL, JKGLO
+
+! Dummies for IFS config values
+LOGICAL :: LSPPRAD, LRAYFM, LEPO3RA
+LOGICAL, PARAMETER :: LDEBUG = .false.
+
+! Field pointers for each field in ZRGP
+#:for v_name in variable_names
+#:set dim = variable_dim[v_name]
+CLASS(FIELD_${dim}$RB), POINTER :: F_${v_name}$ => NULL()
+REAL(KIND=JPRB), POINTER, CONTIGUOUS :: P_${v_name}$(${','.join(':' * (dim-1))}$) => NULL()
+#:endfor
+
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+#include "radiation_scheme.intfb.h"
+
+IF (LHOOK) CALL DR_HOOK('RADIATION_SCHEME_LAYER_PARALLEL',0,ZHOOK_HANDLE)
+
+ASSOCIATE(YDERAD=>YRADIATION%YRERAD, RAD_CONFIG=>YRADIATION%RAD_CONFIG)
+ASSOCIATE(LDIAGFORCING=>YDERAD%LDIAGFORCING, LAPPROXLWUPDATE=>YDERAD%LAPPROXLWUPDATE, &
+    & LAPPROXSWUPDATE=>YDERAD%LAPPROXSWUPDATE, NRADAER=>RAD_CONFIG%N_AEROSOL_TYPES)
+
+LSPPRAD=.FALSE.
+LRAYFM=.FALSE.
+LEPO3RA=.FALSE.
+
+!$OMP PARALLEL &
+!$OMP&  PRIVATE(KIDIA,KFDIA,IBL,&
+!$OMP&    ${','.join(f'P_{v_name}' for v_name in variable_names)}$) &
+!$OMP&  PRIVATE(&
+!$OMP&    ${','.join(f'F_{v_name}' for v_name in variable_names)}$)
+
+#:for idx, v in enumerate(variables)
+#:if variable_cnt[v.name] > 1
+IF(${v.condition}$) CALL GET_STACK_MEMBER(ZRGP_FIELDS%FIELD_WRAPPER, ${idx+1}$, F_${v.name}$)
+#:else
+CALL GET_STACK_MEMBER(ZRGP_FIELDS%FIELD_WRAPPER, ${idx+1}$, F_${v.name}$)
+#:endif
+#:endfor
+
+!$OMP DO SCHEDULE(DYNAMIC,1)
+DO JKGLO=1,NGPTOT,NRPROMA
+    KIDIA=1
+    KFDIA=MIN(NRPROMA,NGPTOT-JKGLO+1)
+    IBL=(JKGLO-1)/NRPROMA+1
+
+    #:for v_name in active_args
+    P_${v_name}$ => F_${v_name}$%GET_VIEW(IBL)
+    #:endfor
+
+    ! Call the ECRAD radiation scheme
+    CALL RADIATION_SCHEME &
+        & (YRADIATION, &
+        &  KIDIA, KFDIA, NRPROMA, &                       ! startcol, endcol, ncol
+        &  NFLEVG, KAEROSOL, &
+        &  PSOLAR_IRRADIANCE, &                               ! solar_irrad
+        &  P_IAMU0, P_ITS, P_IALD, P_IALP, &
+        &  P_IEMISS, &
+        &  P_ICCNL, P_ICCNO ,&
+        &  P_IGELAM,P_IGEMU, P_ISLM, &
+        &  P_IPR, P_ITI, &
+        &  P_IAPRS,P_IHTI, &
+        &  P_IWV,P_IICO2,P_IICH4,P_IIN2O, &
+        &  P_INO2,P_IC11,P_IC12, P_IC22, &
+        &  P_ICL4,P_IOZ, &
+        &  P_ICLC,P_ILWA,P_IIWA,P_IRWA, &
+        &  P_ISWA, &
+        &  P_IAER, P_IAERO, &
+        ! Flux outputs
+        &  P_IFRSO,P_IFRTH,P_ISWFC,P_ILWFC,&
+        &  P_IFRSOD,P_IFRTED, &
+        &  P_IFRSODC,P_IFRTEDC,&
+        &  P_IFDIR,P_ICDIR,P_ISUDU, &
+        &  P_IUVDF,P_IPARF, &
+        &  P_IPARCF,P_ITINCF, &
+        &  P_IEMIT,P_ILWDERIVATIVE, &
+        &  P_ISWDIFFUSEBAND,P_ISWDIRECTBAND &
+        ! OPTIONAL ARGUMENTS
+#ifdef BITIDENTITY_TESTING
+        &  , PRE_LIQ=P_IRE_LIQ, PRE_ICE=P_IRE_ICE &
+        &  , PCLOUD_OVERLAP=P_IOVERLAP, ISEED=ISEED(:,IBL) &
+#endif
+        &  )
+
+END DO
+!$OMP END DO
+!$OMP END PARALLEL
+
+END ASSOCIATE
+END ASSOCIATE
+
+IF (LHOOK) CALL DR_HOOK('RADIATION_SCHEME_LAYER_PARALLEL',1,ZHOOK_HANDLE)
+
+END SUBROUTINE RADIATION_SCHEME_LAYER_PARALLEL
+
+END MODULE RADIATION_SCHEME_LAYER_MOD
