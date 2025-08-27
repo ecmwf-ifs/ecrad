@@ -21,254 +21,7 @@ module ifs_blocking
 
   public
 
-  type :: ifs_config_type
-    ! Offsets in ZRGP
-    integer :: igi, imu0, iamu0, iemiss, its, islm, iccnl,    &
-        &     ibas, itop, igelam, igemu, iclon, islon, iald, ialp, iti, ipr, iqs, iwv, iclc, ilwa,    &
-        &     iiwa, iswa, irwa, irra, idp, ioz, iecpo3, ihpr, iaprs, ihti, iaero, ifrsod, icdir,      &
-        &     ifrted, ifrsodc, ifrtedc, iemit, isudu, iuvdf, iparf, iparcf, itincf, ifdir, ifdif,     &
-        &     ilwderivative, iswdirectband, iswdiffuseband, ifrso, iswfc, ifrth, ilwfc, iaer,         &
-        &     iich4, iin2o, ino2, ic11, ic12, igix, iico2, iccno, ic22, icl4
-#ifdef BITIDENTITY_TESTING
-    integer :: ire_liq, ire_ice, ioverlap
-#endif
-    integer :: ifldstot
-  end type ifs_config_type
-
 contains
-
-integer(kind=jpim) function indrad(knext,kflds,lduse)
-
-  integer(kind=jpim), intent(inout) :: knext
-  integer(kind=jpim), intent(in) :: kflds
-  logical, intent(in) :: lduse
-
-  if( lduse ) then
-    indrad=knext
-    knext=knext+kflds
-  else
-    indrad=-99999999
-  endif
-
-end function indrad
-
-subroutine ifs_setup_indices (ifs_config, yradiation, nlev, lldebug)
-
-  use radiation_io,             only : nulout
-  use radiation_setup,          only : tradiation
-
-  ! Configuration specific to this driver
-  type(ifs_config_type), intent(inout)     :: ifs_config
-
-  ! Configuration for the radiation scheme, IFS style
-  type(tradiation), intent(inout)          :: yradiation
-
-  integer, intent(inout) :: nlev
-
-  logical, intent(in) :: lldebug
-
-  integer :: ifldsin, ifldsout, inext, iinbeg, iinend, ioutbeg, ioutend
-  logical :: llactaero
-
-  ! Extract some config values
-  llactaero = .false.
-  if(yradiation%rad_config%n_aerosol_types > 0 .and.&
-    & yradiation%rad_config%n_aerosol_types <= 21 .and. yradiation%yrerad%naermacc == 0) then
-    llactaero = .true.
-  endif
-
-  !
-  ! RADINTG
-  !
-
-  !  INITIALISE INDICES FOR VARIABLE
-
-  ! INDRAD is a CONTAIN'd function (now a module function)
-
-  inext  =1
-  iinbeg =1                        ! start of input variables
-  ifs_config%igi    =indrad(inext,1,lldebug)
-  ifs_config%imu0   =indrad(inext,1,.true.)
-  ifs_config%iamu0  =indrad(inext,1,.true.)
-  ifs_config%iemiss =indrad(inext,yradiation%yrerad%nlwemiss,.true.)
-  ifs_config%its    =indrad(inext,1,.true.)
-  ifs_config%islm   =indrad(inext,1,.true.)
-  ifs_config%iccnl  =indrad(inext,1,.true.)
-  ifs_config%iccno  =indrad(inext,1,.true.)
-  ifs_config%ibas   =indrad(inext,1,.true.)
-  ifs_config%itop   =indrad(inext,1,.true.)
-  ifs_config%igelam =indrad(inext,1,.true.)
-  ifs_config%igemu  =indrad(inext,1,.true.)
-  ifs_config%iclon  =indrad(inext,1,.true.)
-  ifs_config%islon  =indrad(inext,1,.true.)
-  ifs_config%iald   =indrad(inext,yradiation%yrerad%nsw,.true.)
-  ifs_config%ialp   =indrad(inext,yradiation%yrerad%nsw,.true.)
-  ifs_config%iti    =indrad(inext,nlev,.true.)
-  ifs_config%ipr    =indrad(inext,nlev,.true.)
-  ifs_config%iqs    =indrad(inext,nlev,.true.)
-  ifs_config%iwv    =indrad(inext,nlev,.true.)
-  ifs_config%iclc   =indrad(inext,nlev,.true.)
-  ifs_config%ilwa   =indrad(inext,nlev,.true.)
-  ifs_config%iiwa   =indrad(inext,nlev,.true.)
-  ifs_config%iswa   =indrad(inext,nlev,.true.)
-  ifs_config%irwa   =indrad(inext,nlev,.true.)
-  ifs_config%irra   =indrad(inext,nlev,.true.)
-  ifs_config%idp    =indrad(inext,nlev,.true.)
-  ifs_config%ioz    =indrad(inext,nlev,.false.)
-  ifs_config%iecpo3 =indrad(inext,nlev ,.false.)
-  ifs_config%ihpr   =indrad(inext,nlev+1,.true.) ! not used in ecrad
-  ifs_config%iaprs  =indrad(inext,nlev+1,.true.)
-  ifs_config%ihti   =indrad(inext,nlev+1,.true.)
-  ifs_config%iaero  =indrad(inext,yradiation%rad_config%n_aerosol_types*nlev,&
-                          & llactaero .and. yradiation%yrerad%naermacc==0)
-
-  iinend =inext-1                  ! end of input variables
-
-  ioutbeg=inext                    ! start of output variables
-  if (yradiation%yrerad%naermacc == 1) then
-    ifs_config%iaero = indrad(inext,yradiation%rad_config%n_aerosol_types*nlev,&
-                            & yradiation%yrerad%ldiagforcing)
-  endif
-  ifs_config%ifrsod =indrad(inext,1,.true.)
-  ifs_config%ifrted =indrad(inext,yradiation%yrerad%nlwout,.true.)
-  ifs_config%ifrsodc=indrad(inext,1,.true.)
-  ifs_config%ifrtedc=indrad(inext,1,.true.)
-  ifs_config%iemit  =indrad(inext,1,.true.)
-  ifs_config%isudu  =indrad(inext,1,.true.)
-  ifs_config%iuvdf  =indrad(inext,1,.true.)
-  ifs_config%iparf  =indrad(inext,1,.true.)
-  ifs_config%iparcf =indrad(inext,1,.true.)
-  ifs_config%itincf =indrad(inext,1,.true.)
-  ifs_config%ifdir  =indrad(inext,1,.true.)
-  ifs_config%ifdif  =indrad(inext,1,.true.)
-  ifs_config%icdir  =indrad(inext,1,.true.)
-  ifs_config%ilwderivative =indrad(inext,nlev+1, yradiation%yrerad%lapproxlwupdate)
-  ifs_config%iswdirectband =indrad(inext,yradiation%yrerad%nsw,yradiation%yrerad%lapproxswupdate)
-  ifs_config%iswdiffuseband=indrad(inext,yradiation%yrerad%nsw,yradiation%yrerad%lapproxswupdate)
-  ifs_config%ifrso  =indrad(inext,nlev+1,.true.)
-  ifs_config%iswfc  =indrad(inext,nlev+1,.true.)
-  ifs_config%ifrth  =indrad(inext,nlev+1,.true.)
-  ifs_config%ilwfc  =indrad(inext,nlev+1,.true.)
-  ifs_config%iaer   =indrad(inext,6*nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%ioz    =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%iico2  =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%iich4  =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%iin2o  =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%ino2   =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%ic11   =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%ic12   =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%ic22   =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%icl4   =indrad(inext,nlev,yradiation%yrerad%ldiagforcing)
-  ifs_config%igix   =indrad(inext,1,lldebug)
-
-  ioutend=inext-1                  ! end of output variables
-
-                                ! start of local variables
-  if(.not.yradiation%yrerad%ldiagforcing) then
-    if (yradiation%rad_config%n_aerosol_types == 0 .or. yradiation%yrerad%naermacc == 1) then
-      ifs_config%iaero = indrad(inext,yradiation%rad_config%n_aerosol_types*nlev,.true.)
-    endif
-    ifs_config%iaer   =indrad(inext,nlev*6,.true.)
-    ifs_config%ioz    =indrad(inext,nlev,.true.)
-    ifs_config%iico2  =indrad(inext,nlev,.true.)
-    ifs_config%iich4  =indrad(inext,nlev,.true.)
-    ifs_config%iin2o  =indrad(inext,nlev,.true.)
-    ifs_config%ino2   =indrad(inext,nlev,.true.)
-    ifs_config%ic11   =indrad(inext,nlev,.true.)
-    ifs_config%ic12   =indrad(inext,nlev,.true.)
-    ifs_config%ic22   =indrad(inext,nlev,.true.)
-    ifs_config%icl4   =indrad(inext,nlev,.true.)
-  endif
-                                ! end of local variables
-
-                                  ! start of standalone inputs workaround variables
-#ifdef BITIDENTITY_TESTING
-  ! To validate results against standalone ecrad, we overwrite effective
-  ! radii, cloud overlap and seed with input values
-  ifs_config%ire_liq =indrad(inext,nlev,.true.)
-  ifs_config%ire_ice =indrad(inext,nlev,.true.)
-  ifs_config%ioverlap =indrad(inext,nlev-1,.true.)
-#endif
-                                  ! end of standalone inputs workaround variables
-
-  ifldsin = iinend - iinbeg +1
-  ifldsout= ioutend-ioutbeg +1
-  ifs_config%ifldstot= inext  - 1
-
-  if( lldebug )then
-    write(nulout,'("imu0   =",i0)')ifs_config%imu0
-    write(nulout,'("iamu0  =",i0)')ifs_config%iamu0
-    write(nulout,'("iemiss =",i0)')ifs_config%iemiss
-    write(nulout,'("its    =",i0)')ifs_config%its
-    write(nulout,'("islm   =",i0)')ifs_config%islm
-    write(nulout,'("iccnl  =",i0)')ifs_config%iccnl
-    write(nulout,'("iccno  =",i0)')ifs_config%iccno
-    write(nulout,'("ibas   =",i0)')ifs_config%ibas
-    write(nulout,'("itop   =",i0)')ifs_config%itop
-    write(nulout,'("igelam =",i0)')ifs_config%igelam
-    write(nulout,'("igemu  =",i0)')ifs_config%igemu
-    write(nulout,'("iclon  =",i0)')ifs_config%iclon
-    write(nulout,'("islon  =",i0)')ifs_config%islon
-    write(nulout,'("iald   =",i0)')ifs_config%iald
-    write(nulout,'("ialp   =",i0)')ifs_config%ialp
-    write(nulout,'("iti    =",i0)')ifs_config%iti
-    write(nulout,'("ipr    =",i0)')ifs_config%ipr
-    write(nulout,'("iqs    =",i0)')ifs_config%iqs
-    write(nulout,'("iwv    =",i0)')ifs_config%iwv
-    write(nulout,'("iclc   =",i0)')ifs_config%iclc
-    write(nulout,'("ilwa   =",i0)')ifs_config%ilwa
-    write(nulout,'("iiwa   =",i0)')ifs_config%iiwa
-    write(nulout,'("iswa   =",i0)')ifs_config%iswa
-    write(nulout,'("irwa   =",i0)')ifs_config%irwa
-    write(nulout,'("irra   =",i0)')ifs_config%irra
-    write(nulout,'("idp    =",i0)')ifs_config%idp
-    write(nulout,'("ioz    =",i0)')ifs_config%ioz
-    write(nulout,'("iecpo3 =",i0)')ifs_config%iecpo3
-    write(nulout,'("ihpr   =",i0)')ifs_config%ihpr
-    write(nulout,'("iaprs  =",i0)')ifs_config%iaprs
-    write(nulout,'("ihti   =",i0)')ifs_config%ihti
-    write(nulout,'("ifrsod =",i0)')ifs_config%ifrsod
-    write(nulout,'("ifrted =",i0)')ifs_config%ifrted
-    write(nulout,'("ifrsodc=",i0)')ifs_config%ifrsodc
-    write(nulout,'("ifrtedc=",i0)')ifs_config%ifrtedc
-    write(nulout,'("iemit  =",i0)')ifs_config%iemit
-    write(nulout,'("isudu  =",i0)')ifs_config%isudu
-    write(nulout,'("iuvdf  =",i0)')ifs_config%iuvdf
-    write(nulout,'("iparf  =",i0)')ifs_config%iparf
-    write(nulout,'("iparcf =",i0)')ifs_config%iparcf
-    write(nulout,'("itincf =",i0)')ifs_config%itincf
-    write(nulout,'("ifdir  =",i0)')ifs_config%ifdir
-    write(nulout,'("ifdif  =",i0)')ifs_config%ifdif
-    write(nulout,'("icdir  =",i0)')ifs_config%icdir
-    write(nulout,'("ilwderivative  =",i0)')ifs_config%ilwderivative
-    write(nulout,'("iswdirectband  =",i0)')ifs_config%iswdirectband
-    write(nulout,'("iswdiffuseband =",i0)')ifs_config%iswdiffuseband
-    write(nulout,'("ifrso  =",i0)')ifs_config%ifrso
-    write(nulout,'("iswfc  =",i0)')ifs_config%iswfc
-    write(nulout,'("ifrth  =",i0)')ifs_config%ifrth
-    write(nulout,'("ilwfc  =",i0)')ifs_config%ilwfc
-    write(nulout,'("igi    =",i0)')ifs_config%igi
-    write(nulout,'("iaer   =",i0)')ifs_config%iaer
-    write(nulout,'("iaero  =",i0)')ifs_config%iaero
-    write(nulout,'("iico2  =",i0)')ifs_config%iico2
-    write(nulout,'("iich4  =",i0)')ifs_config%iich4
-    write(nulout,'("iin2o  =",i0)')ifs_config%iin2o
-    write(nulout,'("ino2   =",i0)')ifs_config%ino2
-    write(nulout,'("ic11   =",i0)')ifs_config%ic11
-    write(nulout,'("ic12   =",i0)')ifs_config%ic12
-    write(nulout,'("ic22   =",i0)')ifs_config%ic22
-    write(nulout,'("icl4   =",i0)')ifs_config%icl4
-#ifdef BITIDENTITY_TESTING
-    write(nulout,'("ire_liq=",i0)')ifs_config%ire_liq
-    write(nulout,'("ire_ice=",i0)')ifs_config%ire_ice
-    write(nulout,'("ioverlap=",i0)')ifs_config%ioverlap
-#endif
-    write(nulout,'("ifldsin =",i0)')ifldsin
-    write(nulout,'("ifldsout=",i0)')ifldsout
-    write(nulout,'("ifldstot=",i0)')ifs_config%ifldstot
-  endif
-
-end subroutine ifs_setup_indices
 
 subroutine ifs_copy_inputs_to_blocked ( &
   & ifs_config, yradiation, ncol, nlev, nproma, &
@@ -283,10 +36,11 @@ subroutine ifs_copy_inputs_to_blocked ( &
   use radiation_cloud,          only : cloud_type
   use radiation_aerosol,        only : aerosol_type
   use radiation_setup,          only : tradiation
+  use radintg_zrgp_mod,         only : radintg_zrgp_type
 
   implicit none
 
-  type(ifs_config_type), intent(in)     :: ifs_config
+  type(radintg_zrgp_type), intent(in)   :: ifs_config
 
   ! Configuration for the radiation scheme, IFS style
   type(tradiation), intent(in)          :: yradiation
@@ -495,8 +249,9 @@ subroutine ifs_copy_fluxes_from_blocked(&
     & emissivity_out, flux_diffuse_band, flux_direct_band)
   use radiation_setup,          only : tradiation
   use radiation_flux,           only : flux_type
+  use radintg_zrgp_mod,         only : radintg_zrgp_type
 
-  type(ifs_config_type), intent(in)     :: ifs_config
+  type(radintg_zrgp_type), intent(in)   :: ifs_config
 
   ! Configuration for the radiation scheme, IFS style
   type(tradiation), intent(in)          :: yradiation

@@ -1,0 +1,136 @@
+! radintg_zrgp_mod.fypp - Wrap the block-allocated radiation fields from RADINTG in a FIELD API stack
+!
+! (C) Copyright 2022- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+#:mute
+#:set radiation_config_file = os.path.dirname(os.path.abspath(_THIS_FILE_)) + '/radiation_fields_config.yaml'
+#:set radiation_config = field_config.VariableConfiguration(radiation_config_file)
+#:set zrgp_in = radiation_config.groups['ZRGP_IN']
+#:set zrgp_out = radiation_config.groups['ZRGP_OUT']
+#:set zrgp_local = radiation_config.groups['ZRGP_LOCAL']
+#:set variables = zrgp_in.variables + zrgp_out.variables + zrgp_local.variables
+#:set variable_names = list(dict.fromkeys(v.name for v in variables))
+#:set variable_dim = {v.name: 2 if v.dim[0] == 1 else 3 for v in variables}
+#:def kflds_from_dim(dim)
+$:'*'.join(str(d) for d in dim)
+#:enddef
+#:endmute
+
+MODULE RADINTG_ZRGP_MOD
+
+USE PARKIND1     , ONLY : JPRB, JPIM
+USE YOMHOOK      , ONLY : LHOOK, DR_HOOK, JPHOOK
+
+IMPLICIT NONE
+
+PRIVATE
+PUBLIC :: RADINTG_ZRGP_TYPE
+
+#ifdef BITIDENTITY_TESTING
+  LOGICAL, PARAMETER :: LBITIDENTITY = .TRUE.
+#else
+  LOGICAL, PARAMETER :: LBITIDENTITY = .FALSE.
+#endif
+
+TYPE RADINTG_ZRGP_TYPE
+  ! Field counts and offset indices for ZRGP
+  INTEGER(KIND=JPIM) :: IFLDSIN, IFLDSOUT, IFLDSTOT
+  INTEGER(KIND=JPIM) :: IINBEG, IINEND, IOUTBEG, IOUTEND
+  #:for v_name in variable_names
+  INTEGER(KIND=JPIM) :: ${v_name}$
+  #:endfor
+
+CONTAINS
+  PROCEDURE :: SETUP => RADINTG_ZRGP_SETUP
+
+END TYPE RADINTG_ZRGP_TYPE
+
+CONTAINS
+
+INTEGER(KIND=JPIM) FUNCTION INDRAD(KNEXT,KFLDS,LDUSE)
+INTEGER(KIND=JPIM),INTENT(INOUT) :: KNEXT
+INTEGER(KIND=JPIM),INTENT(IN) :: KFLDS
+LOGICAL,INTENT(IN) :: LDUSE
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+IF (LHOOK) CALL DR_HOOK('RADINTG:INDRAD',0,ZHOOK_HANDLE)
+
+IF( LDUSE )THEN
+  INDRAD=KNEXT
+  KNEXT=KNEXT+KFLDS
+ELSE
+  INDRAD=-99999999
+ENDIF
+
+IF (LHOOK) CALL DR_HOOK('RADINTG:INDRAD',1,ZHOOK_HANDLE)
+
+END FUNCTION INDRAD
+
+
+SUBROUTINE RADINTG_ZRGP_SETUP( &
+  & SELF, NLEV, NLWEMISS, &
+  & NLWOUT, NSW, NFSD, NRFTOTAL_RADGRID, &
+  & NPROGAER, NRADAER, &
+  & LDEBUG, LSPPRAD, LRAYFM, &
+  & LAPPROXLWUPDATE, LAPPROXSWUPDATE, &
+  & LEPO3RA, LDIAGFORCING)
+
+  USE YOMLUN       , ONLY : NULOUT
+
+  IMPLICIT NONE
+
+  CLASS(RADINTG_ZRGP_TYPE), INTENT(INOUT):: SELF
+  INTEGER, INTENT(IN)                    :: NLEV
+  INTEGER, INTENT(IN)                    :: NLWEMISS, NLWOUT, NSW
+  INTEGER, INTENT(IN)                    :: NFSD, NRFTOTAL_RADGRID
+  INTEGER, INTENT(IN)                    :: NPROGAER, NRADAER
+  LOGICAL, INTENT(IN)                    :: LDEBUG, LSPPRAD, LRAYFM
+  LOGICAL, INTENT(IN)                    :: LAPPROXLWUPDATE, LAPPROXSWUPDATE
+  LOGICAL, INTENT(IN)                    :: LEPO3RA, LDIAGFORCING
+
+  INTEGER(KIND=JPIM), ALLOCATABLE     :: MEMBER_MAP(:)
+  INTEGER(KIND=JPIM)                  :: INEXT
+  REAL(KIND=JPHOOK)                   :: ZHOOK_HANDLE
+
+  IF (LHOOK) CALL DR_HOOK('RADINTG_ZRGP_SETUP',0,ZHOOK_HANDLE)
+
+  INEXT = 1
+  SELF%IINBEG=1
+  #:for v in zrgp_in.variables
+  SELF%${v.name}$ = INDRAD( INEXT, ${kflds_from_dim(v.dim)}$, ${v.condition}$)
+  #:endfor
+  SELF%IINEND = INEXT-1
+  SELF%IOUTBEG = INEXT
+  #:for v in zrgp_out.variables
+  SELF%${v.name}$ = INDRAD( INEXT, ${kflds_from_dim(v.dim)}$, ${v.condition}$)
+  #:endfor
+  SELF%IOUTEND = INEXT-1
+  #:for v in zrgp_local.variables
+  SELF%${v.name}$ = INDRAD( INEXT, ${kflds_from_dim(v.dim)}$, ${v.condition}$)
+  #:endfor
+
+  IF (LDEBUG) THEN
+    #:for v_name in variable_names
+    WRITE(NULOUT,'("RADINTG: ",A16,"=",I12)') '${v_name.upper()}$',SELF%${v_name}$
+    #:endfor
+  ENDIF
+
+  SELF%IFLDSIN = SELF%IINEND - SELF%IINBEG + 1
+  SELF%IFLDSOUT = SELF%IOUTEND - SELF%IOUTBEG + 1
+  SELF%IFLDSTOT = INEXT - 1
+
+  WRITE(NULOUT,'("RADINTG: IFLDSIN   =",I12)')SELF%IFLDSIN
+  WRITE(NULOUT,'("RADINTG: IFLDSOUT  =",I12)')SELF%IFLDSOUT
+  WRITE(NULOUT,'("RADINTG: IFLDSTOT  =",I12)')SELF%IFLDSTOT
+
+  IF (LHOOK) CALL DR_HOOK('RADINTG_ZRGP_SETUP',1,ZHOOK_HANDLE)
+
+END SUBROUTINE RADINTG_ZRGP_SETUP
+
+END MODULE RADINTG_ZRGP_MOD
