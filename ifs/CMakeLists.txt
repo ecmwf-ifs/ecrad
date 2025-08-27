@@ -20,7 +20,7 @@ set( ifs_SOURCES
         cloud_overlap_decorr_len.F90
         yoerad.F90
         ifs_blocking.F90
-${CMAKE_CURRENT_BINARY_DIR}/radintg_zrgp_mod.F90
+        ${CMAKE_CURRENT_BINARY_DIR}/radintg_zrgp_mod.F90
 )
 
 macro( ecrad_ifs_process_fypp fypp_file )
@@ -63,3 +63,32 @@ set_target_properties( ifs.${PREC}
     PROPERTIES
         Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module_ifs"
 )
+
+if( HAVE_FIELD_API )
+
+    ecrad_ifs_process_fypp( radiation_scheme_layer_mod )
+
+    ecbuild_add_library(
+        TARGET ifs_field_api.${PREC}
+        TYPE OBJECT
+        SOURCES
+            ${ifs_SOURCES}
+            ${CMAKE_CURRENT_BINARY_DIR}/radiation_scheme_layer_mod.F90
+        PUBLIC_DEFINITIONS
+            HAVE_FIELD_API
+        PUBLIC_INCLUDES
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/module_ifs_field_api>"
+        PRIVATE_LIBS
+            ecrad.${PREC}
+            ecrad_base.${PREC}
+        PUBLIC_LIBS
+            field_api_${PREC}
+            $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+    )
+
+    set_target_properties( ifs_field_api.${PREC}
+        PROPERTIES
+            Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module_ifs_field_api"
+    )
+
+endif()
