@@ -87,6 +87,9 @@ ecbuild_add_library(
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
     PUBLIC_LIBS
         $<${HAVE_ACC}:OpenACC::OpenACC_Fortran>
+        $<${HAVE_NVTX}:${NVTX_TARGET}>
+	$<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
+    PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 # Improve performance via function inlining for NVHPC

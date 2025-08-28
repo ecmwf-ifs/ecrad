@@ -20,6 +20,7 @@ ecbuild_add_library(
         ecrad.${PREC}
         ecrad_base.${PREC}
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+    PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 ecbuild_add_executable(
@@ -29,6 +30,7 @@ ecbuild_add_executable(
     LIBS
         driver_lib.${PREC}
     LINKER_LANGUAGE Fortran
+    DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 ecbuild_add_executable(
@@ -39,7 +41,9 @@ ecbuild_add_executable(
         ifs.${PREC}
         driver_lib.${PREC}
         $<${HAVE_NVTX}:${NVTX_TARGET}>
+        $<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
     LINKER_LANGUAGE Fortran
+    DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 ecbuild_add_executable(
@@ -51,8 +55,11 @@ ecbuild_add_executable(
         ifs.${PREC}
         driver_lib.${PREC}
         $<${HAVE_NVTX}:${NVTX_TARGET}>
+        $<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
     LINKER_LANGUAGE Fortran
+    DEFINITIONS ${GPU_OFFLOAD}GPU
 )
+
 
 # For ecrad_ifs_driver_blocked we have to disable bounds checking
 # (which is enabled in Debug builds) because sequence association

@@ -231,6 +231,8 @@ ecbuild_add_library(
         ecrad_ifsaux.${PREC}
     PUBLIC_LIBS
         $<${HAVE_ACC}:OpenACC::OpenACC_Fortran>
+	$<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
+    PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 install(

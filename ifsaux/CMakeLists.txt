@@ -27,5 +27,6 @@ ecbuild_add_library(
     PUBLIC_INCLUDES
         "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
     PRIVATE_LIBS ecrad_base.${PREC}
+    PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 install( TARGETS ecrad_ifsaux.${PREC} EXPORT ecrad-targets )
