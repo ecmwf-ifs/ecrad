@@ -40,8 +40,6 @@ set( ECRAD_ECBUILD_COMPILE_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ecrad_init_fl
 project( ecrad LANGUAGES Fortran )
 ecbuild_enable_fortran( REQUIRED )
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
-set( CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
-include( ecrad_macros )
 
 set( ECRAD_COMPILE_DEFINITIONS "" )
 
@@ -104,23 +102,7 @@ if( HAVE_NVTX )
     list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_NVTX )
 endif()
 
-if (HAVE_OMP)
-  set(HAVE_HIP 0)
-  ecrad_find_hip() # sets "HAVE_HIP"
-endif()
-
-ecbuild_add_option(
-  FEATURE ROCTX
-  DEFAULT OFF
-  DESCRIPTION "Enable Roctx markers in code"
-  CONDITION HAVE_HIP
-)
-
-if( HAVE_ROCTX )
-  list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_ROCTX )
-endif()
-
-if( HAVE_ACC OR (HAVE_OMP AND HAVE_HIP) )
+if( HAVE_ACC )
     set( GPU_DEFAULT ON )
 else()
     set( GPU_DEFAULT OFF )
@@ -143,6 +125,16 @@ if( HAVE_GPU )
   endif()
 endif()
 
+ecbuild_add_option(
+  FEATURE ROCTX
+  DEFAULT OFF
+  DESCRIPTION "Enable Roctx markers in code"
+  CONDITION (HAVE_GPU AND HAVE_OMP)
+)
+
+if( HAVE_ROCTX )
+  list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_ROCTX )
+endif()
 
 set( _PRECISIONS "" )
 ecbuild_add_option(
