@@ -466,7 +466,11 @@ program ecrad_ifs_driver
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
 
+#ifndef __GFORTRAN__
+  ! FIXME: GFortran fails with a not understood double free error, which occurs
+  ! already when simply extracting fields and view pointers from the stack
   call zrgp_fields%delete_field()
+#endif
 
   ! Finalise MPI if not done yet
 #ifdef HAVE_FIAT
