@@ -539,8 +539,8 @@ CONTAINS
          &  PRADIATION%NWEIGHT_PAR, PRADIATION%IBAND_PAR, PRADIATION%WEIGHT_PAR,&
          &  'photosynthetically active radiation, PAR')
 
-    ! PRADIATION%TROP_BG_AER_MASS_EXT  = 0.0_JPRB
-    ! PRADIATION%STRAT_BG_AER_MASS_EXT = 0.0_JPRB
+    PRADIATION%TROP_BG_AER_MASS_EXT  = 0.0_JPRB
+    PRADIATION%STRAT_BG_AER_MASS_EXT = 0.0_JPRB
     ! IF (YDERAD%NAERMACC > 0) THEN
     !   ! With the MACC aerosol climatology we need to add in the
     !   ! background aerosol afterwards using the Tegen arrays.  In this
