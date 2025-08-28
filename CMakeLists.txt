@@ -7,7 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
+cmake_minimum_required( VERSION 3.24 FATAL_ERROR )
 
 # ecrad uses ecbuild (https://github.com/ecmwf/ecbuild) to enhance the CMake build system.
 # In an ifs-bundle build, ecbuild is already available as a shared dependency for multiple
@@ -17,8 +17,6 @@ cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
 # For that, we first try to find ecbuild (QUIETly) ...
 set( MINIMUM_ECBUILD_VERSION 3.8.5 )
 find_package( ecbuild ${MINIMUM_ECBUILD_VERSION} HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild QUIET )
-set( CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
-include( ecrad_macros )
 
 # ... or, if it cannot be found, download it via FetchContent ...
 if( NOT ecbuild_FOUND )
@@ -42,6 +40,8 @@ set( ECRAD_ECBUILD_COMPILE_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ecrad_init_fl
 project( ecrad LANGUAGES Fortran )
 ecbuild_enable_fortran( REQUIRED )
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+set( CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
+include( ecrad_macros )
 
 set( ECRAD_COMPILE_DEFINITIONS "" )
 
@@ -87,23 +87,6 @@ ecbuild_add_option(
     CONDITION CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC"
 )
 
-ecbuild_add_option( FEATURE GPU
-                    DEFAULT OFF
-                    DESCRIPTION "Compile GPU version of ECRad (Requires OpenACC or sufficient OpenMP offloading support)"
-                    CONDITION (HAVE_ACC OR HAVE_OMP) )
-
-if( HAVE_GPU )
-  if( HAVE_ACC )
-    set( GPU_OFFLOAD "ACC" )
-        ecbuild_warn( "OpenACC enabled" )
-  elseif( HAVE_OMP )
-    set( GPU_OFFLOAD "OMP" )
-        ecbuild_warn( "OpenMP offload enabled" )
-  else()
-    ecbuild_error("Could not enable GPU as OMP or ACC were not enabled")
-  endif()
-endif()
-
 if( CMAKE_VERSION VERSION_LESS 3.25 )
     set( NVTX_TARGET CUDA::nvToolsExt )
 else()
@@ -121,13 +104,9 @@ if( HAVE_NVTX )
     list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_NVTX )
 endif()
 
-if (HAVE_GPU)
+if (HAVE_OMP)
   set(HAVE_HIP 0)
-  if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
-    ecrad_find_hip() # sets "HAVE_HIP"
-  else()
-    message("Cannot enable for HIP language, require CMake >= 3.24")
-  endif()
+  ecrad_find_hip() # sets "HAVE_HIP"
 endif()
 
 ecbuild_add_option(
@@ -140,6 +119,30 @@ ecbuild_add_option(
 if( HAVE_ROCTX )
   list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_ROCTX )
 endif()
+
+if( HAVE_ACC OR (HAVE_OMP AND HAVE_HIP) )
+    set( GPU_DEFAULT ON )
+else()
+    set( GPU_DEFAULT OFF )
+endif()
+
+ecbuild_add_option( FEATURE GPU
+                    DEFAULT ${GPU_DEFAULT}
+                    DESCRIPTION "Compile GPU version of ECRad (Requires OpenACC or sufficient OpenMP offloading support)"
+                    CONDITION (HAVE_ACC OR HAVE_OMP) )
+
+if( HAVE_GPU )
+  if( HAVE_ACC )
+    set( GPU_OFFLOAD "ACC" )
+        ecbuild_warn( "OpenACC enabled" )
+  elseif( HAVE_OMP )
+    set( GPU_OFFLOAD "OMP" )
+        ecbuild_warn( "OpenMP offload enabled" )
+  else()
+    ecbuild_error("Could not enable GPU as OMP or ACC were not enabled")
+  endif()
+endif()
+
 
 set( _PRECISIONS "" )
 ecbuild_add_option(
