@@ -17,6 +17,8 @@ cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
 # For that, we first try to find ecbuild (QUIETly) ...
 set( MINIMUM_ECBUILD_VERSION 3.8.5 )
 find_package( ecbuild ${MINIMUM_ECBUILD_VERSION} HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild QUIET )
+set( CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
+include( ecrad_macros )
 
 # ... or, if it cannot be found, download it via FetchContent ...
 if( NOT ecbuild_FOUND )
@@ -61,7 +63,7 @@ endif()
 ecbuild_add_option(
     FEATURE OMP
     DEFAULT ON
-    DESCRIPTION "Use OpenMP for shared memory parallelisation in the driver programs"
+    DESCRIPTION "Use OpenMP for device offload or for shared memory parallelisation"
     REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran"
 )
 
@@ -85,6 +87,23 @@ ecbuild_add_option(
     CONDITION CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC"
 )
 
+ecbuild_add_option( FEATURE GPU
+                    DEFAULT OFF
+                    DESCRIPTION "Compile GPU version of ECRad (Requires OpenACC or sufficient OpenMP offloading support)"
+                    CONDITION (HAVE_ACC OR HAVE_OMP) )
+
+if( HAVE_GPU )
+  if( HAVE_ACC )
+    set( GPU_OFFLOAD "ACC" )
+        ecbuild_warn( "OpenACC enabled" )
+  elseif( HAVE_OMP )
+    set( GPU_OFFLOAD "OMP" )
+        ecbuild_warn( "OpenMP offload enabled" )
+  else()
+    ecbuild_error("Could not enable GPU as OMP or ACC were not enabled")
+  endif()
+endif()
+
 if( CMAKE_VERSION VERSION_LESS 3.25 )
     set( NVTX_TARGET CUDA::nvToolsExt )
 else()
@@ -100,6 +119,26 @@ ecbuild_add_option(
 if( HAVE_NVTX )
     list( APPEND NVTX_TARGET nvhpcwrapnvtx )
     list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_NVTX )
+endif()
+
+if (HAVE_GPU)
+  set(HAVE_HIP 0)
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
+    ecrad_find_hip() # sets "HAVE_HIP"
+  else()
+    message("Cannot enable for HIP language, require CMake >= 3.24")
+  endif()
+endif()
+
+ecbuild_add_option(
+  FEATURE ROCTX
+  DEFAULT OFF
+  DESCRIPTION "Enable Roctx markers in code"
+  CONDITION HAVE_HIP
+)
+
+if( HAVE_ROCTX )
+  list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_ROCTX )
 endif()
 
 set( _PRECISIONS "" )
