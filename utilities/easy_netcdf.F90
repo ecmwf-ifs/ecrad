@@ -87,13 +87,18 @@ module easy_netcdf
          &              get_real_vector, get_int_vector, &
          &              get_real_matrix, get_real_array3, &
          &              get_real_array4, &
-         &              get_real_vector_pointer, get_int_vector_pointer, &
-         &              get_real_matrix_pointer, get_real_array3_pointer, &
-         &              get_real_array4_pointer, &
          &              get_real_scalar_indexed, get_real_vector_indexed, &
          &              get_real_matrix_indexed, get_real_array3_indexed, &
          &              get_real_matrix_indexed2, get_real_array3_indexed2, &
-         &              get_char_vector, get_char_matrix, &
+         &              get_char_vector, get_char_matrix
+    ! Generic overload get method for routines that allocate and return a pointer.
+    ! In theory, it should be possible to overload the generic get above with the
+    ! pointer versions, but the INTEL compilers does not conform to the Fortran std.
+    ! and can't resolve overloads based on pointer/allocatable attributes. Therefore
+    ! we need the get_ptr interface.
+    generic   :: get_ptr => get_real_vector_pointer, get_int_vector_pointer, &
+         &              get_real_matrix_pointer, get_real_array3_pointer, &
+         &              get_real_array4_pointer, &
          &              get_real_vector_indexed_pointer, &
          &              get_real_matrix_indexed_pointer, get_real_array3_indexed_pointer, &
          &              get_real_matrix_indexed2_pointer, get_real_array3_indexed2_pointer, &
