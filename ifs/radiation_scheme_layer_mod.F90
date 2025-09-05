@@ -388,7 +388,6 @@ DO JKGLO=1,NGPTOT,NRPROMA
     P_iswa => F_iswa%GET_VIEW(IBL)
     P_iaer => F_iaer%GET_VIEW(IBL)
     P_iaero => F_iaero%GET_VIEW(IBL)
-    P_iaero => F_iaero%GET_VIEW(IBL)
     P_ifrso => F_ifrso%GET_VIEW(IBL)
     P_ifrth => F_ifrth%GET_VIEW(IBL)
     P_iswfc => F_iswfc%GET_VIEW(IBL)
