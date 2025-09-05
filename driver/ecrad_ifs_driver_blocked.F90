@@ -412,7 +412,7 @@ program ecrad_ifs_driver
         call radiation_scheme &
              & (yradiation, &
              &  1, il, nproma, &                       ! startcol, endcol, ncol
-             &  nlev, size(aerosol%mixing_ratio,3), &    ! nlev, naerosols
+             &  nlev, yradiation%rad_config%n_aerosol_types, &    ! nlev, naerosols
              &  single_level%solar_irradiance, &                               ! solar_irrad
              ! array inputs
              &  zrgp(1,ifs_config%iamu0,ib), zrgp(1,ifs_config%its,ib), &    ! mu0, skintemp

@@ -406,7 +406,7 @@ program ecrad_ifs_driver
         ! Call the ECRAD radiation scheme; note that we are simply
         ! passing arrays in rather than ecRad structures, which are
         ! used here just for convenience
-        call radiation_scheme(yradiation, istartcol, iendcol, ncol, nlev, size(aerosol%mixing_ratio,3), &
+        call radiation_scheme(yradiation, istartcol, iendcol, ncol, nlev, yradiation%rad_config%n_aerosol_types, &
              &  single_level%solar_irradiance, single_level%cos_sza, single_level%skin_temperature, &
              &  single_level%sw_albedo, single_level%sw_albedo_direct, single_level%lw_emissivity, &
              &  ccn_land, ccn_sea, longitude_rad, sin_latitude, land_frac, pressure_fl, temperature_fl, &
