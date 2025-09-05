@@ -36,7 +36,7 @@ ${linebreak.join(','.join(iterable[i:i+5]) for i in range(0, len(iterable), 5))}
 &      'icl4','ioz', &
 &      'iclc','ilwa','iiwa','irwa', &
 &      'iswa', &
-&      'iaer', 'iaero', 'iaero', &
+&      'iaer', 'iaero', &
 &      'ifrso','ifrth','iswfc','ilwfc', &
 &      'ifrsod','ifrted', &
 &      'ifrsodc','ifrtedc', &
