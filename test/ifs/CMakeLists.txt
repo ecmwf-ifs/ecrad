@@ -82,6 +82,7 @@ function( add_ecrad_ifs_test )
         endif()
         set( CONFIG_NAM "${CMAKE_CURRENT_BINARY_DIR}/config_${_PAR_NAME}.nam" )
         list( APPEND _PAR_NAMELIST_OPTIONS "directory_name=\\\"data\\\"" )
+        list( APPEND _PAR_NAMELIST_OPTIONS "nblocksize=15" )
         add_custom_command(
             OUTPUT ${CONFIG_NAM}
             COMMAND
