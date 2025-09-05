@@ -450,21 +450,28 @@ program ecrad_ifs_driver
   ! "up" fluxes are actually net fluxes at this point - we modify the
   ! upwelling flux so that net=dn-up, while the TOA and surface
   ! downwelling fluxes are correct.
-  flux%sw_up = -flux%sw_up
-  flux%sw_up(:,1) = flux%sw_up(:,1)+flux%sw_dn(:,1)
-  flux%sw_up(:,nlev+1) = flux%sw_up(:,nlev+1)+flux%sw_dn(:,nlev+1)
+  if(yradiation%rad_config%do_sw) then
+    flux%sw_up = -flux%sw_up
+    flux%sw_up(:,1) = flux%sw_up(:,1)+flux%sw_dn(:,1)
+    flux%sw_up(:,nlev+1) = flux%sw_up(:,nlev+1)+flux%sw_dn(:,nlev+1)
+    if(yradiation%rad_config%do_clear) then
+      flux%sw_up_clear = -flux%sw_up_clear
+      flux%sw_up_clear(:,1) = flux%sw_up_clear(:,1)+flux%sw_dn_clear(:,1)
+      flux%sw_up_clear(:,nlev+1) = flux%sw_up_clear(:,nlev+1)+flux%sw_dn_clear(:,nlev+1)
+    endif
 
-  flux%lw_up = -flux%lw_up
-  flux%lw_up(:,1) = flux%lw_up(:,1)+flux%lw_dn(:,1)
-  flux%lw_up(:,nlev+1) = flux%lw_up(:,nlev+1)+flux%lw_dn(:,nlev+1)
+  endif
 
-  flux%sw_up_clear = -flux%sw_up_clear
-  flux%sw_up_clear(:,1) = flux%sw_up_clear(:,1)+flux%sw_dn_clear(:,1)
-  flux%sw_up_clear(:,nlev+1) = flux%sw_up_clear(:,nlev+1)+flux%sw_dn_clear(:,nlev+1)
-
-  flux%lw_up_clear = -flux%lw_up_clear
-  flux%lw_up_clear(:,1) = flux%lw_up_clear(:,1)+flux%lw_dn_clear(:,1)
-  flux%lw_up_clear(:,nlev+1) = flux%lw_up_clear(:,nlev+1)+flux%lw_dn_clear(:,nlev+1)
+  if(yradiation%rad_config%do_lw) then
+    flux%lw_up = -flux%lw_up
+    flux%lw_up(:,1) = flux%lw_up(:,1)+flux%lw_dn(:,1)
+    flux%lw_up(:,nlev+1) = flux%lw_up(:,nlev+1)+flux%lw_dn(:,nlev+1)
+    if(yradiation%rad_config%do_clear) then
+      flux%lw_up_clear = -flux%lw_up_clear
+      flux%lw_up_clear(:,1) = flux%lw_up_clear(:,1)+flux%lw_dn_clear(:,1)
+      flux%lw_up_clear(:,nlev+1) = flux%lw_up_clear(:,nlev+1)+flux%lw_dn_clear(:,nlev+1)
+    endif
+  endif
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
