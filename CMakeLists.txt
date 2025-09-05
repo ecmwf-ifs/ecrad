@@ -7,7 +7,7 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
+cmake_minimum_required( VERSION 3.24 FATAL_ERROR )
 
 # ecrad uses ecbuild (https://github.com/ecmwf/ecbuild) to enhance the CMake build system.
 # In an ifs-bundle build, ecbuild is already available as a shared dependency for multiple
@@ -61,7 +61,7 @@ endif()
 ecbuild_add_option(
     FEATURE OMP
     DEFAULT ON
-    DESCRIPTION "Use OpenMP for shared memory parallelisation in the driver programs"
+    DESCRIPTION "Use OpenMP for device offload or for shared memory parallelisation"
     REQUIRED_PACKAGES "OpenMP COMPONENTS Fortran"
 )
 
@@ -100,6 +100,38 @@ ecbuild_add_option(
 if( HAVE_NVTX )
     list( APPEND NVTX_TARGET nvhpcwrapnvtx )
     list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_NVTX )
+endif()
+
+if( HAVE_ACC )
+    set( GPU_DEFAULT ON )
+else()
+    set( GPU_DEFAULT OFF )
+endif()
+
+ecbuild_add_option( FEATURE GPU
+                    DEFAULT ${GPU_DEFAULT}
+                    DESCRIPTION "Compile GPU version of ECRad (Requires OpenACC or sufficient OpenMP offloading support)"
+                    CONDITION (HAVE_ACC OR HAVE_OMP) )
+
+if( HAVE_GPU )
+  if( HAVE_ACC )
+    set( GPU_OFFLOAD "ACC" )
+  elseif( HAVE_OMP )
+    set( GPU_OFFLOAD "OMP" )
+  else()
+    ecbuild_error("Could not enable GPU as OMP or ACC were not enabled")
+  endif()
+endif()
+
+ecbuild_add_option(
+  FEATURE ROCTX
+  DEFAULT OFF
+  DESCRIPTION "Enable Roctx markers in code"
+  CONDITION (HAVE_GPU AND HAVE_OMP)
+)
+
+if( HAVE_ROCTX )
+  list( APPEND ECRAD_COMPILE_DEFINITIONS HAVE_ROCTX )
 endif()
 
 set( _PRECISIONS "" )

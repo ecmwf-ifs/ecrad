@@ -12,6 +12,7 @@ set(
         easy_netcdf.F90
         radiation_io.F90
         radiation_random_numbers_mix.F90
+        roctx_profiling.F90
 )
 
 if( HAVE_FIAT )
@@ -34,6 +35,7 @@ ecbuild_add_library(
         ecrad_ifsaux.${PREC}
     PUBLIC_LIBS
         NetCDF::NetCDF_Fortran
+        $<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
 )
 
 install(
