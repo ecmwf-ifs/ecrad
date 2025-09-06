@@ -128,6 +128,7 @@ ecbuild_add_option(
   DEFAULT OFF
   DESCRIPTION "Enable Roctx markers in code"
   CONDITION (HAVE_GPU AND HAVE_OMP)
+  REQUIRED_PACKAGES ROCTX
 )
 
 if( HAVE_ROCTX )
