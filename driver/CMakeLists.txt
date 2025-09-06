@@ -40,7 +40,7 @@ ecbuild_add_executable(
         ifs.${PREC}
         driver_lib.${PREC}
         $<${HAVE_NVTX}:${NVTX_TARGET}>
-        $<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
+        $<${HAVE_ROCTX}:${ROCTX_LIBRARIES}>
     LINKER_LANGUAGE Fortran
 )
 
@@ -53,7 +53,7 @@ ecbuild_add_executable(
         ifs.${PREC}
         driver_lib.${PREC}
         $<${HAVE_NVTX}:${NVTX_TARGET}>
-        $<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
+        $<${HAVE_ROCTX}:${ROCTX_LIBRARIES}>
     LINKER_LANGUAGE Fortran
 )
 

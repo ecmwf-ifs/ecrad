@@ -31,6 +31,6 @@ ecbuild_add_library(
         ecrad_utilities.${PREC}
     PUBLIC_LIBS
         $<${HAVE_NVTX}:${NVTX_TARGET}>
-        $<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
+        $<${HAVE_ROCTX}:${ROCTX_LIBRARIES}>
     PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
 )
