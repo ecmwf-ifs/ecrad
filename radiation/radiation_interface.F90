@@ -333,7 +333,8 @@ contains
       ! decreasing height: progress normally
 
       ! Extract surface albedos at each gridpoint
-      call single_level%get_albedos(istartcol, iendcol, config, &
+      call single_level%get_albedos(single_level, &
+           &                        istartcol, iendcol, config, &
            &                        sw_albedo_direct, sw_albedo_diffuse, &
            &                        lw_albedo)
 
@@ -371,7 +372,7 @@ contains
         ! a fraction or water content; after this, we can safely
         ! assume that a cloud is present if cloud%fraction > 0.0.
         ! WARNING: not 100% tested on GPU as it has no effect on result
-        call cloud%crop_cloud_fraction(istartcol, iendcol, &
+        call cloud%crop_cloud_fraction(cloud, istartcol, iendcol, &
              &            config%cloud_fraction_threshold, &
              &            config%cloud_mixing_ratio_threshold)
 
@@ -439,8 +440,8 @@ contains
           !$ACC UPDATE HOST(od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
           !$ACC             planck_hl, lw_emission, lw_albedo, sw_albedo_direct, sw_albedo_diffuse, &
           !$ACC             incoming_sw, od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
-          call cloud%update_host()
-          call flux%update_host()
+          call cloud%update_host(cloud)
+          call flux%update_host(flux)
 #endif
         call save_radiative_properties(trim(rad_prop_file_name), &
              &  nlev, istartcol, iendcol, &
@@ -462,8 +463,8 @@ contains
 #ifdef _OPENACC
           !$ACC UPDATE HOST(od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, planck_hl, lw_emission, lw_albedo)
           !$ACC WAIT(1)
-          call cloud%update_host()
-          call flux%update_host()
+          call cloud%update_host(cloud)
+          call flux%update_host(flux)
           !$ACC WAIT(1)
 #endif
           ! Compute fluxes using the McICA longwave solver
@@ -473,7 +474,7 @@ contains
                &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
 #ifdef _OPENACC
           !$ACC WAIT(1)
-          call flux%update_device()
+          call flux%update_device(flux)
           !$ACC WAIT(1)
 #endif
         else if (config%i_solver_lw == ISolverMcICAACC) then
@@ -518,8 +519,8 @@ contains
 #ifdef _OPENACC
           !$ACC UPDATE HOST(od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, incoming_sw)
           !$ACC WAIT(1)
-          call cloud%update_host()
-          call flux%update_host()
+          call cloud%update_host(cloud)
+          call flux%update_host(flux)
           !$ACC WAIT(1)
 #endif
           ! Compute fluxes using the McICA shortwave solver
@@ -530,7 +531,7 @@ contains
                &  incoming_sw, flux)
 #ifdef _OPENACC
           !$ACC WAIT(1)
-          call flux%update_device()
+          call flux%update_device(flux)
           !$ACC WAIT(1)
 #endif
         else if (config%i_solver_sw == ISolverMcICAACC) then
@@ -572,7 +573,7 @@ contains
 
       ! Store surface downwelling, and TOA, fluxes in bands from
       ! fluxes in g points
-      call flux%calc_surface_spectral(config, istartcol, iendcol)
+      call flux%calc_surface_spectral(flux, config, istartcol, iendcol)
       call flux%calc_toa_spectral    (config, istartcol, iendcol)
 
     end if
@@ -632,7 +633,7 @@ contains
       write(nulout,'(a)') 'Reversing arrays to be in order of increasing pressure'
     end if
 
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
     write(nulerr,'(a)') '*** Error: radiation_interface:radiation_reverse not ported to GPU'
     call radiation_abort()
 #endif

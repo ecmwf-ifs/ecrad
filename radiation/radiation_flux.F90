@@ -111,24 +111,26 @@ module radiation_flux
    contains
     procedure :: allocate   => allocate_flux_type
     procedure :: deallocate => deallocate_flux_type
-    procedure :: calc_surface_spectral
+    procedure, nopass :: calc_surface_spectral
     procedure :: calc_toa_spectral
     procedure :: out_of_physical_bounds
     procedure :: heating_rate_out_of_physical_bounds
-#ifdef _OPENACC
-    procedure :: create_device
-    procedure :: update_host
-    procedure :: update_device
-    procedure :: delete_device
+#if defined(_OPENACC)  || defined(OMPGPU)
+    procedure, nopass :: create_device => create_device_flux
+    procedure, nopass :: update_host   => update_host_flux
+    procedure, nopass :: update_device => update_device_flux
+    procedure, nopass :: delete_device => delete_device_flux
 #endif
   end type flux_type
 
 ! Added for DWD (2020)
 #ifdef DWD_VECTOR_OPTIMIZATIONS
-      logical, parameter :: use_indexed_sum_vec = .true.
+  logical, parameter :: use_indexed_sum_vec = .true.
 #else
-      logical, parameter :: use_indexed_sum_vec = .false.
+  logical, parameter :: use_indexed_sum_vec = .false.
 #endif
+
+  !$omp declare target(indexed_sum)
 
 contains
 
@@ -412,12 +414,12 @@ contains
   subroutine calc_surface_spectral(this, config, istartcol, iendcol)
 
     use yomhook,          only : lhook, dr_hook, jphook
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
     use radiation_io,     only : nulerr, radiation_abort
 #endif
     use radiation_config, only : config_type
 
-    class(flux_type),  intent(inout) :: this
+    type(flux_type),  intent(inout) :: this
     type(config_type), intent(in)    :: config
     integer,           intent(in)    :: istartcol, iendcol
 
@@ -435,7 +437,7 @@ contains
 
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',0,hook_handle)
 
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
     if (use_indexed_sum_vec) then
       write(nulerr,'(a)') '*** Error: radiation_flux:calc_surface_spectral use_indexed_sum_vec==.true. not ported to GPU'
       call radiation_abort()
@@ -694,7 +696,7 @@ contains
 
     use yomhook,          only : lhook, dr_hook, jphook
     use radiation_config, only : config_type
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
     use radiation_io,     only : nulerr, radiation_abort
 #endif
 
@@ -709,7 +711,7 @@ contains
 
     if (lhook) call dr_hook('radiation_flux:calc_toa_spectral',0,hook_handle)
 
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
     if (config%do_toa_spectral_flux) then
       write(nulerr,'(a)') '*** Error: radiation_flux:calc_toa_spectral not ported to GPU.'
       call radiation_abort()
@@ -987,12 +989,59 @@ contains
 
   end subroutine indexed_sum_profile
 
-#ifdef _OPENACC
+#if defined(_OPENACC)  || defined(OMPGPU)
   !---------------------------------------------------------------------
   ! Creates fields on device
-  subroutine create_device(this)
+  subroutine create_device_flux(this)
 
-    class(flux_type), intent(inout) :: this
+    type(flux_type), intent(inout) :: this
+
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up) IF(allocated(this%lw_up))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn) IF(allocated(this%lw_dn))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_clear) IF(allocated(this%lw_up_clear))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_up) IF(allocated(this%sw_up))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn) IF(allocated(this%sw_dn))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_up_clear) IF(allocated(this%sw_up_clear))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_band) IF(allocated(this%lw_up_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn_band) IF(allocated(this%lw_dn_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_up_band) IF(allocated(this%sw_up_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_band) IF(allocated(this%sw_dn_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_derivatives) IF(allocated(this%lw_derivatives))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
 
     !$ACC ENTER DATA CREATE(this%lw_up) IF(allocated(this%lw_up)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%lw_dn) IF(allocated(this%lw_dn)) ASYNC(1)
@@ -1041,13 +1090,60 @@ contains
     !$ACC ENTER DATA CREATE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 
+  end subroutine create_device_flux
 
-  end subroutine create_device
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host(this)
+  subroutine update_host_flux(this)
 
-    class(flux_type), intent(inout) :: this
+    type(flux_type), intent(inout) :: this
+
+    !$OMP TARGET UPDATE FROM(this%lw_up) IF(allocated(this%lw_up))
+    !$OMP TARGET UPDATE FROM(this%lw_dn) IF(allocated(this%lw_dn))
+    !$OMP TARGET UPDATE FROM(this%lw_up_clear) IF(allocated(this%lw_up_clear))
+    !$OMP TARGET UPDATE FROM(this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
+    !$OMP TARGET UPDATE FROM(this%sw_up) IF(allocated(this%sw_up))
+    !$OMP TARGET UPDATE FROM(this%sw_dn) IF(allocated(this%sw_dn))
+    !$OMP TARGET UPDATE FROM(this%sw_up_clear) IF(allocated(this%sw_up_clear))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
+    !$OMP TARGET UPDATE FROM(this%lw_up_band) IF(allocated(this%lw_up_band))
+    !$OMP TARGET UPDATE FROM(this%lw_dn_band) IF(allocated(this%lw_dn_band))
+    !$OMP TARGET UPDATE FROM(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
+    !$OMP TARGET UPDATE FROM(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
+    !$OMP TARGET UPDATE FROM(this%sw_up_band) IF(allocated(this%sw_up_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_band) IF(allocated(this%sw_dn_band))
+    !$OMP TARGET UPDATE FROM(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
+    !$OMP TARGET UPDATE FROM(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
+    !$OMP TARGET UPDATE FROM(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
+    !$OMP TARGET UPDATE FROM(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
+    !$OMP TARGET UPDATE FROM(this%lw_derivatives) IF(allocated(this%lw_derivatives))
+    !$OMP TARGET UPDATE FROM(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
+    !$OMP TARGET UPDATE FROM(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
+    !$OMP TARGET UPDATE FROM(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
+    !$OMP TARGET UPDATE FROM(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
+    !$OMP TARGET UPDATE FROM(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
+    !$OMP TARGET UPDATE FROM(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
+    !$OMP TARGET UPDATE FROM(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
+    !$OMP TARGET UPDATE FROM(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
+    !$OMP TARGET UPDATE FROM(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
+    !$OMP TARGET UPDATE FROM(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
+    !$OMP TARGET UPDATE FROM(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
 
     !$ACC UPDATE HOST(this%lw_up) IF(allocated(this%lw_up)) ASYNC(1)
     !$ACC UPDATE HOST(this%lw_dn) IF(allocated(this%lw_dn)) ASYNC(1)
@@ -1096,13 +1192,60 @@ contains
     !$ACC UPDATE HOST(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE HOST(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 
-  end subroutine update_host
+  end subroutine update_host_flux
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device(this)
+  subroutine update_device_flux(this)
 
-    class(flux_type), intent(inout) :: this
+    type(flux_type), intent(inout) :: this
+
+    !$OMP TARGET UPDATE TO(this%lw_up) IF(allocated(this%lw_up))
+    !$OMP TARGET UPDATE TO(this%lw_dn) IF(allocated(this%lw_dn))
+    !$OMP TARGET UPDATE TO(this%lw_up_clear) IF(allocated(this%lw_up_clear))
+    !$OMP TARGET UPDATE TO(this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
+    !$OMP TARGET UPDATE TO(this%sw_up) IF(allocated(this%sw_up))
+    !$OMP TARGET UPDATE TO(this%sw_dn) IF(allocated(this%sw_dn))
+    !$OMP TARGET UPDATE TO(this%sw_up_clear) IF(allocated(this%sw_up_clear))
+    !$OMP TARGET UPDATE TO(this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
+    !$OMP TARGET UPDATE TO(this%lw_up_band) IF(allocated(this%lw_up_band))
+    !$OMP TARGET UPDATE TO(this%lw_dn_band) IF(allocated(this%lw_dn_band))
+    !$OMP TARGET UPDATE TO(this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
+    !$OMP TARGET UPDATE TO(this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
+    !$OMP TARGET UPDATE TO(this%sw_up_band) IF(allocated(this%sw_up_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_band) IF(allocated(this%sw_dn_band))
+    !$OMP TARGET UPDATE TO(this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
+    !$OMP TARGET UPDATE TO(this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
+    !$OMP TARGET UPDATE TO(this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
+    !$OMP TARGET UPDATE TO(this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
+    !$OMP TARGET UPDATE TO(this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
+    !$OMP TARGET UPDATE TO(this%lw_derivatives) IF(allocated(this%lw_derivatives))
+    !$OMP TARGET UPDATE TO(this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
+    !$OMP TARGET UPDATE TO(this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
+    !$OMP TARGET UPDATE TO(this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
+    !$OMP TARGET UPDATE TO(this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
+    !$OMP TARGET UPDATE TO(this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
+    !$OMP TARGET UPDATE TO(this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
+    !$OMP TARGET UPDATE TO(this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
+    !$OMP TARGET UPDATE TO(this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
+    !$OMP TARGET UPDATE TO(this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
+    !$OMP TARGET UPDATE TO(this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
+    !$OMP TARGET UPDATE TO(this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
+    !$OMP TARGET UPDATE TO(this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
+    !$OMP TARGET UPDATE TO(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
+    !$OMP TARGET UPDATE TO(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
+    !$OMP TARGET UPDATE TO(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
 
     !$ACC UPDATE DEVICE(this%lw_up) IF(allocated(this%lw_up)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%lw_dn) IF(allocated(this%lw_dn)) ASYNC(1)
@@ -1151,13 +1294,60 @@ contains
     !$ACC UPDATE DEVICE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 
-  end subroutine update_device
+  end subroutine update_device_flux
 
   !---------------------------------------------------------------------
   ! Deletes fields on device
-  subroutine delete_device(this)
+  subroutine delete_device_flux(this)
 
-    class(flux_type), intent(inout) :: this
+    type(flux_type), intent(inout) :: this
+
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up) IF(allocated(this%lw_up))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn) IF(allocated(this%lw_dn))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_clear) IF(allocated(this%lw_up_clear))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn_clear) IF(allocated(this%lw_dn_clear))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_up) IF(allocated(this%sw_up))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn) IF(allocated(this%sw_dn))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_up_clear) IF(allocated(this%sw_up_clear))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_clear) IF(allocated(this%sw_dn_clear))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct) IF(allocated(this%sw_dn_direct))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct_clear) IF(allocated(this%sw_dn_direct_clear))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_band) IF(allocated(this%lw_up_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn_band) IF(allocated(this%lw_dn_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_clear_band) IF(allocated(this%lw_up_clear_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn_clear_band) IF(allocated(this%lw_dn_clear_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_up_band) IF(allocated(this%sw_up_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_band) IF(allocated(this%sw_dn_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_up_clear_band) IF(allocated(this%sw_up_clear_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_clear_band) IF(allocated(this%sw_dn_clear_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct_band) IF(allocated(this%sw_dn_direct_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct_clear_band) IF(allocated(this%sw_dn_direct_clear_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_surf_band) IF(allocated(this%sw_dn_surf_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct_surf_band) IF(allocated(this%sw_dn_direct_surf_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_surf_clear_band) IF(allocated(this%sw_dn_surf_clear_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct_surf_clear_band) IF(allocated(this%sw_dn_direct_surf_clear_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn_surf_canopy) IF(allocated(this%lw_dn_surf_canopy))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_diffuse_surf_canopy) IF(allocated(this%sw_dn_diffuse_surf_canopy))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct_surf_canopy) IF(allocated(this%sw_dn_direct_surf_canopy))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%cloud_cover_sw) IF(allocated(this%cloud_cover_sw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%cloud_cover_lw) IF(allocated(this%cloud_cover_lw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_derivatives) IF(allocated(this%lw_derivatives))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn_surf_g) IF(allocated(this%lw_dn_surf_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn_surf_clear_g) IF(allocated(this%lw_dn_surf_clear_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_diffuse_surf_g) IF(allocated(this%sw_dn_diffuse_surf_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct_surf_g) IF(allocated(this%sw_dn_direct_surf_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_diffuse_surf_clear_g) IF(allocated(this%sw_dn_diffuse_surf_clear_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_direct_surf_clear_g) IF(allocated(this%sw_dn_direct_surf_clear_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_toa_g) IF(allocated(this%lw_up_toa_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_toa_clear_g) IF(allocated(this%lw_up_toa_clear_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_toa_g) IF(allocated(this%sw_dn_toa_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_up_toa_g) IF(allocated(this%sw_up_toa_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_up_toa_clear_g) IF(allocated(this%sw_up_toa_clear_g))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_toa_band) IF(allocated(this%lw_up_toa_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_toa_clear_band) IF(allocated(this%lw_up_toa_clear_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band))
 
     !$ACC EXIT DATA DELETE(this%lw_up) IF(allocated(this%lw_up)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%lw_dn) IF(allocated(this%lw_dn)) ASYNC(1)
@@ -1206,7 +1396,7 @@ contains
     !$ACC EXIT DATA DELETE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 
-  end subroutine delete_device
+  end subroutine delete_device_flux
 #endif
 
 end module radiation_flux

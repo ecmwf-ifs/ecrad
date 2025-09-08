@@ -47,11 +47,11 @@ module radiation_pdf_sampler
     procedure :: masked_block_sample => sample_from_pdf_masked_block
     procedure :: deallocate => deallocate_pdf_sampler
 
-#ifdef _OPENACC
-    procedure :: create_device
-    procedure :: update_host
-    procedure :: update_device
-    procedure :: delete_device
+#if defined(_OPENACC) || defined(OMPGPU)
+    procedure, nopass :: create_device => create_device_pdf_sampler
+    procedure, nopass :: update_host   => update_host_pdf_sampler
+    procedure, nopass :: update_device => update_device_pdf_sampler
+    procedure, nopass :: delete_device => delete_device_pdf_sampler
 #endif
 
   end type pdf_sampler_type
@@ -327,31 +327,35 @@ contains
 
   end subroutine sample_from_pdf_masked_block
 
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
 
-  subroutine create_device(this)
-    class(pdf_sampler_type), intent(inout) :: this
+  subroutine create_device_pdf_sampler(this)
+    type(pdf_sampler_type), intent(inout) :: this
 
+    !$OMP TARGET ENTER DATA MAP(TO:this%val) IF(allocated(this%val))
     !$ACC ENTER DATA COPYIN(this%val) IF(allocated(this%val)) ASYNC(1)
-  end subroutine create_device
+  end subroutine create_device_pdf_sampler
 
-  subroutine update_host(this)
-    class(pdf_sampler_type), intent(inout) :: this
+  subroutine update_host_pdf_sampler(this)
+    type(pdf_sampler_type), intent(inout) :: this
 
+    !$OMP TARGET UPDATE FROM(this%val) IF(allocated(this%val))
     !$ACC UPDATE HOST(this%val) IF(allocated(this%val)) ASYNC(1)
-  end subroutine update_host
+  end subroutine update_host_pdf_sampler
 
-  subroutine update_device(this)
-    class(pdf_sampler_type), intent(inout) :: this
+  subroutine update_device_pdf_sampler(this)
+    type(pdf_sampler_type), intent(inout) :: this
 
+    !$OMP TARGET UPDATE TO(this%val) IF(allocated(this%val))
     !$ACC UPDATE DEVICE(this%val) IF(allocated(this%val)) ASYNC(1)
-  end subroutine update_device
+  end subroutine update_device_pdf_sampler
 
-  subroutine delete_device(this)
-    class(pdf_sampler_type), intent(inout) :: this
+  subroutine delete_device_pdf_sampler(this)
+    type(pdf_sampler_type), intent(inout) :: this
 
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%val) IF(allocated(this%val))
     !$ACC EXIT DATA DELETE(this%val) IF(allocated(this%val)) ASYNC(1)
-  end subroutine delete_device
+  end subroutine delete_device_pdf_sampler
 #endif
 
 end module radiation_pdf_sampler
