@@ -192,6 +192,9 @@ contains
       cloud%re_ice => cloud%effective_radius(:,:,2)
       cloud%ntype = size(cloud%mixing_ratio,3)
 
+#ifdef DEBUG_WARNING
+      write(nulout,'(a,a,a,i0,a)') "    ", __FILE__, " : LINE = ", __LINE__, " has OpenACC code, acc_attach, that is not ported. Not sure what to do with this yet."
+#endif
 #ifdef _OPENACC
       call acc_attach(cloud%q_liq)
       call acc_attach(cloud%q_ice)
@@ -200,7 +203,7 @@ contains
 #endif
 
       ! Simple initialization of the seeds for the Monte Carlo scheme
-      call single_level%init_seed_simple(1,ncol,lacc=.false.)
+      call single_level%init_seed_simple(single_level,1,ncol,lacc=.false.)
       ! Overwrite with user-specified values if available
       if (file%exists('iseed')) then
         call file%get('iseed', single_level%iseed)
@@ -246,14 +249,14 @@ contains
       if (driver_config%overlap_decorr_length_override > 0.0_jprb) then
         ! Convert overlap decorrelation length to overlap parameter between
         ! adjacent layers, stored in cloud%overlap_param
-        call cloud%set_overlap_param(thermodynamics, &
+        call cloud%set_overlap_param(cloud, thermodynamics, &
              &    driver_config%overlap_decorr_length_override)
       else if (.not. allocated(cloud%overlap_param)) then
         if (driver_config%iverbose >= 1) then
           write(nulout,'(a,g10.3,a)') 'Warning: overlap decorrelation length set to ', &
                &  decorr_length_default, ' m'
         end if
-        call cloud%set_overlap_param(thermodynamics, decorr_length_default)
+        call cloud%set_overlap_param(cloud, thermodynamics, decorr_length_default)
       else if (driver_config%overlap_decorr_length_scaling > 0.0_jprb) then
         ! Scale the overlap decorrelation length by taking the overlap
         ! parameter to a power
@@ -284,10 +287,10 @@ contains
           write(nulout,'(a,g10.3,a)') '  Overriding cloud fractional standard deviation with ', &
                &  driver_config%fractional_std_override
         end if
-        call cloud%create_fractional_std(ncol, nlev, &
+        call cloud%create_fractional_std(cloud, ncol, nlev, &
              &  driver_config%fractional_std_override, lacc=.false.)
       else if (.not. allocated(cloud%fractional_std)) then
-        call cloud%create_fractional_std(ncol, nlev, 0.0_jprb, lacc=.false.)
+        call cloud%create_fractional_std(cloud, ncol, nlev, 0.0_jprb, lacc=.false.)
         if (driver_config%iverbose >= 1) then
           write(nulout,'(a)') 'Warning: cloud optical depth fractional standard deviation set to zero'
         end if
@@ -355,7 +358,7 @@ contains
             write(nulout,'(a,f6.2)') '     Inhomogeneity separation scaling is', &
                  &  driver_config%cloud_inhom_separation_factor
           end if
-          call cloud%param_cloud_effective_separation_eta(ncol, nlev, &
+          call cloud%param_cloud_effective_separation_eta(cloud, ncol, nlev, &
                &  thermodynamics%pressure_hl, &
                &  driver_config%cloud_separation_scale_surface, &
                &  driver_config%cloud_separation_scale_toa, &
@@ -576,21 +579,21 @@ contains
       if (jgas == IH2O) then
         if (file%exists('q')) then
           call file%get('q', gas_mr)
-          call gas%put(IH2O, IMassMixingRatio, gas_mr)
+          call gas%put(gas, IH2O, IMassMixingRatio, gas_mr)
         else if (file%exists('h2o_mmr')) then
           call file%get('h2o_mmr', gas_mr)
-          call gas%put(IH2O, IMassMixingRatio, gas_mr)
+          call gas%put(gas, IH2O, IMassMixingRatio, gas_mr)
         else
           call file%get('h2o' // trim(driver_config%vmr_suffix_str), gas_mr);
-          call gas%put(IH2O, IVolumeMixingRatio, gas_mr)
+          call gas%put(gas, IH2O, IVolumeMixingRatio, gas_mr)
         end if
       else if (jgas == IO3) then
         if (file%exists('o3_mmr')) then
           call file%get('o3_mmr', gas_mr)
-          call gas%put(IO3, IMassMixingRatio, gas_mr)
+          call gas%put(gas, IO3, IMassMixingRatio, gas_mr)
         else
           call file%get('o3' // trim(driver_config%vmr_suffix_str), gas_mr)
-          call gas%put(IO3, IVolumeMixingRatio, gas_mr)
+          call gas%put(gas, IO3, IVolumeMixingRatio, gas_mr)
         end if
       else
         ! Find number of dimensions of the variable holding gas "jgas" in
@@ -603,10 +606,10 @@ contains
         if (irank == 0) then
           ! Store this as a well-mixed gas
           call file%get(trim(gas_var_name), well_mixed_gas_vmr)
-          call gas%put_well_mixed(jgas, IVolumeMixingRatio, well_mixed_gas_vmr)
+          call gas%put_well_mixed(gas, jgas, IVolumeMixingRatio, well_mixed_gas_vmr)
         else if (irank == 2) then
           call file%get(trim(gas_var_name), gas_mr)
-          call gas%put(jgas, IVolumeMixingRatio, gas_mr)
+          call gas%put(gas, jgas, IVolumeMixingRatio, gas_mr)
         else if (irank > 0) then
           write(nulout,'(a,a,a)')  '***  Error: ', trim(gas_var_name), ' does not have 0 or 2 dimensions'
           stop

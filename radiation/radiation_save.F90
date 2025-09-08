@@ -1254,14 +1254,14 @@ contains
     call out_file%put("temperature_hl", thermodynamics%temperature_hl)
 
     allocate(mixing_ratio(ncol,nlev))
-    call gas%get(IH2O, IMassMixingRatio, mixing_ratio)
+    call gas%get(gas, IH2O, IMassMixingRatio, mixing_ratio)
     call out_file%put("q", mixing_ratio)
-    call gas%get(IO3, IMassMixingRatio, mixing_ratio)
+    call gas%get(gas, IO3, IMassMixingRatio, mixing_ratio)
     call out_file%put("o3_mmr", mixing_ratio)
     do jgas = 1,NMaxGases
       if (gas%is_present(jgas) .and. jgas /= IH2O .and. jgas /= IO3) then
         write(var_name,'(a,a)') trim(GasLowerCaseName(jgas)), '_vmr'
-        call gas%get(jgas, IVolumeMixingRatio, mixing_ratio)
+        call gas%get(gas, jgas, IVolumeMixingRatio, mixing_ratio)
         call out_file%put(trim(var_name), mixing_ratio)
       end if
     end do

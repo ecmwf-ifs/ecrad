@@ -162,7 +162,7 @@ contains
 
     if (lhook) call dr_hook('radiation_ecckd_interface:set_gas_units',0,hook_handle)
 
-    call gas%set_units(IVolumeMixingRatio, lacc=lacc)
+    call gas%set_units(gas, IVolumeMixingRatio, lacc=lacc)
 
     if (lhook) call dr_hook('radiation_ecckd_interface:set_gas_units',1,hook_handle)
 

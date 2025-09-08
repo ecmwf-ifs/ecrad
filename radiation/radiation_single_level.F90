@@ -96,14 +96,14 @@ module radiation_single_level
   contains
     procedure :: allocate   => allocate_single_level
     procedure :: deallocate => deallocate_single_level
-    procedure :: init_seed_simple
-    procedure :: get_albedos
+    procedure, nopass :: init_seed_simple
+    procedure, nopass :: get_albedos
     procedure :: out_of_physical_bounds
-#ifdef _OPENACC
-    procedure :: create_device
-    procedure :: update_host
-    procedure :: update_device
-    procedure :: delete_device
+#if defined(_OPENACC)  || defined(OMPGPU)
+    procedure, nopass :: create_device => create_device_single_level
+    procedure, nopass :: update_host   => update_host_single_level
+    procedure, nopass :: update_device => update_device_single_level
+    procedure, nopass :: delete_device => delete_device_single_level
 #endif
 
   end type single_level_type
@@ -203,7 +203,7 @@ contains
   !---------------------------------------------------------------------
   ! Unimaginative initialization of random-number seeds
   subroutine init_seed_simple(this, istartcol, iendcol, lacc)
-    class(single_level_type), intent(inout) :: this
+    type(single_level_type), intent(inout)  :: this
     integer, intent(in)                     :: istartcol, iendcol
     logical, optional, intent(in)           :: lacc
 
@@ -220,12 +220,14 @@ contains
       allocate(this%iseed(istartcol:iendcol))
     end if
 
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO IF (llacc)
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(llacc)
     !$ACC LOOP GANG VECTOR
     do jcol = istartcol,iendcol
       this%iseed(jcol) = jcol
     end do
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
   end subroutine init_seed_simple
 
@@ -239,7 +241,7 @@ contains
     use radiation_io,     only : nulerr, radiation_abort
     use yomhook,          only : lhook, dr_hook, jphook
 
-    class(single_level_type), intent(in) :: this
+    type(single_level_type),  intent(in) :: this
     type(config_type),        intent(in) :: config
     integer,                  intent(in) :: istartcol, iendcol
 
@@ -515,134 +517,109 @@ contains
 
   end function out_of_physical_bounds
 
-#ifdef _OPENACC
+#if defined(_OPENACC)  || defined(OMPGPU)
   !---------------------------------------------------------------------
   ! creates fields on device
-  subroutine create_device(this)
+  subroutine create_device_single_level(this)
 
-    class(single_level_type), intent(inout) :: this
+    type(single_level_type), intent(inout) :: this
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%cos_sza) IF(allocated(this%cos_sza))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%skin_temperature) IF(allocated(this%skin_temperature))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_albedo) IF(allocated(this%sw_albedo))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_albedo_direct) IF(allocated(this%sw_albedo_direct))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_emissivity) IF(allocated(this%lw_emissivity))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_emission) IF(allocated(this%lw_emission))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling))
+    !$OMP TARGET ENTER DATA MAP(ALLOC:this%iseed) IF(allocated(this%iseed))
 
-    !$ACC ENTER DATA CREATE(this%cos_sza) ASYNC(1) &
-    !$ACC   IF(allocated(this%cos_sza))
+    !$ACC ENTER DATA CREATE(this%cos_sza) IF(allocated(this%cos_sza)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%skin_temperature) IF(allocated(this%skin_temperature)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_albedo) IF(allocated(this%sw_albedo)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%sw_albedo_direct) IF(allocated(this%sw_albedo_direct)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_emissivity) IF(allocated(this%lw_emissivity)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
+    !$ACC ENTER DATA CREATE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
 
-    !$ACC ENTER DATA CREATE(this%skin_temperature) ASYNC(1) &
-    !$ACC   IF(allocated(this%skin_temperature))
-
-    !$ACC ENTER DATA CREATE(this%sw_albedo) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_albedo))
-
-    !$ACC ENTER DATA CREATE(this%sw_albedo_direct) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_albedo_direct))
-
-    !$ACC ENTER DATA CREATE(this%lw_emissivity) ASYNC(1) &
-    !$ACC   IF(allocated(this%lw_emissivity))
-
-    !$ACC ENTER DATA CREATE(this%lw_emission) ASYNC(1) &
-    !$ACC   IF(allocated(this%lw_emission))
-
-    !$ACC ENTER DATA CREATE(this%spectral_solar_scaling) ASYNC(1) &
-    !$ACC   IF(allocated(this%spectral_solar_scaling))
-
-    !$ACC ENTER DATA CREATE(this%iseed) ASYNC(1) &
-    !$ACC   IF(allocated(this%iseed))
-
-  end subroutine create_device
+  end subroutine create_device_single_level
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host(this)
+  subroutine update_host_single_level(this)
 
-    class(single_level_type), intent(inout) :: this
+    type(single_level_type), intent(inout) :: this
 
-    !$ACC UPDATE HOST(this%cos_sza) ASYNC(1) &
-    !$ACC   IF(allocated(this%cos_sza))
+    !$OMP TARGET UPDATE FROM(this%cos_sza) IF(allocated(this%cos_sza))
+    !$OMP TARGET UPDATE FROM(this%skin_temperature) IF(allocated(this%skin_temperature))
+    !$OMP TARGET UPDATE FROM(this%sw_albedo) IF(allocated(this%sw_albedo))
+    !$OMP TARGET UPDATE FROM(this%sw_albedo_direct) IF(allocated(this%sw_albedo_direct))
+    !$OMP TARGET UPDATE FROM(this%lw_emissivity) IF(allocated(this%lw_emissivity))
+    !$OMP TARGET UPDATE FROM(this%lw_emission) IF(allocated(this%lw_emission))
+    !$OMP TARGET UPDATE FROM(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling))
+    !$OMP TARGET UPDATE FROM(this%iseed) IF(allocated(this%iseed))
 
-    !$ACC UPDATE HOST(this%skin_temperature) ASYNC(1) &
-    !$ACC   IF(allocated(this%skin_temperature))
+    !$ACC UPDATE HOST(this%cos_sza) IF(allocated(this%cos_sza)) ASYNC(1)
+    !$ACC UPDATE HOST(this%skin_temperature) IF(allocated(this%skin_temperature)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_albedo) IF(allocated(this%sw_albedo)) ASYNC(1)
+    !$ACC UPDATE HOST(this%sw_albedo_direct) IF(allocated(this%sw_albedo_direct)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_emissivity) IF(allocated(this%lw_emissivity)) ASYNC(1)
+    !$ACC UPDATE HOST(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
+    !$ACC UPDATE HOST(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
+    !$ACC UPDATE HOST(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
 
-    !$ACC UPDATE HOST(this%sw_albedo) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_albedo))
-
-    !$ACC UPDATE HOST(this%sw_albedo_direct) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_albedo_direct))
-
-    !$ACC UPDATE HOST(this%lw_emissivity) ASYNC(1) &
-    !$ACC   IF(allocated(this%lw_emissivity))
-
-    !$ACC UPDATE HOST(this%lw_emission) ASYNC(1) &
-    !$ACC   IF(allocated(this%lw_emission))
-
-    !$ACC UPDATE HOST(this%spectral_solar_scaling) ASYNC(1) &
-    !$ACC   IF(allocated(this%spectral_solar_scaling))
-
-    !$ACC UPDATE HOST(this%iseed) ASYNC(1) &
-    !$ACC   IF(allocated(this%iseed))
-
-  end subroutine update_host
+  end subroutine update_host_single_level
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device(this)
+  subroutine update_device_single_level(this)
 
-    class(single_level_type), intent(inout) :: this
+    type(single_level_type), intent(inout) :: this
 
-    !$ACC UPDATE DEVICE(this%cos_sza) ASYNC(1) &
-    !$ACC   IF(allocated(this%cos_sza))
+    !$OMP TARGET UPDATE TO(this%cos_sza) IF(allocated(this%cos_sza))
+    !$OMP TARGET UPDATE TO(this%skin_temperature) IF(allocated(this%skin_temperature))
+    !$OMP TARGET UPDATE TO(this%sw_albedo) IF(allocated(this%sw_albedo))
+    !$OMP TARGET UPDATE TO(this%sw_albedo_direct) IF(allocated(this%sw_albedo_direct))
+    !$OMP TARGET UPDATE TO(this%lw_emissivity) IF(allocated(this%lw_emissivity))
+    !$OMP TARGET UPDATE TO(this%lw_emission) IF(allocated(this%lw_emission))
+    !$OMP TARGET UPDATE TO(this%spectral_solar_scaling) IF( allocated(this%spectral_solar_scaling))
+    !$OMP TARGET UPDATE TO(this%iseed) IF(allocated(this%iseed))
 
-    !$ACC UPDATE DEVICE(this%skin_temperature) ASYNC(1) &
-    !$ACC   IF(allocated(this%skin_temperature))
+    !$ACC UPDATE DEVICE(this%cos_sza) IF(allocated(this%cos_sza)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%skin_temperature) IF(allocated(this%skin_temperature)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_albedo) IF(allocated(this%sw_albedo)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%sw_albedo_direct) IF(allocated(this%sw_albedo_direct)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_emissivity) IF(allocated(this%lw_emissivity)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%spectral_solar_scaling) IF( allocated(this%spectral_solar_scaling)) ASYNC(1)
+    !$ACC UPDATE DEVICE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
 
-    !$ACC UPDATE DEVICE(this%sw_albedo) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_albedo))
-
-    !$ACC UPDATE DEVICE(this%sw_albedo_direct) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_albedo_direct))
-
-    !$ACC UPDATE DEVICE(this%lw_emissivity) ASYNC(1) &
-    !$ACC   IF(allocated(this%lw_emissivity))
-
-    !$ACC UPDATE DEVICE(this%lw_emission) ASYNC(1) &
-    !$ACC   IF(allocated(this%lw_emission))
-
-    !$ACC UPDATE DEVICE(this%spectral_solar_scaling) ASYNC(1) &
-    !$ACC   IF( allocated(this%spectral_solar_scaling))
-
-    !$ACC UPDATE DEVICE(this%iseed) ASYNC(1) &
-    !$ACC   IF(allocated(this%iseed))
-
-  end subroutine update_device
+  end subroutine update_device_single_level
 
   !---------------------------------------------------------------------
   ! deletes fields on device
-  subroutine delete_device(this)
+  subroutine delete_device_single_level(this)
 
-    class(single_level_type), intent(inout) :: this
+    type(single_level_type), intent(inout) :: this
 
-    !$ACC EXIT DATA DELETE(this%cos_sza) ASYNC(1) &
-    !$ACC   IF(allocated(this%cos_sza))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%cos_sza) IF(allocated(this%cos_sza))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%skin_temperature) IF(allocated(this%skin_temperature))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_albedo) IF(allocated(this%sw_albedo))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_albedo_direct) IF(allocated(this%sw_albedo_direct))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_emissivity) IF(allocated(this%lw_emissivity))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_emission) IF(allocated(this%lw_emission))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%iseed) IF(allocated(this%iseed))
 
-    !$ACC EXIT DATA DELETE(this%skin_temperature) ASYNC(1) &
-    !$ACC   IF(allocated(this%skin_temperature))
+    !$ACC EXIT DATA DELETE(this%cos_sza) IF(allocated(this%cos_sza)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%skin_temperature) IF(allocated(this%skin_temperature)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_albedo) IF(allocated(this%sw_albedo)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%sw_albedo_direct) IF(allocated(this%sw_albedo_direct)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_emissivity) IF(allocated(this%lw_emissivity)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
+    !$ACC EXIT DATA DELETE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
 
-    !$ACC EXIT DATA DELETE(this%sw_albedo) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_albedo))
-
-    !$ACC EXIT DATA DELETE(this%sw_albedo_direct) ASYNC(1) &
-    !$ACC   IF(allocated(this%sw_albedo_direct))
-
-    !$ACC EXIT DATA DELETE(this%lw_emissivity) ASYNC(1) &
-    !$ACC   IF(allocated(this%lw_emissivity))
-
-    !$ACC EXIT DATA DELETE(this%lw_emission) ASYNC(1) &
-    !$ACC   IF(allocated(this%lw_emission))
-
-    !$ACC EXIT DATA DELETE(this%spectral_solar_scaling) ASYNC(1) &
-    !$ACC   IF(allocated(this%spectral_solar_scaling))
-
-    !$ACC EXIT DATA DELETE(this%iseed) ASYNC(1) &
-    !$ACC   IF(allocated(this%iseed))
-
-  end subroutine delete_device
+  end subroutine delete_device_single_level
 #endif
 
 end module radiation_single_level

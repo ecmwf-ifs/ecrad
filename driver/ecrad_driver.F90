@@ -299,7 +299,7 @@ program ecrad_driver
 
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call...
-  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol,lacc=.false.)
+  call thermodynamics%calc_saturation_wrt_liquid(thermodynamics,driver_config%istartcol,driver_config%iendcol,lacc=.false.)
 
   ! ...or alternatively use the "satur" function in the IFS (requires
   ! adding -lifs to the linker command line) but note that this
@@ -332,25 +332,30 @@ program ecrad_driver
   t0 = omp_get_wtime()
 #endif
 
-#ifdef _OPENACC
+#if defined(_OPENACC)
   !$ACC DATA COPYIN(config, single_level, thermodynamics, gas, aerosol, cloud) &
-  !$ACC      CREATE(flux)
-  call config%create_device()
-  call single_level%create_device()
-  call thermodynamics%create_device()
-  call gas%create_device()
-  call aerosol%create_device()
-  call cloud%create_device()
-  call flux%create_device()
+  !$ACC&     CREATE(flux)
+#endif
+#if defined(OMPGPU)
+  !$OMP TARGET DATA MAP(TO:config, single_level, thermodynamics, gas, aerosol, cloud)
+  !$OMP TARGET DATA MAP(ALLOC:flux)
+#endif
+
+  call config%create_device(config)
+  call single_level%create_device(single_level)
+  call thermodynamics%create_device(thermodynamics)
+  call gas%create_device(gas)
+  call aerosol%create_device(aerosol)
+  call cloud%create_device(cloud)
+  call flux%create_device(flux)
 
   ! call config%update_device()
-  call single_level%update_device()
-  call thermodynamics%update_device()
-  call gas%update_device()
-  call aerosol%update_device()
-  call cloud%update_device()
-  call flux%update_device()
-#endif
+  call single_level%update_device(single_level)
+  call thermodynamics%update_device(thermodynamics)
+  call gas%update_device(gas)
+  call aerosol%update_device(aerosol)
+  call cloud%update_device(cloud)
+  call flux%update_device(flux)
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -421,21 +426,24 @@ program ecrad_driver
   end if
 #endif
 
-#ifdef _OPENACC
-  call cloud%update_host()
-  call flux%update_host()
+  call cloud%update_host(cloud)
+  call flux%update_host(flux)
 
-  call config%delete_device()
-  call single_level%delete_device()
-  call thermodynamics%delete_device()
-  call gas%delete_device()
-  call aerosol%delete_device()
-  call cloud%delete_device()
-  call flux%delete_device()
-#endif
-
+  call config%delete_device(config)
+  call single_level%delete_device(single_level)
+  call thermodynamics%delete_device(thermodynamics)
+  call gas%delete_device(gas)
+  call aerosol%delete_device(aerosol)
+  call cloud%delete_device(cloud)
+  call flux%delete_device(flux)
+#if defined(_OPENACC)
   !$ACC WAIT(1)
   !$ACC END DATA
+#endif
+#if defined(OMPGPU)
+  !$OMP END TARGET DATA
+  !$OMP END TARGET DATA
+#endif
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
