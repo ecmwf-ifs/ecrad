@@ -147,14 +147,14 @@ module radiation_aerosol_optics_data
      procedure :: calc_rh_index
      procedure :: print_description
 
-#ifdef _OPENACC
-     procedure :: create_device
-     procedure :: update_host
-     procedure :: update_device
-     procedure :: delete_device
-#endif
+     procedure, nopass :: create_device
+     procedure, nopass :: update_host
+     procedure, nopass :: update_device
+     procedure, nopass :: delete_device
 
   end type aerosol_optics_type
+
+  !$omp declare target(calc_rh_index)
 
 contains
 
@@ -754,33 +754,61 @@ contains
 
   end function get_line
 
-#ifdef _OPENACC
 
+  !---------------------------------------------------------------------
+  ! creates fields on device
   subroutine create_device(this)
-    class(aerosol_optics_type), intent(inout) :: this
+
+    type(aerosol_optics_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
+    !$OMP TARGET ENTER DATA MAP(TO:this%iclass) IF(allocated(this%iclass))
+    !$OMP TARGET ENTER DATA MAP(TO:this%itype) IF(allocated(this%itype))
+    !$OMP TARGET ENTER DATA MAP(TO:this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%wavenumber2_sw) IF(allocated(this%wavenumber2_sw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%wavenumber1_lw) IF(allocated(this%wavenumber1_lw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%wavenumber2_lw) IF(allocated(this%wavenumber2_lw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%mass_ext_sw_phobic) IF(allocated(this%mass_ext_sw_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%ssa_sw_phobic) IF(allocated(this%ssa_sw_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%g_sw_phobic) IF(allocated(this%g_sw_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%mass_ext_lw_phobic) IF(allocated(this%mass_ext_lw_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%ssa_lw_phobic) IF(allocated(this%ssa_lw_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%g_lw_phobic) IF(allocated(this%g_lw_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%mass_ext_sw_philic) IF(allocated(this%mass_ext_sw_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%ssa_sw_philic) IF(allocated(this%ssa_sw_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%g_sw_philic) IF(allocated(this%g_sw_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%mass_ext_lw_philic) IF(allocated(this%mass_ext_lw_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%ssa_lw_philic) IF(allocated(this%ssa_lw_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%g_lw_philic) IF(allocated(this%g_lw_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%wavelength_mono) IF(allocated(this%wavelength_mono))
+    !$OMP TARGET ENTER DATA MAP(TO:this%mass_ext_mono_phobic) IF(allocated(this%mass_ext_mono_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%ssa_mono_phobic) IF(allocated(this%ssa_mono_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%g_mono_phobic) IF(allocated(this%g_mono_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%lidar_ratio_mono_phobic) IF(allocated(this%lidar_ratio_mono_phobic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%mass_ext_mono_philic) IF(allocated(this%mass_ext_mono_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%ssa_mono_philic) IF(allocated(this%ssa_mono_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%g_mono_philic) IF(allocated(this%g_mono_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic))
+    !$OMP TARGET ENTER DATA MAP(TO:this%rh_lower) IF(allocated(this%rh_lower))
 
     !$ACC ENTER DATA COPYIN(this%iclass) IF(allocated(this%iclass)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%itype) IF(allocated(this%itype)) ASYNC(1)
-
     !$ACC ENTER DATA COPYIN(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%wavenumber2_sw) IF(allocated(this%wavenumber2_sw)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%wavenumber1_lw) IF(allocated(this%wavenumber1_lw)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%wavenumber2_lw) IF(allocated(this%wavenumber2_lw)) ASYNC(1)
-
     !$ACC ENTER DATA COPYIN(this%mass_ext_sw_phobic) IF(allocated(this%mass_ext_sw_phobic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%ssa_sw_phobic) IF(allocated(this%ssa_sw_phobic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%g_sw_phobic) IF(allocated(this%g_sw_phobic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%mass_ext_lw_phobic) IF(allocated(this%mass_ext_lw_phobic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%ssa_lw_phobic) IF(allocated(this%ssa_lw_phobic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%g_lw_phobic) IF(allocated(this%g_lw_phobic)) ASYNC(1)
-
     !$ACC ENTER DATA COPYIN(this%mass_ext_sw_philic) IF(allocated(this%mass_ext_sw_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%ssa_sw_philic) IF(allocated(this%ssa_sw_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%g_sw_philic) IF(allocated(this%g_sw_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%mass_ext_lw_philic) IF(allocated(this%mass_ext_lw_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%ssa_lw_philic) IF(allocated(this%ssa_lw_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%g_lw_philic) IF(allocated(this%g_lw_philic)) ASYNC(1)
-
     !$ACC ENTER DATA COPYIN(this%wavelength_mono) IF(allocated(this%wavelength_mono)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%mass_ext_mono_phobic) IF(allocated(this%mass_ext_mono_phobic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%ssa_mono_phobic) IF(allocated(this%ssa_mono_phobic)) ASYNC(1)
@@ -790,36 +818,64 @@ contains
     !$ACC ENTER DATA COPYIN(this%ssa_mono_philic) IF(allocated(this%ssa_mono_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
-
     !$ACC ENTER DATA COPYIN(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
-
+#endif
   end subroutine create_device
 
+  !---------------------------------------------------------------------
+  ! updates fields on host
   subroutine update_host(this)
-    class(aerosol_optics_type), intent(inout) :: this
+
+    type(aerosol_optics_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
+    !$OMP TARGET UPDATE FROM(this%iclass) IF(allocated(this%iclass))
+    !$OMP TARGET UPDATE FROM(this%itype) IF(allocated(this%itype))
+    !$OMP TARGET UPDATE FROM(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
+    !$OMP TARGET UPDATE FROM(this%wavenumber2_sw) IF(allocated(this%wavenumber2_sw))
+    !$OMP TARGET UPDATE FROM(this%wavenumber1_lw) IF(allocated(this%wavenumber1_lw))
+    !$OMP TARGET UPDATE FROM(this%wavenumber2_lw) IF(allocated(this%wavenumber2_lw))
+    !$OMP TARGET UPDATE FROM(this%mass_ext_sw_phobic) IF(allocated(this%mass_ext_sw_phobic))
+    !$OMP TARGET UPDATE FROM(this%ssa_sw_phobic) IF(allocated(this%ssa_sw_phobic))
+    !$OMP TARGET UPDATE FROM(this%g_sw_phobic) IF(allocated(this%g_sw_phobic))
+    !$OMP TARGET UPDATE FROM(this%mass_ext_lw_phobic) IF(allocated(this%mass_ext_lw_phobic))
+    !$OMP TARGET UPDATE FROM(this%ssa_lw_phobic) IF(allocated(this%ssa_lw_phobic))
+    !$OMP TARGET UPDATE FROM(this%g_lw_phobic) IF(allocated(this%g_lw_phobic))
+    !$OMP TARGET UPDATE FROM(this%mass_ext_sw_philic) IF(allocated(this%mass_ext_sw_philic))
+    !$OMP TARGET UPDATE FROM(this%ssa_sw_philic) IF(allocated(this%ssa_sw_philic))
+    !$OMP TARGET UPDATE FROM(this%g_sw_philic) IF(allocated(this%g_sw_philic))
+    !$OMP TARGET UPDATE FROM(this%mass_ext_lw_philic) IF(allocated(this%mass_ext_lw_philic))
+    !$OMP TARGET UPDATE FROM(this%ssa_lw_philic) IF(allocated(this%ssa_lw_philic))
+    !$OMP TARGET UPDATE FROM(this%g_lw_philic) IF(allocated(this%g_lw_philic))
+    !$OMP TARGET UPDATE FROM(this%wavelength_mono) IF(allocated(this%wavelength_mono))
+    !$OMP TARGET UPDATE FROM(this%mass_ext_mono_phobic) IF(allocated(this%mass_ext_mono_phobic))
+    !$OMP TARGET UPDATE FROM(this%ssa_mono_phobic) IF(allocated(this%ssa_mono_phobic))
+    !$OMP TARGET UPDATE FROM(this%g_mono_phobic) IF(allocated(this%g_mono_phobic))
+    !$OMP TARGET UPDATE FROM(this%lidar_ratio_mono_phobic) IF(allocated(this%lidar_ratio_mono_phobic))
+    !$OMP TARGET UPDATE FROM(this%mass_ext_mono_philic) IF(allocated(this%mass_ext_mono_philic))
+    !$OMP TARGET UPDATE FROM(this%ssa_mono_philic) IF(allocated(this%ssa_mono_philic))
+    !$OMP TARGET UPDATE FROM(this%g_mono_philic) IF(allocated(this%g_mono_philic))
+    !$OMP TARGET UPDATE FROM(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic))
+    !$OMP TARGET UPDATE FROM(this%rh_lower) IF(allocated(this%rh_lower))
 
     !$ACC UPDATE HOST(this%iclass) IF(allocated(this%iclass)) ASYNC(1)
     !$ACC UPDATE HOST(this%itype) IF(allocated(this%itype)) ASYNC(1)
-
     !$ACC UPDATE HOST(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw)) ASYNC(1)
     !$ACC UPDATE HOST(this%wavenumber2_sw) IF(allocated(this%wavenumber2_sw)) ASYNC(1)
     !$ACC UPDATE HOST(this%wavenumber1_lw) IF(allocated(this%wavenumber1_lw)) ASYNC(1)
     !$ACC UPDATE HOST(this%wavenumber2_lw) IF(allocated(this%wavenumber2_lw)) ASYNC(1)
-
     !$ACC UPDATE HOST(this%mass_ext_sw_phobic) IF(allocated(this%mass_ext_sw_phobic)) ASYNC(1)
     !$ACC UPDATE HOST(this%ssa_sw_phobic) IF(allocated(this%ssa_sw_phobic)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_sw_phobic) IF(allocated(this%g_sw_phobic)) ASYNC(1)
     !$ACC UPDATE HOST(this%mass_ext_lw_phobic) IF(allocated(this%mass_ext_lw_phobic)) ASYNC(1)
     !$ACC UPDATE HOST(this%ssa_lw_phobic) IF(allocated(this%ssa_lw_phobic)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_lw_phobic) IF(allocated(this%g_lw_phobic)) ASYNC(1)
-
     !$ACC UPDATE HOST(this%mass_ext_sw_philic) IF(allocated(this%mass_ext_sw_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%ssa_sw_philic) IF(allocated(this%ssa_sw_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_sw_philic) IF(allocated(this%g_sw_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%mass_ext_lw_philic) IF(allocated(this%mass_ext_lw_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%ssa_lw_philic) IF(allocated(this%ssa_lw_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_lw_philic) IF(allocated(this%g_lw_philic)) ASYNC(1)
-
     !$ACC UPDATE HOST(this%wavelength_mono) IF(allocated(this%wavelength_mono)) ASYNC(1)
     !$ACC UPDATE HOST(this%mass_ext_mono_phobic) IF(allocated(this%mass_ext_mono_phobic)) ASYNC(1)
     !$ACC UPDATE HOST(this%ssa_mono_phobic) IF(allocated(this%ssa_mono_phobic)) ASYNC(1)
@@ -829,36 +885,64 @@ contains
     !$ACC UPDATE HOST(this%ssa_mono_philic) IF(allocated(this%ssa_mono_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
-
     !$ACC UPDATE HOST(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
-
+#endif
   end subroutine update_host
 
+  !---------------------------------------------------------------------
+  ! updates fields on device
   subroutine update_device(this)
-    class(aerosol_optics_type), intent(inout) :: this
+
+    type(aerosol_optics_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
+    !$OMP TARGET UPDATE TO(this%iclass) IF(allocated(this%iclass))
+    !$OMP TARGET UPDATE TO(this%itype) IF(allocated(this%itype))
+    !$OMP TARGET UPDATE TO(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
+    !$OMP TARGET UPDATE TO(this%wavenumber2_sw) IF(allocated(this%wavenumber2_sw))
+    !$OMP TARGET UPDATE TO(this%wavenumber1_lw) IF(allocated(this%wavenumber1_lw))
+    !$OMP TARGET UPDATE TO(this%wavenumber2_lw) IF(allocated(this%wavenumber2_lw))
+    !$OMP TARGET UPDATE TO(this%mass_ext_sw_phobic) IF(allocated(this%mass_ext_sw_phobic))
+    !$OMP TARGET UPDATE TO(this%ssa_sw_phobic) IF(allocated(this%ssa_sw_phobic))
+    !$OMP TARGET UPDATE TO(this%g_sw_phobic) IF(allocated(this%g_sw_phobic))
+    !$OMP TARGET UPDATE TO(this%mass_ext_lw_phobic) IF(allocated(this%mass_ext_lw_phobic))
+    !$OMP TARGET UPDATE TO(this%ssa_lw_phobic) IF(allocated(this%ssa_lw_phobic))
+    !$OMP TARGET UPDATE TO(this%g_lw_phobic) IF(allocated(this%g_lw_phobic))
+    !$OMP TARGET UPDATE TO(this%mass_ext_sw_philic) IF(allocated(this%mass_ext_sw_philic))
+    !$OMP TARGET UPDATE TO(this%ssa_sw_philic) IF(allocated(this%ssa_sw_philic))
+    !$OMP TARGET UPDATE TO(this%g_sw_philic) IF(allocated(this%g_sw_philic))
+    !$OMP TARGET UPDATE TO(this%mass_ext_lw_philic) IF(allocated(this%mass_ext_lw_philic))
+    !$OMP TARGET UPDATE TO(this%ssa_lw_philic) IF(allocated(this%ssa_lw_philic))
+    !$OMP TARGET UPDATE TO(this%g_lw_philic) IF(allocated(this%g_lw_philic))
+    !$OMP TARGET UPDATE TO(this%wavelength_mono) IF(allocated(this%wavelength_mono))
+    !$OMP TARGET UPDATE TO(this%mass_ext_mono_phobic) IF(allocated(this%mass_ext_mono_phobic))
+    !$OMP TARGET UPDATE TO(this%ssa_mono_phobic) IF(allocated(this%ssa_mono_phobic))
+    !$OMP TARGET UPDATE TO(this%g_mono_phobic) IF(allocated(this%g_mono_phobic))
+    !$OMP TARGET UPDATE TO(this%lidar_ratio_mono_phobic) IF(allocated(this%lidar_ratio_mono_phobic))
+    !$OMP TARGET UPDATE TO(this%mass_ext_mono_philic) IF(allocated(this%mass_ext_mono_philic))
+    !$OMP TARGET UPDATE TO(this%ssa_mono_philic) IF(allocated(this%ssa_mono_philic))
+    !$OMP TARGET UPDATE TO(this%g_mono_philic) IF(allocated(this%g_mono_philic))
+    !$OMP TARGET UPDATE TO(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic))
+    !$OMP TARGET UPDATE TO(this%rh_lower) IF(allocated(this%rh_lower))
 
     !$ACC UPDATE DEVICE(this%iclass) IF(allocated(this%iclass)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%itype) IF(allocated(this%itype)) ASYNC(1)
-
     !$ACC UPDATE DEVICE(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%wavenumber2_sw) IF(allocated(this%wavenumber2_sw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%wavenumber1_lw) IF(allocated(this%wavenumber1_lw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%wavenumber2_lw) IF(allocated(this%wavenumber2_lw)) ASYNC(1)
-
     !$ACC UPDATE DEVICE(this%mass_ext_sw_phobic) IF(allocated(this%mass_ext_sw_phobic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ssa_sw_phobic) IF(allocated(this%ssa_sw_phobic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_sw_phobic) IF(allocated(this%g_sw_phobic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%mass_ext_lw_phobic) IF(allocated(this%mass_ext_lw_phobic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ssa_lw_phobic) IF(allocated(this%ssa_lw_phobic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_lw_phobic) IF(allocated(this%g_lw_phobic)) ASYNC(1)
-
     !$ACC UPDATE DEVICE(this%mass_ext_sw_philic) IF(allocated(this%mass_ext_sw_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ssa_sw_philic) IF(allocated(this%ssa_sw_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_sw_philic) IF(allocated(this%g_sw_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%mass_ext_lw_philic) IF(allocated(this%mass_ext_lw_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ssa_lw_philic) IF(allocated(this%ssa_lw_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_lw_philic) IF(allocated(this%g_lw_philic)) ASYNC(1)
-
     !$ACC UPDATE DEVICE(this%wavelength_mono) IF(allocated(this%wavelength_mono)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%mass_ext_mono_phobic) IF(allocated(this%mass_ext_mono_phobic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ssa_mono_phobic) IF(allocated(this%ssa_mono_phobic)) ASYNC(1)
@@ -868,36 +952,64 @@ contains
     !$ACC UPDATE DEVICE(this%ssa_mono_philic) IF(allocated(this%ssa_mono_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
-
     !$ACC UPDATE DEVICE(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
-
+#endif
   end subroutine update_device
 
+  !---------------------------------------------------------------------
+  ! deletes fields on device
   subroutine delete_device(this)
-    class(aerosol_optics_type), intent(inout) :: this
+
+    type(aerosol_optics_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%iclass) IF(allocated(this%iclass))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%itype) IF(allocated(this%itype))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%wavenumber2_sw) IF(allocated(this%wavenumber2_sw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%wavenumber1_lw) IF(allocated(this%wavenumber1_lw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%wavenumber2_lw) IF(allocated(this%wavenumber2_lw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%mass_ext_sw_phobic) IF(allocated(this%mass_ext_sw_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%ssa_sw_phobic) IF(allocated(this%ssa_sw_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%g_sw_phobic) IF(allocated(this%g_sw_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%mass_ext_lw_phobic) IF(allocated(this%mass_ext_lw_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%ssa_lw_phobic) IF(allocated(this%ssa_lw_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%g_lw_phobic) IF(allocated(this%g_lw_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%mass_ext_sw_philic) IF(allocated(this%mass_ext_sw_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%ssa_sw_philic) IF(allocated(this%ssa_sw_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%g_sw_philic) IF(allocated(this%g_sw_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%mass_ext_lw_philic) IF(allocated(this%mass_ext_lw_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%ssa_lw_philic) IF(allocated(this%ssa_lw_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%g_lw_philic) IF(allocated(this%g_lw_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%wavelength_mono) IF(allocated(this%wavelength_mono))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%mass_ext_mono_phobic) IF(allocated(this%mass_ext_mono_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%ssa_mono_phobic) IF(allocated(this%ssa_mono_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%g_mono_phobic) IF(allocated(this%g_mono_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lidar_ratio_mono_phobic) IF(allocated(this%lidar_ratio_mono_phobic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%mass_ext_mono_philic) IF(allocated(this%mass_ext_mono_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%ssa_mono_philic) IF(allocated(this%ssa_mono_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%g_mono_philic) IF(allocated(this%g_mono_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%rh_lower) IF(allocated(this%rh_lower))
 
     !$ACC EXIT DATA DELETE(this%iclass) IF(allocated(this%iclass)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%itype) IF(allocated(this%itype)) ASYNC(1)
-
     !$ACC EXIT DATA DELETE(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%wavenumber2_sw) IF(allocated(this%wavenumber2_sw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%wavenumber1_lw) IF(allocated(this%wavenumber1_lw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%wavenumber2_lw) IF(allocated(this%wavenumber2_lw)) ASYNC(1)
-
     !$ACC EXIT DATA DELETE(this%mass_ext_sw_phobic) IF(allocated(this%mass_ext_sw_phobic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ssa_sw_phobic) IF(allocated(this%ssa_sw_phobic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_sw_phobic) IF(allocated(this%g_sw_phobic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%mass_ext_lw_phobic) IF(allocated(this%mass_ext_lw_phobic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ssa_lw_phobic) IF(allocated(this%ssa_lw_phobic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_lw_phobic) IF(allocated(this%g_lw_phobic)) ASYNC(1)
-
     !$ACC EXIT DATA DELETE(this%mass_ext_sw_philic) IF(allocated(this%mass_ext_sw_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ssa_sw_philic) IF(allocated(this%ssa_sw_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_sw_philic) IF(allocated(this%g_sw_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%mass_ext_lw_philic) IF(allocated(this%mass_ext_lw_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ssa_lw_philic) IF(allocated(this%ssa_lw_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_lw_philic) IF(allocated(this%g_lw_philic)) ASYNC(1)
-
     !$ACC EXIT DATA DELETE(this%wavelength_mono) IF(allocated(this%wavelength_mono)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%mass_ext_mono_phobic) IF(allocated(this%mass_ext_mono_phobic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ssa_mono_phobic) IF(allocated(this%ssa_mono_phobic)) ASYNC(1)
@@ -907,11 +1019,9 @@ contains
     !$ACC EXIT DATA DELETE(this%ssa_mono_philic) IF(allocated(this%ssa_mono_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
-
     !$ACC EXIT DATA DELETE(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
-
+#endif
   end subroutine delete_device
 
-#endif
 
 end module radiation_aerosol_optics_data

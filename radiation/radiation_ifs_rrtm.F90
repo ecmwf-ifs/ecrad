@@ -206,7 +206,7 @@ contains
     type(gas_type),    intent(inout) :: gas
     logical, optional, intent(in)    :: lacc
 
-    call gas%set_units(IMassMixingRatio, lacc=lacc)
+    call gas%set_units(gas, IMassMixingRatio, lacc=lacc)
 
   end subroutine set_gas_units
 
@@ -220,7 +220,7 @@ contains
        &  incoming_sw)
 
     use parkind1,                 only : jprb, jpim
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
     use radiation_io,             only : nulerr, radiation_abort
 #endif
 
@@ -379,12 +379,12 @@ contains
     do_sw = (config%do_sw .and. config%i_gas_model_sw == IGasModelIFSRRTMG)
     do_lw = (config%do_lw .and. config%i_gas_model_lw == IGasModelIFSRRTMG)
 
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
     if (.not. single_level%is_simple_surface) then
       write(nulerr,'(a)') '*** Error: radiation_ifs_rrtm:gas_optics single_level%is_simple_surface==.false not ported to GPU'
       call radiation_abort()
     endif
-    if (present(lw_albedo) == .FALSE.) then
+    if (present(lw_albedo) .EQV. .FALSE.) then
       write(nulerr,'(a)') '*** Error: radiation_ifs_rrtm:gas_optics present(lw_albedo) == .FALSE. not ported to GPU'
       call radiation_abort()
     endif
