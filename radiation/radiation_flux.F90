@@ -115,10 +115,10 @@ module radiation_flux
     procedure :: calc_toa_spectral
     procedure :: out_of_physical_bounds
     procedure :: heating_rate_out_of_physical_bounds
-    procedure, nopass :: create_device
-    procedure, nopass :: update_host
-    procedure, nopass :: update_device
-    procedure, nopass :: delete_device
+    procedure, nopass :: create_device => create_device_flux
+    procedure, nopass :: update_host   => update_host_flux
+    procedure, nopass :: update_device => update_device_flux
+    procedure, nopass :: delete_device => delete_device_flux
   end type flux_type
 
 ! Added for DWD (2020)
@@ -989,7 +989,7 @@ contains
 
   !---------------------------------------------------------------------
   ! Creates fields on device
-  subroutine create_device(this)
+  subroutine create_device_flux(this)
 
     type(flux_type), intent(inout) :: this
 
@@ -1088,11 +1088,11 @@ contains
     !$ACC ENTER DATA CREATE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 #endif
-  end subroutine create_device
+  end subroutine create_device_flux
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host(this)
+  subroutine update_host_flux(this)
 
     type(flux_type), intent(inout) :: this
 
@@ -1191,11 +1191,11 @@ contains
     !$ACC UPDATE HOST(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE HOST(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 #endif
-  end subroutine update_host
+  end subroutine update_host_flux
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device(this)
+  subroutine update_device_flux(this)
 
     type(flux_type), intent(inout) :: this
 
@@ -1294,11 +1294,11 @@ contains
     !$ACC UPDATE DEVICE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 #endif
-  end subroutine update_device
+  end subroutine update_device_flux
 
   !---------------------------------------------------------------------
   ! Deletes fields on device
-  subroutine delete_device(this)
+  subroutine delete_device_flux(this)
 
     type(flux_type), intent(inout) :: this
 
@@ -1397,6 +1397,6 @@ contains
     !$ACC EXIT DATA DELETE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
 #endif
-  end subroutine delete_device
+  end subroutine delete_device_flux
 
 end module radiation_flux

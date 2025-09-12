@@ -54,10 +54,10 @@ module radiation_aerosol
       procedure :: allocate_direct => allocate_aerosol_arrays_direct
       procedure :: deallocate      => deallocate_aerosol_arrays
       procedure :: out_of_physical_bounds
-      procedure, nopass :: create_device
-      procedure, nopass :: update_host
-      procedure, nopass :: update_device
-      procedure, nopass :: delete_device
+      procedure, nopass :: create_device => create_device_aerosol
+      procedure, nopass :: update_host   => update_host_aerosol
+      procedure, nopass :: update_device => update_device_aerosol
+      procedure, nopass :: delete_device => delete_device_aerosol
   end type aerosol_type
 
 contains
@@ -221,7 +221,7 @@ contains
 
   !---------------------------------------------------------------------
   ! Creates fields on device
-  subroutine create_device(this)
+  subroutine create_device_aerosol(this)
 
     type(aerosol_type), intent(inout) :: this
 
@@ -272,11 +272,11 @@ contains
 #endif
     endif
 #endif
-  end subroutine create_device
+  end subroutine create_device_aerosol
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host(this)
+  subroutine update_host_aerosol(this)
 
     type(aerosol_type), intent(inout) :: this
 
@@ -297,11 +297,11 @@ contains
     !$ACC UPDATE HOST(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
 #endif
-  end subroutine update_host
+  end subroutine update_host_aerosol
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device(this)
+  subroutine update_device_aerosol(this)
 
     type(aerosol_type), intent(inout) :: this
 
@@ -322,11 +322,11 @@ contains
     !$ACC UPDATE DEVICE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
 #endif
-  end subroutine update_device
+  end subroutine update_device_aerosol
 
   !---------------------------------------------------------------------
   ! Deletes fields on device
-  subroutine delete_device(this)
+  subroutine delete_device_aerosol(this)
 
     type(aerosol_type), intent(inout) :: this
 
@@ -347,6 +347,6 @@ contains
     !$ACC EXIT DATA DELETE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
 #endif
-  end subroutine delete_device
+  end subroutine delete_device_aerosol
 
 end module radiation_aerosol
