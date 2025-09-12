@@ -229,13 +229,17 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
+#if defined(OMPGU)
       !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLACC)
+#endif
       !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
     end if
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
+#if defined(OMPGU)
     !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llacc)
+#endif
     !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) IF(llacc)
 
     if (present(scale_factor)) then
@@ -408,7 +412,9 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
+#if defined(OMPGU)
       !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLACC)
+#endif
       !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
     end if
 
@@ -416,7 +422,9 @@ contains
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
+#if defined(OMPGU)
     !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(LLACC)
+#endif
     !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) if(LLACC)
 
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
@@ -435,7 +443,9 @@ contains
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
+#if defined(OMPGU)
     !$OMP TARGET UPDATE TO(this%scale_factor(igas:igas)) IF(LLACC)
+#endif
     !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(LLACC)
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',1,hook_handle)
@@ -546,7 +556,9 @@ contains
         if (iunits /= this%iunits(igas) .or. new_sf /= this%scale_factor(igas)) then
           this%iunits(igas) = iunits
           this%scale_factor(igas) = new_sf
+#if defined(OMPGU)
           !$OMP TARGET UPDATE TO(this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llacc)
+#endif
           !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
         endif
       end if
@@ -665,6 +677,8 @@ contains
     integer                           :: i1, i2, nlev
     integer                           :: jcol, jlev
 
+    logical :: llacc
+
 #if defined(_OPENACC) || defined(OMPGPU)
 #else
     real(jphook) :: hook_handle
@@ -672,7 +686,6 @@ contains
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
 #endif
 
-    logical :: llacc
 
     if (present(lacc)) then
       llacc = lacc
