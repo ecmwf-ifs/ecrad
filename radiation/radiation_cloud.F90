@@ -91,10 +91,10 @@ module radiation_cloud
     procedure, nopass :: param_cloud_effective_separation_eta
     procedure, nopass :: crop_cloud_fraction
     procedure :: out_of_physical_bounds
-    procedure, nopass :: create_device
-    procedure, nopass :: update_host
-    procedure, nopass :: update_device
-    procedure, nopass :: delete_device
+    procedure, nopass :: create_device => create_device_cloud
+    procedure, nopass :: update_host   => update_host_cloud
+    procedure, nopass :: update_device => update_device_cloud
+    procedure, nopass :: delete_device => delete_device_cloud
 
   end type cloud_type
 
@@ -894,7 +894,7 @@ contains
 
   !---------------------------------------------------------------------
   ! creates fields on device
-  subroutine create_device(this)
+  subroutine create_device_cloud(this)
 
     type(cloud_type), intent(inout) :: this
 
@@ -923,11 +923,11 @@ contains
     !$ACC ENTER DATA CREATE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
 #endif
-  end subroutine create_device
+  end subroutine create_device_cloud
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host(this)
+  subroutine update_host_cloud(this)
 
     type(cloud_type), intent(inout) :: this
 
@@ -948,11 +948,11 @@ contains
     !$ACC UPDATE HOST(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC UPDATE HOST(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
 #endif
-  end subroutine update_host
+  end subroutine update_host_cloud
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device(this)
+  subroutine update_device_cloud(this)
 
 #if defined(_OPENACC)
     use openacc,       only : acc_attach
@@ -992,11 +992,11 @@ contains
     !$ACC UPDATE DEVICE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
 #endif
-  end subroutine update_device
+  end subroutine update_device_cloud
 
   !---------------------------------------------------------------------
   ! deletes fields on device
-  subroutine delete_device(this)
+  subroutine delete_device_cloud(this)
 
     type(cloud_type), intent(inout) :: this
 
@@ -1025,6 +1025,6 @@ contains
     !$ACC EXIT DATA DELETE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
 #endif
-  end subroutine delete_device
+  end subroutine delete_device_cloud
 
 end module radiation_cloud

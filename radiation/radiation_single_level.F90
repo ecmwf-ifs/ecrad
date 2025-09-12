@@ -99,10 +99,10 @@ module radiation_single_level
     procedure, nopass :: init_seed_simple
     procedure, nopass :: get_albedos
     procedure :: out_of_physical_bounds
-    procedure, nopass :: create_device
-    procedure, nopass :: update_host
-    procedure, nopass :: update_device
-    procedure, nopass :: delete_device
+    procedure, nopass :: create_device => create_device_single_level
+    procedure, nopass :: update_host   => update_host_single_level
+    procedure, nopass :: update_device => update_device_single_level
+    procedure, nopass :: delete_device => delete_device_single_level
 
   end type single_level_type
 
@@ -517,7 +517,7 @@ contains
 
   !---------------------------------------------------------------------
   ! creates fields on device
-  subroutine create_device(this)
+  subroutine create_device_single_level(this)
 
     type(single_level_type), intent(inout) :: this
 
@@ -540,11 +540,11 @@ contains
     !$ACC ENTER DATA CREATE(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
 #endif
-  end subroutine create_device
+  end subroutine create_device_single_level
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host(this)
+  subroutine update_host_single_level(this)
 
     type(single_level_type), intent(inout) :: this
 
@@ -567,11 +567,11 @@ contains
     !$ACC UPDATE HOST(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC UPDATE HOST(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
 #endif
-  end subroutine update_host
+  end subroutine update_host_single_level
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device(this)
+  subroutine update_device_single_level(this)
 
     type(single_level_type), intent(inout) :: this
 
@@ -594,11 +594,11 @@ contains
     !$ACC UPDATE DEVICE(this%spectral_solar_scaling) IF( allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
 #endif
-  end subroutine update_device
+  end subroutine update_device_single_level
 
   !---------------------------------------------------------------------
   ! deletes fields on device
-  subroutine delete_device(this)
+  subroutine delete_device_single_level(this)
 
     type(single_level_type), intent(inout) :: this
 
@@ -621,6 +621,6 @@ contains
     !$ACC EXIT DATA DELETE(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
 #endif
-  end subroutine delete_device
+  end subroutine delete_device_single_level
 
 end module radiation_single_level
