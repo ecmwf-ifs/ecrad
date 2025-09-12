@@ -430,10 +430,6 @@ program ecrad_ifs_driver
 #ifndef OMPGPU
       !$OMP PARALLEL DO SCHEDULE(DYNAMIC,1)&
       !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
-#else
-#ifdef DEBUG_WARNING
-      write(nulout,'(a,a,i0,a)') __FILE__, " : LINE = ", __LINE__, " WARNING : Disabling Host OMP parallelization while debugging OMP TARGET parallelization. THis needs to be fixed! PJM 4-9-2025"
-#endif
 #endif
       do jrl=1,ncol,nproma
         ibeg=jrl
