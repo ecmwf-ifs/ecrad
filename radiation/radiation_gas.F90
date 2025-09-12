@@ -648,7 +648,7 @@ contains
   ! "iunits" and return as a 2D array of dimensions (ncol,nlev).  The
   ! array will contain zeros if the gas is not stored.
   subroutine get_gas(this, igas, iunits, mixing_ratio, scale_factor, &
-       &   istartcol)
+       &   istartcol, lacc)
 
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
@@ -659,6 +659,7 @@ contains
     real(jprb),           intent(out) :: mixing_ratio(:,:)
     real(jprb), optional, intent(in)  :: scale_factor
     integer,    optional, intent(in)  :: istartcol
+    logical,    optional, intent(in)    :: lacc
 
     real(jprb)                        :: sf
     integer                           :: i1, i2, nlev
@@ -670,6 +671,14 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
 #endif
+
+    logical :: llacc
+
+    if (present(lacc)) then
+      llacc = lacc
+    else
+      llacc = .false.
+    endif
 
     nlev = size(this%mixing_ratio, 2)
 
@@ -703,16 +712,22 @@ contains
     end if
 #endif
 
-    !$ACC PARALLEL
+    !$ACC PARALLEL IF(LLACC)
     if (.not. this%is_present(igas)) then
-       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) 
+#if defined(OMPGPU) && defined(__amdflang__)
+       IF (LLACC) THEN
+          write(0,*) "Can't run this on device until after AFAR 7.1. The OMP offload pragmas are commented out for now. Exiting in case this code is entered at runtime."
+          STOP
+       ENDIF
+#endif
+       !!$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
        !$ACC LOOP GANG VECTOR COLLAPSE(2)
        do jcol = 1,size(mixing_ratio,1)
           do jlev = 1,nlev
              mixing_ratio(jcol,jlev) = 0.0_jprb
           end do
        end do
-       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+       !!$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     else
        if (iunits == IMassMixingRatio &
             &   .and. this%iunits(igas) == IVolumeMixingRatio) then
@@ -724,23 +739,29 @@ contains
        sf = sf * this%scale_factor(igas)
        
        if (sf /= 1.0_jprb) then
-          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) 
+#if defined(OMPGPU) && defined(__amdflang__)
+          IF (LLACC) THEN
+             write(0,*) "Can't run this on device until after AFAR 7.1. The OMP offload pragmas are commented out for now. Exiting in case this code is entered at runtime."
+             STOP
+          ENDIF
+#endif
+          !!$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jcol = i1,i2
              do jlev = 1,nlev
                 mixing_ratio(jcol-i1+1,jlev) = this%mixing_ratio(jcol,jlev,igas) * sf
              end do
           end do
-          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+          !!$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
        else
-          !!$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jcol = i1,i2
              do jlev = 1,nlev
                 mixing_ratio(jcol-i1+1,jlev) = this%mixing_ratio(jcol,jlev,igas)
              end do
           end do
-          !!$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
        end if
     end if
     !$ACC END PARALLEL
