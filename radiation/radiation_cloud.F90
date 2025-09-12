@@ -260,12 +260,15 @@ contains
       ! space or the surface
       allocate(this%overlap_param(ncol, nlev-1))
       !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1) IF(LLACC)
+#if defined(OMPGPU)
       !$OMP TARGET ENTER DATA MAP(ALLOC:this%overlap_param) IF(LLACC)
+#endif
     end if
 
     !$ACC DATA PRESENT(this, thermodynamics) IF(LLACC)
-
+#if defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(thermodynamics%pressure_hl(istartcol,1:2))
+#endif
     !$ACC UPDATE HOST(thermodynamics%pressure_hl(i1,1:2)) WAIT(1) IF(LLACC)
     if (thermodynamics%pressure_hl(i1,2) > thermodynamics%pressure_hl(i1,1)) then
       ! Pressure is increasing with index (order of layers is
@@ -389,7 +392,9 @@ contains
       ! !$ACC ENTER DATA CREATE(this%overlap_param) ASYNC(1) IF(LLACC)
     ! end if
 
+#if defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(thermodynamics%pressure_hl(istartcol,1:2)) IF(LLACC)
+#endif
     !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1) IF(LLACC)
     if (thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1)) then
       ! Pressure is increasing with index (order of layers is
