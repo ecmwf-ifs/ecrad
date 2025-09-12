@@ -54,12 +54,10 @@ module radiation_aerosol
       procedure :: allocate_direct => allocate_aerosol_arrays_direct
       procedure :: deallocate      => deallocate_aerosol_arrays
       procedure :: out_of_physical_bounds
-#if defined(_OPENACC)  || defined(OMPGPU)
-      procedure, nopass :: create_device => create_device_aerosol
-      procedure, nopass :: update_host   => update_host_aerosol
-      procedure, nopass :: update_device => update_device_aerosol
-      procedure, nopass :: delete_device => delete_device_aerosol
-#endif
+      procedure, nopass :: create_device
+      procedure, nopass :: update_host
+      procedure, nopass :: update_device
+      procedure, nopass :: delete_device
   end type aerosol_type
 
 contains
@@ -221,12 +219,13 @@ contains
 
   end function out_of_physical_bounds
 
-#if defined(_OPENACC) || defined(OMPGPU)
   !---------------------------------------------------------------------
   ! Creates fields on device
-  subroutine create_device_aerosol(this)
+  subroutine create_device(this)
 
     type(aerosol_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
 #if defined(OMPGPU)
     integer :: i,j,k
 #endif
@@ -259,6 +258,7 @@ contains
       !$ACC END KERNELS
 #endif
 #if defined(OMPGPU)
+      ! Leave this until work distribute is available : PJM 9/12/2025
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       do k = 1,SIZE(this%ssa_lw, 3)
         do j = 1,SIZE(this%ssa_lw, 2)
@@ -271,15 +271,16 @@ contains
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
     endif
-
-  end subroutine create_device_aerosol
+#endif
+  end subroutine create_device
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host_aerosol(this)
+  subroutine update_host(this)
 
     type(aerosol_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET UPDATE FROM(this%od_sw) IF(allocated(this%od_sw))
     !$OMP TARGET UPDATE FROM(this%ssa_sw) IF(allocated(this%ssa_sw))
@@ -295,15 +296,16 @@ contains
     !$ACC UPDATE HOST(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC UPDATE HOST(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
-
-  end subroutine update_host_aerosol
+#endif
+  end subroutine update_host
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device_aerosol(this)
+  subroutine update_device(this)
 
     type(aerosol_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET UPDATE TO(this%od_sw) IF(allocated(this%od_sw))
     !$OMP TARGET UPDATE TO(this%ssa_sw) IF(allocated(this%ssa_sw))
@@ -319,15 +321,16 @@ contains
     !$ACC UPDATE DEVICE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
-
-  end subroutine update_device_aerosol
+#endif
+  end subroutine update_device
 
   !---------------------------------------------------------------------
   ! Deletes fields on device
-  subroutine delete_device_aerosol(this)
+  subroutine delete_device(this)
 
     type(aerosol_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%od_sw) IF(allocated(this%od_sw))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%ssa_sw) IF(allocated(this%ssa_sw))
@@ -343,8 +346,7 @@ contains
     !$ACC EXIT DATA DELETE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
-
-  end subroutine delete_device_aerosol
 #endif
+  end subroutine delete_device
 
 end module radiation_aerosol

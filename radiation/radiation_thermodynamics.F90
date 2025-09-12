@@ -57,12 +57,10 @@ module radiation_thermodynamics
      procedure :: get_layer_mass_column
      procedure :: out_of_physical_bounds
      procedure, nopass :: calc_saturation_wrt_liquid
-#if defined(_OPENACC)  || defined(OMPGPU)
-     procedure, nopass :: create_device => create_device_thermodynamics
-     procedure, nopass :: update_host   => update_host_thermodynamics
-     procedure, nopass :: update_device => update_device_thermodynamics
-     procedure, nopass :: delete_device => delete_device_thermodynamics
-#endif
+     procedure, nopass :: create_device
+     procedure, nopass :: update_host
+     procedure, nopass :: update_device
+     procedure, nopass :: delete_device
   end type thermodynamics_type
 
 contains
@@ -394,13 +392,13 @@ contains
 
   end function out_of_physical_bounds
 
-#if defined(_OPENACC)  || defined(OMPGPU)
   !---------------------------------------------------------------------
   ! Creates fields on device
-  subroutine create_device_thermodynamics(this)
+  subroutine create_device(this)
 
     type(thermodynamics_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%pressure_hl) IF(allocated(this%pressure_hl))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%temperature_hl) IF(allocated(this%temperature_hl))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%pressure_fl) IF(allocated(this%pressure_fl))
@@ -412,15 +410,16 @@ contains
     !$ACC ENTER DATA CREATE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
-
-  end subroutine create_device_thermodynamics
+#endif
+  end subroutine create_device
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host_thermodynamics(this)
+  subroutine update_host(this)
 
     type(thermodynamics_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(this%pressure_hl) IF(allocated(this%pressure_hl))
     !$OMP TARGET UPDATE FROM(this%temperature_hl) IF(allocated(this%temperature_hl))
     !$OMP TARGET UPDATE FROM(this%pressure_fl) IF(allocated(this%pressure_fl))
@@ -432,15 +431,16 @@ contains
     !$ACC UPDATE HOST(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC UPDATE HOST(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC UPDATE HOST(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
-
-  end subroutine update_host_thermodynamics
+#endif
+  end subroutine update_host
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device_thermodynamics(this)
+  subroutine update_device(this)
 
     type(thermodynamics_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%pressure_hl) IF(allocated(this%pressure_hl))
     !$OMP TARGET UPDATE TO(this%temperature_hl) IF(allocated(this%temperature_hl))
     !$OMP TARGET UPDATE TO(this%pressure_fl) IF(allocated(this%pressure_fl))
@@ -452,15 +452,16 @@ contains
     !$ACC UPDATE DEVICE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
-
-  end subroutine update_device_thermodynamics
+#endif
+  end subroutine update_device
 
   !---------------------------------------------------------------------
   ! Deletes fields on device
-  subroutine delete_device_thermodynamics(this)
+  subroutine delete_device(this)
 
     type(thermodynamics_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pressure_hl) IF(allocated(this%pressure_hl))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%temperature_hl) IF(allocated(this%temperature_hl))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pressure_fl) IF(allocated(this%pressure_fl))
@@ -472,8 +473,7 @@ contains
     !$ACC EXIT DATA DELETE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
-
-  end subroutine delete_device_thermodynamics
 #endif
+  end subroutine delete_device
 
 end module radiation_thermodynamics

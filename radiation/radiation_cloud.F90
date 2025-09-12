@@ -91,12 +91,10 @@ module radiation_cloud
     procedure, nopass :: param_cloud_effective_separation_eta
     procedure, nopass :: crop_cloud_fraction
     procedure :: out_of_physical_bounds
-#if defined(_OPENACC)  || defined(OMPGPU)
-    procedure, nopass :: create_device => create_device_cloud
-    procedure, nopass :: update_host   => update_host_cloud
-    procedure, nopass :: update_device => update_device_cloud
-    procedure, nopass :: delete_device => delete_device_cloud
-#endif
+    procedure, nopass :: create_device
+    procedure, nopass :: update_host
+    procedure, nopass :: update_device
+    procedure, nopass :: delete_device
 
   end type cloud_type
 
@@ -889,13 +887,13 @@ contains
 
   end function out_of_physical_bounds
 
-#if defined(_OPENACC)  || defined(OMPGPU)
   !---------------------------------------------------------------------
   ! creates fields on device
-  subroutine create_device_cloud(this)
+  subroutine create_device(this)
 
     type(cloud_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%effective_radius) IF(allocated(this%effective_radius))
     !$OMP TARGET ENTER DATA MAP(TO:this%q_liq) IF(associated(this%q_liq))
@@ -919,15 +917,16 @@ contains
     !$ACC ENTER DATA CREATE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
-
-  end subroutine create_device_cloud
+#endif
+  end subroutine create_device
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host_cloud(this)
+  subroutine update_host(this)
 
     type(cloud_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET UPDATE FROM(this%effective_radius) IF(allocated(this%effective_radius))
     !$OMP TARGET UPDATE FROM(this%fraction) IF(allocated(this%fraction))
@@ -943,17 +942,19 @@ contains
     !$ACC UPDATE HOST(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC UPDATE HOST(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC UPDATE HOST(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
-
-  end subroutine update_host_cloud
+#endif
+  end subroutine update_host
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device_cloud(this)
+  subroutine update_device(this)
+
 #if defined(_OPENACC)
-use openacc,       only : acc_attach
+    use openacc,       only : acc_attach
 #endif
     type(cloud_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET UPDATE TO(this%effective_radius) IF(allocated(this%effective_radius))
 #if defined(OMPGPU)
@@ -985,13 +986,16 @@ use openacc,       only : acc_attach
     !$ACC UPDATE DEVICE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+#endif
+  end subroutine update_device
 
-  end subroutine update_device_cloud
-
-  subroutine delete_device_cloud(this)
+  !---------------------------------------------------------------------
+  ! deletes fields on device
+  subroutine delete_device(this)
 
     type(cloud_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%effective_radius) IF(allocated(this%effective_radius))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%q_liq) IF(associated(this%q_liq))
@@ -1015,8 +1019,7 @@ use openacc,       only : acc_attach
     !$ACC EXIT DATA DELETE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
-
-  end subroutine delete_device_cloud
 #endif
+  end subroutine delete_device
 
 end module radiation_cloud

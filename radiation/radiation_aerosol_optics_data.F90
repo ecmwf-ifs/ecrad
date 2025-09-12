@@ -147,12 +147,10 @@ module radiation_aerosol_optics_data
      procedure :: calc_rh_index
      procedure :: print_description
 
-#if defined(_OPENACC) || defined(OMPGPU)
-     procedure, nopass :: create_device => create_device_aerosol_optics
-     procedure, nopass :: update_host   => update_host_aerosol_optics
-     procedure, nopass :: update_device => update_device_aerosol_optics
-     procedure, nopass :: delete_device => delete_device_aerosol_optics
-#endif
+     procedure, nopass :: create_device
+     procedure, nopass :: update_host
+     procedure, nopass :: update_device
+     procedure, nopass :: delete_device
 
   end type aerosol_optics_type
 
@@ -756,11 +754,14 @@ contains
 
   end function get_line
 
-#if defined(_OPENACC) || defined(OMPGPU)
 
-  subroutine create_device_aerosol_optics(this)
+  !---------------------------------------------------------------------
+  ! creates fields on device
+  subroutine create_device(this)
+
     type(aerosol_optics_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(TO:this%iclass) IF(allocated(this%iclass))
     !$OMP TARGET ENTER DATA MAP(TO:this%itype) IF(allocated(this%itype))
     !$OMP TARGET ENTER DATA MAP(TO:this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
@@ -818,12 +819,16 @@ contains
     !$ACC ENTER DATA COPYIN(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+#endif
+  end subroutine create_device
 
-  end subroutine create_device_aerosol_optics
+  !---------------------------------------------------------------------
+  ! updates fields on host
+  subroutine update_host(this)
 
-  subroutine update_host_aerosol_optics(this)
     type(aerosol_optics_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(this%iclass) IF(allocated(this%iclass))
     !$OMP TARGET UPDATE FROM(this%itype) IF(allocated(this%itype))
     !$OMP TARGET UPDATE FROM(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
@@ -881,12 +886,16 @@ contains
     !$ACC UPDATE HOST(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+#endif
+  end subroutine update_host
 
-  end subroutine update_host_aerosol_optics
+  !---------------------------------------------------------------------
+  ! updates fields on device
+  subroutine update_device(this)
 
-  subroutine update_device_aerosol_optics(this)
     type(aerosol_optics_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%iclass) IF(allocated(this%iclass))
     !$OMP TARGET UPDATE TO(this%itype) IF(allocated(this%itype))
     !$OMP TARGET UPDATE TO(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
@@ -944,12 +953,16 @@ contains
     !$ACC UPDATE DEVICE(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+#endif
+  end subroutine update_device
 
-  end subroutine update_device_aerosol_optics
+  !---------------------------------------------------------------------
+  ! deletes fields on device
+  subroutine delete_device(this)
 
-  subroutine delete_device_aerosol_optics(this)
     type(aerosol_optics_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%iclass) IF(allocated(this%iclass))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%itype) IF(allocated(this%itype))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
@@ -1007,9 +1020,8 @@ contains
     !$ACC EXIT DATA DELETE(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
-
-  end subroutine delete_device_aerosol_optics
-
 #endif
+  end subroutine delete_device
+
 
 end module radiation_aerosol_optics_data

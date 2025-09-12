@@ -115,12 +115,10 @@ module radiation_flux
     procedure :: calc_toa_spectral
     procedure :: out_of_physical_bounds
     procedure :: heating_rate_out_of_physical_bounds
-#if defined(_OPENACC)  || defined(OMPGPU)
-    procedure, nopass :: create_device => create_device_flux
-    procedure, nopass :: update_host   => update_host_flux
-    procedure, nopass :: update_device => update_device_flux
-    procedure, nopass :: delete_device => delete_device_flux
-#endif
+    procedure, nopass :: create_device
+    procedure, nopass :: update_host
+    procedure, nopass :: update_device
+    procedure, nopass :: delete_device
   end type flux_type
 
 ! Added for DWD (2020)
@@ -989,13 +987,13 @@ contains
 
   end subroutine indexed_sum_profile
 
-#if defined(_OPENACC)  || defined(OMPGPU)
   !---------------------------------------------------------------------
   ! Creates fields on device
-  subroutine create_device_flux(this)
+  subroutine create_device(this)
 
     type(flux_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up) IF(allocated(this%lw_up))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn) IF(allocated(this%lw_dn))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_clear) IF(allocated(this%lw_up_clear))
@@ -1089,15 +1087,16 @@ contains
     !$ACC ENTER DATA CREATE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
-
-  end subroutine create_device_flux
+#endif
+  end subroutine create_device
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host_flux(this)
+  subroutine update_host(this)
 
     type(flux_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(this%lw_up) IF(allocated(this%lw_up))
     !$OMP TARGET UPDATE FROM(this%lw_dn) IF(allocated(this%lw_dn))
     !$OMP TARGET UPDATE FROM(this%lw_up_clear) IF(allocated(this%lw_up_clear))
@@ -1191,15 +1190,16 @@ contains
     !$ACC UPDATE HOST(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC UPDATE HOST(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE HOST(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
-
-  end subroutine update_host_flux
+#endif
+  end subroutine update_host
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device_flux(this)
+  subroutine update_device(this)
 
     type(flux_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%lw_up) IF(allocated(this%lw_up))
     !$OMP TARGET UPDATE TO(this%lw_dn) IF(allocated(this%lw_dn))
     !$OMP TARGET UPDATE TO(this%lw_up_clear) IF(allocated(this%lw_up_clear))
@@ -1293,15 +1293,16 @@ contains
     !$ACC UPDATE DEVICE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
-
-  end subroutine update_device_flux
+#endif
+  end subroutine update_device
 
   !---------------------------------------------------------------------
   ! Deletes fields on device
-  subroutine delete_device_flux(this)
+  subroutine delete_device(this)
 
     type(flux_type), intent(inout) :: this
 
+#if defined(_OPENACC)  || defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up) IF(allocated(this%lw_up))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn) IF(allocated(this%lw_dn))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_clear) IF(allocated(this%lw_up_clear))
@@ -1395,8 +1396,7 @@ contains
     !$ACC EXIT DATA DELETE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
-
-  end subroutine delete_device_flux
 #endif
+  end subroutine delete_device
 
 end module radiation_flux
