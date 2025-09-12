@@ -76,12 +76,10 @@ module radiation_gas
      procedure :: get_scaling
      procedure :: reverse    => reverse_gas
      procedure :: out_of_physical_bounds
-#if defined(_OPENACC) || defined(OMPGPU)
-     procedure, nopass :: create_device => create_device_gas
-     procedure, nopass :: update_host   => update_host_gas
-     procedure, nopass :: update_device => update_device_gas
-     procedure, nopass :: delete_device => delete_device_gas
-#endif
+     procedure, nopass :: create_device
+     procedure, nopass :: update_host
+     procedure, nopass :: update_device
+     procedure, nopass :: delete_device
 
   end type gas_type
 
@@ -815,12 +813,13 @@ contains
 
   end function out_of_physical_bounds
 
-#if defined(_OPENACC) || defined(OMPGPU)
   !---------------------------------------------------------------------
   ! creates fields on device
-  subroutine create_device_gas(this)
+  subroutine create_device(this)
 
     type(gas_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
 #if defined(OMPGPU)
     integer :: i,j,k
 #endif
@@ -834,6 +833,7 @@ contains
     !$ACC END KERNELS
 #endif
 #if defined(OMPGPU)
+    ! Leave this until work distribute is available : PJM 9/12/2025
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
     do k = 1,SIZE(this%mixing_ratio, 3)
       do j = 1,SIZE(this%mixing_ratio, 2)
@@ -844,43 +844,46 @@ contains
     end do
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
-  end subroutine create_device_gas
+#endif
+  end subroutine create_device
 
   !---------------------------------------------------------------------
   ! updates fields on host
-  subroutine update_host_gas(this)
+  subroutine update_host(this)
 
     type(gas_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC UPDATE HOST(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
-
-  end subroutine update_host_gas
+#endif
+  end subroutine update_host
 
   !---------------------------------------------------------------------
   ! updates fields on device
-  subroutine update_device_gas(this)
+  subroutine update_device(this)
 
     type(gas_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC UPDATE DEVICE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
-
-  end subroutine update_device_gas
+#endif
+  end subroutine update_device
 
   !---------------------------------------------------------------------
   ! deletes fields on device
-  subroutine delete_device_gas(this)
+  subroutine delete_device(this)
 
     type(gas_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
-
-  end subroutine delete_device_gas
 #endif
+  end subroutine delete_device
 
 end module radiation_gas

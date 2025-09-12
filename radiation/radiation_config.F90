@@ -656,12 +656,10 @@ module radiation_config
      procedure :: consolidate_sw_albedo_intervals
      procedure :: consolidate_lw_emiss_intervals
 
-#if defined(_OPENACC)  || defined(OMPGPU)
-    procedure, nopass :: create_device => create_device_config
-    procedure, nopass :: update_host   => update_host_config
-    procedure, nopass :: update_device => update_device_config
-    procedure, nopass :: delete_device => delete_device_config
-#endif
+     procedure, nopass :: create_device
+     procedure, nopass :: update_host
+     procedure, nopass :: update_device
+     procedure, nopass :: delete_device
 
   end type config_type
 
@@ -2212,13 +2210,13 @@ contains
     write(nulout,'(a,a,a,a,i0,a)') str, ' (', name, '=', val,')'
   end subroutine print_enum
 
-#if defined(_OPENACC) || defined(OMPGPU)
   !---------------------------------------------------------------------
   ! creates fields on device
-  subroutine create_device_config(this)
+  subroutine create_device(this)
 
     type(config_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET ENTER DATA MAP(TO:this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2260,13 +2258,16 @@ contains
     !$OMP TARGET ENTER DATA MAP(TO:this%pdf_sampler)
     !$ACC ENTER DATA COPYIN(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%create_device(this%pdf_sampler)
+#endif
+  end subroutine create_device
 
-  end subroutine create_device_config
-
-  subroutine update_host_config(this)
+  !---------------------------------------------------------------------
+  ! updates fields on host
+  subroutine update_host(this)
 
     type(config_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET UPDATE FROM(this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET UPDATE FROM(this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET UPDATE FROM(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2308,13 +2309,16 @@ contains
     !$OMP TARGET UPDATE FROM(this%pdf_sampler)
     !$ACC UPDATE HOST(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%update_host(this%pdf_sampler)
+#endif
+  end subroutine update_host
 
-  end subroutine update_host_config
-
-  subroutine update_device_config(this)
+  !---------------------------------------------------------------------
+  ! updates fields on device
+  subroutine update_device(this)
 
     type(config_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET UPDATE TO(this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET UPDATE TO(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2356,13 +2360,16 @@ contains
     !$OMP TARGET UPDATE TO(this%pdf_sampler)
     !$ACC UPDATE DEVICE(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%update_device(this%pdf_sampler)
+#endif
+  end subroutine update_device
 
-  end subroutine update_device_config
-
-  subroutine delete_device_config(this)
+  !---------------------------------------------------------------------
+  ! deletes fields on device
+  subroutine delete_device(this)
 
     type(config_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2404,9 +2411,8 @@ contains
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pdf_sampler)
     !$ACC EXIT DATA DELETE(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%delete_device(this%pdf_sampler)
-
-  end subroutine delete_device_config
-
 #endif
+  end subroutine delete_device
+
 
 end module radiation_config
