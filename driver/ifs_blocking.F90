@@ -448,10 +448,6 @@ subroutine ifs_copy_inputs_to_blocked ( &
       enddo
 
       ! -- by default, globally averaged concentrations (mmr)
-#ifdef DEBUG
-      write(nulout,'(a,a,a,i0,a)') "    ", __FILE__, " : LINE = ", __LINE__, " About to call gas%get, which has OpenACC/OpenMP kernels, with input (zrgp) that has not been moved to device yet. I don't understand how this can work even with OpenACC."
-#endif
-
       call gas%get(gas, ICO2, IMassMixingRatio, zrgp(1:il,ifs_config%iico2:ifs_config%iico2+nlev-1,ib), istartcol=ibeg)
       call gas%get(gas, ICH4, IMassMixingRatio, zrgp(1:il,ifs_config%iich4:ifs_config%iich4+nlev-1,ib), istartcol=ibeg)
       call gas%get(gas, IN2O, IMassMixingRatio, zrgp(1:il,ifs_config%iin2o:ifs_config%iin2o+nlev-1,ib), istartcol=ibeg)
