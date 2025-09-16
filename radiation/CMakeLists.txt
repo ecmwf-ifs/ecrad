@@ -71,8 +71,8 @@ set( radiation_SOURCES
 )
 
 if( BUILD_SHARED_LIBS )
-    if( HAVE_ACC )
-        ecbuild_warn( "OpenACC enabled: Forcing static linking for ecrad.${PREC}" )
+    if( HAVE_GPU )
+        ecbuild_warn( "GPU support enabled: Forcing static linking for ecrad.${PREC}" )
         set( LIBRARY_TYPE STATIC )
     else()
         set( LIBRARY_TYPE SHARED )
@@ -109,7 +109,7 @@ ecbuild_add_library(
 # This requires building an inline lib for Fortran, see
 # https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/index.html#fn-inline-use
 set( inlib_NAME ecrad.${PREC}.il )
-if( HAVE_ACC AND CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC" )
+if( HAVE_GPU AND CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC" )
     set( HAVE_INLIB ON )
 else()
     set( HAVE_INLIB OFF )
@@ -211,7 +211,7 @@ if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
     set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
     set_source_files_properties( radiation_cloud_generator.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
 elseif( CMAKE_FORTRAN_COMPILER_ID MATCHES "PGI|NVHPC" )
-    if( HAVE_ACC )
+    if( HAVE_GPU )
         set_source_files_properties(
             radiation_mcica_acc_lw.F90
             radiation_mcica_acc_sw.F90

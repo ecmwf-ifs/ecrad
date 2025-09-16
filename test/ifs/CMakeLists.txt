@@ -166,8 +166,8 @@ endfunction( add_ecrad_ifs_test )
 # Tests of CY49R1 configuration with RRTMG gas optics model and
 # various solvers, using ${TEST_IFS_CONFIG} config file
 
-if( HAVE_ACC )
-    ecbuild_warn( "ecRad build with OpenACC support. Enabling only McICA-ACC tests" )
+if( HAVE_GPU )
+    ecbuild_warn( "ecRad build with GPU support. Enabling only McICA-ACC tests" )
     set( ENABLE_NON_ACC_TEST )
 else()
     set( ENABLE_NON_ACC_TEST ENABLED )
