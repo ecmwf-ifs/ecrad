@@ -7,7 +7,7 @@ on:
   push:
     branches:
     - master-acc
-    - feature/master-acc-build-hpc
+    - master-omp
     tags-ignore:
     - '**'
 
@@ -36,11 +36,12 @@ jobs:
 
       matrix:
         name:
-          - ac-gpu nvhpc
+          - ac-gpu nvhpc OpenACC
+          - ac-gpu nvhpc OpenMP
           # - lumi-g cce
 
         include:
-          - name: ac-gpu nvhpc
+          - name: ac-gpu nvhpc OpenACC
             site: ac-batch
             troika_user_secret: HPC_CI_SSH_USER
             sbatch_options: |
@@ -58,7 +59,27 @@ jobs:
               - nvidia/24.5
               - netcdf4
               - python3
-            cmake_options: -G Ninja
+            cmake_options: -G Ninja -DENABLE_OMP=OFF
+
+          - name: ac-gpu nvhpc OpenMP
+            site: ac-batch
+            troika_user_secret: HPC_CI_SSH_USER
+            sbatch_options: |
+              #SBATCH --time=00:20:00
+              #SBATCH --nodes=1
+              #SBATCH --ntasks=2
+              #SBATCH --cpus-per-task=32
+              #SBATCH --gpus-per-task=1
+              #SBATCH --mem=200G
+              #SBATCH --qos=dg
+            modules:
+              - cmake
+              - ninja
+              - prgenv/nvidia
+              - nvidia/24.5
+              - netcdf4
+              - python3
+            cmake_options: -G Ninja -DENABLE_GPU=ON -DENABLE_ACC=OFF
 
           # - name: lumi-g cce
           #   site: lumi
