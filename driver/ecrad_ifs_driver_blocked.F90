@@ -422,8 +422,10 @@ program ecrad_ifs_driver
 !    if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
 
+#ifndef _OPENACC
       !$OMP PARALLEL DO SCHEDULE(DYNAMIC,1)&
       !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
+#endif
       do jrl=1,ncol,nproma
         ibeg=jrl
         iend=min(ibeg+nproma-1,ncol)
@@ -517,7 +519,9 @@ program ecrad_ifs_driver
           !$acc end data
 #endif
       end do
+#ifndef _OPENACC
       !$OMP END PARALLEL DO
+#endif
 
 !    else
       ! Run radiation scheme serially

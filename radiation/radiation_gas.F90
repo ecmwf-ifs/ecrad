@@ -636,7 +636,7 @@ contains
   ! "iunits" and return as a 2D array of dimensions (ncol,nlev).  The
   ! array will contain zeros if the gas is not stored.
   subroutine get_gas(this, igas, iunits, mixing_ratio, scale_factor, &
-       &   istartcol)
+       &   istartcol, lacc)
 
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
@@ -647,16 +647,25 @@ contains
     real(jprb),           intent(out) :: mixing_ratio(:,:)
     real(jprb), optional, intent(in)  :: scale_factor
     integer,    optional, intent(in)  :: istartcol
+    logical,    optional, intent(in)    :: lacc
 
     real(jprb)                        :: sf
     integer                           :: i1, i2, nlev
     integer                           :: jcol, jlev
+
+    logical :: llacc
 
 #ifndef _OPENACC
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
 #endif
+
+    if (present(lacc)) then
+      llacc = lacc
+    else
+      llacc = .false.
+    endif
 
     nlev = size(this%mixing_ratio, 2)
 
@@ -689,7 +698,7 @@ contains
     end if
 #endif
 
-    !$ACC PARALLEL
+    !$ACC PARALLEL IF(LLACC)
     if (.not. this%is_present(igas)) then
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jcol = 1,size(mixing_ratio,1)
