@@ -192,13 +192,6 @@ contains
       cloud%re_ice => cloud%effective_radius(:,:,2)
       cloud%ntype = size(cloud%mixing_ratio,3)
 
-#ifdef _OPENACC
-      call acc_attach(cloud%q_liq)
-      call acc_attach(cloud%q_ice)
-      call acc_attach(cloud%re_liq)
-      call acc_attach(cloud%re_ice)
-#endif
-
       ! Simple initialization of the seeds for the Monte Carlo scheme
       call single_level%init_seed_simple(1,ncol,lacc=.false.)
       ! Overwrite with user-specified values if available
