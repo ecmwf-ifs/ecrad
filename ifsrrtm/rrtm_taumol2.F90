@@ -1,7 +1,7 @@
 !----------------------------------------------------------------------------
 SUBROUTINE RRTM_TAUMOL2 (KIDIA,KFDIA,KLEV,taug,PAVEL,coldry,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,&
- & colh2o,laytrop,selffac,selffrac,indself,fracs)
+ & colh2o,laytrop,selffac,selffrac,indself,fracs,laytrop_min,laytrop_max)
 
 !     BAND 2:  250-500 cm-1 (low - H2O; high - H2O)
 
@@ -56,6 +56,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: selffrac(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)    :: indself(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)    :: indfor(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: fracs(KIDIA:KFDIA,JPGPT,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
 
 ! ---------------------------------------------------------------------------
 
@@ -65,7 +66,6 @@ INTEGER(KIND=JPIM) :: IG, lay
 
 REAL(KIND=JPRB) :: taufor,tauself,corradj,pp
     !     local integer arrays
-    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 
@@ -73,10 +73,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp
     !$ACC             fac11, forfrac, forfac, jp, jt, jt1, colh2o, laytrop, &
     !$ACC             selffac, selffrac, indself, indfor, fracs)
 
-#ifndef _OPENACC
-    laytrop_min = MINVAL(laytrop)
-    laytrop_max = MAXVAL(laytrop)
-
+#if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
     ixhigh = 0
     ixc    = 0
@@ -95,17 +92,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp
         endif
       enddo
       ixc(lay) = icl
-    enddo
-#else
-    laytrop_min = HUGE(laytrop_min)
-    laytrop_max = -HUGE(laytrop_max)
-    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
-    do jc = KIDIA,KFDIA
-      laytrop_min = MIN(laytrop_min, laytrop(jc))
-      laytrop_max = MAX(laytrop_max, laytrop(jc))
-    end do
-    !$ACC END PARALLEL
+   enddo
 #endif
 
 

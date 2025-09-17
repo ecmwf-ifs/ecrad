@@ -1,7 +1,7 @@
 !----------------------------------------------------------------------------
 SUBROUTINE RRTM_TAUMOL6 (KIDIA,KFDIA,KLEV,taug,wx,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,&
- & colh2o,colco2,coldry,laytrop,selffac,selffrac,indself,fracs,minorfrac,indminor)
+ & colh2o,colco2,coldry,laytrop,selffac,selffrac,indself,fracs,minorfrac,indminor,laytrop_min,laytrop_max)
 
 !     BAND 6:  820-980 cm-1 (low - H2O; high - nothing)
 
@@ -57,7 +57,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
-
+INTEGER(KIND=JPIM),INTENT(IN)   :: laytrop_min, laytrop_max
 ! ---------------------------------------------------------------------------
 
 INTEGER(KIND=JPIM) :: ind0,ind1,inds,indf,indm
@@ -67,7 +67,6 @@ INTEGER(KIND=JPIM) :: IG, lay
 REAL(KIND=JPRB) :: adjfac,adjcolco2,ratco2,chi_co2
 REAL(KIND=JPRB) :: taufor,tauself,absco2
     !     local integer arrays
-    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 
@@ -76,10 +75,7 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
     !$ACC             indself, fracs, indfor, forfac, forfrac, minorfrac, &
     !$ACC             indminor)
 
-#ifndef _OPENACC
-    laytrop_min = MINVAL(laytrop)
-    laytrop_max = MAXVAL(laytrop)
-
+#if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
     ixhigh = 0
     ixc    = 0
@@ -98,17 +94,7 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
         endif
       enddo
       ixc(lay) = icl
-    enddo
-#else
-    laytrop_min = HUGE(laytrop_min)
-    laytrop_max = -HUGE(laytrop_max)
-    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
-    do jc = KIDIA,KFDIA
-      laytrop_min = MIN(laytrop_min, laytrop(jc))
-      laytrop_max = MAX(laytrop_max, laytrop(jc))
-    end do
-    !$ACC END PARALLEL
+   enddo
 #endif
 
 ! Minor gas mapping level:

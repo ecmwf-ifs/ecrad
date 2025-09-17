@@ -2,7 +2,7 @@
 SUBROUTINE RRTM_TAUMOL3 (KIDIA,KFDIA,KLEV,taug,&
  & P_TAUAERL,FAC00,FAC01,FAC10,FAC11,FORFAC,FORFRAC,INDFOR,JP,JT,jt1,ONEMINUS,&
  & COLH2O,COLCO2,COLN2O,COLDRY,LAYTROP,SELFFAC,SELFFRAC,INDSELF,FRACS, &
- & RAT_H2OCO2, RAT_H2OCO2_1,MINORFRAC,INDMINOR)
+ & RAT_H2OCO2, RAT_H2OCO2_1,MINORFRAC,INDMINOR,laytrop_min,laytrop_max)
 
 !     BAND 3:  500-630 cm-1 (low - H2O,CO2; high - H2O,CO2)
 
@@ -61,6 +61,7 @@ INTEGER(KIND=JPIM),INTENT(IN)   :: INDFOR(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: FORFRAC(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: MINORFRAC(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: INDMINOR(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: laytrop_min, laytrop_max
 ! ---------------------------------------------------------------------------
 
 REAL(KIND=JPRB) :: SPECCOMB,SPECCOMB1,SPECCOMB_MN2O, &
@@ -85,7 +86,6 @@ REAL(KIND=JPRB) :: P, P4, FK0, FK1, FK2
 REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(ng3)
 
     !     local integer arrays
-    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 
@@ -96,10 +96,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
     !$ACC             SELFFAC, SELFFRAC, INDSELF, FRACS, RAT_H2OCO2, &
     !$ACC             RAT_H2OCO2_1, INDFOR, FORFRAC, MINORFRAC, INDMINOR)
 
-#ifndef _OPENACC
-    laytrop_min = MINVAL(laytrop)
-    laytrop_max = MAXVAL(laytrop)
-
+#if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
     ixhigh = 0
     ixc    = 0
@@ -118,17 +115,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
         endif
       enddo
       ixc(lay) = icl
-    enddo
-#else
-    laytrop_min = HUGE(laytrop_min)
-    laytrop_max = -HUGE(laytrop_max)
-    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
-    do jc = KIDIA,KFDIA
-      laytrop_min = MIN(laytrop_min, laytrop(jc))
-      laytrop_max = MAX(laytrop_max, laytrop(jc))
-    end do
-    !$ACC END PARALLEL
+   enddo
 #endif
 
 !     Compute the optical depth by interpolating in ln(pressure),
