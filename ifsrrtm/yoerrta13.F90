@@ -30,6 +30,8 @@ EQUIVALENCE (KA(1,1,1,1),ABSA(1,1))
 
 !$ACC DECLARE CREATE(FRACREFA, FRACREFB, KA, ABSA, SELFREF, FORREF, KA_MCO2, &
 !$ACC                KA_MCO, KB_MO3)
+!$OMP DECLARE TARGET(FRACREFA, FRACREFB, SELFREF, FORREF, KA_MCO2, &
+!$OMP&                KA_MCO, KB_MO3)
 
 !     -----------------------------------------------------------------
 !        * E.C.M.W.F. PHYSICS PACKAGE ** RRTM LW RADIATION **

@@ -36,6 +36,7 @@ DO IGC = 1,NGC(11)
 ENDDO
 
 !$ACC UPDATE DEVICE(SFLUXREFC, RAYLC)
+!$OMP TARGET UPDATE TO(SFLUXREFC, RAYLC)
 
 !     -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRTM_CMBGB26',1,ZHOOK_HANDLE)

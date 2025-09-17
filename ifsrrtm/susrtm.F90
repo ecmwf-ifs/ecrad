@@ -319,6 +319,7 @@ ELSEIF (JPGPT == 224) THEN
 ENDIF
 
 !$ACC UPDATE DEVICE(NSPA, NSPB, PREFLOG, TREF, NGC)
+!$OMP TARGET UPDATE TO(NSPA, NSPB, PREFLOG, TREF, NGC)
 
 !     -----------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SUSRTM',1,ZHOOK_HANDLE)
