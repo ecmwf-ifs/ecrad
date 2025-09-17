@@ -373,7 +373,9 @@ program ecrad_driver
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
 
+#ifndef _OPENACC
       !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
+#endif
       do jblock = 1, nblock
         ! Specify the range of columns to process.
         istartcol = (jblock-1) * driver_config%nblocksize &
@@ -395,7 +397,9 @@ program ecrad_driver
              &  single_level, thermodynamics, gas, cloud, aerosol, flux)
 
       end do
+#ifndef _OPENACC
       !$OMP END PARALLEL DO
+#endif
 
     else
       ! Run radiation scheme serially

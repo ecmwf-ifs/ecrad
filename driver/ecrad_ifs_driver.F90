@@ -437,7 +437,9 @@ program ecrad_ifs_driver
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
 
+#ifndef _OPENACC
       !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
+#endif
       do jblock = 1, nblock
         ! Specify the range of columns to process.
         istartcol = (jblock-1) * driver_config%nblocksize &
@@ -482,7 +484,9 @@ program ecrad_ifs_driver
 #endif
              & )
       end do
+#ifndef _OPENACC
       !$OMP END PARALLEL DO
+#endif
 
   end do
 
