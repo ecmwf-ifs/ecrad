@@ -34,6 +34,7 @@ EQUIVALENCE (KAC(1,1,1),ABSA(1,1)), (KBC(1,13,1),ABSB(1,1))
 
 !$ACC DECLARE CREATE(KAC, ABSA, KBC, ABSB, SELFREFC, FORREFC, SFLUXREFC, &
 !$ACC                ABSH2OC, ABSCO2C)
+!$OMP DECLARE TARGET(SELFREFC, FORREFC, SFLUXREFC, ABSH2OC, ABSCO2C)
 
 !     -----------------------------------------------------------------
 !        * E.C.M.W.F. PHYSICS PACKAGE ** RRTM SW RADIATION **

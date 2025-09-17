@@ -29,6 +29,8 @@ EQUIVALENCE (KA(1,1,1),ABSA(1,1)),(KB(1,13,1),ABSB(1,1))
 
 !$ACC DECLARE CREATE(FRACREFA, FRACREFB, KA, ABSA, KB, ABSB, KA_MO2, KB_MO2, &
 !$ACC                SELFREF, FORREF)
+!$OMP DECLARE TARGET(FRACREFA, FRACREFB, KA_MO2, KB_MO2, &
+!$OMP&                SELFREF, FORREF)
 
 !     -----------------------------------------------------------------
 !        * E.C.M.W.F. PHYSICS PACKAGE *

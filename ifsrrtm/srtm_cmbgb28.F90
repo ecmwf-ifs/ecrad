@@ -67,6 +67,8 @@ DO JP = 1,5
 ENDDO
 
 !$ACC UPDATE DEVICE(KAC, KBC, SFLUXREFC)
+!$OMP TARGET UPDATE TO(SFLUXREFC)
+!$OMP TARGET ENTER DATA MAP(TO: KAC, KBC)
 
 
 !     -----------------------------------------------------------------
