@@ -656,12 +656,10 @@ module radiation_config
      procedure :: consolidate_sw_albedo_intervals
      procedure :: consolidate_lw_emiss_intervals
 
-#ifdef _OPENACC
-    procedure :: create_device
-    procedure :: update_host
-    procedure :: update_device
-    procedure :: delete_device
-#endif
+     procedure, nopass :: create_device
+     procedure, nopass :: update_host
+     procedure, nopass :: update_device
+     procedure, nopass :: delete_device
 
   end type config_type
 
@@ -2212,10 +2210,25 @@ contains
     write(nulout,'(a,a,a,a,i0,a)') str, ' (', name, '=', val,')'
   end subroutine print_enum
 
-#ifdef _OPENACC
-
+  !---------------------------------------------------------------------
+  ! creates fields on device
   subroutine create_device(this)
-    class(config_type), intent(inout) :: this
+
+    type(config_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
+    !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_sw) IF(allocated(this%g_frac_sw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_lw) IF(allocated(this%g_frac_lw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights))
+    !$OMP TARGET ENTER DATA MAP(TO:this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights))
+    !$OMP TARGET ENTER DATA MAP(TO:this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%i_spec_from_reordered_g_lw) IF(associated(this%i_spec_from_reordered_g_lw))
+    !$OMP TARGET ENTER DATA MAP(TO:this%i_spec_from_reordered_g_sw) IF(associated(this%i_spec_from_reordered_g_sw))
 
     !$ACC ENTER DATA COPYIN(this%g_frac_sw) IF(allocated(this%g_frac_sw)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%g_frac_lw) IF(allocated(this%g_frac_lw)) ASYNC(1)
@@ -2232,21 +2245,41 @@ contains
 
     ! NB: ckd_model_type not yet implemented
 
+    !$OMP TARGET ENTER DATA MAP(TO:this%cloud_optics)
     !$ACC ENTER DATA COPYIN(this%cloud_optics) ASYNC(1)
-    call this%cloud_optics%create_device()
+    call this%cloud_optics%create_device(this%cloud_optics)
 
     ! NB: general_cloud_optics_type not yet implemented
 
+    !$OMP TARGET ENTER DATA MAP(TO:this%aerosol_optics)
     !$ACC ENTER DATA COPYIN(this%aerosol_optics) ASYNC(1)
-    call this%aerosol_optics%create_device()
+    call this%aerosol_optics%create_device(this%aerosol_optics)
 
+    !$OMP TARGET ENTER DATA MAP(TO:this%pdf_sampler)
     !$ACC ENTER DATA COPYIN(this%pdf_sampler) ASYNC(1)
-    call this%pdf_sampler%create_device()
-
+    call this%pdf_sampler%create_device(this%pdf_sampler)
+#endif
   end subroutine create_device
 
+  !---------------------------------------------------------------------
+  ! updates fields on host
   subroutine update_host(this)
-    class(config_type), intent(inout) :: this
+
+    type(config_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
+    !$OMP TARGET UPDATE FROM(this%g_frac_sw) IF(allocated(this%g_frac_sw))
+    !$OMP TARGET UPDATE FROM(this%g_frac_lw) IF(allocated(this%g_frac_lw))
+    !$OMP TARGET UPDATE FROM(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
+    !$OMP TARGET UPDATE FROM(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw))
+    !$OMP TARGET UPDATE FROM(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights))
+    !$OMP TARGET UPDATE FROM(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights))
+    !$OMP TARGET UPDATE FROM(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw))
+    !$OMP TARGET UPDATE FROM(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw))
+    !$OMP TARGET UPDATE FROM(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw))
+    !$OMP TARGET UPDATE FROM(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw))
+    !$OMP TARGET UPDATE FROM(this%i_spec_from_reordered_g_lw) IF(associated(this%i_spec_from_reordered_g_lw))
+    !$OMP TARGET UPDATE FROM(this%i_spec_from_reordered_g_sw) IF(associated(this%i_spec_from_reordered_g_sw))
 
     !$ACC UPDATE HOST(this%g_frac_sw) IF(allocated(this%g_frac_sw)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_frac_lw) IF(allocated(this%g_frac_lw)) ASYNC(1)
@@ -2263,21 +2296,41 @@ contains
 
     ! NB: ckd_model_type not yet implemented
 
+    !$OMP TARGET UPDATE FROM(this%cloud_optics)
     !$ACC UPDATE HOST(this%cloud_optics) ASYNC(1)
-    call this%cloud_optics%update_host()
+    call this%cloud_optics%update_host(this%cloud_optics)
 
     ! NB: general_cloud_optics_type not yet implemented
 
+    !$OMP TARGET UPDATE FROM(this%aerosol_optics)
     !$ACC UPDATE HOST(this%aerosol_optics) ASYNC(1)
-    call this%aerosol_optics%update_host()
+    call this%aerosol_optics%update_host(this%aerosol_optics)
 
+    !$OMP TARGET UPDATE FROM(this%pdf_sampler)
     !$ACC UPDATE HOST(this%pdf_sampler) ASYNC(1)
-    call this%pdf_sampler%update_host()
-
+    call this%pdf_sampler%update_host(this%pdf_sampler)
+#endif
   end subroutine update_host
 
+  !---------------------------------------------------------------------
+  ! updates fields on device
   subroutine update_device(this)
-    class(config_type), intent(inout) :: this
+
+    type(config_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
+    !$OMP TARGET UPDATE TO(this%g_frac_sw) IF(allocated(this%g_frac_sw))
+    !$OMP TARGET UPDATE TO(this%g_frac_lw) IF(allocated(this%g_frac_lw))
+    !$OMP TARGET UPDATE TO(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
+    !$OMP TARGET UPDATE TO(this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw))
+    !$OMP TARGET UPDATE TO(this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights))
+    !$OMP TARGET UPDATE TO(this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights))
+    !$OMP TARGET UPDATE TO(this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw))
+    !$OMP TARGET UPDATE TO(this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw))
+    !$OMP TARGET UPDATE TO(this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw))
+    !$OMP TARGET UPDATE TO(this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw))
+    !$OMP TARGET UPDATE TO(this%i_spec_from_reordered_g_lw) IF(associated(this%i_spec_from_reordered_g_lw))
+    !$OMP TARGET UPDATE TO(this%i_spec_from_reordered_g_sw) IF(associated(this%i_spec_from_reordered_g_sw))
 
     !$ACC UPDATE DEVICE(this%g_frac_sw) IF(allocated(this%g_frac_sw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_frac_lw) IF(allocated(this%g_frac_lw)) ASYNC(1)
@@ -2294,21 +2347,41 @@ contains
 
     ! NB: ckd_model_type not yet implemented
 
-    !$ACC UPDATE DEVICE(this%cloud_optics)
-    call this%cloud_optics%update_device()
+    !$OMP TARGET UPDATE TO(this%cloud_optics)
+    !$ACC UPDATE DEVICE(this%cloud_optics) ASYNC(1)
+    call this%cloud_optics%update_device(this%cloud_optics)
 
     ! NB: general_cloud_optics_type not yet implemented
 
-    !$ACC UPDATE DEVICE(this%aerosol_optics)
-    call this%aerosol_optics%update_device()
+    !$OMP TARGET UPDATE TO(this%aerosol_optics)
+    !$ACC UPDATE DEVICE(this%aerosol_optics) ASYNC(1)
+    call this%aerosol_optics%update_device(this%aerosol_optics)
 
-    !$ACC UPDATE DEVICE(this%pdf_sampler)
-    call this%pdf_sampler%update_device()
-
+    !$OMP TARGET UPDATE TO(this%pdf_sampler)
+    !$ACC UPDATE DEVICE(this%pdf_sampler) ASYNC(1)
+    call this%pdf_sampler%update_device(this%pdf_sampler)
+#endif
   end subroutine update_device
 
+  !---------------------------------------------------------------------
+  ! deletes fields on device
   subroutine delete_device(this)
-    class(config_type), intent(inout) :: this
+
+    type(config_type), intent(inout) :: this
+
+#if defined(_OPENACC) || defined(OMPGPU)
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%g_frac_sw) IF(allocated(this%g_frac_sw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%g_frac_lw) IF(allocated(this%g_frac_lw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%i_emiss_from_band_lw) IF(allocated(this%i_emiss_from_band_lw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_albedo_weights) IF(allocated(this%sw_albedo_weights))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_emiss_weights) IF(allocated(this%lw_emiss_weights))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%i_band_from_g_lw) IF(allocated(this%i_band_from_g_lw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%i_band_from_g_sw) IF(allocated(this%i_band_from_g_sw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%i_band_from_reordered_g_lw) IF(allocated(this%i_band_from_reordered_g_lw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%i_band_from_reordered_g_sw) IF(allocated(this%i_band_from_reordered_g_sw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%i_spec_from_reordered_g_lw) IF(associated(this%i_spec_from_reordered_g_lw))
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%i_spec_from_reordered_g_sw) IF(associated(this%i_spec_from_reordered_g_sw))
 
     !$ACC EXIT DATA DELETE(this%g_frac_sw) IF(allocated(this%g_frac_sw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_frac_lw) IF(allocated(this%g_frac_lw)) ASYNC(1)
@@ -2325,18 +2398,21 @@ contains
 
     ! NB: ckd_model_type not yet implemented
 
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%cloud_optics)
     !$ACC EXIT DATA DELETE(this%cloud_optics) ASYNC(1)
-    call this%cloud_optics%delete_device()
+    call this%cloud_optics%delete_device(this%cloud_optics)
 
     ! NB: general_cloud_optics_type not yet implemented
 
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%aerosol_optics)
     !$ACC EXIT DATA DELETE(this%aerosol_optics) ASYNC(1)
-    call this%aerosol_optics%delete_device()
+    call this%aerosol_optics%delete_device(this%aerosol_optics)
 
+    !$OMP TARGET EXIT DATA MAP(DELETE:this%pdf_sampler)
     !$ACC EXIT DATA DELETE(this%pdf_sampler) ASYNC(1)
-    call this%pdf_sampler%delete_device()
-
-  end subroutine delete_device
+    call this%pdf_sampler%delete_device(this%pdf_sampler)
 #endif
+  end subroutine delete_device
+
 
 end module radiation_config
