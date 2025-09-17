@@ -565,6 +565,13 @@ contains
 
     real(jphook) :: hook_handle
 
+    logical :: llacc
+#if defined(_OPENACC) || defined(OMPGPU)
+    llacc = .true.
+#else
+    llacc = .false.
+#endif
+
     if (lhook) call dr_hook('radiation_aerosol_optics:add_aerosol_optics',0,hook_handle)
 
     if (aerosol%is_direct) then
@@ -633,8 +640,7 @@ contains
       end do
       !$ACC END PARALLEL
 
-      !call gas%get(IH2O, IMassMixingRatio, h2o_mmr, istartcol=istartcol)
-      call get_gas(gas, IH2O, IMassMixingRatio, h2o_mmr, istartcol=istartcol)
+      call get_gas(gas, IH2O, IMassMixingRatio, h2o_mmr, istartcol=istartcol, lacc=llacc)
 
       ! Loop over column
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
