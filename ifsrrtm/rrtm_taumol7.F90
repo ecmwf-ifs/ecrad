@@ -104,6 +104,10 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC             colh2o, colo3, colco2, coldry, laytrop, selffac, selffrac, indself, fracs, &
     !$ACC             rat_h2oo3, rat_h2oo3_1, indfor, forfrac, forfac, &
     !$ACC             minorfrac, indminor)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC:taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
+    !$OMP             colh2o, colo3, colco2, coldry, laytrop, selffac, selffrac, indself, fracs, &
+    !$OMP             rat_h2oo3, rat_h2oo3_1, indfor, forfrac, forfac, &
+    !$OMP             minorfrac, indminor)
 
 #if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
@@ -140,6 +144,11 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       ! (in temperature) separately.
 
       ! Lower atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(speccomb, speccomb1, speccomb_mco2, speccomb_planck, ind0, ind1, &
+      !$OMP   inds, indf, indm, js, js1, jpl, jmco2, chi_co2, ratco2, adjfac, adjcolco2, fac000, fac100, fac200, &
+      !$OMP   fac010, fac110, fac210, fac001, fac101, fac201, fac011, fac111, fac211, p, p4, fk0, fk1, fk2, fs, &
+      !$OMP   specmult, specparm, fs1, specmult1, specparm1, fpl, specmult_PLANCK, specparm_PLANCK, fmco2, &
+      !$OMP   specmult_mco2, specparm_mco2, tau_major, tau_major1, taufor, tauself, co2m1, co2m2, absco2) THREAD_LIMIT(128)
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, speccomb1, speccomb_mco2, speccomb_planck, ind0, ind1, &
@@ -336,8 +345,10 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ! Upper atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, indm, chi_co2, ratco2, adjfac, adjcolco2, absco2)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indm, chi_co2, ratco2, adjfac, adjcolco2)
       do lay = llaytrop_max+1, KLEV
@@ -375,9 +386,11 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       enddo
       !$ACC END PARALLEL
       !$ACC WAIT
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ! Empirical modification to code to improve stratospheric cooling rates
       ! for o3.  Revised to apply weighting for g-point reduction in this band.
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do lay = llaytrop_max+1, KLEV
@@ -391,10 +404,16 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
         enddo
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       IF (llaytrop_max /= llaytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
+        !$OMP   specmult1, js1, fs1, speccomb_mco2, specparm_mco2, specmult_mco2, jmco2, fmco2, adjfac, chi_co2, &
+        !$OMP   ratco2, adjcolco2, speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, &
+        !$OMP   indf, indm, p, p4, fk0, fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, &
+        !$OMP   fac201, fac011, fac111, fac211, tau_major, tau_major1, tauself, taufor, co2m1, co2m2, absco2)
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
         !$ACC   specmult1, js1, fs1, speccomb_mco2, specparm_mco2, specmult_mco2, jmco2, fmco2, adjfac, chi_co2, &
@@ -402,7 +421,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
         !$ACC   indf, indm, p, p4, fk0, fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, &
         !$ACC   fac201, fac011, fac111, fac211, tau_major, tau_major1)
         do lay = llaytrop_min+1, llaytrop_max
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then
 #else
@@ -595,7 +614,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               fracs(jl,ngs6+ig,lay) = fracrefa(ig,jpl) + fpl * &
                   (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
          else
 #else
           enddo
@@ -635,7 +654,8 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   + adjcolco2 * absco2
               fracs(jl,ngs6+ig,lay) = fracrefb(ig)
             enddo
-#ifndef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
+#else
           enddo
 
           ! Empirical modification to code to improve stratospheric cooling rates
@@ -651,16 +671,18 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
             taug(jl,ngs6+9,lay)=taug(jl,ngs6+9,lay)*1.1_JPRB
             taug(jl,ngs6+10,lay)=taug(jl,ngs6+10,lay)*0.99_JPRB
             taug(jl,ngs6+11,lay)=taug(jl,ngs6+11,lay)*0.855_JPRB
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
            endif
 #endif
           enddo
 
         enddo
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ENDIF
 
       !$ACC END DATA
+      !$OMP END TARGET DATA
 
 END SUBROUTINE RRTM_TAUMOL7
