@@ -92,7 +92,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
 

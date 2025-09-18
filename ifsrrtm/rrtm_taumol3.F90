@@ -115,7 +115,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
 !     Compute the optical depth by interpolating in ln(pressure),

@@ -107,7 +107,7 @@ REAL(KIND=JPRB) :: refrat_planck_a
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
 !  ----------------------------------------------------------

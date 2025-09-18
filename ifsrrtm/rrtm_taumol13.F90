@@ -130,7 +130,7 @@ REAL(KIND=JPRB)   :: colco(KIDIA:KFDIA,KLEV) !left =0 for now,not passed from rr
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
       ! P = 473.420 mb (Level 5)

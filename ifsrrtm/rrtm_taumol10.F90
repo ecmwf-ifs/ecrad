@@ -83,7 +83,7 @@ REAL(KIND=JPRB) :: taufor,tauself
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
 !     Compute the optical depth by interpolating in ln(pressure) and

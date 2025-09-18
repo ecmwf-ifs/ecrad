@@ -118,7 +118,7 @@ REAL(KIND=JPRB) :: taufor,tauself,n2om1,n2om2,absn2o,tau_major(ng9),tau_major1(n
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
       ! P = 212 mb
