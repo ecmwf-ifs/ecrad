@@ -78,19 +78,27 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC             p_colh2o, p_colch4, p_colmol, k_laytrop, p_selffac, &
     !$ACC             p_selffrac, k_indself, p_forfac, p_forfrac, k_indfor, &
     !$ACC             p_sfluxzen, p_taug, p_taur, prmu0)
+    !$OMP TARGET ENTER DATA MAP(ALLOC: i_laysolfr)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: p_fac00, p_fac01, p_fac10, p_fac11, k_jp, k_jt, k_jt1, &
+    !$OMP             p_colh2o, p_colch4, p_colmol, k_laytrop, p_selffac, &
+    !$OMP             p_selffrac, k_indself, p_forfac, p_forfrac, k_indfor, &
+    !$OMP             p_sfluxzen, p_taug, p_taur, prmu0)
 
     i_nlayers = klev
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
     !$ACC WAIT
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG(STATIC:1) VECTOR
     DO iplon = KIDIA, KFDIA
       i_laysolfr(iplon) = k_laytrop(iplon)
     ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$ACC LOOP SEQ
     DO i_lay = 1, llaytrop_min
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(IND0, IND1, INDS, INDF, Z_TAURAY)
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(IND0, IND1, INDS, INDF, Z_TAURAY)
-       DO iplon = KIDIA, KFDIA
+      DO iplon = KIDIA, KFDIA
          IF (k_jp(iplon,i_lay) < layreffr                           &
               &    .AND. k_jp(iplon,i_lay+1) >= layreffr)           &
               &    i_laysolfr(iplon) = MIN(i_lay+1,k_laytrop(iplon))
@@ -116,13 +124,15 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
            p_taur(iplon,i_lay,ig) = z_tauray
            IF(i_lay == i_laysolfr(iplon)) p_sfluxzen(iplon,ig)=sfluxrefc(ig)
          ENDDO
-       ENDDO
+      ENDDO
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
 
     !$ACC LOOP SEQ
     DO i_lay = llaytrop_min+1, llaytrop_max
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(ind0, ind1, inds, indf, z_tauray)
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, inds, indf, z_tauray)
-       DO iplon = KIDIA, KFDIA
+      DO iplon = KIDIA, KFDIA
           IF (i_lay <= k_laytrop(iplon)) THEN
             IF (k_jp(iplon,i_lay) < layreffr                           &
                  &    .AND. k_jp(iplon,i_lay+1) >= layreffr)           &
@@ -170,9 +180,11 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               p_taur(iplon,i_lay,ig) = z_tauray
             ENDDO
           ENDIF
-       ENDDO
+      ENDDO
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
 
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(IND0, IND1, INDF, Z_TAURAY)
     !$ACC LOOP SEQ
     DO i_lay = llaytrop_max+1, i_nlayers
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(IND0, IND1, INDF, Z_TAURAY)
@@ -198,8 +210,12 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
        ENDDO
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$ACC WAIT
     !$ACC END DATA
+
+    !$OMP TARGET EXIT DATA MAP(DELETE: i_laysolfr)
+    !$OMP END TARGET DATA
 
 END SUBROUTINE SRTM_TAUMOL20

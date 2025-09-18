@@ -108,6 +108,10 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC             colh2o, coln2o, colch4, coldry, laytrop, K_LAYSWTCH, &
     !$ACC             K_LAYLOW, selffac, selffrac, indself, fracs, rat_h2och4, &
     !$ACC             rat_h2och4_1, indfor, forfac, forfrac, minorfrac, indminor)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
+    !$OMP             colh2o, coln2o, colch4, coldry, laytrop, K_LAYSWTCH, &
+    !$OMP             K_LAYLOW, selffac, selffrac, indself, fracs, rat_h2och4, &
+    !$OMP             rat_h2och4_1, indfor, forfac, forfrac, minorfrac, indminor)
 
 #if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
@@ -143,6 +147,11 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       ! (in temperature) separately.
 
       ! Lower atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, js, js1, jmn2o, jpl, speccomb, &
+      !$OMP   speccomb1, speccomb_mn2o, speccomb_planck, fs, specmult, specparm, fs1, specmult1, specparm1, fmn2o, &
+      !$OMP   specmult_mn2o, specparm_mn2o, fpl, specmult_planck, specparm_planck, adjfac, adjcoln2o, ratn2o, &
+      !$OMP   chi_n2o, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, fac011, fac111, &
+      !$OMP   fac211, p, p4, fk0, fk1, fk2, tau_major, tau_major1, taufor, tauself, n2om1, n2om2, absn2o) THREAD_LIMIT(128)
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, js, js1, jmn2o, jpl, speccomb, &
@@ -338,8 +347,10 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ! Upper atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, indm, adjfac, adjcoln2o, ratn2o, chi_n2o, absn2o)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indm, adjfac, adjcoln2o, ratn2o, chi_n2o)
       do lay = llaytrop_max+1, KLEV
@@ -377,10 +388,16 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       IF (llaytrop_max /= llaytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
+        !$OMP   specmult1, js1, fs1, speccomb_mn2o, specparm_mn2o, specmult_mn2o, jmn2o, fmn2o, chi_n2o, ratn2o, &
+        !$OMP   adjfac, adjcoln2o, speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, &
+        !$OMP   indf, indm, p, p4, fk0, fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, &
+        !$OMP   fac201, fac011, fac111, fac211, tau_major, tau_major1, tauself, taufor, n2om1, n2om2, absn2o)
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
         !$ACC   specmult1, js1, fs1, speccomb_mn2o, specparm_mn2o, specmult_mn2o, jmn2o, fmn2o, chi_n2o, ratn2o, &
@@ -388,7 +405,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
         !$ACC   indf, indm, p, p4, fk0, fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, &
         !$ACC   fac201, fac011, fac111, fac211, tau_major, tau_major1)
         do lay = llaytrop_min+1, llaytrop_max
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then
 #else
@@ -580,7 +597,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               fracs(jl,ngs8+ig,lay) = fracrefa(ig,jpl) + fpl * &
                   (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
          else
 #else
           enddo
@@ -620,16 +637,18 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   + adjcoln2o*absn2o
               fracs(jl,ngs8+ig,lay) = fracrefb(ig)
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
            endif
 #endif
           enddo
 
         enddo
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ENDIF
 
       !$ACC END DATA
+      !$OMP END TARGET DATA
 
 END SUBROUTINE RRTM_TAUMOL9
