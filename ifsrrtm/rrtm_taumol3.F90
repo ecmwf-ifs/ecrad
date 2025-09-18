@@ -95,6 +95,10 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
     !$ACC             JT, jt1, COLH2O, COLCO2, COLN2O, COLDRY, LAYTROP, &
     !$ACC             SELFFAC, SELFFRAC, INDSELF, FRACS, RAT_H2OCO2, &
     !$ACC             RAT_H2OCO2_1, INDFOR, FORFRAC, MINORFRAC, INDMINOR)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC:taug, P_TAUAERL, FAC00, FAC01, FAC10, FAC11, FORFAC, JP, &
+    !$OMP             JT, jt1, COLH2O, COLCO2, COLN2O, COLDRY, LAYTROP, &
+    !$OMP             SELFFAC, SELFFRAC, INDSELF, FRACS, RAT_H2OCO2, &
+    !$OMP             RAT_H2OCO2_1, INDFOR, FORFRAC, MINORFRAC, INDMINOR)
 
 #if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
@@ -140,6 +144,11 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
       REFRAT_M_B = CHI_MLS(1,13)/CHI_MLS(2,13)
 
       ! Lower atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, specmult1, &
+      !$OMP   js1, fs1, speccomb_mn2o, specparm_mn2o, specmult_mn2o, jmn2o, fmn2o, chi_n2o, ratn2o, adjfac, adjcoln2o, &
+      !$OMP   speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, indf, indm, p, p4, fk0, &
+      !$OMP   fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, fac011, fac111, &
+      !$OMP   fac211, tau_major, tau_major1, tauself, taufor, n2om1, n2om2, absn2o) THREAD_LIMIT(128)
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, specmult1, &
@@ -334,8 +343,13 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
 
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ! Upper atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, specmult1, &
+      !$OMP   js1, fs1, speccomb_mn2o, specparm_mn2o, specmult_mn2o, jmn2o, fmn2o, chi_n2o, ratn2o, adjfac, adjcoln2o, &
+      !$OMP   speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, indf, indm, fac000, fac100, &
+      !$OMP   fac010, fac110, fac001, fac101, fac011, fac111, taufor, n2om1, n2om2, absn2o)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, specmult1, &
       !$ACC   js1, fs1, speccomb_mn2o, specparm_mn2o, specmult_mn2o, jmn2o, fmn2o, chi_n2o, ratn2o, adjfac, adjcoln2o, &
@@ -421,10 +435,17 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
 
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       IF (laytrop_max /= laytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
+        !$OMP   specmult1, js1, fs1, speccomb_mn2o, specparm_mn2o, specmult_mn2o, jmn2o, fmn2o, chi_n2o, ratn2o, adjfac,&
+        !$OMP   adjcoln2o, speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, indf, indm, p,&
+        !$OMP   p4, fk0, &
+        !$OMP   fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, &
+        !$OMP   fac011, fac111, fac211, tau_major, tau_major1, tauself, taufor, n2om1, n2om2, absn2o)
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
         !$ACC   specmult1, js1, fs1, speccomb_mn2o, specparm_mn2o, specmult_mn2o, jmn2o, fmn2o, chi_n2o, ratn2o, adjfac,&
@@ -433,7 +454,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
         !$ACC   fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, &
         !$ACC   fac011, fac111, fac211, tau_major, tau_major1)
         do lay = laytrop_min+1, laytrop_max
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then
 #else
@@ -625,7 +646,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
               fracs(jl,ngs2+ig,lay) = fracrefa(ig,jpl) + fpl * &
                   (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
          else
 #else
           enddo
@@ -710,16 +731,18 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
               fracs(jl,ngs2+ig,lay) = fracrefb(ig,jpl) + fpl * &
                   (fracrefb(ig,jpl+1)-fracrefb(ig,jpl))
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
            endif
 #endif
           enddo
 
         enddo
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ENDIF
 
       !$ACC END DATA
+      !$OMP END TARGET DATA
 
 END SUBROUTINE RRTM_TAUMOL3

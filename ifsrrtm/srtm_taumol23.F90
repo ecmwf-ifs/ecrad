@@ -67,19 +67,28 @@ REAL(KIND=JPRB) ::  &
     !$ACC             p_colh2o, p_colmol, k_laytrop, p_selffac, p_selffrac, &
     !$ACC             k_indself, p_forfac, p_forfrac, k_indfor, p_sfluxzen, &
     !$ACC             p_taug, p_taur , prmu0)
+    !$OMP TARGET ENTER DATA MAP(ALLOC: i_laysolfr)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: p_fac00, p_fac01, p_fac10, p_fac11, k_jp, k_jt, k_jt1, &
+    !$OMP             p_colh2o, p_colmol, k_laytrop, p_selffac, p_selffrac, &
+    !$OMP             k_indself, p_forfac, p_forfrac, k_indfor, p_sfluxzen, &
+    !$OMP             p_taug, p_taur , prmu0)
 
     i_nlayers = klev
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
     !$ACC WAIT
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG(STATIC:1) VECTOR
     DO iplon = KIDIA, KFDIA
       i_laysolfr(iplon) = k_laytrop(iplon)
     ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
 
     !$ACC LOOP SEQ
     DO i_lay = 1, laytrop_min
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(ind0, ind1, inds, indf, z_tauray)
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, inds, indf)
-       DO iplon = KIDIA, KFDIA
+      DO iplon = KIDIA, KFDIA
          IF (k_jp(iplon,i_lay) < layreffr                            &
               &    .AND. k_jp(iplon,i_lay+1) >= layreffr)            &
               &    i_laysolfr(iplon) = MIN(i_lay+1,k_laytrop(iplon))
@@ -107,13 +116,15 @@ REAL(KIND=JPRB) ::  &
                 p_sfluxzen(iplon,ig) = sfluxrefc(ig)
            p_taur(iplon,i_lay,ig) = z_tauray
          ENDDO
-       ENDDO
+      ENDDO
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
 
     !$ACC LOOP SEQ
     DO i_lay = laytrop_min+1, laytrop_max
-       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, inds, indf)
-       DO iplon = KIDIA, KFDIA
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(ind0, ind1, inds, indf, z_tauray)
+      !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, inds, indf)
+      DO iplon = KIDIA, KFDIA
           IF (i_lay <= k_laytrop(iplon)) THEN
             IF (k_jp(iplon,i_lay) < layreffr                            &
                  &    .AND. k_jp(iplon,i_lay+1) >= layreffr)            &
@@ -150,9 +161,11 @@ REAL(KIND=JPRB) ::  &
               p_taur(iplon,i_lay,ig) = p_colmol(iplon,i_lay) * raylc(ig)
             ENDDO
           ENDIF
-       ENDDO
+      ENDDO
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
 
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
     !$ACC LOOP SEQ
     DO ig = 1 , ng23
       !$ACC LOOP SEQ
@@ -165,8 +178,12 @@ REAL(KIND=JPRB) ::  &
       ENDDO
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$ACC WAIT
     !$ACC END DATA
+
+    !$OMP TARGET EXIT DATA MAP(DELETE: i_laysolfr)
+    !$OMP END TARGET DATA
 
 END SUBROUTINE SRTM_TAUMOL23

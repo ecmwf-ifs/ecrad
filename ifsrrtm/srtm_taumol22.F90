@@ -70,6 +70,11 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
     !$ACC             P_ONEMINUS, P_COLH2O, P_COLMOL, P_COLO2, K_LAYTROP, &
     !$ACC             P_SELFFAC, P_SELFFRAC, K_INDSELF, P_FORFAC, P_FORFRAC, &
     !$ACC             K_INDFOR, P_SFLUXZEN, P_TAUG, P_TAUR, PRMU0)
+    !$OMP TARGET ENTER DATA MAP(ALLOC: I_LAYSOLFR)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
+    !$OMP             P_ONEMINUS, P_COLH2O, P_COLMOL, P_COLO2, K_LAYTROP, &
+    !$OMP             P_SELFFAC, P_SELFFRAC, K_INDSELF, P_FORFAC, P_FORFRAC, &
+    !$OMP             K_INDFOR, P_SFLUXZEN, P_TAUG, P_TAUR, PRMU0)
 
     i_nlayers = klev
 
@@ -77,18 +82,22 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
     !     and Mate continuum) to O2 band intensity (line only).  It is needed
     !     to adjust the optical depths since the k's include only lines.
     z_o2adj = 1.6_JPRB
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
     !$ACC WAIT
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG(STATIC:1) VECTOR
     DO iplon = KIDIA, KFDIA
       i_laysolfr(iplon) = k_laytrop(iplon)
     ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$ACC LOOP SEQ
     DO i_lay = 1, laytrop_min
-       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, inds, indf, js, z_fs, &
-       !$ACC   z_speccomb, z_specmult, z_specparm, z_tauray, z_o2cont)
-       DO iplon = KIDIA, KFDIA
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(ind0, ind1, inds, indf, js, z_fs, &
+      !$OMP   z_speccomb, z_specmult, z_specparm, z_tauray, z_o2cont)
+      !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, inds, indf, js, z_fs, &
+      !$ACC   z_speccomb, z_specmult, z_specparm, z_tauray, z_o2cont)
+      DO iplon = KIDIA, KFDIA
          IF (k_jp(iplon,i_lay) < layreffr                           &
               &    .AND. k_jp(iplon,i_lay+1) >= layreffr)           &
               &    i_laysolfr(iplon) = MIN(i_lay+1,k_laytrop(iplon))
@@ -132,14 +141,17 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
                 & + z_fs * (sfluxrefc(ig,js+1) - sfluxrefc(ig,js))
            p_taur(iplon,i_lay,ig) = z_tauray
          ENDDO
-       ENDDO
+      ENDDO
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
 
     !$ACC LOOP SEQ
     DO i_lay = laytrop_min+1, laytrop_max
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(ind0, ind1, inds, indf, js, z_fs, &
+      !$OMP   z_speccomb, z_specmult, z_specparm, z_tauray, z_o2cont)
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, inds, indf, js, z_fs, &
       !$ACC   z_speccomb, z_specmult, z_specparm, z_tauray, z_o2cont)
-       DO iplon = KIDIA, KFDIA
+      DO iplon = KIDIA, KFDIA
           IF (i_lay <= k_laytrop(iplon)) THEN
             IF (k_jp(iplon,i_lay) < layreffr                           &
                  &    .AND. k_jp(iplon,i_lay+1) >= layreffr)           &
@@ -202,9 +214,11 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
               p_taur(iplon,i_lay,ig) = z_tauray
             ENDDO
           ENDIF
-       ENDDO
+      ENDDO
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
 
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, z_tauray, z_o2cont)
     !$ACC LOOP SEQ
     DO i_lay = laytrop_max+1, i_nlayers
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, z_tauray, z_o2cont)
@@ -228,9 +242,12 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
        ENDDO
     ENDDO
     !$ACC END PARALLEL
-
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$ACC WAIT
     !$ACC END DATA
+
+    !$OMP TARGET EXIT DATA MAP(DELETE: I_LAYSOLFR)
+    !$OMP END TARGET DATA
 
 END SUBROUTINE SRTM_TAUMOL22

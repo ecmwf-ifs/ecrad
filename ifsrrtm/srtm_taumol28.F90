@@ -61,15 +61,22 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
     !$ACC     PRESENT(P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
     !$ACC             P_ONEMINUS, P_COLMOL, P_COLO2, P_COLO3, K_LAYTROP, &
     !$ACC             P_SFLUXZEN, P_TAUG, P_TAUR, PRMU0)
+    !$OMP TARGET ENTER DATA MAP(ALLOC: i_laysolfr)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
+    !$OMP             P_ONEMINUS, P_COLMOL, P_COLO2, P_COLO3, K_LAYTROP, &
+    !$OMP             P_SFLUXZEN, P_TAUG, P_TAUR, PRMU0)
 
     i_nlayers = klev
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG(STATIC:1) VECTOR
     DO iplon = KIDIA,KFDIA
       i_laysolfr(iplon) = i_nlayers
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     !$ACC WAIT
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
@@ -104,7 +111,9 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
        ENDDO
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     DO i_lay = laytrop_min+1, laytrop_max
@@ -171,8 +180,9 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
        ENDDO
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
-
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     DO i_lay = laytrop_max+1, i_nlayers
@@ -210,8 +220,12 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
        ENDDO
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$ACC WAIT
     !$ACC END DATA
+
+    !$OMP TARGET EXIT DATA MAP(DELETE: i_laysolfr)
+    !$OMP END TARGET DATA
 
 END SUBROUTINE SRTM_TAUMOL28
