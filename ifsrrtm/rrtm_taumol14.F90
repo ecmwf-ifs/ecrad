@@ -1,7 +1,7 @@
 !******************************************************************************
 SUBROUTINE RRTM_TAUMOL14 (KIDIA,KFDIA,KLEV,taug,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,&
- & colco2,laytrop,selffac,selffrac,indself,fracs)
+ & colco2,laytrop,selffac,selffrac,indself,fracs,laytrop_min,laytrop_max)
 
 !     BAND 14:  2250-2380 cm-1 (low - CO2; high - CO2)
 
@@ -61,10 +61,7 @@ REAL(KIND=JPRB) :: taufor,tauself
     !$ACC             colco2, laytrop, selffac, selffrac, indself, fracs, &
     !$ACC             indfor, forfac, forfrac)
 
-#ifndef _OPENACC
-    laytrop_min = MINVAL(laytrop)
-    laytrop_max = MAXVAL(laytrop)
-
+#if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
     ixhigh = 0
     ixc    = 0
@@ -84,16 +81,6 @@ REAL(KIND=JPRB) :: taufor,tauself
       enddo
       ixc(lay) = icl
     enddo
-#else
-    laytrop_min = HUGE(laytrop_min)
-    laytrop_max = -HUGE(laytrop_max)
-    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
-    do jc = KIDIA,KFDIA
-      laytrop_min = MIN(laytrop_min, laytrop(jc))
-      laytrop_max = MAX(laytrop_max, laytrop(jc))
-    end do
-    !$ACC END PARALLEL
 #endif
 
 ! Compute the optical depth by interpolating in ln(pressure) and

@@ -4,8 +4,8 @@ SUBROUTINE SRTM_TAUMOL23 &
  & K_JP      , K_JT     , K_JT1,&
  & P_COLH2O  , P_COLMOL,&
  & K_LAYTROP , P_SELFFAC, P_SELFFRAC, K_INDSELF  , P_FORFAC, P_FORFRAC, K_INDFOR,&
- & P_SFLUXZEN, P_TAUG   , P_TAUR    , PRMU0   &
- & )
+ & P_SFLUXZEN, P_TAUG   , P_TAUR    , PRMU0,   &
+ & laytrop_min, laytrop_max)
 
 !     Written by Eli J. Mlawer, Atmospheric & Environmental Research.
 
@@ -50,13 +50,13 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_SFLUXZEN(KIDIA:KFDIA,JPG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUG(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUR(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
 !- from INTFAC
 !- from INTIND
 !- from PRECISE
 !- from PROFDATA
 !- from SELF
 INTEGER(KIND=JPIM) :: IG, IND0, IND1, INDS, INDF, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
-INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
 INTEGER(KIND=JPIM) :: I_LAY_NEXT
 
 REAL(KIND=JPRB) ::  &
@@ -67,21 +67,6 @@ REAL(KIND=JPRB) ::  &
     !$ACC             p_colh2o, p_colmol, k_laytrop, p_selffac, p_selffrac, &
     !$ACC             k_indself, p_forfac, p_forfrac, k_indfor, p_sfluxzen, &
     !$ACC             p_taug, p_taur , prmu0)
-
-#ifndef _OPENACC
-    laytrop_min = MINVAL(k_laytrop(KIDIA:KFDIA))
-    laytrop_max = MAXVAL(k_laytrop(KIDIA:KFDIA))
-#else
-    laytrop_min = HUGE(laytrop_min)
-    laytrop_max = -HUGE(laytrop_max)
-    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
-    do iplon = KIDIA,KFDIA
-      laytrop_min = MIN(laytrop_min, k_laytrop(iplon))
-      laytrop_max = MAX(laytrop_max, k_laytrop(iplon))
-    end do
-    !$ACC END PARALLEL
-#endif
 
     i_nlayers = klev
     !$ACC WAIT
