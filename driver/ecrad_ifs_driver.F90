@@ -82,8 +82,8 @@ program ecrad_ifs_driver
   type(single_level_type)   :: single_level
   type(thermodynamics_type) :: thermodynamics
   type(gas_type)            :: gas
-  type(cloud_type)          :: cloud
-  type(aerosol_type)        :: aerosol
+  type(cloud_type), target  :: cloud
+  type(aerosol_type), target:: aerosol
 
   ! Configuration specific to this driver
   type(driver_config_type)  :: driver_config
@@ -99,6 +99,13 @@ program ecrad_ifs_driver
        &  flux_incoming, emissivity_out
   real(jprb), allocatable, dimension(:,:) :: flux_diffuse_band, flux_direct_band
   real(jprb), allocatable, dimension(:,:) :: cloud_fraction, cloud_q_liq, cloud_q_ice
+
+  ! Pointers to avoid segfaults when aerosols or clouds are not allocated
+  real(jprb), pointer, dimension(:,:,:) :: aerosol_mixing_ratio => NULL()
+#ifdef BITIDENTITY_TESTING
+  real(jprb), pointer, dimension(:,:)   :: cloud_re_liq => NULL(), cloud_re_ice => NULL()
+  real(jprb), pointer, dimension(:,:)   :: cloud_overlap_param => NULL()
+#endif
 
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: istartcol, iendcol ! Range of columns to process
@@ -362,11 +369,20 @@ program ecrad_ifs_driver
     cloud_fraction = cloud%fraction
     cloud_q_liq = cloud%q_liq
     cloud_q_ice = cloud%q_ice
+#ifdef BITIDENTITY_TESTING
+    cloud_re_liq => cloud%re_liq
+    cloud_re_ice => cloud%re_ice
+    cloud_overlap_param => cloud%overlap_param
+#endif
   else
     cloud_fraction = 0.0_jprb
     cloud_q_liq = 0.0_jprb
     cloud_q_ice = 0.0_jprb
-  endif
+  end if
+
+  if (allocated(aerosol%mixing_ratio)) then
+    aerosol_mixing_ratio => aerosol%mixing_ratio
+  end if
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -415,7 +431,7 @@ program ecrad_ifs_driver
              &  gas%mixing_ratio(:,:,ICH4), gas%mixing_ratio(:,:,IN2O), gas%mixing_ratio(:,:,INO2), &
              &  gas%mixing_ratio(:,:,ICFC11), gas%mixing_ratio(:,:,ICFC12), gas%mixing_ratio(:,:,IHCFC22), &
              &  gas%mixing_ratio(:,:,ICCl4), gas%mixing_ratio(:,:,IO3), cloud_fraction, cloud_q_liq, &
-             &  cloud_q_ice, zeros, zeros, tegen_aerosol, aerosol%mixing_ratio, flux%sw_up, flux%lw_up, &
+             &  cloud_q_ice, zeros, zeros, tegen_aerosol, aerosol_mixing_ratio, flux%sw_up, flux%lw_up, &
              &  flux%sw_up_clear, flux%lw_up_clear, flux%sw_dn(:,nlev+1), flux%lw_dn(:,nlev+1), &
              &  flux%sw_dn_clear(:,nlev+1), flux%lw_dn_clear(:,nlev+1), &
              &  flux%sw_dn_direct(:,nlev+1), flux%sw_dn_direct_clear(:,nlev+1), flux_sw_direct_normal, &
@@ -425,8 +441,8 @@ program ecrad_ifs_driver
 #ifdef BITIDENTITY_TESTING
             ! To validate results against standalone ecrad, we overwrite effective
             ! radii, cloud overlap and seed with input values
-             &  ,pre_liq=cloud%re_liq, pre_ice=cloud%re_ice, &
-             &  pcloud_overlap=cloud%overlap_param, &
+             &  ,pre_liq=cloud_re_liq, pre_ice=cloud_re_ice, &
+             &  pcloud_overlap=cloud_overlap_param, &
              &  iseed=single_level%iseed &
 #endif
              & )
