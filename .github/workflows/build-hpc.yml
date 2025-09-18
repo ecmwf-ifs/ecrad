@@ -58,7 +58,7 @@ jobs:
               - nvidia/24.5
               - netcdf4
               - python3
-            cmake_options: -G Ninja
+            cmake_options: "-G Ninja -DOpenACC_Fortran_FLAGS=-acc=gpu\\\ -gpu=cc80,lineinfo,fastmath"
 
           # - name: lumi-g cce
           #   site: lumi
