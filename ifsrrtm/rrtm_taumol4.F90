@@ -2,7 +2,7 @@
 SUBROUTINE RRTM_TAUMOL4 (KIDIA,KFDIA,KLEV,taug,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
  & colh2o,colco2,colo3,laytrop,selffac,selffrac,indself,fracs, &
- & rat_h2oco2, rat_h2oco2_1, rat_o3co2, rat_o3co2_1)
+ & rat_h2oco2, rat_h2oco2_1, rat_o3co2, rat_o3co2_1,laytrop_min,laytrop_max)
 
 !     BAND 4:  630-700 cm-1 (low - H2O,CO2; high - O3,CO2)
 
@@ -57,6 +57,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_o3co2_1(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)   :: laytrop_min, laytrop_max
 ! ---------------------------------------------------------------------------
 
 REAL(KIND=JPRB) :: speccomb,speccomb1, speccomb_planck
@@ -77,7 +78,6 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
  & fpl, specmult_PLANCK, specparm_PLANCK
 
     !     local integer arrays
-    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 
@@ -88,10 +88,7 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
 !$ACC             fracs, rat_h2oco2, rat_h2oco2_1, rat_o3co2, rat_o3co2_1, &
 !$ACC             indfor, forfac, forfrac)
 
-#ifndef _OPENACC
-    laytrop_min = MINVAL(laytrop)
-    laytrop_max = MAXVAL(laytrop)
-
+#if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
     ixhigh = 0
     ixc    = 0
@@ -111,16 +108,6 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
       enddo
       ixc(lay) = icl
     enddo
-#else
-    laytrop_min = HUGE(laytrop_min)
-    laytrop_max = -HUGE(laytrop_max)
-    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
-    do jc = KIDIA,KFDIA
-      laytrop_min = MIN(laytrop_min, laytrop(jc))
-      laytrop_max = MAX(laytrop_max, laytrop(jc))
-    end do
-    !$ACC END PARALLEL
 #endif
 
 

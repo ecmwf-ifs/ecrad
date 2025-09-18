@@ -1,7 +1,7 @@
 SUBROUTINE RRTM_TAUMOL1 (KIDIA,KFDIA,KLEV,taug,PAVEL,&
  & P_TAUAERL,FAC00,FAC01,FAC10,FAC11,FORFAC,FORFRAC,INDFOR,JP,JT,jt1,&
  & COLH2O,LAYTROP,SELFFAC,SELFFRAC,INDSELF,fracs,MINORFRAC,INDMINOR,&
- & SCALEMINORN2,COLBRD)
+ & SCALEMINORN2,COLBRD,laytrop_min,laytrop_max)
 
 !******************************************************************************
 !                                                                             *
@@ -175,6 +175,7 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: INDFOR(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)    :: INDMINOR(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: SCALEMINORN2(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: COLBRD(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
 ! ---------------------------------------------------------------------------
 
 INTEGER(KIND=JPIM) :: IND0,IND1,INDS
@@ -183,7 +184,6 @@ INTEGER(KIND=JPIM) :: INDF,INDM
 INTEGER(KIND=JPIM) :: IG, LAY
 REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
     !     local integer arrays
-    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 
@@ -192,10 +192,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
     !$ACC             SELFFRAC, MINORFRAC, INDSELF, fracs, &
     !$ACC             INDFOR, INDMINOR, SCALEMINORN2, COLBRD)
 
-#ifndef _OPENACC
-    laytrop_min = MINVAL(laytrop)
-    laytrop_max = MAXVAL(laytrop)
-
+#if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
     ixhigh = 0
     ixc    = 0
@@ -215,16 +212,6 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
       enddo
       ixc(lay) = icl
     enddo
-#else
-    laytrop_min = HUGE(laytrop_min)
-    laytrop_max = -HUGE(laytrop_max)
-    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
-    do jc = KIDIA,KFDIA
-      laytrop_min = MIN(laytrop_min, laytrop(jc))
-      laytrop_max = MAX(laytrop_max, laytrop(jc))
-    end do
-    !$ACC END PARALLEL
 #endif
 
 

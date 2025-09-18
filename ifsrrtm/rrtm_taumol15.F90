@@ -2,7 +2,7 @@
 SUBROUTINE RRTM_TAUMOL15 (KIDIA,KFDIA,KLEV,taug,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
  & colh2o,colco2,coln2o,laytrop,selffac,selffrac,indself,fracs, &
- & rat_n2oco2, rat_n2oco2_1,minorfrac,indminor,scaleminor,colbrd)
+ & rat_n2oco2, rat_n2oco2_1,minorfrac,indminor,scaleminor,colbrd,laytrop_min,laytrop_max)
 
 !     BAND 15:  2380-2600 cm-1 (low - N2O,CO2; high - nothing)
 
@@ -61,6 +61,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: scaleminor(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: colbrd(KIDIA:KFDIA,KLEV)
+INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
 ! ---------------------------------------------------------------------------
 
 INTEGER(KIND=JPIM) :: IG, IND0, IND1, INDS,INDF,INDM, JS,JS1,JPL,JMN2, lay
@@ -77,7 +78,6 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,speccomb,  &
 & fmn2, specmult_mn2, specparm_mn2,speccomb_mn2, &
 & fpl, specmult_planck, specparm_planck,speccomb_planck
     !     local integer arrays
-    INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 
@@ -88,10 +88,7 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,speccomb,  &
     !$ACC             indself, fracs, rat_n2oco2, rat_n2oco2_1, indfor, forfac, &
     !$ACC             forfrac, minorfrac, indminor, scaleminor, colbrd)
 
-#ifndef _OPENACC
-    laytrop_min = MINVAL(laytrop)
-    laytrop_max = MAXVAL(laytrop)
-
+#if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
     ixhigh = 0
     ixc    = 0
@@ -111,16 +108,6 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,speccomb,  &
       enddo
       ixc(lay) = icl
     enddo
-#else
-    laytrop_min = HUGE(laytrop_min)
-    laytrop_max = -HUGE(laytrop_max)
-    !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
-    !$ACC LOOP GANG VECTOR REDUCTION(min:laytrop_min) REDUCTION(max:laytrop_max)
-    do jc = KIDIA,KFDIA
-      laytrop_min = MIN(laytrop_min, laytrop(jc))
-      laytrop_max = MAX(laytrop_max, laytrop(jc))
-    end do
-    !$ACC END PARALLEL
 #endif
 
       ! Minor gas mapping level :
