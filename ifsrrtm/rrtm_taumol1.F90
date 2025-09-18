@@ -191,6 +191,10 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
     !$ACC             FORFAC, FORFRAC, JP, JT, jt1, COLH2O, LAYTROP, SELFFAC, &
     !$ACC             SELFFRAC, MINORFRAC, INDSELF, fracs, &
     !$ACC             INDFOR, INDMINOR, SCALEMINORN2, COLBRD)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: PAVEL, taug, P_TAUAERL, FAC00, FAC01, FAC10, FAC11, &
+    !$OMP             FORFAC, FORFRAC, JP, JT, jt1, COLH2O, LAYTROP, SELFFAC, &
+    !$OMP             SELFFRAC, MINORFRAC, INDSELF, fracs, &
+    !$OMP             INDFOR, INDMINOR, SCALEMINORN2, COLBRD)
 
 #if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
@@ -224,6 +228,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
 !     foreign continuum is interpolated (in temperature) separately.
 
       ! Lower atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, pp, corradj)
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, pp, corradj)
@@ -262,8 +267,10 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
         enddo
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ! Upper atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, indf, indm, pp, corradj, scalen2)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indf, indm, pp, corradj, scalen2)
       do lay = laytrop_max+1, KLEV
@@ -295,14 +302,16 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
         enddo
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       IF (laytrop_max /= laytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, pp, corradj, scalen2, tauself, taufor, taun2)
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, pp, corradj, scalen2)
         do lay = laytrop_min+1, laytrop_max
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then
 #else
@@ -341,7 +350,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
                   + tauself + taufor + taun2)
               fracs(jl,ig,lay) = fracrefa(ig)
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
          else
 #else
           enddo
@@ -378,16 +387,18 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
                   + taufor + taun2)
               fracs(jl,ig,lay) = fracrefb(ig)
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
            endif
 #endif
           enddo
 
         enddo
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ENDIF
 
       !$ACC END DATA
+      !$OMP END TARGET DATA
 
 END SUBROUTINE RRTM_TAUMOL1

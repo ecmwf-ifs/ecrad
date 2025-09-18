@@ -74,6 +74,10 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
     !$ACC             jt1, colh2o, colco2, coldry, laytrop, selffac, selffrac , &
     !$ACC             indself, fracs, indfor, forfac, forfrac, minorfrac, &
     !$ACC             indminor)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC:taug, wx, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt,  &
+    !$OMP             jt1, colh2o, colco2, coldry, laytrop, selffac, selffrac , &
+    !$OMP             indself, fracs, indfor, forfac, forfrac, minorfrac, &
+    !$OMP             indminor)
 
 #if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
@@ -107,6 +111,8 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
 !     (in temperature) separately.
 
       ! Lower atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, adjfac, adjcolco2, &
+      !$OMP ratco2, chi_co2, taufor, tauself, absco2)
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, adjfac, adjcolco2, ratco2,chi_co2)
@@ -153,9 +159,11 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
         enddo
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ! Upper atmosphere loop
       ! Nothing important goes on above laytrop in this band.
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(3)
       do ig = 1, ng6
@@ -169,14 +177,17 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
         enddo
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       IF (laytrop_max /= laytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(chi_co2, ratco2, adjfac, adjcolco2, ind0, ind1, &
+        !$OMP inds, indf, indm, tauself, taufor, absco2)
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(chi_co2, ratco2, adjfac, adjcolco2, ind0, ind1, inds, indf, indm)
         do lay = laytrop_min+1, laytrop_max
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then
 #else
@@ -223,7 +234,7 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
                   + wx(jl,3,lay) * cfc12(ig)
               fracs(jl,ngs5+ig,lay) = fracrefa(ig)
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
          else
 #else
           enddo
@@ -235,7 +246,8 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
 
           !$ACC LOOP SEQ
           do ig = 1, ng6
-#ifndef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
+#else
 !$NEC ivdep
             do ixp = 1, ixc0
               jl = ixhigh(ixp,lay)
@@ -245,16 +257,18 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
                   + wx(jl,3,lay) * cfc12(ig)
               fracs(jl,ngs5+ig,lay) = fracrefa(ig)
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
            endif
 #endif
           enddo
 
         enddo
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ENDIF
 
       !$ACC END DATA
+      !$OMP END TARGET DATA
 
 END SUBROUTINE RRTM_TAUMOL6

@@ -87,6 +87,9 @@ REAL(KIND=JPRB) :: refrat_planck_a
     !$ACC DATA PRESENT(taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
     !$ACC             colh2o, colco2, laytrop, selffac, selffrac, indself, fracs, &
     !$ACC             rat_h2oco2, rat_h2oco2_1, indfor, forfrac, forfac)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
+    !$OMP             colh2o, colco2, laytrop, selffac, selffrac, indself, fracs, &
+    !$OMP             rat_h2oco2, rat_h2oco2_1, indfor, forfrac, forfac)
 
 #if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
@@ -121,6 +124,10 @@ REAL(KIND=JPRB) :: refrat_planck_a
       ! (in temperature) separately.
 
       ! Lower atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(speccomb, speccomb1, speccomb_planck, ind0,ind1,inds,indf, js, js1, &
+      !$OMP   jpl, fs, specmult, specparm, fs1, specmult1, specparm1, fpl, specmult_PLANCK, specparm_PLANCK, fac000, &
+      !$OMP   fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, fac011, fac111, fac211, p, p4, fk0, fk1, &
+      !$OMP   fk2, tau_major, tau_major1, taufor, tauself) THREAD_LIMIT(128)
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, speccomb1, speccomb_planck, ind0,ind1,inds,indf, js, js1, &
@@ -290,8 +297,10 @@ REAL(KIND=JPRB) :: refrat_planck_a
 
       ENDDO
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       ! Upper atmosphere loop
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(3)
       do ig = 1, ng12
@@ -304,17 +313,22 @@ REAL(KIND=JPRB) :: refrat_planck_a
 
       enddo
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
       IF (laytrop_max /= laytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
+        !$OMP   specmult1, js1, fs1, speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, &
+        !$OMP   indf, p, p4, fk0, fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, &
+        !$OMP   fac011, fac111, fac211, tau_major, tau_major1, tauself, taufor)
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(speccomb, specparm, specmult, js, fs, speccomb1, specparm1, &
         !$ACC   specmult1, js1, fs1, speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, &
         !$ACC   indf, p, p4, fk0, fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, &
         !$ACC   fac011, fac111, fac211, tau_major, tau_major1)
         do lay = laytrop_min+1, laytrop_max
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then
 #else
@@ -481,7 +495,7 @@ REAL(KIND=JPRB) :: refrat_planck_a
               fracs(jl,ngs11+ig,lay) = fracrefa(ig,jpl) + fpl * &
                   (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
          else
 #else
           enddo
@@ -492,7 +506,8 @@ REAL(KIND=JPRB) :: refrat_planck_a
 
           !$ACC LOOP SEQ
           do ig = 1, ng12
-#ifndef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
+#else
 !$NEC ivdep
             do ixp = 1, ixc0
               jl = ixhigh(ixp,lay)
@@ -501,16 +516,17 @@ REAL(KIND=JPRB) :: refrat_planck_a
               taug(jl,ngs11+ig,lay) = 0.0_JPRB
               fracs(jl,ngs11+ig,lay) = 0.0_JPRB
             enddo
-#ifdef _OPENACC
+#if defined(_OPENACC) || defined(OMPGPU)
            endif
 #endif
           enddo
 
         enddo
         !$ACC END PARALLEL
-
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
       ENDIF
 
       !$ACC END DATA
+      !$OMP END TARGET DATA
 
 END SUBROUTINE RRTM_TAUMOL12
