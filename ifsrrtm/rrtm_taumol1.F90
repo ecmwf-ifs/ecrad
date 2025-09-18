@@ -211,7 +211,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
 

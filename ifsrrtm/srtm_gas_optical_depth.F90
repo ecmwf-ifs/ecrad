@@ -190,7 +190,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O , PCOLCO2 , PCOLMOL  ,&
       &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 18) THEN
       CALL SRTM_TAUMOL18 &
@@ -200,7 +200,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O , PCOLCH4 , PCOLMOL  ,&
       &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 19) THEN
       CALL SRTM_TAUMOL19 &
@@ -210,7 +210,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O , PCOLCO2 , PCOLMOL  ,&
       &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 20) THEN
       CALL SRTM_TAUMOL20 &
@@ -220,7 +220,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O , PCOLCH4 , PCOLMOL  ,&
       &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 21) THEN
       CALL SRTM_TAUMOL21 &
@@ -230,7 +230,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O , PCOLCO2 , PCOLMOL  ,&
       &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 22) THEN
       CALL SRTM_TAUMOL22 &
@@ -240,7 +240,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O , PCOLMOL , PCOLO2   ,&
       &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 23) THEN
       CALL SRTM_TAUMOL23 &
@@ -250,7 +250,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O , PCOLMOL ,&
       &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 24) THEN
       CALL SRTM_TAUMOL24 &
@@ -260,7 +260,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O , PCOLMOL , PCOLO2   , PCOLO3 ,&
       &   KLAYTROP, PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 25) THEN
       !--- visible 16000-22650 cm-1   0.4415 - 0.6250 um
@@ -271,7 +271,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O  , PCOLMOL , PCOLO3 ,&
       &   KLAYTROP ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR   , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 26) THEN
       !--- UV-A 22650-29000 cm-1   0.3448 - 0.4415 um
@@ -279,7 +279,7 @@ IF (ICOUNT/=0) THEN
       & ( KIDIA   , KFDIA   , KLEV    ,&
       &   PCOLMOL ,KLAYTROP,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 27) THEN
       !--- UV-B 29000-38000 cm-1   0.2632 - 0.3448 um
@@ -290,7 +290,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLMOL , PCOLO3 ,&
       &   KLAYTROP ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 28) THEN
       !--- UV-C 38000-50000 cm-1   0.2000 - 0.2632 um
@@ -301,7 +301,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLMOL , PCOLO2  , PCOLO3 ,&
       &   KLAYTROP ,&
       &   ZSFLXZEN, ZTAUG   , ZTAUR  , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ELSEIF (JB == 29) THEN
       CALL SRTM_TAUMOL29 &
@@ -311,7 +311,7 @@ IF (ICOUNT/=0) THEN
       &   PCOLH2O  , PCOLCO2 , PCOLMOL  ,&
       &   KLAYTROP , PSELFFAC, PSELFFRAC, KINDSELF  , PFORFAC, PFORFRAC, KINDFOR ,&
       &   ZSFLXZEN , ZTAUG   , ZTAUR    , PRMU0,     &
-      &   laytrop_min=laytrop_min, laytrop_max=laytrop_max)
+      &   laytrop_min, laytrop_max)
 
     ENDIF
 

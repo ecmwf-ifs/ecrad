@@ -107,7 +107,7 @@ REAL(KIND=JPRB) :: fs, specmult, specparm,  &
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
 

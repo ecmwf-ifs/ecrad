@@ -94,7 +94,7 @@ REAL(KIND=JPRB) :: taufor,tauself,absco2
         endif
       enddo
       ixc(lay) = icl
-   enddo
+    enddo
 #endif
 
 ! Minor gas mapping level:
