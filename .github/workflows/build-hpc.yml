@@ -59,7 +59,7 @@ jobs:
               - nvidia/24.5
               - netcdf4
               - python3
-            cmake_options: -G Ninja -DENABLE_OMP=OFF
+            cmake_options: -G Ninja -DENABLE_OMP=OFF -DENABLE_ACC=ON
 
           - name: ac-gpu nvhpc OpenMP
             site: ac-batch
@@ -79,7 +79,7 @@ jobs:
               - nvidia/24.11
               - netcdf4
               - python3
-            cmake_options: "-G Ninja -DENABLE_GPU=ON -DENABLE_ACC=OFF -DOpenMP_Fortran_FLAGS=-mp=gpu,multicore -DOpenMP_Fortran_LIB_NAMES=acchost -DOpenMP_acchost_LIBRARY=$NVHPC_ROOT/compilers/lib/libacchost.so"
+            cmake_options: -G Ninja -DENABLE_GPU=ON -DENABLE_ACC=OFF -DENABLE_OMP=ON
 
           # - name: lumi-g cce
           #   site: lumi
@@ -127,7 +127,6 @@ jobs:
           template_data: |
             site: ${{ matrix.site }}
             cmake_options:
-              - -DENABLE_ACC=ON
               - -DENABLE_BITIDENTITY_TESTING=ON
               - -DENABLE_SINGLE_PRECISION=ON
               - ${{ matrix.cmake_options || '' }}
