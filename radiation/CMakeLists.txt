@@ -105,6 +105,15 @@ ecbuild_add_library(
     PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
+# To ensure device code is generated and all link time dependencies are
+# available with OpenMP target offloading, force the `-mp=gpu` flag for NVHPC
+if( HAVE_GPU AND HAVE_OMP AND GPU_OFFLOAD STREQUAL "OMP" )
+    if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
+        target_compile_options( ecrad.${PREC} PRIVATE "-mp=gpu" )
+        target_link_options( ecrad.${PREC} PRIVATE "-mp=gpu" )
+    endif()
+endif()
+
 # Improve performance via function inlining for NVHPC
 # This requires building an inline lib for Fortran, see
 # https://docs.nvidia.com/hpc-sdk/compilers/hpc-compilers-user-guide/index.html#fn-inline-use
@@ -169,6 +178,15 @@ if( HAVE_INLIB )
         PUBLIC_LIBS
             $<${HAVE_ACC}:OpenACC::OpenACC_Fortran>
     )
+
+    # To ensure device code is generated and all link time dependencies are
+    # available with OpenMP target offloading, force the `-mp=gpu` flag for NVHPC
+    if( HAVE_GPU AND HAVE_OMP AND GPU_OFFLOAD STREQUAL "OMP" )
+        if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
+            target_compile_options( ${inlib_NAME} PUBLIC "-mp=gpu" )
+            target_link_options( ${inlib_NAME} PUBLIC "-mp=gpu" )
+        endif()
+    endif()
 
     # Make sure the inline library is created first
     add_dependencies( ecrad.${PREC} ${inlib_NAME} )
