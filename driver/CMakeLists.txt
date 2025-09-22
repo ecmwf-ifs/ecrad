@@ -23,6 +23,15 @@ ecbuild_add_library(
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
 )
 
+# To ensure device code is generated and all link time dependencies are
+# available with OpenMP target offloading, force the `-mp=gpu` flag for NVHPC
+if( HAVE_GPU AND HAVE_OMP AND GPU_OFFLOAD STREQUAL "OMP" )
+    if( CMAKE_Fortran_COMPILER_ID MATCHES "NVHPC" )
+        target_compile_options( driver_lib.${PREC} PUBLIC "-mp=gpu" )
+        target_link_options( driver_lib.${PREC} PUBLIC "-mp=gpu" )
+    endif()
+endif()
+
 ecbuild_add_executable(
     TARGET ecrad_${PREC}
     SOURCES
