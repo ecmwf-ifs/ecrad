@@ -47,7 +47,7 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_SFLUXZEN(KIDIA:KFDIA,JPG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUG(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUR(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
-INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(INOUT) :: laytrop_min, laytrop_max
 !- from INTFAC
 !- from INTIND
 !- from PRECISE
@@ -58,6 +58,16 @@ INTEGER(KIND=JPIM) :: I_LAY_NEXT
 
 REAL(KIND=JPRB) ::  &
  & Z_TAURAY
+INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
+
+#include "rrtm_utils.intfb.h"
+
+    if (present(laytrop_min) .AND. present(laytrop_max)) then
+       llaytrop_min = laytrop_min
+       llaytrop_max = laytrop_max
+    else
+       CALL COMPUTE_LAYTROP_MIN_MAX(KIDIA, KFDIA, K_LAYTROP, llaytrop_min, llaytrop_max)
+    endif
 
     !$ACC DATA CREATE(I_LAYSOLFR) &
     !$ACC     PRESENT(P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
@@ -73,7 +83,7 @@ REAL(KIND=JPRB) ::  &
     ENDDO
 
     !$ACC LOOP SEQ
-    DO i_lay = 1, laytrop_min
+    DO i_lay = 1, llaytrop_min
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1)
        DO iplon = KIDIA, KFDIA
          IF (k_jp(iplon,i_lay) < layreffr .AND.   &
@@ -98,7 +108,7 @@ REAL(KIND=JPRB) ::  &
     ENDDO
 
     !$ACC LOOP SEQ
-    DO i_lay = laytrop_min+1, laytrop_max
+    DO i_lay = llaytrop_min+1, llaytrop_max
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1)
        DO iplon = KIDIA, KFDIA
           IF (i_lay <= k_laytrop(iplon)) THEN
@@ -135,7 +145,7 @@ REAL(KIND=JPRB) ::  &
     !$ACC LOOP SEQ
     DO ig = 1 , ng25
       !$ACC LOOP SEQ
-      DO i_lay = laytrop_max+1, i_nlayers
+      DO i_lay = llaytrop_max+1, i_nlayers
         !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(z_tauray)
         DO iplon = KIDIA, KFDIA
           z_tauray = p_colmol(iplon,i_lay) * raylc(ig)
