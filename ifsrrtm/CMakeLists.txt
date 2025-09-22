@@ -11,6 +11,7 @@ set( ifsrrtm_SOURCES
         modify_wv_continuum.F90
         parrrtm.F90
         parsrtm.F90
+        rrtm_utils.F90
         rrtm_cmbgb1.F90
         rrtm_cmbgb10.F90
         rrtm_cmbgb11.F90

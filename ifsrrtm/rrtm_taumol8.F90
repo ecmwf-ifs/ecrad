@@ -60,7 +60,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: minorfrac(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indminor(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: laytrop_min, laytrop_max
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(INOUT) :: laytrop_min, laytrop_max
 
 ! ---------------------------------------------------------------------------
 
@@ -73,6 +73,16 @@ REAL(KIND=JPRB) :: taufor,tauself, abso3, absco2, absn2o
     !     local integer arrays
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
+INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
+
+#include "rrtm_utils.intfb.h"
+
+    if (present(laytrop_min) .AND. present(laytrop_max)) then
+       llaytrop_min = laytrop_min
+       llaytrop_max = laytrop_max
+    else
+       CALL COMPUTE_LAYTROP_MIN_MAX(KIDIA, KFDIA, LAYTROP, llaytrop_min, llaytrop_max)
+    endif
 
     !$ACC DATA PRESENT(taug, wx, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, &
     !$ACC             jt1, colh2o, colo3, coln2o, colco2, coldry, laytrop, &
@@ -85,7 +95,7 @@ REAL(KIND=JPRB) :: taufor,tauself, abso3, absco2, absn2o
     ixc    = 0
 
     ! create index lists for mixed layers
-    do lay = laytrop_min+1, laytrop_max
+    do lay = llaytrop_min+1, llaytrop_max
       icl = 0
       ich = 0
       do jc = KIDIA, KFDIA
@@ -118,7 +128,7 @@ REAL(KIND=JPRB) :: taufor,tauself, abso3, absco2, absn2o
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, chi_co2, ratco2, adjfac, adjcolco2)
-      do lay = 1, laytrop_min
+      do lay = 1, llaytrop_min
         do jl = KIDIA, KFDIA
 
           !  In atmospheres where the amount of CO2 is too great to be considered
@@ -172,7 +182,7 @@ REAL(KIND=JPRB) :: taufor,tauself, abso3, absco2, absn2o
       ! Upper atmosphere loop
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indm, chi_co2, ratco2, adjfac, adjcolco2)
-      do lay = laytrop_max+1, KLEV
+      do lay = llaytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
 
           !  In atmospheres where the amount of CO2 is too great to be considered
@@ -213,12 +223,12 @@ REAL(KIND=JPRB) :: taufor,tauself, abso3, absco2, absn2o
       enddo
       !$ACC END PARALLEL
 
-      IF (laytrop_max /= laytrop_min) THEN
+      IF (llaytrop_max /= llaytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(chi_co2, ratco2, adjfac, adjcolco2, ind0, ind1, inds, indf, indm)
-        do lay = laytrop_min+1, laytrop_max
+        do lay = llaytrop_min+1, llaytrop_max
 #ifdef _OPENACC
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then

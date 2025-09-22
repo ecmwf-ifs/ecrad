@@ -34,7 +34,7 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_SFLUXZEN(KIDIA:KFDIA,JPG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUG(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUR(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
-INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(INOUT) :: laytrop_min, laytrop_max
 !- from AER
 !- from INTFAC
 !- from INTIND
@@ -42,6 +42,16 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
 !- from PROFDATA
 !- from SELF
 INTEGER(KIND=JPIM) :: IG, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
+INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
+
+#include "rrtm_utils.intfb.h"
+
+    if (present(laytrop_min) .AND. present(laytrop_max)) then
+       llaytrop_min = laytrop_min
+       llaytrop_max = laytrop_max
+    else
+       CALL COMPUTE_LAYTROP_MIN_MAX(KIDIA, KFDIA, K_LAYTROP, llaytrop_min, llaytrop_max)
+    endif
 
     !$ACC DATA CREATE(i_laysolfr) &
     !$ACC     PRESENT(p_colmol, k_laytrop, p_sfluxzen, p_taug, p_taur, prmu0)
@@ -57,7 +67,7 @@ INTEGER(KIND=JPIM) :: IG, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
     !$ACC WAIT
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(3)
-    DO i_lay = 1, laytrop_min
+    DO i_lay = 1, llaytrop_min
        DO iplon = KIDIA, KFDIA
 !$NEC unroll(NG26)
          DO ig = 1 , ng26
@@ -71,7 +81,7 @@ INTEGER(KIND=JPIM) :: IG, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
 
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
-    DO i_lay = laytrop_min+1, laytrop_max
+    DO i_lay = llaytrop_min+1, llaytrop_max
        DO iplon = KIDIA, KFDIA
           IF (i_lay <= k_laytrop(iplon)) THEN
 !$NEC unroll(NG26)
@@ -96,7 +106,7 @@ INTEGER(KIND=JPIM) :: IG, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(3)
     DO ig = 1 , ng26
-       DO i_lay = laytrop_max+1, i_nlayers
+       DO i_lay = llaytrop_max+1, i_nlayers
          DO iplon = KIDIA, KFDIA
            p_taug(iplon,i_lay,ig) = 0.0_JPRB
            p_taur(iplon,i_lay,ig) = p_colmol(iplon,i_lay) * raylc(ig)
