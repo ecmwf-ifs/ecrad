@@ -61,7 +61,7 @@ INTEGER(KIND=JPIM),INTENT(IN)   :: INDFOR(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: FORFRAC(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: MINORFRAC(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: INDMINOR(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: laytrop_min, laytrop_max
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(INOUT) :: laytrop_min, laytrop_max
 ! ---------------------------------------------------------------------------
 
 REAL(KIND=JPRB) :: SPECCOMB,SPECCOMB1,SPECCOMB_MN2O, &
@@ -88,8 +88,18 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
     !     local integer arrays
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
+INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
 #define MOD1(x) ((x) - AINT((x)))
+
+#include "rrtm_utils.intfb.h"
+
+    if (present(laytrop_min) .AND. present(laytrop_max)) then
+       llaytrop_min = laytrop_min
+       llaytrop_max = laytrop_max
+    else
+       CALL COMPUTE_LAYTROP_MIN_MAX(KIDIA, KFDIA, LAYTROP, llaytrop_min, llaytrop_max)
+    endif
 
     !$ACC DATA PRESENT(taug, P_TAUAERL, FAC00, FAC01, FAC10, FAC11, FORFAC, JP, &
     !$ACC             JT, jt1, COLH2O, COLCO2, COLN2O, COLDRY, LAYTROP, &
@@ -102,7 +112,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
     ixc    = 0
 
     ! create index lists for mixed layers
-    do lay = laytrop_min+1, laytrop_max
+    do lay = llaytrop_min+1, llaytrop_max
       icl = 0
       ich = 0
       do jc = KIDIA, KFDIA
@@ -147,7 +157,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
       !$ACC   speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, indf, indm, p, p4, fk0, &
       !$ACC   fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, fac011, fac111, &
       !$ACC   fac211, tau_major, tau_major1)
-      do lay = 1, laytrop_min
+      do lay = 1, llaytrop_min
         do jl = KIDIA, KFDIA
 
           speccomb = colh2o(jl,lay) + rat_h2oco2(jl,lay)*colco2(jl,lay)
@@ -341,7 +351,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
       !$ACC   js1, fs1, speccomb_mn2o, specparm_mn2o, specmult_mn2o, jmn2o, fmn2o, chi_n2o, ratn2o, adjfac, adjcoln2o, &
       !$ACC   speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, indf, indm, fac000, fac100, &
       !$ACC   fac010, fac110, fac001, fac101, fac011, fac111)
-      do lay = laytrop_max+1, KLEV
+      do lay = llaytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
 
           speccomb = colh2o(jl,lay) + rat_h2oco2(jl,lay)*colco2(jl,lay)
@@ -422,7 +432,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
       enddo
       !$ACC END PARALLEL
 
-      IF (laytrop_max /= laytrop_min) THEN
+      IF (llaytrop_max /= llaytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
@@ -432,7 +442,7 @@ REAL(KIND=JPRB) :: TAUFOR,TAUSELF,N2OM1,N2OM2,ABSN2O,TAU_MAJOR(ng3),TAU_MAJOR1(n
         !$ACC   p4, fk0, &
         !$ACC   fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, &
         !$ACC   fac011, fac111, fac211, tau_major, tau_major1)
-        do lay = laytrop_min+1, laytrop_max
+        do lay = llaytrop_min+1, llaytrop_max
 #ifdef _OPENACC
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then

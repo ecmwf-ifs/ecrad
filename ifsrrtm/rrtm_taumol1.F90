@@ -175,7 +175,7 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: INDFOR(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)    :: INDMINOR(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: SCALEMINORN2(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: COLBRD(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(INOUT) :: laytrop_min, laytrop_max
 ! ---------------------------------------------------------------------------
 
 INTEGER(KIND=JPIM) :: IND0,IND1,INDS
@@ -186,6 +186,16 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
     !     local integer arrays
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
+INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
+
+#include "rrtm_utils.intfb.h"
+
+    if (present(laytrop_min) .AND. present(laytrop_max)) then
+       llaytrop_min = laytrop_min
+       llaytrop_max = laytrop_max
+    else
+       CALL COMPUTE_LAYTROP_MIN_MAX(KIDIA, KFDIA, LAYTROP, llaytrop_min, llaytrop_max)
+    endif
 
     !$ACC DATA PRESENT(PAVEL, taug, P_TAUAERL, FAC00, FAC01, FAC10, FAC11, &
     !$ACC             FORFAC, FORFRAC, JP, JT, jt1, COLH2O, LAYTROP, SELFFAC, &
@@ -198,7 +208,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
     ixc    = 0
 
     ! create index lists for mixed layers
-    do lay = laytrop_min+1, laytrop_max
+    do lay = llaytrop_min+1, llaytrop_max
       icl = 0
       ich = 0
       do jc = KIDIA, KFDIA
@@ -227,7 +237,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
       !$ACC WAIT
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, pp, corradj)
-      do lay = 1, laytrop_min
+      do lay = 1, llaytrop_min
         do jl = KIDIA, KFDIA
 
           ind0 = ((jp(jl,lay)-1)*5+(jt(jl,lay)-1))*nspa(1) + 1
@@ -266,7 +276,7 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
       ! Upper atmosphere loop
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, indf, indm, pp, corradj, scalen2)
-      do lay = laytrop_max+1, KLEV
+      do lay = llaytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
 
           ind0 = ((jp(jl,lay)-13)*5+(jt(jl,lay)-1))*nspb(1) + 1
@@ -296,12 +306,12 @@ REAL(KIND=JPRB) :: taufor,tauself,corradj,pp,scalen2, taun2
       enddo
       !$ACC END PARALLEL
 
-      IF (laytrop_max /= laytrop_min) THEN
+      IF (llaytrop_max /= llaytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, indm, pp, corradj, scalen2)
-        do lay = laytrop_min+1, laytrop_max
+        do lay = llaytrop_min+1, llaytrop_max
 #ifdef _OPENACC
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then

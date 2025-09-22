@@ -52,7 +52,7 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_SFLUXZEN(KIDIA:KFDIA,JPG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUG(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(INOUT) :: P_TAUR(KIDIA:KFDIA,KLEV,JPG)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
-INTEGER(KIND=JPIM),INTENT(IN)    :: laytrop_min, laytrop_max
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(INOUT) :: laytrop_min, laytrop_max
 !- from INTFAC
 !- from INTIND
 !- from PRECISE
@@ -63,6 +63,16 @@ INTEGER(KIND=JPIM) :: IG, IND0, IND1, INDS, INDF, JS, I_LAY, I_LAYSOLFR(KIDIA:KF
 REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
  & Z_FAC110, Z_FAC111, Z_FS, Z_SPECCOMB, Z_SPECMULT, Z_SPECPARM, &
  & Z_TAURAY
+INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
+
+#include "rrtm_utils.intfb.h"
+
+    if (present(laytrop_min) .AND. present(laytrop_max)) then
+       llaytrop_min = laytrop_min
+       llaytrop_max = laytrop_max
+    else
+       CALL COMPUTE_LAYTROP_MIN_MAX(KIDIA, KFDIA, K_LAYTROP, llaytrop_min, llaytrop_max)
+    endif
 
     !$ACC DATA CREATE(I_LAYSOLFR) &
     !$ACC     PRESENT(P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
@@ -82,7 +92,7 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, inds, indf, js, z_fs, z_speccomb, z_specmult, z_specparm, &
     !$ACC   z_tauray)
-    DO i_lay = 1, laytrop_min
+    DO i_lay = 1, llaytrop_min
        DO iplon = KIDIA,KFDIA
          z_speccomb = p_colh2o(iplon,i_lay) + strrat1*p_colch4(iplon,i_lay)
          z_specparm = p_colh2o(iplon,i_lay)/z_speccomb
@@ -126,7 +136,7 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
 
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP SEQ
-    DO i_lay = laytrop_min+1, laytrop_max
+    DO i_lay = llaytrop_min+1, llaytrop_max
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(inds, indf, ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, &
       !$ACC   z_tauray)
        DO iplon = KIDIA,KFDIA
@@ -188,7 +198,7 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
     ENDDO
 
     !$ACC LOOP SEQ
-    DO i_lay = laytrop_max+1, i_nlayers
+    DO i_lay = llaytrop_max+1, i_nlayers
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(ind0, ind1, z_tauray)
        DO iplon = KIDIA, KFDIA
          IF (k_jp(iplon,i_lay-1) < layreffr &

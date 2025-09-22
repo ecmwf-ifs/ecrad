@@ -54,7 +54,7 @@ REAL(KIND=JPRB)   ,INTENT(IN)   :: rat_h2oco2_1(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)   :: indfor(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: forfrac(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: forfac(KIDIA:KFDIA,KLEV)
-INTEGER(KIND=JPIM),INTENT(IN)   :: laytrop_min, laytrop_max
+INTEGER(KIND=JPIM), OPTIONAL, INTENT(INOUT) :: laytrop_min, laytrop_max
 
 
 ! ---------------------------------------------------------------------------
@@ -81,8 +81,18 @@ REAL(KIND=JPRB) :: refrat_planck_a
     !     local integer arrays
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
+INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
 #define MOD1(x) ((x) - AINT((x)))
+
+#include "rrtm_utils.intfb.h"
+
+    if (present(laytrop_min) .AND. present(laytrop_max)) then
+       llaytrop_min = laytrop_min
+       llaytrop_max = laytrop_max
+    else
+       CALL COMPUTE_LAYTROP_MIN_MAX(KIDIA, KFDIA, LAYTROP, llaytrop_min, llaytrop_max)
+    endif
 
     !$ACC DATA PRESENT(taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
     !$ACC             colh2o, colco2, laytrop, selffac, selffrac, indself, fracs, &
@@ -94,7 +104,7 @@ REAL(KIND=JPRB) :: refrat_planck_a
     ixc    = 0
 
     ! create index lists for mixed layers
-    do lay = laytrop_min+1, laytrop_max
+    do lay = llaytrop_min+1, llaytrop_max
       icl = 0
       ich = 0
       do jc = KIDIA, KFDIA
@@ -127,7 +137,7 @@ REAL(KIND=JPRB) :: refrat_planck_a
       !$ACC   jpl, fs, specmult, specparm, fs1, specmult1, specparm1, fpl, specmult_PLANCK, specparm_PLANCK, fac000, &
       !$ACC   fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, fac011, fac111, fac211, p, p4, fk0, fk1, &
       !$ACC   fk2, tau_major, tau_major1)
-      DO lay = 1, laytrop_min
+      DO lay = 1, llaytrop_min
         do jl = KIDIA, KFDIA
 
           speccomb = colh2o(jl,lay) + rat_h2oco2(jl,lay)*colco2(jl,lay)
@@ -295,7 +305,7 @@ REAL(KIND=JPRB) :: refrat_planck_a
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(3)
       do ig = 1, ng12
-        do lay = laytrop_max+1, KLEV
+        do lay = llaytrop_max+1, KLEV
           do jl = KIDIA, KFDIA
             taug(jl,ngs11+ig,lay) = 0.0_JPRB
             fracs(jl,ngs11+ig,lay) = 0.0_JPRB
@@ -305,7 +315,7 @@ REAL(KIND=JPRB) :: refrat_planck_a
       enddo
       !$ACC END PARALLEL
 
-      IF (laytrop_max /= laytrop_min) THEN
+      IF (llaytrop_max /= llaytrop_min) THEN
         ! Mixed loop
         ! Lower atmosphere part
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
@@ -313,7 +323,7 @@ REAL(KIND=JPRB) :: refrat_planck_a
         !$ACC   specmult1, js1, fs1, speccomb_planck, specparm_planck, specmult_planck, jpl, fpl, ind0, ind1, inds, &
         !$ACC   indf, p, p4, fk0, fk1, fk2, fac000, fac100, fac200, fac010, fac110, fac210, fac001, fac101, fac201, &
         !$ACC   fac011, fac111, fac211, tau_major, tau_major1)
-        do lay = laytrop_min+1, laytrop_max
+        do lay = llaytrop_min+1, llaytrop_max
 #ifdef _OPENACC
           do jl = KIDIA, KFDIA
             if ( lay <= laytrop(jl) ) then
