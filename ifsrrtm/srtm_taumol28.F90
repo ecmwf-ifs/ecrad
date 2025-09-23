@@ -71,15 +71,22 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC     PRESENT(P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
     !$ACC             P_ONEMINUS, P_COLMOL, P_COLO2, P_COLO3, K_LAYTROP, &
     !$ACC             P_SFLUXZEN, P_TAUG, P_TAUR, PRMU0)
+    !$OMP TARGET ENTER DATA MAP(ALLOC: i_laysolfr)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: P_FAC00, P_FAC01, P_FAC10, P_FAC11, K_JP, K_JT, K_JT1, &
+    !$OMP             P_ONEMINUS, P_COLMOL, P_COLO2, P_COLO3, K_LAYTROP, &
+    !$OMP             P_SFLUXZEN, P_TAUG, P_TAUR, PRMU0)
 
     i_nlayers = klev
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG(STATIC:1) VECTOR
     DO iplon = KIDIA,KFDIA
       i_laysolfr(iplon) = i_nlayers
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     !$ACC WAIT
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
@@ -114,7 +121,9 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
        ENDDO
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     DO i_lay = llaytrop_min+1, llaytrop_max
@@ -181,8 +190,9 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
        ENDDO
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
-
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(ind0, ind1, js, z_fs, z_speccomb, z_specmult, z_specparm, z_tauray)
     DO i_lay = llaytrop_max+1, i_nlayers
@@ -220,8 +230,12 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
        ENDDO
     ENDDO
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$ACC WAIT
     !$ACC END DATA
+
+    !$OMP TARGET EXIT DATA MAP(DELETE: i_laysolfr)
+    !$OMP END TARGET DATA
 
 END SUBROUTINE SRTM_TAUMOL28
