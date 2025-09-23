@@ -230,6 +230,17 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           endif
 
           if (specparm .lt. 0.125_JPRB) then
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+            tau_major(ig) = speccomb *    &
+             (fac000 * absa(ind0,ig)    + &
+              fac100 * absa(ind0+1,ig)  + &
+              fac200 * absa(ind0+2,ig)  + &
+              fac010 * absa(ind0+9,ig)  + &
+              fac110 * absa(ind0+10,ig) + &
+              fac210 * absa(ind0+11,ig))
+            end do
+#else
 !$NEC unroll(NG16)
             tau_major(1:ng16) = speccomb *    &
              (fac000 * absa(ind0,1:ng16)    + &
@@ -238,7 +249,19 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               fac010 * absa(ind0+9,1:ng16)  + &
               fac110 * absa(ind0+10,1:ng16) + &
               fac210 * absa(ind0+11,1:ng16))
+#endif
           else if (specparm .gt. 0.875_JPRB) then
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+            tau_major(ig) = speccomb *   &
+             (fac200 * absa(ind0-1,ig) + &
+              fac100 * absa(ind0,ig)   + &
+              fac000 * absa(ind0+1,ig) + &
+              fac210 * absa(ind0+8,ig) + &
+              fac110 * absa(ind0+9,ig) + &
+              fac010 * absa(ind0+10,ig))
+            end do
+#else
 !$NEC unroll(NG16)
             tau_major(1:ng16) = speccomb *   &
              (fac200 * absa(ind0-1,1:ng16) + &
@@ -247,16 +270,38 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               fac210 * absa(ind0+8,1:ng16) + &
               fac110 * absa(ind0+9,1:ng16) + &
               fac010 * absa(ind0+10,1:ng16))
+#endif
           else
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+             tau_major(ig) = speccomb *   &
+              (fac000 * absa(ind0,ig)   + &
+               fac100 * absa(ind0+1,ig) + &
+               fac010 * absa(ind0+9,ig) + &
+               fac110 * absa(ind0+10,ig))
+            end do
+#else
 !$NEC unroll(NG16)
              tau_major(1:ng16) = speccomb *   &
               (fac000 * absa(ind0,1:ng16)   + &
                fac100 * absa(ind0+1,1:ng16) + &
                fac010 * absa(ind0+9,1:ng16) + &
                fac110 * absa(ind0+10,1:ng16))
+#endif
           endif
 
           if (specparm1 .lt. 0.125_JPRB) then
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+             tau_major1(ig) = speccomb1 *  &
+              (fac001 * absa(ind1,ig)    + &
+               fac101 * absa(ind1+1,ig)  + &
+               fac201 * absa(ind1+2,ig)  + &
+               fac011 * absa(ind1+9,ig)  + &
+               fac111 * absa(ind1+10,ig) + &
+               fac211 * absa(ind1+11,ig))
+            end do
+#else
 !$NEC unroll(NG16)
              tau_major1(1:ng16) = speccomb1 *  &
               (fac001 * absa(ind1,1:ng16)    + &
@@ -265,7 +310,19 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                fac011 * absa(ind1+9,1:ng16)  + &
                fac111 * absa(ind1+10,1:ng16) + &
                fac211 * absa(ind1+11,1:ng16))
+#endif
           else if (specparm1 .gt. 0.875_JPRB) then
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+            tau_major1(ig) = speccomb1 * &
+             (fac201 * absa(ind1-1,ig) + &
+              fac101 * absa(ind1,ig)   + &
+              fac001 * absa(ind1+1,ig) + &
+              fac211 * absa(ind1+8,ig) + &
+              fac111 * absa(ind1+9,ig) + &
+              fac011 * absa(ind1+10,ig))
+            end do
+#else
 !$NEC unroll(NG16)
             tau_major1(1:ng16) = speccomb1 * &
              (fac201 * absa(ind1-1,1:ng16) + &
@@ -274,13 +331,24 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               fac211 * absa(ind1+8,1:ng16) + &
               fac111 * absa(ind1+9,1:ng16) + &
               fac011 * absa(ind1+10,1:ng16))
+#endif
           else
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+            tau_major1(ig) = speccomb1 * &
+             (fac001 * absa(ind1,ig)   + &
+              fac101 * absa(ind1+1,ig) + &
+              fac011 * absa(ind1+9,ig) + &
+              fac111 * absa(ind1+10,ig))
+            end do
+#else
 !$NEC unroll(NG16)
             tau_major1(1:ng16) = speccomb1 * &
              (fac001 * absa(ind1,1:ng16)   + &
               fac101 * absa(ind1+1,1:ng16) + &
               fac011 * absa(ind1+9,1:ng16) + &
               fac111 * absa(ind1+10,1:ng16))
+#endif
           endif
 
           !$ACC LOOP SEQ PRIVATE(taufor,tauself)
@@ -441,6 +509,17 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
             endif
 
             if (specparm .lt. 0.125_JPRB) then
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+              tau_major(ig) = speccomb *    &
+              (fac000 * absa(ind0,ig)    + &
+                fac100 * absa(ind0+1,ig)  + &
+                fac200 * absa(ind0+2,ig)  + &
+                fac010 * absa(ind0+9,ig)  + &
+                fac110 * absa(ind0+10,ig) + &
+                fac210 * absa(ind0+11,ig))
+            end do
+#else
 !$NEC unroll(NG16)
               tau_major(1:ng16) = speccomb *    &
               (fac000 * absa(ind0,1:ng16)    + &
@@ -449,7 +528,19 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                 fac010 * absa(ind0+9,1:ng16)  + &
                 fac110 * absa(ind0+10,1:ng16) + &
                 fac210 * absa(ind0+11,1:ng16))
+#endif
             else if (specparm .gt. 0.875_JPRB) then
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+              tau_major(ig) = speccomb *   &
+              (fac200 * absa(ind0-1,ig) + &
+                fac100 * absa(ind0,ig)   + &
+                fac000 * absa(ind0+1,ig) + &
+                fac210 * absa(ind0+8,ig) + &
+                fac110 * absa(ind0+9,ig) + &
+                fac010 * absa(ind0+10,ig))
+            end do
+#else
 !$NEC unroll(NG16)
               tau_major(1:ng16) = speccomb *   &
               (fac200 * absa(ind0-1,1:ng16) + &
@@ -458,16 +549,38 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                 fac210 * absa(ind0+8,1:ng16) + &
                 fac110 * absa(ind0+9,1:ng16) + &
                 fac010 * absa(ind0+10,1:ng16))
+#endif
             else
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+              tau_major(ig) = speccomb *   &
+                (fac000 * absa(ind0,ig)   + &
+                fac100 * absa(ind0+1,ig) + &
+                fac010 * absa(ind0+9,ig) + &
+                fac110 * absa(ind0+10,ig))
+            end do
+#else
 !$NEC unroll(NG16)
               tau_major(1:ng16) = speccomb *   &
                 (fac000 * absa(ind0,1:ng16)   + &
                 fac100 * absa(ind0+1,1:ng16) + &
                 fac010 * absa(ind0+9,1:ng16) + &
                 fac110 * absa(ind0+10,1:ng16))
+#endif
             endif
 
             if (specparm1 .lt. 0.125_JPRB) then
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+              tau_major1(ig) = speccomb1 *  &
+                (fac001 * absa(ind1,ig)    + &
+                fac101 * absa(ind1+1,ig)  + &
+                fac201 * absa(ind1+2,ig)  + &
+                fac011 * absa(ind1+9,ig)  + &
+                fac111 * absa(ind1+10,ig) + &
+                fac211 * absa(ind1+11,ig))
+            end do
+#else
 !$NEC unroll(NG16)
               tau_major1(1:ng16) = speccomb1 *  &
                 (fac001 * absa(ind1,1:ng16)    + &
@@ -476,7 +589,19 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                 fac011 * absa(ind1+9,1:ng16)  + &
                 fac111 * absa(ind1+10,1:ng16) + &
                 fac211 * absa(ind1+11,1:ng16))
+#endif
             else if (specparm1 .gt. 0.875_JPRB) then
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+              tau_major1(ig) = speccomb1 * &
+              (fac201 * absa(ind1-1,ig) + &
+                fac101 * absa(ind1,ig)   + &
+                fac001 * absa(ind1+1,ig) + &
+                fac211 * absa(ind1+8,ig) + &
+                fac111 * absa(ind1+9,ig) + &
+                fac011 * absa(ind1+10,ig))
+            end do
+#else
 !$NEC unroll(NG16)
               tau_major1(1:ng16) = speccomb1 * &
               (fac201 * absa(ind1-1,1:ng16) + &
@@ -485,13 +610,24 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                 fac211 * absa(ind1+8,1:ng16) + &
                 fac111 * absa(ind1+9,1:ng16) + &
                 fac011 * absa(ind1+10,1:ng16))
+#endif
             else
+#if defined(__amdflang__) && defined(OMPGPU)
+            do ig = 1, ng16
+              tau_major1(ig) = speccomb1 * &
+              (fac001 * absa(ind1,ig)   + &
+                fac101 * absa(ind1+1,ig) + &
+                fac011 * absa(ind1+9,ig) + &
+                fac111 * absa(ind1+10,ig))
+            end do
+#else
 !$NEC unroll(NG16)
               tau_major1(1:ng16) = speccomb1 * &
               (fac001 * absa(ind1,1:ng16)   + &
                 fac101 * absa(ind1+1,1:ng16) + &
                 fac011 * absa(ind1+9,1:ng16) + &
                 fac111 * absa(ind1+10,1:ng16))
+#endif
             endif
 
 !$NEC unroll(NG16)
