@@ -197,7 +197,7 @@ contains
     use radiation_config,         only : config_type, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, &
          &   ISolverMcICA, ISolverSpartacus, ISolverHomogeneous, &
-         &   ISolverTripleclouds, ISolverTcrad
+         &   ISolverTripleclouds, ISolverTcrad, ISolverTcadept
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_gas,            only : gas_type
@@ -215,6 +215,8 @@ contains
     use radiation_homogeneous_sw, only : solver_homogeneous_sw
     use radiation_homogeneous_lw, only : solver_homogeneous_lw
     use radiation_tcrad_lw,       only : solver_tcrad_lw, radiance_solver_tcrad_lw
+    use radiation_adept_tripleclouds_lw, only : solver_adept_tripleclouds_lw, &
+         &                                      radiance_solver_adept_tripleclouds_lw
     use radiation_save,           only : save_radiative_properties
 
     ! Treatment of gas and hydrometeor optics 
@@ -418,7 +420,19 @@ contains
                  &  cloud, single_level%cos_sensor_zenith_angle, & 
                  &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
                  &  planck_hl, lw_emission, lw_albedo, flux)
+          else
+            call radiance_solver_adept_tripleclouds_lw(nlev,istartcol,iendcol, &
+                 &  config, thermodynamics, &
+                 &  cloud, single_level%cos_sensor_zenith_angle, & 
+                 &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+                 &  planck_hl, lw_emission, lw_albedo, flux)            
           end if
+        elseif (config%i_solver_lw == ISolverTcadept) then
+          ! Compute fluxes using the C++/Adept Tripleclouds longwave solver
+          call solver_adept_tripleclouds_lw(nlev,istartcol,iendcol, &
+               &  config, thermodynamics, cloud, & 
+               &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
+               &  planck_hl, lw_emission, lw_albedo, flux)
         else if (config%i_solver_lw == ISolverMcICA) then
           ! Compute fluxes using the McICA longwave solver
           call solver_mcica_lw(nlev,istartcol,iendcol, &

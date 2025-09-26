@@ -1144,7 +1144,7 @@ contains
              &  * spread(region_fracs(2:nreg,jlev),1,nspec)
       else
         ! Clear layer
-        max_reg = 1
+        max_reg = 1 ! Redundant
         planck_top(:,1)  = planck_hl(:,jlev)
         planck_base(:,1) = planck_hl(:,jlev+1)
       end if

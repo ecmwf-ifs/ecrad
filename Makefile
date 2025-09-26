@@ -80,6 +80,11 @@ else
 LIBS += -ldrhook
 endif
 
+ifdef ECRADADEPTDIR
+FCFLAGS := -I$(ECRADADEPTDIR)/include $(FCFLAGS)
+#LIBS +=	-L$(ECRADADEPTDIR)/lib -Wl,-rpath,$(ECRADADEPTDIR) -lecradadept -lstdc++
+LIBS +=	-L$(ECRADADEPTDIR)/lib -Wl,-rpath,$(ECRADADEPTDIR)/lib -lTCrad -lstdc++
+endif
 
 #############################
 ### --- BUILD TARGETS --- ###

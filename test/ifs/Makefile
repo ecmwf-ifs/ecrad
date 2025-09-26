@@ -1,7 +1,7 @@
 INPUT = ecrad_meridian
 
 #DRIVER = totalview ../../bin/ecrad -a
-DRIVER = ../../bin/ecrad
+DRIVER = forge ../../bin/ecrad
 IFS_DRIVER = ../../bin/ecrad_ifs
 IFS_DRIVER_BLOCKED = ../../bin/ecrad_ifs_blocked
 CHANGENAM = ../common/change_namelist.sh
@@ -93,6 +93,13 @@ test_tcrad:
 		overlap_scheme_name='"Exp-Ran"'
 	$(DRIVER) config_tcrad.nam $(INPUT).nc $(INPUT)_tcrad_out.nc
 
+# Tripleclouds solver with exponential-random overlap 
+test_tcadept:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_tcadept.nam \
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"TCAdept"' \
+		overlap_scheme_name='"Exp-Ran"' #gas_model_name='"Monochromatic"'
+	$(DRIVER) config_tcadept.nam $(INPUT).nc $(INPUT)_tcadept_out.nc
+
 # "Cloudless" solver
 test_cloudless:
 	$(CHANGENAM) $(CONFIG) config_cloudless.nam \
@@ -117,6 +124,12 @@ test_ecckd_mcica:
 # ecCKD with Tripleclouds solver (default)
 test_ecckd_tc:
 	$(DRIVER) $(CONFIG_ECCKD) $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
+
+test_ecckd_tcrad:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_tcrad.nam \
+		sw_solver_name='"Tripleclouds"' lw_solver_name='"TCRAD"' \
+		overlap_scheme_name='"Exp-Ran"' do_sw=false
+	$(DRIVER) config_tcrad.nam $(INPUT).nc $(INPUT)_ecckd_tcrad_out.nc
 
 # ecCKD with no aerosols
 test_ecckd_noaer:

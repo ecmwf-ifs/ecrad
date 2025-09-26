@@ -456,6 +456,11 @@ contains
         
       end do ! Reverse loop over levels
 
+!      do jlev = 1,nlev+1
+!        write(100,*) 'total_albedo ', jlev, total_albedo(1,:,jlev)
+!        write(101,*) 'total_source ', jlev, total_source(1,:,jlev)
+!      end do
+      
       ! --------------------------------------------------------
       ! Section 6: Copy over downwelling fluxes above cloud top
       ! --------------------------------------------------------
