@@ -58,6 +58,7 @@ contains
       error stop 'Error in radiation scheme'
 #endif
     end if
+        
   end subroutine radiation_abort
 
 end module radiation_io

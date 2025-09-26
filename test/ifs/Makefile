@@ -10,15 +10,15 @@ CHANGENAM = ../common/change_namelist.sh
 # Integrated Forecasting System (IFS)
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
-#CONFIG = configCY47R1.nam
-#CONFIG = configCY47R3.nam
 CONFIG = configCY49R1.nam
-CONFIG_ECCKD = configCY49R1_ecckd.nam
+CONFIG_ECCKD = configCY49R1.nam
+CONFIG_MIXED = configCY49R1_mixed.nam
+CONFIG_DISORT = configDISORT.nam
 
 # Typing "make" will run radiation scheme on IFS profiles
 all: test
 
-test: test_orig test_ecckd
+test: test_orig test_ecckd test_radiance
 
 # Tests of CY47R1 configuration with RRTMG gas optics model and
 # various solvers
@@ -27,6 +27,9 @@ test_orig: test_default test_noaer test_expexp test_vec test_tripleclouds test_s
 
 # Tests of ecCKD gas optics model and various solvers
 test_ecckd: test_ecckd_mcica test_ecckd_tc test_ecckd_tc_noaer test_ecckd_spartacus
+
+# Tests of radiance models
+test_radiance: test_tcrad
 
 # Default IFS settings: McICA solver with exponential-exponential
 # overlap
@@ -63,11 +66,49 @@ test_tripleclouds:
 		sw_solver_name='"Tripleclouds"' lw_solver_name='"Tripleclouds"'
 	$(DRIVER) config_tc.nam $(INPUT).nc $(INPUT)_tc_out.nc
 
+# DISORT solver with cloud filling the gridbox homogeneously
+test_disort:
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=2 n_angles_per_hemisphere_sw=2 do_save_radiative_properties=true
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort_out.nc
+test_disort_n:
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=1 n_angles_per_hemisphere_sw=1
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort1ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=2 n_angles_per_hemisphere_sw=2
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort2ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=3 n_angles_per_hemisphere_sw=3
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort3ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=4 n_angles_per_hemisphere_sw=4
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort4ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=5 n_angles_per_hemisphere_sw=5
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort5ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=6 n_angles_per_hemisphere_sw=6
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort6ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=7 n_angles_per_hemisphere_sw=7
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort7ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=8 n_angles_per_hemisphere_sw=8
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort8ang_out.nc
+	$(CHANGENAM) $(CONFIG_DISORT) config_disort.nam \
+		n_angles_per_hemisphere_lw=16 n_angles_per_hemisphere_sw=16
+	$(DRIVER) config_disort.nam $(INPUT).nc $(INPUT)_disort16ang_out.nc
+
 # Longwave scattering; since 46R1 this is the default
 test_lwscat:
 	$(CHANGENAM) $(CONFIG) config_lwscat.nam \
 		do_lw_cloud_scattering="true"
 	$(DRIVER) config_lwscat.nam $(INPUT).nc $(INPUT)_lwscat_out.nc
+test_homogeneous:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_hom.nam \
+		sw_solver_name='"Homogeneous"' lw_solver_name='"Homogeneous"' do_save_radiative_properties=true
+	$(DRIVER) config_hom.nam $(INPUT).nc $(INPUT)_hom_out.nc
 
 # 3D radiative transfer
 test_spartacus:
@@ -125,11 +166,21 @@ test_ecckd_mcica:
 test_ecckd_tc:
 	$(DRIVER) $(CONFIG_ECCKD) $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
 
+
 test_ecckd_tcrad:
 	$(CHANGENAM) $(CONFIG_ECCKD) config_tcrad.nam \
 		sw_solver_name='"Tripleclouds"' lw_solver_name='"TCRAD"' \
 		overlap_scheme_name='"Exp-Ran"' do_sw=false
 	$(DRIVER) config_tcrad.nam $(INPUT).nc $(INPUT)_ecckd_tcrad_out.nc
+
+test_mixed_gas:
+	$(DRIVER) $(CONFIG_MIXED) $(INPUT).nc $(INPUT)_sw_ecckd_lw_ecckd_out.nc
+	$(CHANGENAM) $(CONFIG_MIXED) config_mix.nam lw_gas_model_name='"RRTMG-IFS"' do_cloud_aerosol_per_lw_g_point=false
+	$(DRIVER) config_mix.nam $(INPUT).nc $(INPUT)_sw_ecckd_lw_rrtmg_out.nc
+	$(CHANGENAM) $(CONFIG_MIXED) config_mix.nam sw_gas_model_name='"RRTMG-IFS"' do_cloud_aerosol_per_sw_g_point=false
+	$(DRIVER) config_mix.nam $(INPUT).nc $(INPUT)_sw_rrtmg_lw_ecckd_out.nc
+	$(CHANGENAM) $(CONFIG_MIXED) config_mix.nam sw_gas_model_name='"RRTMG-IFS"' lw_gas_model_name='"RRTMG-IFS"' do_cloud_aerosol_per_lw_g_point=false do_cloud_aerosol_per_sw_g_point=false
+	$(DRIVER) config_mix.nam $(INPUT).nc $(INPUT)_sw_rrtmg_lw_rrtmg_out.nc
 
 # ecCKD with no aerosols
 test_ecckd_noaer:

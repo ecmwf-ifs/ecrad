@@ -18,13 +18,15 @@ module ecrad_driver_read_input
   
 contains
 
+  ! --------------------------------------------------------
+  ! Read a netCDF file containing input fields for ecRad
   subroutine read_input(file, config, driver_config, ncol, nlev, &
        &          single_level, thermodynamics, &
        &          gas, cloud, aerosol)
 
     use parkind1,                 only : jprb, jpim
     use radiation_io,             only : nulout
-    use radiation_config,         only : config_type, ISolverSPARTACUS, ISolverTCRAD
+    use radiation_config,         only : config_type, ISolverSPARTACUS, ISolverTCRAD, IGasModelIFSRRTMG
     use ecrad_driver_config,      only : driver_config_type
     use radiation_single_level,   only : single_level_type
     use radiation_thermodynamics, only : thermodynamics_type
@@ -47,16 +49,25 @@ contains
     type(cloud_type),  target, intent(inout) :: cloud
     type(aerosol_type),        intent(inout) :: aerosol
 
+    real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
+
     ! Number of columns and levels of input data
     integer, intent(out) :: ncol, nlev
 
-    integer :: ngases             ! Num of gases with concs described in 2D
-    integer :: nwellmixedgases    ! Num of globally well-mixed gases
+    integer :: ngas2d ! Num of gases with concs described in 2D
+    integer :: ngas1d ! Num of gases with concs described in 1D or 0D
 
+    ! Number of array dimensions for each gas
+    integer :: ngasdims(NMaxGases)
+    
     ! Mixing ratio of gases described in 2D (ncol,nlev); this is
     ! volume mixing ratio (m3/m3) except for water vapour and ozone
     ! for which it is mass mixing ratio (kg/kg)
     real(jprb), allocatable, dimension(:,:) :: gas_mr
+
+    ! Alternatives for variation with height only or perfectly well mixed
+    real(jprb), allocatable, dimension(:) :: gas_mr_1d
+    real(jprb) :: gas_mr_0d
 
     ! Volume mixing ratio (m3/m3) of globally well-mixed gases
     real(jprb)                              :: well_mixed_gas_vmr
@@ -71,6 +82,9 @@ contains
     ! ecRad structure
     real(jprb), allocatable, dimension(:,:) :: prop_2d
 
+    ! Longitude and latitude (degrees)
+    real(jprb), allocatable, dimension(:) :: latitude, longitude
+
     integer :: jgas               ! Loop index for reading gases
     integer :: irank              ! Dimensions of gas data
 
@@ -78,6 +92,10 @@ contains
     ! cloud size came from namelist parameters in the first place, yes
     ! if it came from the NetCDF file in the first place
     logical :: is_cloud_size_scalable
+
+    logical :: gas_not_found
+
+    integer :: jcol
 
     ! The following calls read in the data, allocating memory for 1D and
     ! 2D arrays.  The program will stop if any variables are not found.
@@ -108,6 +126,17 @@ contains
         end if
     end if
 
+    ! Solar and sensor geometry can either be provided directly, or
+    ! computed from the longitude and latitude of the sun, the sensor
+    ! and the column - here we load the longitude and latitude of the
+    ! column, if provided
+    if (file%exists('latitude')) then
+      call file%get('latitude', latitude)
+    end if
+    if (file%exists('longitude')) then
+      call file%get('longitude', longitude)
+    end if
+
     ! Configure the amplitude of the spectral variations in solar
     ! output associated with the 11-year solar cycle: +1.0 means solar
     ! maximum, -1.0 means solar minimum, 0.0 means use the mean solar
@@ -133,6 +162,16 @@ contains
         write(nulout,'(a,g10.3)') '  Overriding cosine of the solar zenith angle with ', &
              &  driver_config%cos_sza_override
       end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%solar_latitude > -200.0_jprb &
+         &   .and. driver_config%solar_longitude > -400.0_jprb) then
+      ! Compute solar zenith angle from longitude and latitude of sun
+      ! and column
+      allocate(single_level%cos_sza(ncol))
+      single_level%cos_sza &
+           &  = sin(driver_config%solar_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &  + cos(driver_config%solar_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &  * cos((longitude - driver_config%solar_longitude)*PI_OVER_180)
     else if (file%exists('cos_solar_zenith_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('cos_solar_zenith_angle',single_level%cos_sza)
@@ -155,9 +194,87 @@ contains
         write(nulout,'(a,g10.3)') '  Overriding cosine of the sensor zenith angle with ', &
              &  driver_config%cos_sensor_zenith_angle_override
       end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%sensor_latitude > -200.0_jprb &
+         &   .and. driver_config%sensor_longitude > -400.0_jprb) then
+      ! Compute sensor zenith angle from longitude and latitude of
+      ! sensor and column
+      allocate(single_level%cos_sensor_zenith_angle(ncol))
+      single_level%cos_sensor_zenith_angle &
+           &  = sin(driver_config%sensor_latitude*PI_OVER_180) * sin(latitude*PI_OVER_180) &
+           &  + cos(driver_config%sensor_latitude*PI_OVER_180) * cos(latitude*PI_OVER_180) &
+           &  * cos((longitude - driver_config%sensor_longitude)*PI_OVER_180)
     else if (file%exists('cos_sensor_zenith_angle')) then
       ! Single-level variables, all with dimensions (ncol)
       call file%get('cos_sensor_zenith_angle',single_level%cos_sensor_zenith_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: cos_sensor_zenith_angle not provided'
+      stop
+    end if
+
+    if (driver_config%solar_azimuth_angle_override >= -9.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%solar_azimuth_angle(ncol))
+      single_level%solar_azimuth_angle = driver_config%solar_azimuth_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding solar azimuth angle with ', &
+             &  driver_config%solar_azimuth_angle_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%solar_latitude > -200.0_jprb &
+         &   .and. driver_config%solar_longitude > -400.0_jprb) then
+      ! Compute solar azimuth angle from longitude and latitude of sun
+      ! and column
+      allocate(single_level%solar_azimuth_angle(ncol))
+      single_level%solar_azimuth_angle = calc_azimuth(driver_config%solar_latitude, &
+           &  driver_config%solar_longitude, latitude, longitude)
+
+    else if (file%exists('solar_azimuth_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('solar_azimuth_angle',single_level%solar_azimuth_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: solar_azimuth_angle not provided'
+      stop
+    end if
+
+    if (driver_config%sensor_azimuth_angle_override >= -9.0_jprb) then
+      ! Optional override of cosine of sensor zenith angle
+      allocate(single_level%sensor_azimuth_angle(ncol))
+      single_level%sensor_azimuth_angle = driver_config%sensor_azimuth_angle_override
+      if (driver_config%iverbose >= 2) then
+        write(nulout,'(a,g10.3)') '  Overriding sensor azimuth angle with ', &
+             &  driver_config%sensor_azimuth_angle_override
+      end if
+    else if (allocated(latitude) .and. allocated(longitude) &
+         &   .and. driver_config%sensor_latitude > -200.0_jprb &
+         &   .and. driver_config%sensor_longitude > -400.0_jprb) then
+      ! Compute sensor azimuth angle from longitude and latitude of sensor
+      ! and column
+      allocate(single_level%sensor_azimuth_angle(ncol))
+      single_level%sensor_azimuth_angle = calc_azimuth(driver_config%sensor_latitude, &
+           &  driver_config%sensor_longitude, latitude, longitude)
+    else if (file%exists('sensor_azimuth_angle')) then
+      ! Single-level variables, all with dimensions (ncol)
+      call file%get('sensor_azimuth_angle',single_level%sensor_azimuth_angle)
+    else if (config%do_sw .and. config%do_radiances) then
+      write(nulout,'(a,a)') '*** Error: sensor_azimuth_angle not provided'
+      stop
+    end if
+
+#ifdef FLOTSAM
+    if (config%do_sw .and. config%do_radiances) then
+      call single_level%calc_scattering_angle()
+    end if
+#endif
+
+    if (file%exists('u_wind_10m')) then
+      call file%get('u_wind_10m', single_level%u_wind_10m)
+    end if
+    if (file%exists('v_wind_10m')) then
+      call file%get('v_wind_10m', single_level%v_wind_10m)
+    end if
+    if (file%exists('sea_fraction')) then
+      call file%get('sea_fraction', single_level%sea_fraction)
     end if
 
     if (config%do_clouds) then
@@ -166,8 +283,17 @@ contains
       ! Read cloud properties needed by most solvers
       ! --------------------------------------------------------
 
-      ! Read cloud descriptors with dimensions (ncol, nlev)
-      call file%get('cloud_fraction',cloud%fraction)
+      if (driver_config%cloud_fraction_override >= 0.0_jprb) then
+        allocate(cloud%fraction(ncol,nlev))
+        cloud%fraction = driver_config%cloud_fraction_override
+        if (driver_config%iverbose >= 2) then
+          write(nulout,'(a,g10.3)') '  Overriding cloud fraction with ', &
+               &  driver_config%cloud_fraction_override
+        end if
+      else
+        ! Read cloud descriptors with dimensions (ncol, nlev)
+        call file%get('cloud_fraction',cloud%fraction)
+      end if
 
       ! Fractional standard deviation of in-cloud water content
       if (file%exists('fractional_std')) then
@@ -573,59 +699,86 @@ contains
     end if
 
     ! Load in gas volume mixing ratios, which can be either 2D arrays
-    ! (varying with height and column) or 0D scalars (constant volume
-    ! mixing ratio everywhere).
-    ngases          = 0 ! Gases with varying mixing ratio
-    nwellmixedgases = 0 ! Gases with constant mixing ratio
+    ! (varying with height and column), 1D vectors (varying with
+    ! height) or 0D scalars (constant volume mixing ratio everywhere).
 
-    ! Water vapour and ozone are always in terms of mass mixing ratio
-    ! (kg/kg) and always 2D arrays with dimensions (ncol,nlev), unlike
-    ! other gases (see below)
-
-    call gas%allocate(ncol, nlev)
-
-    ! Loop through all radiatively important gases
+    ngasdims = -1
+    ! First count the number of dimensions for each gas
     do jgas = 1,NMaxGases
       if (jgas == IH2O) then
         if (file%exists('q')) then
-          call file%get('q', gas_mr)
-          call gas%put(IH2O, IMassMixingRatio, gas_mr)
-        else if (file%exists('h2o_mmr')) then
-          call file%get('h2o_mmr', gas_mr)
-          call gas%put(IH2O, IMassMixingRatio, gas_mr)
-        else
-          call file%get('h2o' // trim(driver_config%vmr_suffix_str), gas_mr);
-          call gas%put(IH2O, IVolumeMixingRatio, gas_mr)
-        end if
-      else if (jgas == IO3) then
-        if (file%exists('o3_mmr')) then
-          call file%get('o3_mmr', gas_mr)
-          call gas%put(IO3, IMassMixingRatio, gas_mr)
-        else
-          call file%get('o3' // trim(driver_config%vmr_suffix_str), gas_mr)
-          call gas%put(IO3, IVolumeMixingRatio, gas_mr)
-        end if
-      else
-        ! Find number of dimensions of the variable holding gas "jgas" in
-        ! the input file, where the following function returns -1 if the
-        ! gas is not found
-        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
-        irank = file%get_rank(trim(gas_var_name))
-        ! Note that if the gas is not present then a warning will have
-        ! been issued, and irank will be returned as -1
-        if (irank == 0) then
-          ! Store this as a well-mixed gas
-          call file%get(trim(gas_var_name), well_mixed_gas_vmr)
-          call gas%put_well_mixed(jgas, IVolumeMixingRatio, well_mixed_gas_vmr)
-        else if (irank == 2) then
-          call file%get(trim(gas_var_name), gas_mr)
-          call gas%put(jgas, IVolumeMixingRatio, gas_mr)
-        else if (irank > 0) then
-          write(nulout,'(a,a,a)')  '***  Error: ', trim(gas_var_name), ' does not have 0 or 2 dimensions'
-          stop
+          ngasdims(IH2O) = file%get_rank('q')
         end if
       end if
-      if (allocated(gas_mr)) deallocate(gas_mr)
+      if (ngasdims(jgas) == -1) then
+        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
+        if (file%exists(trim(gas_var_name))) then
+          ngasdims(jgas) = file%get_rank(trim(gas_var_name))
+        else
+          gas_var_name = trim(GasLowerCaseName(jgas)) // "_mmr"
+          if (file%exists(trim(gas_var_name))) then
+            ngasdims(jgas) = file%get_rank(trim(gas_var_name))
+          end if
+        end if
+      end if
+    end do
+
+    ngas2d = count(ngasdims >= 2)
+    ngas1d = count(ngasdims >= 0 .and. ngasdims <= 1)
+
+    if (config%i_gas_model_sw == IGasModelIFSRRTMG &
+         .or. config%i_gas_model_lw == IGasModelIFSRRTMG) then
+      ! IFS-RRTMG must have gases stored in 2D and be able to access
+      ! an array of zeros for any missing gases
+      call gas%allocate(ncol, nlev, ngas2d+ngas1d, do_zero_fill=.true.)
+    else
+      ! ecCKD is more flexible so can cope with some gases stored in
+      ! 1D, which is easier on memory
+      call gas%allocate(ncol, nlev, ngas2d, nmaxgas1d=ngas1d)
+    end if
+
+    ! Loop through all gases again and load them in this time
+    do jgas = 1,NMaxGases
+      gas_not_found = .true.
+      if (jgas == IH2O) then
+        if (file%exists('q')) then
+          if (ngasdims(IH2O) == 2) then
+            call file%get('q', gas_mr)
+            call gas%put(IH2O, IMassMixingRatio, gas_mr)
+          else
+            call file%get('q', gas_mr_1d)
+            call gas%put_1d(IH2O, IMassMixingRatio, gas_mr_1d)
+          end if
+          gas_not_found = .false.
+        end if
+      end if
+      if (gas_not_found .and. ngasdims(jgas) >= 0) then
+        gas_var_name = trim(GasLowerCaseName(jgas)) // trim(driver_config%vmr_suffix_str)
+        if (file%exists(trim(gas_var_name))) then
+          if (ngasdims(jgas) == 2) then
+            call file%get(trim(gas_var_name), gas_mr)
+            call gas%put(jgas, IVolumeMixingRatio, gas_mr)
+          else if (ngasdims(jgas) == 1) then
+            call file%get(trim(gas_var_name), gas_mr_1d)
+            call gas%put_1d(jgas, IVolumeMixingRatio, gas_mr_1d)
+          else
+            call file%get(trim(gas_var_name), gas_mr_0d)
+            call gas%put_well_mixed(jgas, IVolumeMixingRatio, gas_mr_0d)
+          end if
+        else
+          gas_var_name = trim(GasLowerCaseName(jgas)) // "_mmr"
+          if (ngasdims(jgas) == 2) then
+            call file%get(trim(gas_var_name), gas_mr)
+            call gas%put(jgas, IMassMixingRatio, gas_mr)
+          else if (ngasdims(jgas) == 1) then
+            call file%get(trim(gas_var_name), gas_mr_1d)
+            call gas%put_1d(jgas, IMassMixingRatio, gas_mr_1d)
+          else
+            call file%get(trim(gas_var_name), gas_mr_0d)
+            call gas%put_well_mixed(jgas, IMassMixingRatio, gas_mr_0d)
+          end if
+        end if
+      end if
     end do
 
     ! Scale gas concentrations if needed
@@ -642,6 +795,39 @@ contains
     call gas%scale(ICCL4,   driver_config%ccl4_scaling,   driver_config%iverbose >= 2)
     call gas%scale(INO2,    driver_config%no2_scaling,    driver_config%iverbose >= 2)
 
+
+!    do jcol = 1,ncol
+!      write(101,*) latitude(jcol), longitude(jcol), driver_config%solar_latitude, driver_config%solar_longitude, &
+!           &  driver_config%sensor_latitude, driver_config%sensor_longitude, single_level%cos_sza(jcol), &
+!           &  single_level%cos_sensor_zenith_angle(jcol), single_level%solar_azimuth_angle(jcol), &
+!           &  single_level%sensor_azimuth_angle(jcol), single_level%scattering_angle(jcol)
+!    end do
+
   end subroutine read_input
+
+  ! --------------------------------------------------------
+  ! Compute the azimuth between a point (sun or sensor) and an
+  ! atmospheric column, where the first two arguments are the latitude
+  ! and longitude of the point in degrees, and the last two are the
+  ! same but for the column
+  elemental function calc_azimuth(pt_lat_deg, pt_lon_deg, col_lat_deg, col_lon_deg)
+
+    use parkind1,                 only : jprb, jpim
+
+    real(jprb), parameter :: PI_OVER_180 = acos(-1.0_jprb) / 180.0_jprb
+
+    real(jprb), intent(in) :: pt_lat_deg, pt_lon_deg, col_lat_deg, col_lon_deg
+
+    real(jprb) :: calc_azimuth
+
+    real(jprb) :: sx, sy
+    
+    sx = cos(pt_lat_deg * PI_OVER_180) * sin((pt_lon_deg-col_lon_deg) * PI_OVER_180)
+    sy = cos(col_lat_deg * PI_OVER_180) * sin(pt_lat_deg * PI_OVER_180) &
+         &  - sin(col_lat_deg * PI_OVER_180) * cos(pt_lat_deg * PI_OVER_180) &
+         &  * cos((pt_lon_deg-col_lon_deg) * PI_OVER_180)
+    calc_azimuth = atan2(-sx, -sy)
+
+  end function calc_azimuth
 
 end module ecrad_driver_read_input

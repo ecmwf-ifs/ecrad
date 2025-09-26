@@ -33,13 +33,14 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
      &  cloud_cover, &
      &  n_angles_per_hem, &
      &  layer_thickness, inv_cloud_scale, &
-     &  inv_cloud_scale_up, inv_cloud_scale_dn);
+     &  inv_cloud_scale_up, inv_cloud_scale_dn, &
+     &  do_exact_solution, do_independent_columns);
 
   use parkind1, only           : jpim, jprb
   use yomhook,  only           : lhook, dr_hook, jphook
   use tcrad_layer_solutions, only   : calc_reflectance_transmittance, &
        &  calc_radiance_rates, calc_radiance_trans_source, gauss_legendre, &
-       &  lw_diffusivity, MAX_GAUSS_LEGENDRE_POINTS
+       &  lw_diffusivity, calc_radiance_trans_source_exact, MAX_GAUSS_LEGENDRE_POINTS
   use tcrad_tilted, only       : calc_tilted_overlap
 
   implicit none
@@ -124,6 +125,13 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   real(jprb), intent(in), optional :: inv_cloud_scale_up(nlev)
   real(jprb), intent(in), optional :: inv_cloud_scale_dn(nlev)
 
+  ! Use more accurate but slower calculation of radiance from flux
+  ! profile
+  logical, intent(in), optional :: do_exact_solution
+
+  ! Configure overlap matrices to do independent columns
+  logical, intent(in), optional :: do_independent_columns
+  
   ! Local variables
 
   ! Combined gas/aerosol/cloud optical depth in each region
@@ -197,6 +205,8 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
   ! Local version of an optional argument
   integer(jpim) :: n_angles_per_hem_local
 
+  logical :: do_exact_solution_local, do_independent_columns_local
+
   ! Loop indices for region and stream
   integer(jpim) :: jreg, jstream
 
@@ -223,15 +233,41 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     mode_3d = MODE_3D_NONE
   end if
 
-  ! Compute the wavelength-independent region fractions and
-  ! optical-depth scalings
-  call calc_region_properties(nlev, cloud_fraction, &
-#if NUM_REGIONS == 3
-       &  .true., fractional_std, &
-#endif
-       &  region_fracs, &
-       &  od_scaling, cloud_fraction_threshold)
+  if (present(do_exact_solution)) then
+    do_exact_solution_local = do_exact_solution
+  else
+    do_exact_solution_local = .false.
+  end if
 
+  if (present(do_independent_columns)) then
+    do_independent_columns_local = do_independent_columns
+  else
+    do_independent_columns_local = .false.
+  end if
+
+  if (do_independent_columns_local) then
+    call calc_independent_column_overlap(nlev, &
+         &     cloud_fraction, overlap_param, region_fracs, od_scaling, &
+         &     u_overlap, v_overlap, cloud_cover)
+  else
+    ! Compute the wavelength-independent region fractions and
+    ! optical-depth scalings
+    call calc_region_properties(nlev, cloud_fraction, &
+#if NUM_REGIONS == 3
+         &  .true., fractional_std, &
+#endif
+         &  region_fracs, &
+         &  od_scaling, cloud_fraction_threshold)
+    ! Compute wavelength-independent overlap matrices u_overlap and
+    ! v_overlap
+    call calc_overlap_matrices(nlev, &
+         &  region_fracs, overlap_param, &
+         &  u_overlap, v_overlap, &
+         &  0.5_jprb, &
+         &  cloud_fraction_threshold, &
+         &  cloud_cover)
+  end if
+  
   if (mode_3d == MODE_3D_SPARTACUS) then
     call calc_region_edge_areas(nlev, region_fracs, layer_thickness, &
          &                      inv_cloud_scale, region_edge_area)
@@ -241,15 +277,6 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     call calc_region_edge_areas(nlev, region_fracs, layer_thickness, &
          &                      inv_cloud_scale_dn, region_edge_area_dn)
   end if
-
-  ! Compute wavelength-independent overlap matrices u_overlap and
-  ! v_overlap
-  call calc_overlap_matrices(nlev, &
-       &  region_fracs, overlap_param, &
-       &  u_overlap, v_overlap, &
-       &  0.5_jprb, &
-       &  cloud_fraction_threshold, &
-       &  cloud_cover)
 
   ! Average gas and cloud properties noting that: (1) region 1 is
   ! cloud-free so we copy over the gas optical depth; (2) gases only
@@ -301,20 +328,20 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
     flux_up = 0.0_jprb
     flux_dn = 0.0_jprb
 
+    ! Radiances are computed in pairs: up and down with same absolute
+    ! zenith angle
     do jstream = 1,n_angles_per_hem_local
       weight = weight_list(jstream)*mu_list(jstream) &
            &  / sum(weight_list(1:n_angles_per_hem_local) &
            &          * mu_list(1:n_angles_per_hem_local))
-      ! Radiances are computed in pairs: up and down with same
-      ! absolute zenith angle
-      call calc_radiance_rates(nspec, nlev, NREGION, &
-           &  mu_list(jstream), &
-           &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
-           &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
-           &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
-           &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
 
       if (mode_3d == MODE_3D_SPARTACUS) then
+        call calc_radiance_rates(nspec, nlev, NREGION, &
+             &  mu_list(jstream), &
+             &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+             &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+             &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
         call calc_radiance_trans_source_3d(nspec, nlev, &
              &  mu_list(jstream), region_fracs, region_edge_area, od, &
              &  transmittance_mat, &
@@ -329,6 +356,12 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
              &  transmittance_mat, source_up, &
              &  u_overlap, flux_up)
       else if (mode_3d == MODE_3D_SPARTACUS_SHADOW) then
+        call calc_radiance_rates(nspec, nlev, NREGION, &
+             &  mu_list(jstream), &
+             &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+             &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+             &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
         ! Transmittance matrix is computed separately for the upward
         ! and downward 3D beams
         call calc_radiance_trans_source_3d(nspec, nlev, &
@@ -351,6 +384,12 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
              &  transmittance_mat, source_up, &
              &  u_overlap, flux_up)
       else if (mode_3d == MODE_3D_TILTED) then
+        call calc_radiance_rates(nspec, nlev, NREGION, &
+             &  mu_list(jstream), &
+             &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+             &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+             &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
         ! Compute wavelength-independent overlap matrices u_overlap
         ! and v_overlap
         call calc_tilted_overlap(nlev, mu_list(jstream), cloud_fraction, overlap_param, &
@@ -374,12 +413,30 @@ subroutine calc_flux(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
              &  weight, flux_up_base(:,:,nlev), &
              &  transmittance, source_up, u_overlap, flux_up)
       else ! Standard 1D Tripleclouds
-        call calc_radiance_trans_source(nspec, nlev, NREGION, &
-             &  mu_list(jstream), region_fracs, od, &
-             &  transmittance, &
-             &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
-             &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
-             &  source_up=source_up, source_dn=source_dn)
+        if (do_exact_solution_local) then
+          ! Use fluxes from exact solution to two-stream equations as
+          ! source function for radiance calculation
+          call calc_radiance_trans_source_exact(nspec, nlev, &
+               &  NREGION, mu_list(jstream), &
+               &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
+               &  flux_up_base, flux_dn_top, transmittance, &
+               &  source_up=source_up, source_dn=source_Dn)
+        else
+          ! Use linear approximation of fluxes with optical depth
+          ! across each layer
+          call calc_radiance_rates(nspec, nlev, NREGION, &
+               &  mu_list(jstream), &
+               &  region_fracs, planck_hl, ssa, asymmetry_cloud, &
+               &  flux_up_base, flux_dn_base, flux_up_top, flux_dn_top, &
+               &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+               &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base)
+          call calc_radiance_trans_source(nspec, nlev, NREGION, &
+               &  mu_list(jstream), region_fracs, od, &
+               &  transmittance, &
+               &  rate_up_top=rate_up_top, rate_up_base=rate_up_base, &
+               &  rate_dn_top=rate_dn_top, rate_dn_base=rate_dn_base, &
+               &  source_up=source_up, source_dn=source_dn)
+        end if
         call calc_radiance_dn(nspec, nlev, &
              &  weight, &
              &  transmittance, source_dn, v_overlap, flux_dn)

@@ -185,11 +185,11 @@ subroutine calc_overlap_matrices(nlev, &
   else
     used_decorrelation_scaling = 1.0_jprb
   end if
-  
+
   if (present(cloud_fraction_threshold)) then
     frac_threshold = cloud_fraction_threshold
   else
-    frac_threshold = 1.0e-20_jprb
+    frac_threshold = 10.0_jprb*epsilon(1.0_jprb)
   end if
     
   ! Outer space is treated as one clear-sky region, so the fractions
@@ -266,3 +266,176 @@ subroutine calc_overlap_matrices(nlev, &
   
 end subroutine calc_overlap_matrices
   
+
+!---------------------------------------------------------------------
+! Configure the region fractions and overlap matrices to represent
+! NREGION independent columns such that the total cloud cover is
+! according to exponential-random overlap
+subroutine calc_independent_column_overlap(nlev, &
+     &     frac, overlap_param, region_fracs, od_scaling, &
+     &     u_overlap, v_overlap, cloud_cover, cloud_fraction_threshold)
+  
+  use parkind1,     only : jprb
+  use yomhook,      only : lhook, dr_hook, jphook
+
+  ! Number of levels and regions
+  integer,  intent(in) :: nlev
+
+  ! Cloud fraction, i.e. the fraction of the gridbox assigned to all
+  ! regions numbered 2 and above (region 1 is clear sky)
+  real(jprb), intent(in), dimension(:)  :: frac ! (nlev)
+  
+  ! The overlap "alpha" overlap parameter of Hogan & Illingworth
+  real(jprb), intent(in), dimension(:)  :: overlap_param  ! (nlev-1)
+
+  ! Area fraction of each region: region 1 is clear sky, and 2+ are
+  ! the cloudy regions (only one or two cloudy regions are supported)
+  real(jprb), intent(out), dimension(1:NREGION,nlev)  :: region_fracs
+
+  ! Optical depth scaling for the cloudy regions
+  real(jprb), intent(out) :: od_scaling(2:NREGION,nlev)
+
+  ! Output overlap matrices
+  real(jprb), intent(out), dimension(NREGION,NREGION,nlev+1) &
+       &  :: u_overlap, v_overlap
+  
+  ! The diagnosed cloud cover is an optional output
+  real(jprb), intent(out), optional :: cloud_cover
+
+  ! Regions smaller than this are ignored
+  real(jprb), intent(in), optional :: cloud_fraction_threshold
+
+  real(jprb) :: cloud_cover_local, clear_cover, pair_cloud_cover
+
+  ! In case the user doesn't supply cloud_fraction_threshold we use a
+  ! default value
+  real(jprb) :: frac_threshold
+
+  integer :: jlev, jreg
+
+  ! Index of the interface of cloud top and cloud base
+  integer :: icloudtop, icloudbase
+  
+  real(jphook) :: hook_handle
+
+  if (lhook) call dr_hook('tcrad:calc_independent_column_overlap',0,hook_handle)
+
+  if (present(cloud_fraction_threshold)) then
+    frac_threshold = cloud_fraction_threshold
+  else
+    frac_threshold = 10.0_jprb*epsilon(1.0_jprb)
+  end if
+  
+  ! Compute cloud cover using exponential-random rules
+  clear_cover = 1.0_jprb - frac(1)
+  do jlev = 1,nlev-1
+    pair_cloud_cover = overlap_param(jlev)*max(frac(jlev),frac(jlev+1)) &
+         &  + (1.0_jprb - overlap_param(jlev))*(frac(jlev)+frac(jlev+1)-frac(jlev)*frac(jlev+1))
+    if (frac(jlev) > 1.0_jprb-frac_threshold) then
+      clear_cover = 0.0_jprb
+    else
+      clear_cover = clear_cover * (1.0_jprb - pair_cloud_cover) / (1.0_jprb - frac(jlev))
+    end if
+  end do
+  cloud_cover_local = 1.0_jprb - clear_cover
+
+  ! Copy to output, if requested
+  if (present(cloud_cover)) then
+    cloud_cover = cloud_cover_local
+  end if
+  
+!#define DO_CLOUD_BLOCK 1
+#ifdef DO_CLOUD_BLOCK
+  ! Use ordinary 100% clear regions above cloud top band below cloud
+  ! base; between these limits set the cloud fraction equal to the
+  ! cloud cover
+  icloudtop  = nlev+1
+  icloudbase = 1
+  do jlev = 1,nlev
+    if (frac(jlev) >= frac_threshold) then
+      icloudtop = jlev
+      exit
+    end if
+  end do
+  if (icloudtop > nlev) then
+    ! No cloud
+    icloudbase = icloudtop
+  else
+    icloudbase = icloudtop+1
+  end if
+  if (icloudtop <= nlev) then
+    do jlev = nlev,icloudtop+2,-1
+      if (frac(jlev) >= frac_threshold) then
+        icloudbase = jlev+1
+        exit
+      end if
+    end do
+  end if
+
+#else
+  icloudtop  = 1
+  icloudbase = nlev+1
+#endif
+
+  do jlev = 1,icloudtop-1
+    region_fracs(1,jlev) = 1.0_jprb
+    region_fracs(2:NREGION,jlev) = 0.0_jprb
+    od_scaling(2:NREGION,jlev) = 0.0_jprb
+  end do
+
+  do jlev = icloudtop,icloudbase-1
+    region_fracs(1,jlev) = clear_cover
+#if NUM_REGIONS == 2
+    region_fracs(2,jlev) = cloud_cover_local
+#else
+    region_fracs(2:NREGION,jlev) = cloud_cover_local/(NREGION-1.0_jprb)
+#endif
+    od_scaling(2:NREGION,jlev)   = frac(jlev) / max(cloud_cover, frac_threshold)
+  end do
+
+  do jlev = icloudbase,nlev
+    region_fracs(1,jlev) = 1.0_jprb
+    region_fracs(2:NREGION,jlev) = 0.0_jprb
+    od_scaling(2:NREGION,jlev) = 0.0_jprb
+  end do
+
+  u_overlap = 0.0_jprb
+  v_overlap = 0.0_jprb
+
+  ! Clear-sky default: only clear regions are connected
+  u_overlap(1,1,:)  = 1.0_jprb
+  v_overlap(1,1,:)  = 1.0_jprb
+  
+  if (icloudtop /= icloudbase) then
+
+    ! Connect cloudy regions
+    do jlev = icloudtop+1,icloudbase-1
+      do jreg = 2,NREGION
+        u_overlap(jreg,jreg,jlev)  = 1.0_jprb
+        v_overlap(jreg,jreg,jlev)  = 1.0_jprb
+      end do
+    end do
+
+    ! Treat outer space as a clear-sky layer if icloudtop==1
+    u_overlap(1,1:NREGION,icloudtop) = 1.0_jprb
+    v_overlap(1,1,icloudtop) = clear_cover
+#if NUM_REGIONS == 2
+    v_overlap(2,1,icloudtop) = cloud_cover_local
+#else
+    ! Partition cloud cover equally between two cloudy columns
+    v_overlap(2:NREGION,1,icloudtop) = cloud_cover_local/(NREGION-1.0_jprb)
+#endif
+    
+    ! Treat surface as a clear-sky layer if icloudbase==nlev+1
+    u_overlap(1,1,icloudbase) = clear_cover
+#if NUM_REGIONS == 2
+    u_overlap(2,1,icloudbase) = cloud_cover_local
+#else
+    u_overlap(2:NREGION,1,icloudbase) = cloud_cover_local/(NREGION-1.0_jprb)
+#endif
+    v_overlap(1,1:NREGION,icloudbase) = 1.0_jprb
+  end if
+  
+  if (lhook) call dr_hook('tcrad:calc_independent_column_overlap',1,hook_handle)
+
+end subroutine calc_independent_column_overlap

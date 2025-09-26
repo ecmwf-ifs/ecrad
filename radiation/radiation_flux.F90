@@ -98,6 +98,11 @@ module radiation_flux
           &  lw_dn_surf_canopy, &
           &  sw_dn_diffuse_surf_canopy, sw_dn_direct_surf_canopy
 
+     ! For fully 3D solvers only: flux divergence since the boundary
+     ! fluxes do not give correct heating rates
+     real(jprb), allocatable, dimension(:,:) :: &
+          &  lw_div, lw_div_clear, sw_div, sw_div_clear
+     
      ! Diagnosed cloud cover from the short- and long-wave solvers
      real(jprb), allocatable, dimension(:) :: &
           &  cloud_cover_lw, cloud_cover_sw
@@ -111,7 +116,12 @@ module radiation_flux
      ! if do_radiances==true then instead of storing fluxes we store
      ! radiances in one particular direction per profile, either per
      ! band or per g-point, dimensioned (nspec,ncol)
+     real(jprb), allocatable, dimension(:,:) :: sw_radiance_band
      real(jprb), allocatable, dimension(:,:) :: lw_radiance_band
+     real(jprb), allocatable, dimension(:,:) :: sw_radiance_clear_band
+
+     ! Is lw_radiance_band actually a brightness temperature (in K)?
+     logical :: is_brightness_temperature = .false.
 
    contains
      procedure :: allocate   => allocate_flux_type
@@ -121,6 +131,7 @@ module radiation_flux
      procedure :: calc_toa_spectral
      procedure :: out_of_physical_bounds
      procedure :: heating_rate_out_of_physical_bounds
+     procedure :: convert_radiance_to_brightness_temperature
   end type flux_type
 
 ! Added for DWD (2020)
@@ -136,7 +147,7 @@ contains
   ! Allocate arrays for flux profiles, using config to define which
   ! fluxes are needed.  The arrays are dimensioned for columns between
   ! istartcol, iendcol and levels from 1 to nlev+1
-  subroutine allocate_flux_type(this, config, istartcol, iendcol, nlev)
+  subroutine allocate_flux_type(this, config, istartcol, iendcol, nlev, do_divergence)
 
     use yomhook,          only : lhook, dr_hook, jphook
     use radiation_io,     only : nulerr, radiation_abort
@@ -145,11 +156,20 @@ contains
     integer, intent(in)             :: istartcol, iendcol, nlev
     class(flux_type), intent(inout) :: this
     type(config_type), intent(in)   :: config
+    logical, optional, intent(in)   :: do_divergence
+
+    logical :: do_divergence_local
 
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_flux:allocate',0,hook_handle)
 
+    if (present(do_divergence)) then
+      do_divergence_local = do_divergence
+    else
+      do_divergence_local = .false.
+    end if
+    
     ! Allocate longwave arrays
     if (config%do_lw) then
       allocate(this%lw_up(istartcol:iendcol,nlev+1))
@@ -205,6 +225,14 @@ contains
         ! used in the canopy radiative transfer scheme
         allocate(this%lw_dn_surf_canopy(config%n_canopy_bands_lw,istartcol:iendcol))
       end if
+
+      if (do_divergence_local) then
+        allocate(this%lw_div(istartcol:iendcol,nlev))
+        if (config%do_clear) then
+          allocate(this%lw_div_clear(istartcol:iendcol,nlev))
+        end if
+      end if
+      
     end if
     
     ! Allocate shortwave arrays
@@ -294,6 +322,14 @@ contains
         allocate(this%sw_dn_diffuse_surf_canopy(config%n_canopy_bands_sw,istartcol:iendcol))
         allocate(this%sw_dn_direct_surf_canopy (config%n_canopy_bands_sw,istartcol:iendcol))
       end if
+
+      if (do_divergence_local) then
+        allocate(this%sw_div(istartcol:iendcol,nlev))
+        if (config%do_clear) then
+          allocate(this%sw_div_clear(istartcol:iendcol,nlev))
+        end if
+      end if
+      
     end if
     
     ! Allocate cloud cover arrays
@@ -379,9 +415,14 @@ contains
       deallocate(this%lw_derivatives)
     end if
 
-
     if (allocated(this%lw_radiance_band)) then
       deallocate(this%lw_radiance_band)
+    end if
+    if (allocated(this%sw_radiance_band)) then
+      deallocate(this%sw_radiance_band)
+    end if
+    if (allocated(this%sw_radiance_clear_band)) then
+      deallocate(this%sw_radiance_clear_band)
     end if
 
     if (allocated(this%lw_dn_surf_g))               deallocate(this%lw_dn_surf_g)
@@ -428,12 +469,31 @@ contains
       end if
     end if
 
+    ! Allocate short arrays
+    if (config%do_sw) then
+      if (config%n_spec_sw > 0) then
+        allocate(this%sw_radiance_band(config%n_spec_sw,istartcol:iendcol))
+        allocate(this%sw_radiance_clear_band(config%n_spec_sw,istartcol:iendcol))
+      else
+        allocate(this%sw_radiance_band(config%n_bands_sw,istartcol:iendcol))
+        allocate(this%sw_radiance_clear_band(config%n_bands_sw,istartcol:iendcol))
+      end if
+    end if
+
     if (.not. allocated(this%cloud_cover_lw)) then
       ! Allocate cloud cover array
       allocate(this%cloud_cover_lw(istartcol:iendcol))
       ! Some solvers may not write to cloud cover, so we initialize to
       ! an unphysical value
       this%cloud_cover_lw = -1.0_jprb
+    end if
+
+    if (.not. allocated(this%cloud_cover_sw)) then
+      ! Allocate cloud cover array
+      allocate(this%cloud_cover_sw(istartcol:iendcol))
+      ! Some solvers may not write to cloud cover, so we initialize to
+      ! an unphysical value
+      this%cloud_cover_sw = -1.0_jprb
     end if
 
     if (lhook) call dr_hook('radiation_flux:allocate_radiances_only',1,hook_handle)
@@ -621,6 +681,27 @@ contains
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',1,hook_handle)
 
   end subroutine calc_surface_spectral
+
+  !---------------------------------------------------------------------
+  ! Convert lw_radiance_band to a brightness temperature, using the
+  ! Planck mapping contained in the ckd_model definition
+  subroutine convert_radiance_to_brightness_temperature(this, ncol, ckd_model)
+    
+    use radiation_ecckd, only : ckd_model_type
+
+    class(flux_type),     intent(inout) :: this
+    integer,              intent(in)    :: ncol
+    type(ckd_model_type), intent(in)    :: ckd_model
+
+    real(jprb) :: bt(ckd_model%spectral_def%nband,ncol)
+
+    if (.not. this%is_brightness_temperature) then
+      call ckd_model%calc_brightness_temperature(ncol, this%lw_radiance_band, bt)
+      this%lw_radiance_band = bt
+      this%is_brightness_temperature = .true.
+    end if
+
+  end subroutine convert_radiance_to_brightness_temperature
 
 
   !---------------------------------------------------------------------

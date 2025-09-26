@@ -211,8 +211,11 @@ contains
       end do
 #endif
 
-      ! Store surface spectral downwelling fluxes
-      flux%lw_dn_surf_clear_g(:,jcol) = flux_dn_clear(:,nlev+1)
+      ! Store surface spectral downwelling fluxes / TOA upwelling
+      do jg = 1,ng
+        flux%lw_dn_surf_clear_g(jg,jcol) = flux_dn_clear(jg,nlev+1)
+        flux%lw_up_toa_clear_g (jg,jcol) = flux_up_clear(jg,1)
+      end do
 
       ! Do cloudy-sky calculation; add a prime number to the seed in
       ! the longwave
@@ -371,9 +374,13 @@ contains
           flux%lw_dn(jcol,jlev) =  total_cloud_cover *flux%lw_dn(jcol,jlev) &
              &       + (1.0_jprb - total_cloud_cover)*flux%lw_dn_clear(jcol,jlev)
         end do
-        ! Store surface spectral downwelling fluxes
-        flux%lw_dn_surf_g(:,jcol) = total_cloud_cover*flux_dn(:,nlev+1) &
-             &  + (1.0_jprb - total_cloud_cover)*flux%lw_dn_surf_clear_g(:,jcol)
+        ! Store surface spectral downwelling fluxes / TOA upwelling
+        do jg = 1,ng
+          flux%lw_dn_surf_g(jg,jcol) = total_cloud_cover*flux_dn(jg,nlev+1) &
+               &  + (1.0_jprb - total_cloud_cover)*flux%lw_dn_surf_clear_g(jg,jcol)
+          flux%lw_up_toa_g (jg,jcol) = total_cloud_cover*flux_up(jg,1) &
+               &  + (1.0_jprb - total_cloud_cover)*flux%lw_up_toa_clear_g(jg,jcol)
+        end do
 
         ! Compute the longwave derivatives needed by Hogan and Bozzo
         ! (2015) approximate radiation update scheme
@@ -394,7 +401,11 @@ contains
           flux%lw_up(jcol,jlev) = flux%lw_up_clear(jcol,jlev)
           flux%lw_dn(jcol,jlev) = flux%lw_dn_clear(jcol,jlev)
         end do
-        flux%lw_dn_surf_g(:,jcol) = flux%lw_dn_surf_clear_g(:,jcol)
+        do jg = 1,ng
+          flux%lw_dn_surf_g(jg,jcol) = flux%lw_dn_surf_clear_g(jg,jcol)
+          flux%lw_up_toa_g (jg,jcol) = flux%lw_up_toa_clear_g (jg,jcol)
+        end do
+        
         if (config%do_lw_derivatives) then
           call calc_lw_derivatives_ica(ng, nlev, jcol, trans_clear, flux_up_clear(:,nlev+1), &
                &                       flux%lw_derivatives)

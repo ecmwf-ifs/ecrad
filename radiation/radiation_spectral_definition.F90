@@ -14,6 +14,8 @@
 ! License: see the COPYING file for details
 !
 
+#include "ecrad_config.h"
+
 module radiation_spectral_definition
 
   use parkind1,    only : jprb
@@ -22,7 +24,7 @@ module radiation_spectral_definition
 
   public
 
-  real(jprb), parameter :: SolarReferenceTemperature = 5777.0_jprb ! K
+  real(jprb), parameter :: SolarReferenceTemperature       = 5777.0_jprb ! K
   real(jprb), parameter :: TerrestrialReferenceTemperature = 273.15_jprb ! K
 
   !---------------------------------------------------------------------
@@ -52,6 +54,9 @@ module radiation_spectral_definition
     ! file.
     real(jprb) :: reference_temperature = -1.0_jprb
     real(jprb), allocatable :: solar_spectral_irradiance(:)
+
+    ! Solar irradiance per g-point (W m-2)
+    real(jprb), allocatable :: solar_irradiance(:)
     
     ! Band information
 
@@ -74,6 +79,7 @@ module radiation_spectral_definition
     procedure :: calc_mapping_from_wavenumber_bands
     procedure :: print_mapping_from_bands
     procedure :: min_wavenumber, max_wavenumber
+    procedure :: weighted_mapping
 
   end type spectral_definition_type
 
@@ -84,7 +90,11 @@ contains
   ! file of the type used to describe an ecCKD model
   subroutine read_spectral_definition(this, file)
 
-    use easy_netcdf, only : netcdf_file
+#ifdef EASY_NETCDF_READ_MPI
+    use easy_netcdf_read_mpi, only : netcdf_file
+#else
+    use easy_netcdf,          only : netcdf_file
+#endif
     use yomhook,     only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(inout) :: this
@@ -113,6 +123,7 @@ contains
     if (file%exists('solar_irradiance')) then
       ! Shortwave default temperature
       this%reference_temperature = SolarReferenceTemperature
+      call file%get('solar_irradiance', this%solar_irradiance)
     else
       ! Longwave reference temperature
       this%reference_temperature = TerrestrialReferenceTemperature
@@ -131,14 +142,15 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Store a simple band description by copying over the lower and
-  ! upper wavenumbers of each band
-  subroutine allocate_bands_only(this, wavenumber1, wavenumber2)
+  ! Store a simple band description by copying over the reference
+  ! temperature and the lower and upper wavenumbers of each band
+  subroutine allocate_bands_only(this, reference_temperature, wavenumber1, wavenumber2)
 
     use yomhook,     only : lhook, dr_hook, jphook
 
     class(spectral_definition_type), intent(inout) :: this
-    real(jprb),        dimension(:), intent(in)    :: wavenumber1, wavenumber2
+    real(jprb),                      intent(in)    :: reference_temperature    ! K
+    real(jprb),        dimension(:), intent(in)    :: wavenumber1, wavenumber2 ! cm-1
 
     real(jphook) :: hook_handle
 
@@ -151,7 +163,8 @@ contains
     allocate(this%wavenumber2_band(this%nband))
     this%wavenumber1_band = wavenumber1
     this%wavenumber2_band = wavenumber2
-
+    this%reference_temperature = reference_temperature
+    
     if (lhook) call dr_hook('radiation_spectral_definition:allocate_bands_only',1,hook_handle)
 
   end subroutine allocate_bands_only
@@ -166,6 +179,7 @@ contains
     this%nwav  = 0
     this%ng    = 0
     this%nband = 0
+    this%reference_temperature = -1.0_jprb
 
     if (allocated(this%wavenumber1))      deallocate(this%wavenumber1)
     if (allocated(this%wavenumber2))      deallocate(this%wavenumber2)
@@ -499,7 +513,8 @@ contains
   ! albedo/emissivity value is to be associated with more than one
   ! discontinuous ranges of the spectrum).
   subroutine calc_mapping_from_bands(this, &
-       &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes)
+       &  wavelength_bound, i_intervals, mapping, use_bands, use_fluxes, &
+       &  solar_fraction)
 
     use yomhook,      only : lhook, dr_hook, jphook
     use radiation_io, only : nulerr, radiation_abort
@@ -514,6 +529,9 @@ contains
     real(jprb), allocatable,         intent(inout) :: mapping(:,:)
     logical,    optional,            intent(in)    :: use_bands
     logical,    optional,            intent(in)    :: use_fluxes
+    ! Return fraction of total solar irradiance in each
+    ! interval, for normalizing to get reflectances
+    real(jprb), optional,            intent(out)   :: solar_fraction(:)
 
     ! Planck function and central wavenumber of each wavenumber
     ! interval of the spectral definition
@@ -533,6 +551,9 @@ contains
     real(jprb), parameter :: weight_sample(nsample) &
          &        = [0.5_jprb, 1.0_jprb, 1.0_jprb, 1.0_jprb, 0.5_jprb]
 
+    ! Solar irradiance in bands
+    real(jprb) :: solar_irradiance_band(this%nband)
+    
     ! Index of input value corresponding to each wavenumber interval
     integer :: i_input(this%nwav)
 
@@ -646,6 +667,20 @@ contains
         end do
       end do
 
+      if (present(solar_fraction)) then
+        if (.not. allocated(this%solar_irradiance)) then
+          ! Solar irradiance not available
+          solar_fraction(1:ninput) = 0.0_jprb
+        else
+          solar_irradiance_band(1:this%nband) = 0.0_jprb
+          do jg = 1,this%ng
+            solar_irradiance_band(this%i_band_number(jg)) = solar_irradiance_band(this%i_band_number(jg)) &
+                 &  + this%solar_irradiance(jg)
+          end do
+          solar_fraction(1:ninput) = matmul(mapping, solar_irradiance_band) / sum(this%solar_irradiance)
+        end if
+      end if
+      
       if (use_fluxes_local) then
         mapping = mapping / max(1.0e-12_jprb, mapping_denom)
         deallocate(mapping_denom)
@@ -754,7 +789,15 @@ contains
       end if
 
 #endif
-      
+      if (present(solar_fraction)) then
+        if (.not. allocated(this%solar_irradiance)) then
+          ! Solar irradiance not available
+          solar_fraction(1:ninput) = 0.0_jprb
+        else
+          solar_fraction(1:ninput) = matmul(mapping, this%solar_irradiance) / sum(this%solar_irradiance)
+        end if
+      end if
+        
     end if
 
     if (.not. use_fluxes_local) then
@@ -833,6 +876,97 @@ contains
 
   end subroutine calc_mapping_from_wavenumber_bands
 
+  
+  !---------------------------------------------------------------------
+  ! Used for computing UV index / UV biologically effective dose:
+  ! provides the weights that should be applied to each g-point for a
+  ! summation. The user provides monotonically increasing wavelengths
+  ! and associated weights that are assumed to vary logarithmically
+  ! between wavelengths.
+  function weighted_mapping(this, wavelength, weights_in, do_logarithmic)
+
+    use radiation_io, only : nulerr, radiation_abort
+    
+    class(spectral_definition_type), intent(in) :: this
+    real(jprb), intent(in) :: wavelength(:) ! m
+    real(jprb), intent(in) :: weights_in(:)
+    logical,    intent(in), optional :: do_logarithmic
+    
+    real(jprb) :: weighted_mapping(this%ng)
+
+    ! Weights in wavenumber space 
+    real(jprb) :: weights_wn(this%nwav)
+
+    ! Wavelength (m) corresponding to a wavenumber 
+    real(jprb) :: wavelength_wn 
+
+    ! Weight (might be natural logarithms)
+    real(jprb) :: weight1, weight2
+    
+    ! Number of input wavelengths
+    integer :: nwl
+
+    ! Wavelength loop index
+    integer :: jwl
+
+    ! Index of current wavenumber
+    integer :: iwn
+
+    logical :: do_logarithmic_local
+
+    if (present(do_logarithmic)) then
+      do_logarithmic_local = do_logarithmic
+    else
+      do_logarithmic_local = .false.
+    end if
+    
+    nwl = size(wavelength)
+
+    if (allocated(this%gpoint_fraction)) then
+      
+      weights_wn(:) = 0.0_jprb
+      iwn = this%nwav
+      ! Find first wavenumber in range
+      wavelength_wn = 0.01_jprb / (0.5_jprb * (this%wavenumber1(iwn)+this%wavenumber2(iwn)))
+      do while(wavelength(1) > wavelength_wn .and. iwn > 1)
+        iwn = iwn-1
+        wavelength_wn = 0.01_jprb / (0.5_jprb * (this%wavenumber1(iwn)+this%wavenumber2(iwn)))
+      end do
+      ! Loop over user-supplied wavelength intervals
+      do jwl = 1,nwl-1
+        if (do_logarithmic_local) then
+          weight1 = log(weights_in(jwl))
+          weight2 = log(weights_in(jwl+1))
+        else
+          weight1 = weights_in(jwl);
+          weight2 = weights_in(jwl);
+        end if
+        do while (wavelength(jwl+1) > wavelength_wn)
+            weights_wn(iwn) = (weight1*(wavelength(jwl+1)-wavelength_wn) &
+                 &            +weight2*(wavelength_wn-wavelength(jwl))) &
+                 &            /(wavelength(jwl+1)-wavelength(jwl))
+          if (do_logarithmic_local) then
+            weights_wn(iwn) = exp(weights_wn(iwn))
+          end if
+          if (iwn > 1) then
+            iwn = iwn-1
+            wavelength_wn = 0.01_jprb / (0.5_jprb * (this%wavenumber1(iwn)+this%wavenumber2(iwn)))
+          else
+            exit
+          end if
+        end do
+      end do
+
+      weighted_mapping = matmul(weights_wn, this%gpoint_fraction)
+
+    else
+      
+      write(nulerr,'(a)') '*** Error: requested weighted mapping per g-point but only available per band'
+      call radiation_abort('Radiation configuration error')  
+      
+    end if
+      
+  end function weighted_mapping
 
   !---------------------------------------------------------------------
   ! Print out the mapping computed by calc_mapping_from_bands

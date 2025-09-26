@@ -402,10 +402,12 @@ program ecrad_ifs_driver
              &  single_level%sw_albedo, single_level%sw_albedo_direct, single_level%lw_emissivity, &
              &  ccn_land, ccn_sea, longitude_rad, sin_latitude, land_frac, pressure_fl, temperature_fl, &
              &  thermodynamics%pressure_hl, thermodynamics%temperature_hl, &
-             &  gas%mixing_ratio(:,:,IH2O), gas%mixing_ratio(:,:,ICO2), &
-             &  gas%mixing_ratio(:,:,ICH4), gas%mixing_ratio(:,:,IN2O), gas%mixing_ratio(:,:,INO2), &
-             &  gas%mixing_ratio(:,:,ICFC11), gas%mixing_ratio(:,:,ICFC12), gas%mixing_ratio(:,:,IHCFC22), &
-             &  gas%mixing_ratio(:,:,ICCl4), gas%mixing_ratio(:,:,IO3), cloud_fraction, cloud_q_liq, &
+             &  gas%mixing_ratio_2d(:,:,gas%index(IH2O)),  gas%mixing_ratio_2d(:,:,gas%index(ICO2)), &
+             &  gas%mixing_ratio_2d(:,:,gas%index(ICH4)),  gas%mixing_ratio_2d(:,:,gas%index(IN2O)), &
+             &  gas%mixing_ratio_2d(:,:,gas%index(INO2)),  gas%mixing_ratio_2d(:,:,gas%index(ICFC11)), &
+             &  gas%mixing_ratio_2d(:,:,gas%index(ICFC12)),gas%mixing_ratio_2d(:,:,gas%index(IHCFC22)), &
+             &  gas%mixing_ratio_2d(:,:,gas%index(ICCl4)), gas%mixing_ratio_2d(:,:,gas%index(IO3)), &
+             &  cloud_fraction, cloud_q_liq, &
              &  cloud_q_ice, zeros, zeros, tegen_aerosol, aerosol%mixing_ratio, flux%sw_up, flux%lw_up, &
              &  flux%sw_up_clear, flux%lw_up_clear, flux%sw_dn(:,nlev+1), flux%lw_dn(:,nlev+1), &
              &  flux%sw_dn_clear(:,nlev+1), flux%lw_dn_clear(:,nlev+1), &

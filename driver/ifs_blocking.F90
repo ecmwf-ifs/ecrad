@@ -398,7 +398,7 @@ subroutine ifs_copy_inputs_to_blocked ( &
       enddo
 
       do jlev=1,nlev
-        zrgp(1:il,ifs_config%iwv+jlev-1,ib)   = gas%mixing_ratio(ibeg:iend,jlev,IH2O) ! this is already in MassMixingRatio units
+        zrgp(1:il,ifs_config%iwv+jlev-1,ib)   = gas%mixing_ratio_2d(ibeg:iend,jlev,gas%index(IH2O)) ! this is already in MassMixingRatio units
         if (rad_config%do_clouds) then
           zrgp(1:il,ifs_config%iclc+jlev-1,ib)  = cloud%fraction(ibeg:iend,jlev)
           zrgp(1:il,ifs_config%ilwa+jlev-1,ib)  = cloud%q_liq(ibeg:iend,jlev)

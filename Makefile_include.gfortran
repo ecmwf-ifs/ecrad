@@ -40,3 +40,7 @@ ifdef GPROF
 # Add gprof output
 DEBUGFLAGS += -pg
 endif
+
+# The following is only used in compiling DISORT, which uses an
+# unqualified "real" type which defaults to single precision
+FORCEDOUBLEFLAGS = -fdefault-real-8 -fdefault-double-8

@@ -55,6 +55,9 @@ program ecrad_driver
   
   implicit none
 
+  ! Uncomment this if you want to use the "satur" routine below
+!#include "satur.intfb.h"
+  
   ! The NetCDF file containing the input profiles
   type(netcdf_file)         :: file
 
@@ -93,16 +96,22 @@ program ecrad_driver
   real(kind=jprd) :: tstart, tstop
 #endif
 
+!#define DEMONSTRATE_SW_DIAGS 1
+#ifdef DEMONSTRATE_SW_DIAGS
   ! For demonstration of get_sw_weights later on
   ! Ultraviolet weightings
-  !integer    :: nweight_uv
-  !integer    :: iband_uv(100)
-  !real(jprb) :: weight_uv(100)
+  integer    :: nweight_uv
+  integer    :: iband_uv(256)
+  real(jprb) :: weight_uv(256)
+  real(jprb) :: solar_fraction
+  integer    :: jw
+  
   ! Photosynthetically active radiation weightings
-  !integer    :: nweight_par
-  !integer    :: iband_par(100)
-  !real(jprb) :: weight_par(100)
-
+  integer    :: nweight_par
+  integer    :: iband_par(256)
+  real(jprb) :: weight_par(256)
+#endif
+  
   ! Loop index for repeats (for benchmarking)
   integer :: jrepeat
 
@@ -169,15 +178,26 @@ program ecrad_driver
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
   call setup_radiation(config)
-
+#ifdef DEMONSTRATE_SW_DIAGS
   ! Demonstration of how to get weights for UV and PAR fluxes
-  !if (config%do_sw) then
-  !  call config%get_sw_weights(0.2e-6_jprb, 0.4415e-6_jprb,&
-  !       &  nweight_uv, iband_uv, weight_uv,&
-  !       &  'ultraviolet')
-  !  call config%get_sw_weights(0.4e-6_jprb, 0.7e-6_jprb,&
-  !       &  nweight_par, iband_par, weight_par,&
-  !       &  'photosynthetically active radiation, PAR')
+  if (config%do_sw) then
+    call config%get_sw_weights(0.2e-6_jprb, 0.4415e-6_jprb,&
+         &  nweight_uv, iband_uv, weight_uv,&
+         &  'ultraviolet', solar_fraction)
+    call config%get_sw_weights(0.4e-6_jprb, 0.7e-6_jprb,&
+         &  nweight_par, iband_par, weight_par,&
+         &  'photosynthetically active radiation, PAR', solar_fraction)
+  end if
+#endif
+  
+  !if (config%do_sw .and. config%gas_optics_sw%spectral_def%ng > 0) then
+  !  call config%get_uv_biological_weights(nweight_uv, iband_uv, weight_uv)
+  !  if (driver_config%iverbose >= 3) then
+  !    write(nulout,'(a)') 'Weights of shortwave g-points for computing UV biologically effective dose (g-point number, weight)'
+  !    do jw = 1,nweight_uv
+  !      write(nulout,'(i4,x,f7.5)') iband_uv(jw), weight_uv(jw)
+  !    end do
+  !  end if
   !end if
 
   ! Optionally compute shortwave spectral diagnostics in
@@ -269,9 +289,19 @@ program ecrad_driver
   call set_gas_units(config, gas)
 
   ! Compute saturation with respect to liquid (needed for aerosol
-  ! hydration) call
+  ! hydration) call...
   call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
+  ! ...or alternatively use the "satur" function in the IFS (requires
+  ! adding -lifs to the linker command line) but note that this
+  ! computes saturation with respect to ice at colder temperatures,
+  ! which is almost certainly incorrect
+  !allocate(thermodynamics%h2o_sat_liq(ncol,nlev))
+  !call satur(driver_config%istartcol, driver_config%iendcol, ncol, 1, nlev, .false., &
+  !     0.5_jprb * (thermodynamics.pressure_hl(:,1:nlev)+thermodynamics.pressure_hl(:,2:nlev)), &
+  !     0.5_jprb * (thermodynamics.temperature_hl(:,1:nlev)+thermodynamics.temperature_hl(:,2:nlev)), &
+  !     thermodynamics%h2o_sat_liq, 2)
+  
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
        &                                            driver_config%do_correct_unphysical_inputs) &
@@ -361,7 +391,11 @@ program ecrad_driver
   is_out_of_bounds = flux%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol)
 
   if (config%do_radiances) then
-    ! Store radiances in the output file
+    ! Store radiances (or brightness temperatures) in the output file
+    if (driver_config%do_save_brightness_temperature) then
+      call flux%convert_radiance_to_brightness_temperature(ncol, config%gas_optics_lw)
+    end if
+
     call save_radiances(file_name, config, single_level, flux, &
          &   iverbose=driver_config%iverbose, is_hdf5_file=driver_config%do_write_hdf5, &
          &   experiment_name=driver_config%experiment_name)

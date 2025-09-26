@@ -721,6 +721,12 @@ contains
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',0,hook_handle)
 
+    ! Some solvers don't require cloud fraction, in which case we do
+    ! nothing
+    if (.not. allocated(this%fraction)) then
+      return
+    end if
+    
     nlev  = size(this%fraction,2)
     ntype = size(this%mixing_ratio,3)
     

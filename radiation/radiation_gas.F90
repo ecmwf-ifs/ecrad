@@ -31,8 +31,8 @@ module radiation_gas
   !---------------------------------------------------------------------
   ! This derived type describes the gaseous composition of the
   ! atmosphere; gases may be stored as part of a 3D array (if their
-  ! variation with height/column is to be represented) or one 1D array
-  ! (if they are to be assumed globally well-mixed).
+  ! variation with height/column is to be represented) or a 2D array
+  ! (if all columns are to use the same profile).
   type gas_type
     ! Units of each stored gas (or 0 if not present)
     integer :: iunits(NMaxGases) = 0
@@ -45,7 +45,11 @@ module radiation_gas
 
     ! Mixing ratios of variable gases, dimensioned (ncol, nlev,
     ! NMaxGases)
-    real(jprb), allocatable, dimension(:,:,:) :: mixing_ratio
+    real(jprb), allocatable, dimension(:,:,:) :: mixing_ratio_2d
+
+    ! Mixing ratios of gases described by the same profile in all
+    ! columns
+    real(jprb), allocatable, dimension(:,:) :: mixing_ratio_1d
 
     ! Flag to indicate whether a gas is present
     logical :: is_present(NMaxGases) = .false.
@@ -53,24 +57,40 @@ module radiation_gas
     ! Flag to indicate whether a gas is well mixed
     logical :: is_well_mixed(NMaxGases) = .false.
 
-    integer :: ntype          = 0 ! Number of gas types described
-
     integer :: ncol           = 0 ! Number of columns in mixing_ratio
     integer :: nlev           = 0 ! Number of levels  in mixing_ratio
 
+    ! Maximum number of gases stored as 2D and 1D
+    integer :: nmaxgas2d      = 0
+    integer :: nmaxgas1d      = 0
+
+    ! Current number of gases stored as 2D and 1D
+    integer :: ngas2d      = 0
+    integer :: ngas1d      = 0
+    integer :: ntype       = 0 ! Number of gas types described (=ngas2d+ngas1d)
+    
     ! A list of length ntype of gases whose volume mixing ratios have
     ! been provided
     integer :: icode(NMaxGases) = 0
+
+    ! Index to the mixing_ratio arrays, e.g. index(IH2O) returns zero
+    ! if H2O is not present, a positive index to indicate its location
+    ! in the mixing_ratio_2d array, or a negative index to indicate
+    ! its location in the mixing_ratio_1d array
+    integer :: index(NMaxGases) = 0
 
    contains
      procedure :: allocate   => allocate_gas
      procedure :: deallocate => deallocate_gas
      procedure :: put        => put_gas
      procedure :: put_well_mixed => put_well_mixed_gas
+     procedure :: put_1d     => put_1d_gas
      procedure :: scale      => scale_gas
      procedure :: set_units  => set_units_gas
      procedure :: assert_units => assert_units_gas
+     procedure :: assert_all_present_2d => assert_all_present_2d_gas
      procedure :: get        => get_gas
+     procedure :: get_scaling
      procedure :: reverse    => reverse_gas
      procedure :: out_of_physical_bounds
   end type gas_type
@@ -81,24 +101,62 @@ contains
   !---------------------------------------------------------------------
   ! Allocate a derived type for holding gas mixing ratios given the
   ! number of columns and levels
-  subroutine allocate_gas(this, ncol, nlev)
+  subroutine allocate_gas(this, ncol, nlev, nmaxgas, nmaxgas1d, do_zero_fill)
 
     use yomhook, only : lhook, dr_hook, jphook
 
     class(gas_type), intent(inout) :: this
-    integer,         intent(in)    :: ncol, nlev
+    integer,         intent(in)    :: ncol, nlev, nmaxgas
+    integer,         intent(in), optional :: nmaxgas1d
 
+    ! This option means that for all gases, this%index always points
+    ! to a valid part of mixing_ratio_2d, and for gases that have not
+    ! been provided, this part will contain zeros. This is useful for
+    ! the IFS-RRTM gas optics model where arrays for a pre-defined set
+    ! of gases must be passed into a routine.
+    logical,         intent(in), optional :: do_zero_fill
+
+    logical :: do_zero_fill_local
+    
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_gas:allocate',0,hook_handle)
 
+    if (present(do_zero_fill)) then
+      do_zero_fill_local = do_zero_fill
+    else
+      do_zero_fill_local = .false.
+    end if
+    
     call this%deallocate()
 
-    allocate(this%mixing_ratio(ncol, nlev, NMaxGases))
-    this%mixing_ratio = 0.0_jprb
-
+    if (do_zero_fill_local) then
+      this%nmaxgas2d = nmaxgas+1
+    else
+      this%nmaxgas2d = nmaxgas
+    end if
+    
+    allocate(this%mixing_ratio_2d(ncol, nlev, this%nmaxgas2d))
+    this%mixing_ratio_2d = 0.0_jprb
+    if (present(nmaxgas1d)) then
+      allocate(this%mixing_ratio_1d(nlev, nmaxgas1d))
+      this%mixing_ratio_1d = 0.0_jprb
+      this%nmaxgas1d       = nmaxgas1d
+    end if
+    
     this%ncol = ncol
     this%nlev = nlev
+    this%ngas1d = 0
+    if (do_zero_fill_local) then
+      ! All gases initially point to the first slice of the
+      ! mixing_ratio_2d array containing zeros, and we increment the
+      ! number of 2D gases by 1
+      this%ngas2d = 1
+      this%index  = 1
+    else
+      this%ngas2d = 0
+      this%index  = 0
+    end if
 
     if (lhook) call dr_hook('radiation_gas:allocate',1,hook_handle)
 
@@ -117,8 +175,16 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:deallocate',0,hook_handle)
 
-    if (allocated(this%mixing_ratio)) then
-       deallocate(this%mixing_ratio)
+    if (allocated(this%mixing_ratio_2d)) then
+      deallocate(this%mixing_ratio_2d)
+      this%nmaxgas2d = 0
+      this%ngas2d    = 0
+    end if
+    
+    if (allocated(this%mixing_ratio_1d)) then
+       deallocate(this%mixing_ratio_1d)
+      this%nmaxgas1d = 0
+      this%ngas1d    = 0
     end if
 
     this%iunits = 0
@@ -129,7 +195,8 @@ contains
     this%ncol = 0
     this%nlev = 0
     this%icode = 0
-
+    this%index = 0
+    
     if (lhook) call dr_hook('radiation_gas:deallocate',1,hook_handle)
 
   end subroutine deallocate_gas
@@ -159,7 +226,7 @@ contains
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
     ! Check inputs
-    if (igas <= IGasNotPresent .or. iunits > NMaxGases) then
+    if (igas <= IGasNotPresent .or. igas > NMaxGases) then
       write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas ID (', &
            &   igas, ') must be in the range ', IGasNotPresent+1, ' to ', &
            &   NMaxGases
@@ -172,8 +239,13 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. allocated(this%mixing_ratio)) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unallocated radiation_gas object'
+    if (.not. allocated(this%mixing_ratio_2d)) then
+      write(nulerr,'(a)') '*** Error: attempt to put data in unallocated gas object'
+      call radiation_abort()
+    end if
+
+    if (this%ngas2d >= this%nmaxgas2d) then
+      write(nulerr,'(a,a,a)') '*** Error: gas type is full (reading ', trim(GasName(igas)), ')'
       call radiation_abort()
     end if
 
@@ -198,18 +270,23 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. this%is_present(igas)) then
-      ! Gas not present until now
-      this%ntype = this%ntype + 1
-      this%icode(this%ntype) = igas
+    if (this%is_present(igas)) then
+      write(nulerr,'(a,a,a)') '*** Error: attempt to provide mixing ratio of ', &
+           &  trim(GasName(igas)), ' twice'
+      call radiation_abort()
     end if
+
+    this%ntype = this%ntype + 1
+    this%ngas2d = this%ngas2d + 1
+    this%index(igas) = this%ngas2d
+    this%icode(this%ntype) = igas
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
-
+    
     do jk = 1,this%nlev
       do jc = i1,i2
-        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+        this%mixing_ratio_2d(jc,jk,this%ngas2d) = mixing_ratio(jc-i1+1,jk)
       end do
     end do
     if (present(scale_factor)) then
@@ -239,11 +316,14 @@ contains
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol, iendcol
 
-    real(jphook) :: hook_handle
-
     integer :: i1, i2, jc, jk
 
-    if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
+    ! Do we store the mixing ratio in the 2D array?
+    logical :: use_mixing_ratio_2d
+
+    real(jphook) :: hook_handle
+
+        if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
     ! Check inputs
     if (igas <= IGasNotPresent .or. igas > NMaxGases) then
@@ -259,9 +339,18 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. allocated(this%mixing_ratio)) then
-      write(nulerr,'(a)') '*** Error: attempt to put well-mixed gas data to unallocated radiation_gas object'
-      call radiation_abort()
+    if (this%nmaxgas1d <= 0) then
+      use_mixing_ratio_2d = .true.
+      if (this%ngas2d >= this%nmaxgas2d) then
+        write(nulerr,'(a)') '*** Error: gas type is full'
+        call radiation_abort()
+      end if
+    else
+      use_mixing_ratio_2d = .false.
+      if (this%ngas1d >= this%nmaxgas1d) then
+        write(nulerr,'(a)') '*** Error: gas type is full for 1D profiles'
+        call radiation_abort()
+      end if
     end if
 
     if (present(istartcol)) then
@@ -282,21 +371,31 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. this%is_present(igas)) then
-      ! Gas not present until now
-      this%ntype = this%ntype + 1
-      this%icode(this%ntype) = igas
+    if (this%is_present(igas)) then
+      write(nulerr,'(a,a,a)') '*** Error: attempt to provide mixing ratio of ', &
+           &  trim(GasName(igas)), ' twice'
+      call radiation_abort()
     end if
-    ! Map uses a negative value to indicate a well-mixed value
+
+    this%ntype = this%ntype + 1
+    this%icode(this%ntype) = igas
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
 
-    do jk = 1,this%nlev
-      do jc = i1,i2
-        this%mixing_ratio(jc,jk,igas) = mixing_ratio
+    if (use_mixing_ratio_2d) then
+      this%ngas2d = this%ngas2d + 1
+      this%index(igas) = this%ngas2d
+      this%mixing_ratio_2d(:,:,this%ngas2d) = mixing_ratio
+    else
+      this%ngas1d = this%ngas1d + 1
+      ! Map uses a negative value to indicate a well-mixed value
+      this%index(igas) = -this%ngas1d
+      do jk = 1,this%nlev
+        this%mixing_ratio_1d(jk,this%ngas1d) = mixing_ratio
       end do
-    end do
+    end if
+    
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
@@ -307,6 +406,114 @@ contains
 
   end subroutine put_well_mixed_gas
 
+
+  !---------------------------------------------------------------------
+  ! Put gas mixing ratio that only varies in the vertical,
+  ! corresponding to gas ID "igas" with units "iunits"
+  subroutine put_1d_gas(this, igas, iunits, mixing_ratio, &
+       scale_factor, istartcol, iendcol)
+
+    use yomhook,        only : lhook, dr_hook, jphook
+    use radiation_io,   only : nulerr, radiation_abort
+
+    class(gas_type),      intent(inout) :: this
+    integer,              intent(in)    :: igas
+    integer,              intent(in)    :: iunits
+    real(jprb),           intent(in)    :: mixing_ratio(:)
+    real(jprb), optional, intent(in)    :: scale_factor
+    integer,    optional, intent(in)    :: istartcol, iendcol
+
+    integer :: i1, i2, jc, jk
+
+    ! Do we store the mixing ratio in the 2D array?
+    logical :: use_mixing_ratio_2d
+    
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_gas:put_1d',0,hook_handle)
+
+    ! Check inputs
+    if (igas <= IGasNotPresent .or. igas > NMaxGases) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas ID (', &
+           &   igas, ') must be in the range ', IGasNotPresent+1, ' to ', &
+           &   NMaxGases
+      call radiation_abort()
+    end if
+    if (iunits < IMassMixingRatio .or. iunits > IVolumeMixingRatio) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: provided gas units (', &
+           &   iunits, ') must be in the range ', IMassMixingRatio, ' to ', &
+           &   IVolumeMixingRatio
+      call radiation_abort()
+    end if
+
+    if (this%nmaxgas1d <= 0) then
+      use_mixing_ratio_2d = .true.
+      if (this%ngas2d >= this%nmaxgas2d) then
+        write(nulerr,'(a)') '*** Error: gas type is full'
+        call radiation_abort()
+      end if
+    else
+      use_mixing_ratio_2d = .false.
+      if (this%ngas1d >= this%nmaxgas1d) then
+        write(nulerr,'(a)') '*** Error: gas type is full for 1D profiles'
+        call radiation_abort()
+      end if
+    end if
+
+    if (present(istartcol)) then
+      i1 = istartcol
+    else
+      i1 = 1
+    end if
+
+    if (present(iendcol)) then
+      i2 = iendcol
+    else
+      i2 = this%ncol
+    end if
+
+    if (i1 < 1 .or. i2 < 1 .or. i1 > this%ncol .or. i2 > this%ncol) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put columns indexed ', &
+           &   i1, ' to ', i2, ' to array indexed 1 to ', this%ncol
+      call radiation_abort()
+    end if
+
+    if (this%is_present(igas)) then
+      write(nulerr,'(a,a,a)') '*** Error: attempt to provide mixing ratio of ', &
+           &  trim(GasName(igas)), ' twice'
+      call radiation_abort()
+    end if
+
+    this%ntype = this%ntype + 1
+    this%icode(this%ntype) = igas
+    this%is_present(igas)              = .true.
+    this%iunits(igas)                  = iunits
+    this%is_well_mixed(igas)           = .true.
+
+    if (use_mixing_ratio_2d) then
+      this%ngas2d = this%ngas2d + 1
+      this%index(igas) = this%ngas2d
+      do jk = 1,this%nlev
+        this%mixing_ratio_2d(:,jk,this%ngas2d) = mixing_ratio(jk)
+      end do
+    else
+      this%ngas1d = this%ngas1d + 1
+      ! Map uses a negative value to indicate a well-mixed value
+      this%index(igas) = -this%ngas1d
+      do jk = 1,this%nlev
+        this%mixing_ratio_1d(jk,this%ngas1d) = mixing_ratio(jk)
+      end do
+    end if
+    
+    if (present(scale_factor)) then
+      this%scale_factor(igas) = scale_factor
+    else
+      this%scale_factor(igas) = 1.0_jprb
+    end if
+
+    if (lhook) call dr_hook('radiation_gas:put_1d',1,hook_handle)
+
+  end subroutine put_1d_gas
 
   !---------------------------------------------------------------------
   ! Scale gas concentrations, e.g. igas=ICO2 and set scale_factor=2 to
@@ -349,12 +556,15 @@ contains
   ! dimensionless volume mixing ratios, then the values would be
   ! internally divided by 1.0e-6.
   recursive subroutine set_units_gas(this, iunits, igas, scale_factor)
+
+    use radiation_io,     only : nulerr, radiation_abort
+
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: iunits
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor
 
-    integer :: ig
+    integer :: ig, jg
 
     ! Scaling factor to convert from old to new
     real(jprb) :: sf
@@ -387,7 +597,17 @@ contains
         sf = sf * this%scale_factor(igas)
 
         if (sf /= 1.0_jprb) then
-          this%mixing_ratio(:,:,igas) = this%mixing_ratio(:,:,igas) * sf
+          ig = this%index(igas)
+          if (ig > 0) then
+            this%mixing_ratio_2d(:,:,ig) = this%mixing_ratio_2d(:,:,ig) * sf
+          else if (ig < 0) then
+            ig = -ig;
+            this%mixing_ratio_1d(:,ig) = this%mixing_ratio_1d(:,ig) * sf
+          else
+            write(nulerr,'(a,a)') '*** Error: attempt to set units of missing gas ', &
+                 &  trim(GasName(igas))
+            call radiation_abort()
+          end if
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
@@ -395,30 +615,55 @@ contains
         this%scale_factor(igas) = new_sf
       end if
     else
-      do ig = 1,this%ntype
-        call this%set_units(iunits, igas=this%icode(ig), scale_factor=new_sf)
+      do jg = 1,this%ntype
+        call this%set_units(iunits, igas=this%icode(jg), scale_factor=new_sf)
       end do
     end if
 
   end subroutine set_units_gas
 
+  
+  !---------------------------------------------------------------------
+  ! Return a vector indicating the scaling that one would need to
+  ! apply to each gas in order to obtain the dimension units in
+  ! "iunits" (which can be IVolumeMixingRatio or IMassMixingRatio)
+  subroutine get_scaling(this, iunits, scaling)
+    class(gas_type), intent(in)  :: this
+    integer,         intent(in)  :: iunits
+    real(jprb),      intent(out) :: scaling(NMaxGases)
+    integer :: jg
+    
+    scaling = this%scale_factor
+    do jg = 1,NMaxGases
+      if (iunits == IMassMixingRatio .and. this%iunits(jg) == IVolumeMixingRatio) then
+        scaling(jg) = scaling(jg) * GasMolarMass(jg) / AirMolarMass
+      else if (iunits == IVolumeMixingRatio .and. this%iunits(jg) == IMassMixingRatio) then
+        scaling(jg) = scaling(jg) * AirMolarMass / GasMolarMass(jg)
+      end if
+    end do
+    
+  end subroutine get_scaling
 
+  
   !---------------------------------------------------------------------
   ! Assert that gas mixing ratio units are "iunits", applying to gas
   ! with ID "igas" if present, otherwise to all gases. Otherwise the
-  ! program will exit. Otional argument scale factor specifies any
-  ! subsequent multiplication to apply; for PPMV one would use
-  ! iunits=IVolumeMixingRatio and scale_factor=1.0e6.
-  recursive subroutine assert_units_gas(this, iunits, igas, scale_factor)
+  ! program will exit, except if the optional argument "istatus" is
+  ! provided in which case it will return true if the units are
+  ! correct and false if they are not. Optional argument scale factor
+  ! specifies any subsequent multiplication to apply; for PPMV one
+  ! would use iunits=IVolumeMixingRatio and scale_factor=1.0e6.
+  recursive subroutine assert_units_gas(this, iunits, igas, scale_factor, istatus)
 
     use radiation_io,   only : nulerr, radiation_abort
 
-    class(gas_type),      intent(in) :: this
-    integer,              intent(in) :: iunits
-    integer,    optional, intent(in) :: igas
-    real(jprb), optional, intent(in) :: scale_factor
+    class(gas_type),      intent(in)  :: this
+    integer,              intent(in)  :: iunits
+    integer,    optional, intent(in)  :: igas
+    real(jprb), optional, intent(in)  :: scale_factor
+    logical,    optional, intent(out) :: istatus
 
-    integer :: ig
+    integer :: jg
 
     real(jprb) :: sf
 
@@ -428,26 +673,59 @@ contains
       sf = 1.0_jprb
     end if
 
+    if (present(istatus)) then
+      istatus = .true.
+    end if
+    
     if (present(igas)) then
       if (this%is_present(igas)) then
         if (iunits /= this%iunits(igas)) then
-          write(nulerr,'(a,a,a)') '*** Error: ', trim(GasName(igas)), &
-               &  ' is not in the required units'
-          call radiation_abort()
+          if (present(istatus)) then
+            istatus = .false.
+          else
+            write(nulerr,'(a,a,a)') '*** Error: ', trim(GasName(igas)), &
+                 &  ' is not in the required units'
+            call radiation_abort()
+          end if
         else if (sf /= this%scale_factor(igas)) then
-          write(nulerr,'(a,a,a,e12.4,a,e12.4)') '*** Error: ', GasName(igas), &
-               &  ' scaling of ', this%scale_factor(igas), &
-               &  ' does not match required ', sf
-          call radiation_abort()
+          if (present(istatus)) then
+            istatus = .false.
+          else
+            write(nulerr,'(a,a,a,e12.4,a,e12.4)') '*** Error: ', GasName(igas), &
+                 &  ' scaling of ', this%scale_factor(igas), &
+                 &  ' does not match required ', sf
+            call radiation_abort()
+          end if
         end if
       end if
     else
-      do ig = 1,this%ntype
-        call this%assert_units(iunits, igas=this%icode(ig), scale_factor=sf)
+      do jg = 1,this%ntype
+        call this%assert_units(iunits, igas=this%icode(jg), scale_factor=sf, istatus=istatus)
       end do
     end if
 
   end subroutine assert_units_gas
+
+  !---------------------------------------------------------------------
+  ! Assert that all gases are present and two dimensional, needed by
+  ! the IFS-RRTM gas optics scheme. This is achieved if allocate is
+  ! called with do_zero_fill=.true. and nmax1d=0. The result is then
+  ! that any gases that have not been "put" into the structure have an
+  ! index pointing to a part of the mixing_ratio_2d array containing
+  ! only zeros.
+  subroutine assert_all_present_2d_gas(this)
+
+    use radiation_io,   only : nulerr, radiation_abort
+
+    class(gas_type),      intent(in) :: this
+
+    if (any(this%index <= 0)) then
+      write(nulerr,'(a)') '*** Error: some gases not present or stored as single profiles,' &
+           &  // ' not compatible with requested gas optics scheme'
+      call radiation_abort()
+    end if
+
+  end subroutine assert_all_present_2d_gas
 
 
   !---------------------------------------------------------------------
@@ -468,7 +746,7 @@ contains
     integer,    optional, intent(in)  :: istartcol
 
     real(jprb)                        :: sf
-    integer                           :: i1, i2
+    integer                           :: i1, i2, ig
 
     real(jphook) :: hook_handle
 
@@ -513,10 +791,20 @@ contains
       end if
       sf = sf * this%scale_factor(igas)
 
-      if (sf /= 1.0_jprb) then
-        mixing_ratio = this%mixing_ratio(i1:i2,:,igas) * sf
+      ig = this%index(igas)
+      if (ig > 0) then
+        if (sf /= 1.0_jprb) then
+          mixing_ratio = this%mixing_ratio_2d(i1:i2,:,ig) * sf
+        else
+          mixing_ratio = this%mixing_ratio_2d(i1:i2,:,ig)
+        end if
       else
-        mixing_ratio = this%mixing_ratio(i1:i2,:,igas)
+        ig = -ig
+        if (sf /= 1.0_jprb) then
+          mixing_ratio = spread(this%mixing_ratio_1d(:,ig) * sf,1,i2-i1+1)
+        else
+          mixing_ratio = spread(this%mixing_ratio_1d(:,ig),1,i2-i1+1)
+        end if
       end if
     end if
 
@@ -542,13 +830,25 @@ contains
     gas_rev%ncol = this%ncol
     gas_rev%nlev = this%nlev
     gas_rev%icode = this%icode
+    gas_rev%nmaxgas2d = this%nmaxgas2d
+    gas_rev%nmaxgas1d = this%nmaxgas1d
+    gas_rev%ngas2d = this%ngas2d
+    gas_rev%ngas1d = this%ngas1d
+    gas_rev%ntype = this%ntype
+    gas_rev%index = this%index
 
-    if (allocated(gas_rev%mixing_ratio)) deallocate(gas_rev%mixing_ratio)
-
-    if (allocated(this%mixing_ratio)) then
-      allocate(gas_rev%mixing_ratio(istartcol:iendcol,this%nlev,NMaxGases))
-      gas_rev%mixing_ratio(istartcol:iendcol,:,:) &
-           &  = this%mixing_ratio(istartcol:iendcol,this%nlev:1:-1,:)
+    if (allocated(gas_rev%mixing_ratio_2d)) deallocate(gas_rev%mixing_ratio_2d)
+    if (allocated(this%mixing_ratio_2d)) then
+      allocate(gas_rev%mixing_ratio_2d(istartcol:iendcol,this%nlev,this%nmaxgas2d))
+      gas_rev%mixing_ratio_2d(istartcol:iendcol,:,:) &
+           &  = this%mixing_ratio_2d(istartcol:iendcol,this%nlev:1:-1,:)
+    end if
+    
+    if (allocated(gas_rev%mixing_ratio_1d)) deallocate(gas_rev%mixing_ratio_1d)
+    if (allocated(this%mixing_ratio_1d)) then
+      allocate(gas_rev%mixing_ratio_1d(this%nlev,this%nmaxgas1d))
+      gas_rev%mixing_ratio_1d(:,:) &
+           &  = this%mixing_ratio_1d(this%nlev:1:-1,:)
     end if
 
   end subroutine reverse_gas
@@ -559,7 +859,7 @@ contains
   function out_of_physical_bounds(this, istartcol, iendcol, do_fix) result(is_bad)
 
     use yomhook,          only : lhook, dr_hook, jphook
-    use radiation_check,  only : out_of_bounds_3d
+    use radiation_check,  only : out_of_bounds_3d, out_of_bounds_2d
 
     class(gas_type),   intent(inout) :: this
     integer,  optional,intent(in) :: istartcol, iendcol
@@ -578,9 +878,14 @@ contains
       do_fix_local = .false.
     end if
 
-    is_bad = out_of_bounds_3d(this%mixing_ratio, 'gas%mixing_ratio', &
+    is_bad = out_of_bounds_3d(this%mixing_ratio_2d, 'gas%mixing_ratio_2d', &
          &                    0.0_jprb, 1.0_jprb, do_fix_local, i1=istartcol, i2=iendcol)
+    if (allocated(this%mixing_ratio_1d)) then
+      is_bad = is_bad .or. out_of_bounds_2d(this%mixing_ratio_1d, 'gas%mixing_ratio_1d', &
+           &                    0.0_jprb, 1.0_jprb, do_fix_local)
 
+    end if
+    
     if (lhook) call dr_hook('radiation_gas:out_of_physical_bounds',1,hook_handle)
 
   end function out_of_physical_bounds

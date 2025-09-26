@@ -370,10 +370,12 @@ contains
         end if
 
         flux%sw_dn_diffuse_surf_g(:,jcol) = 0.0_jprb
-        flux%sw_dn_direct_surf_g(:,jcol)  = 0.0_jprb
+        flux%sw_dn_direct_surf_g (:,jcol) = 0.0_jprb
+        flux%sw_up_toa_g         (:,jcol) = 0.0_jprb
         if (config%do_clear) then
           flux%sw_dn_diffuse_surf_clear_g(:,jcol) = 0.0_jprb
-          flux%sw_dn_direct_surf_clear_g(:,jcol)  = 0.0_jprb
+          flux%sw_dn_direct_surf_clear_g (:,jcol) = 0.0_jprb
+          flux%sw_up_toa_clear_g         (:,jcol) = 0.0_jprb
         end if
 
         cycle
@@ -1383,13 +1385,15 @@ end if
 
       ! Store the TOA broadband fluxes
       flux%sw_up(jcol,1) = sum(sum(flux_up_above,1))
-      flux%sw_dn(jcol,1) = mu0 * sum(direct_dn_clear(:))
+      flux%sw_dn(jcol,1) = mu0 * sum(incoming_sw(:,jcol))
+      flux%sw_up_toa_g(:,jcol) = sum(flux_up_above,2)
       if (allocated(flux%sw_dn_direct)) then
         flux%sw_dn_direct(jcol,1) = flux%sw_dn(jcol,1)
       end if
       if (config%do_clear) then
         flux%sw_up_clear(jcol,1) = sum(flux_up_clear)
         flux%sw_dn_clear(jcol,1) = flux%sw_dn(jcol,1)
+        flux%sw_up_toa_clear_g(:,jcol) = flux_up_clear
         if (allocated(flux%sw_dn_direct_clear)) then
           flux%sw_dn_direct_clear(jcol,1) = flux%sw_dn_clear(jcol,1)
         end if

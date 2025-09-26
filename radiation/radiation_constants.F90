@@ -31,5 +31,6 @@ module radiation_constants
   real(jprb), parameter :: PlanckConstant     = 6.6260695729e-34_jprb ! J s
   real(jprb), parameter :: BoltzmannConstant  = 1.380648813e-23_jprb ! J K-1
   real(jprb), parameter :: SpeedOfLight       = 299792458.0_jprb ! m s-1
+  real(jprb), parameter :: PlanetRadius       = 6371.0e3_jprb ! m
 
 end module radiation_constants

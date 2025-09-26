@@ -50,6 +50,10 @@ module easy_netcdf
     integer :: i_permute_3d(3) = (/1,2,3/) ! New order of dimensions
     integer :: i_permute_4d(4) = (/1,2,3,4/) ! New order of dimensions
     character(len=511) :: file_name
+    integer :: deflate_level    = 0 ! Default deflate level
+    integer :: min_dims_deflate = 1 ! ...applied to variables with at least this many dimension
+    logical :: shuffle              ! ...possibly with shuffling of bytes
+
   contains
     procedure :: open => open_netcdf_file
     procedure :: create => create_netcdf_file
@@ -91,11 +95,12 @@ module easy_netcdf
     procedure :: put_int_vector
     procedure :: put_real_matrix
     procedure :: put_real_array3
+    procedure :: put_real_array4
     procedure :: put_real_scalar_indexed
     procedure :: put_real_vector_indexed
     procedure :: put_real_matrix_indexed
     generic   :: put => put_real_scalar, put_real_vector, &
-         &              put_real_matrix, put_real_array3, &
+         &              put_real_matrix, put_real_array3, put_real_array4, &
          &              put_real_scalar_indexed, put_real_vector_indexed, &
          &              put_real_matrix_indexed, put_int_vector
     procedure :: set_verbose
@@ -107,6 +112,7 @@ module easy_netcdf
     procedure :: get_outer_dimension
     procedure :: attribute_exists
     procedure :: global_attribute_exists
+    procedure :: deflate_policy
 #ifdef NC_NETCDF4
     procedure :: copy_dimensions
 #endif
@@ -161,11 +167,11 @@ contains
 
     ! Open file according to write mode
     if (.not. this%is_write_mode) then
-      istatus = nf90_open(file_name, NF90_NOWRITE, this%ncid)
       if (this%iverbose >= 2) then
-        write(nulout,'(a,a)') 'Reading NetCDF file ', file_name
+        write(nulout,'(a,a,a)') 'Reading NetCDF file "', file_name, '"'
         !write(nulout,'(a,a,a,i0,a)') 'Reading NetCDF file ', file_name, ' (ID=', this%ncid, ')'
       end if
+      istatus = nf90_open(file_name, NF90_NOWRITE, this%ncid)
       this%is_define_mode = .false.
     else
       i_write_mode = NF90_CLOBBER
@@ -345,7 +351,27 @@ contains
 
   end subroutine permute_4d_arrays
 
+  
+  !---------------------------------------------------------------------
+  ! Specify the default compression (deflate) policy: all variables
+  ! with at least "min_dims" dimensions will be compressed with
+  ! "deflate_level" compression (0-9, where 0=no compression) and
+  ! "shuffle" indicating whether each byte is compressed together.
+  ! This can be overridden if the user provides "deflate_level" when
+  ! defining a variable, which is the only case in which chunksizes
+  ! can be user-specified.
+  subroutine deflate_policy(this, min_dims, deflate_level, shuffle)
+    class(netcdf_file)  :: this
+    integer, intent(in) :: min_dims, deflate_level
+    logical, intent(in) :: shuffle
 
+    this%min_dims_deflate = min_dims
+    this%deflate_level    = deflate_level
+    this%shuffle          = shuffle
+    
+  end subroutine deflate_policy
+  
+  
   ! --- PRIVATE SUBROUTINES ---
 
   !---------------------------------------------------------------------
@@ -2061,8 +2087,18 @@ contains
 
     ! Define variable
 #ifdef NC_NETCDF4
-    istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), &
-         & ivarid, deflate_level=deflate_level, shuffle=shuffle, chunksizes=chunksizes)
+    if (present(deflate_level)) then
+      ! Deflate level provided by user (optionally also shuffle and chunksizes)
+      istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), &
+           & ivarid, deflate_level=deflate_level, shuffle=shuffle, chunksizes=chunksizes)
+    else if (this%deflate_level > 0 .and. ndims_local >= this%min_dims_deflate) then
+      ! Use default deflate level previously set for this file
+      istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), &
+           & ivarid, deflate_level=this%deflate_level, shuffle=this%shuffle, chunksizes=chunksizes)
+    else
+      ! No compression
+      istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), ivarid)
+    end if
 #else
     istatus = nf90_def_var(this%ncid, var_name, data_type, idimids(1:ndims_local), ivarid)
 #endif
@@ -2645,9 +2681,9 @@ contains
         write(nulout,'(a,a,a,i0,i0,i0,a)') '  Writing ', var_name, &
              & ' (permuting dimensions: ', i_permute_3d, ')'
       end if
-      n_dimlens_permuted = (/ size(var,i_permute_3d(1)), &
-           &                  size(var,i_permute_3d(2)), &
-           &                  size(var,i_permute_3d(3))  /)
+      n_dimlens_permuted = [ size(var,i_permute_3d(1)), &
+           &                 size(var,i_permute_3d(2)), &
+           &                 size(var,i_permute_3d(3))  ]
       !! FIX: This makes it look like the dimensions have stayed the same
       ! if (this%iverbose >= 4) then
       !   write(nulout,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') '    (', &
@@ -2678,6 +2714,93 @@ contains
     end if
 
   end subroutine put_real_array3
+
+  
+  !---------------------------------------------------------------------
+  ! Save a 4D array with name var_name in the file.  The optional
+  ! argument permute specifies that the dimensions should first be
+  ! permuted according to the three integers therein (or if
+  ! permute_4d_arrays has already been called). ipermute is
+  ! interpretted such that if OLD and NEW are 4-element vectors
+  ! containing the size of each dimension in memory and in the written
+  ! file, respectively, then NEW=OLD(ipermute).
+  subroutine put_real_array4(this, var_name, var, ipermute)
+    class(netcdf_file)             :: this
+    character(len=*), intent(in)   :: var_name
+    real(jprb), intent(in)         :: var(:,:,:,:)
+    real(jprb), allocatable        :: var_permute(:,:,:,:)
+    integer, optional, intent(in)  :: ipermute(4)
+
+    integer :: ivarid, ndims, nvarlen, istatus
+    integer(kind=jpib) :: ntotal
+    integer :: ndimlens(NF90_MAX_VAR_DIMS)
+
+    logical :: do_permute          ! Do we permute?
+    integer :: i_permute_4d(4)
+    integer :: n_dimlens_permuted(4)
+    integer :: i_order(4)
+
+    ! Decide whether to permute
+    if (present(ipermute)) then
+      do_permute   = .true.
+      i_permute_4d = ipermute
+    else
+      do_permute   = this%do_permute_4d
+      i_permute_4d = this%i_permute_4d
+    end if
+
+    call this%end_define_mode()
+
+    ! Check total size
+    call this%get_variable_id(var_name, ivarid)
+    call this%get_array_dimensions(ivarid, ndims, ndimlens, ntotal)
+    nvarlen = size(var,1)*size(var,2)*size(var,3)*size(var,4)
+    if (ntotal /= size(var,kind=jpib)) then
+      write(nulerr,'(a,i0,a,a,a,i0)') '*** Error: attempt to write array of total size ', &
+           & nvarlen, ' to ', var_name, ' which has total size ', ntotal
+      call my_abort('Error writing NetCDF file')
+    end if
+
+    if (do_permute) then
+      ! Save array after permuting dimensions
+      if (this%iverbose >= 3) then
+        write(nulout,'(a,a,a,i0,i0,i0,a)') '  Writing ', var_name, &
+             & ' (permuting dimensions: ', i_permute_4d, ')'
+      end if
+      n_dimlens_permuted = [ size(var,i_permute_4d(1)), &
+           &                 size(var,i_permute_4d(2)), &
+           &                 size(var,i_permute_4d(3)), &
+           &                 size(var,i_permute_4d(4)) ]
+      !! FIX: This makes it look like the dimensions have stayed the same
+      ! if (this%iverbose >= 4) then
+      !   write(nulout,'(a,i0,a,i0,a,i0,a,i0,a,i0,a,i0,a)') '    (', &
+      !        &  n_dimlens_permuted(1), ',', n_dimlens_permuted(2), &
+      !        &  ',', n_dimlens_permuted(3), ') -> (', ndimlens(1), &
+      !        &  ',', ndimlens(2), ',', ndimlens(3), ')'
+      ! end if
+      allocate(var_permute(n_dimlens_permuted(1), &
+           &   n_dimlens_permuted(2), n_dimlens_permuted(3), n_dimlens_permuted(4)))
+      ! Due to the odd way that ORDER works in Fortran RESHAPE, we
+      ! need to do this:
+      i_order(i_permute_4d) = [ 1, 2, 3, 4 ]
+      var_permute = reshape(var, n_dimlens_permuted, order=i_order)
+      istatus = nf90_put_var(this%ncid, ivarid, var_permute)
+      deallocate(var_permute)
+    else
+      ! Save array without permuting dimensions
+      if (this%iverbose >= 3) then
+        write(nulout,'(a,a)') '  Writing ', var_name
+      end if
+      istatus = nf90_put_var(this%ncid, ivarid, var)
+    end if
+
+    if (istatus /= NF90_NOERR) then
+      write(nulerr,'(a,a,a,a)') '*** Error writing array ', var_name, &
+           &                    ': ', trim(nf90_strerror(istatus))
+      call my_abort('Error writing NetCDF file')
+    end if
+
+  end subroutine put_real_array4
 
 
 #ifdef NC_NETCDF4

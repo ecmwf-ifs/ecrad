@@ -24,8 +24,17 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_gas_constants.F90 radiation_ecckd_gas.F90 \
 	radiation_spectral_definition.F90 radiation_general_cloud_optics.F90 \
 	radiation_general_cloud_optics_data.F90 radiation_random_numbers.F90 \
-	radiation_aerosol_optics_description.F90 \
-	radiation_adept_tripleclouds_lw.F90
+	radiation_adept_tripleclouds_lw.F90 \
+	radiation_tcrad_lw.F90 radiation_gen_gauss_laguerre.F90 \
+	radiation_optimal_columns.F90 radiation_gauss_lognormal.F90 \
+	radiation_gauss_gamma.F90 radiation_gauss_logbeta.F90 \
+	radiation_gauss_logbeta_skewness.F90 \
+	radiation_aerosol_optics_description.F90 radiation_disort_lw.F90 \
+	radiation_gaussian_quadrature.F90 radiation_disort_sw.F90
+
+ifdef FLOTSAM_DIR
+SOURCES += radiation_flotsam_sw.F90 
+endif
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBRAD = ../lib/libradiation.a
@@ -54,7 +63,14 @@ radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o \
 	radiation_tcrad_lw.o \
 	radiation_ecckd_interface.o radiation_general_cloud_optics.o \
-	radiation_adept_tripleclouds_lw.o
+	radiation_adept_tripleclouds_lw.o \
+	radiation_disort_lw.o radiation_disort_sw.o
+
+ifdef FLOTSAM_DIR
+radiation_interface.o: radiation_flotsam_sw.o
+endif
+
+radiation_disort_lw.o radiation_disort_sw.o: radiation_gaussian_quadrature.o
 radiation_ifs_rrtm.o radiation_monochromatic.o: radiation_config.o \
 	radiation_thermodynamics.o radiation_gas.o radiation_single_level.o
 radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_mcica_sw.o \
@@ -92,13 +108,19 @@ radiation_cloud_generator.o radiation_config.o:	radiation_pdf_sampler.o \
 	radiation_cloud_cover.o radiation_random_numbers.o
 radiation_lw_derivatives.o: radiation_matrix.o
 radiation_tcrad_lw.o: radiation_config.o radiation_cloud.o radiation_flux.o
-radiation_config.o: radiation_cloud_generator.o radiation_ecckd.o radiation_general_cloud_optics_data.o
+radiation_config.o: radiation_cloud_generator.o radiation_ecckd.o \
+	radiation_general_cloud_optics_data.o radiation_gaussian_quadrature.o
+
 radiation_aerosol_optics.F90 radiation_cloud_optics.F90 radiation_homogeneous_sw.F90 \
 	radiation_mcica_sw.F90 radiation_cloudless_sw.o: radiation_delta_eddington.h
-radiation_spartacus_sw.o radiation_spartacus_lw.o \
+radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_flotsam_sw.o \
 	radiation_tripleclouds_sw.o radiation_tripleclouds_lw.o: \
 	radiation_optical_depth_scaling.h radiation_overlap.o \
-	radiation_matrix.o radiation_flux.o radiation_regions.o
+	radiation_matrix.o radiation_flux.o radiation_regions.o radiation_single_level.o
+
+radiation_flotsam_sw.o: radiation_optimal_columns.o radiation_cloud_generator.o
+radiation_optimal_columns.o: radiation_gen_gauss_laguerre.o radiation_gauss_lognormal.o \
+	radiation_gauss_gamma.o radiation_gauss_logbeta.o radiation_gauss_logbeta_skewness.o
 radiation_ecckd.o: radiation_ecckd_gas.o radiation_spectral_definition.o
 radiation_ecckd_gas.o: radiation_gas_constants.o
 radiation_ecckd_interface.o: radiation_config.o radiation_single_level.o radiation_thermodynamics.o \
@@ -106,7 +128,7 @@ radiation_ecckd_interface.o: radiation_config.o radiation_single_level.o radiati
 
 radiation_gas.o radiation_single_level.o radiation_thermodynamics.o \
 	radiation_flux.o radiation_aerosol.o: radiation_check.o
-
+radiation_flux.o: radiation_ecckd.o
 radiation_gas.o: radiation_gas_constants.o
 
 radiation_general_cloud_optics_data.o: radiation_spectral_definition.o

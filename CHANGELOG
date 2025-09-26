@@ -1,4 +1,8 @@
-version 1.6.1
+version 1.6.2
+	- Shortwave diagnostics can return spectral solar irradiance to
+	  facilitate computing spectral reflectances
+
+version 1.6.1 (13 August 2024)
 	- radiation_cloud:set_overlap_param now has alternative form in
 	  which input decorrelation_length may vary with column, useful for
 	  models with a latitudinal or other dependence
@@ -18,6 +22,26 @@ version 1.6.1
 	  optimization options as preprocessor parameters
 	- Replaced slow "sum" intrinsic function in McICA and Tripleclouds
 	  solvers with optimized versions for x86-64 and DWD's NEC
+	- Added use_tcrad_exact_solution which computes radiances from an
+	  exact analytic description of the flux profile consistent with the
+	  two-stream equations
+	- Enable different gas optics models for shortwave and longwave:
+	  namelist gas_model_name can still be used, or use
+	  sw_gas_model_name and lw_gas_model_name to specify separate models
+	- Fix the general aerosol optics + RRTMG combination, so that
+	  optical properties correctly weighted by solar or terrestrial
+	  Planck function, rather than unweighted. This changes fluxes by up
+	  to 0.3 W m-2 in SW and 0.03 in LW, heating rates by up to 0.015
+	  K/d in SW and 0.0015 in LW. Reverts bug introduced between git
+	  commits a405cca (5 Dec 2022) and 7182230 (8 Dec 2022).
+	- Added ifs/satur.F90, used in the IFS to compute relative
+	  humidity for aerosol hydration, and the ability to call it from
+	  ecrad_driver.F90, but note that this routine computes saturation
+	  with respect to ice at colder temperatures. If used, the impact on
+	  fluxes is up to around 1 W m-2 in the SW and 0.05 in the LW, and
+	  for heating rates 0.002 K/d in the SW and 0.003 in the LW.
+	- Provide get_uv_biological_weights to enable calculation of UV
+	  index from shortwave g-points (ecCKD only)
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran
@@ -40,6 +64,7 @@ version 1.6.0 (27 April 2023)
 version 1.5.1 (8 December 2022)
 	- Added Makefile_include.intel_atos to match compiler options on
 	  ECMWF supercomputer, plus "-heap-arrays" which is necessary for
+	  the Intel compiler
 	- Fix occasional crash in single-precision fast_expm_exchange_3
 	  for shortwave SPARTACUS entrapment
 	- Fixed radiation_random_numbers.F90 in single precision
@@ -81,6 +106,12 @@ version 1.5.1 (8 December 2022)
 	- Added Tripleclouds Radiance (TCRAD) capability including both
 	  flux and radiance solvers, including Eddington and two-stream
 	  modes
+	- Added capability to read cloud optical properties a function of
+	  water content (kg m-3) and temperature, rather than effective
+	  radius, useful for RTTOV comparisons
+	- Override cloud fraction with
+	  driver_config%cloud_fraction_override, useful for files with no
+	  cloud fraction variable
 
 version 1.5.0 (22 May 2022)
 	- Added ecCKD gas optics scheme and generalized cloud description

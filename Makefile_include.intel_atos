@@ -36,5 +36,12 @@ BASICFLAGS = -module ../mod -fpe0 -assume byterecl -align array64byte \
 	   -traceback -fpic -fp-model precise -heap-arrays \
 	   -fp-speculation=safe -fast-transcendentals -ftz \
 	   -finline-functions -finline-limit=1500 -Winline -assume realloc_lhs
+
+#	    -heap-arrays 
+
 DEBUGFLAGS = -g
 OMPFLAG = -qopenmp -qopenmp-threadprivate=compat
+
+# The following is only used in compiling DISORT, which uses an
+# unqualified "real" type which defaults to single precision
+FORCEDOUBLEFLAGS = -real-size 64 -double-size 64
