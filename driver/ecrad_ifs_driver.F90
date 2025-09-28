@@ -82,8 +82,8 @@ program ecrad_ifs_driver
   type(single_level_type)   :: single_level
   type(thermodynamics_type) :: thermodynamics
   type(gas_type)            :: gas
-  type(cloud_type)          :: cloud
-  type(aerosol_type)        :: aerosol
+  type(cloud_type), target  :: cloud
+  type(aerosol_type), target:: aerosol
 
   ! Configuration specific to this driver
   type(driver_config_type)  :: driver_config
@@ -99,6 +99,13 @@ program ecrad_ifs_driver
        &  flux_incoming, emissivity_out
   real(jprb), allocatable, dimension(:,:) :: flux_diffuse_band, flux_direct_band
   real(jprb), allocatable, dimension(:,:) :: cloud_fraction, cloud_q_liq, cloud_q_ice
+
+  ! Pointers to avoid segfaults when aerosols or clouds are not allocated
+  real(jprb), pointer, dimension(:,:,:) :: aerosol_mixing_ratio => NULL()
+#ifdef BITIDENTITY_TESTING
+  real(jprb), pointer, dimension(:,:)   :: cloud_re_liq => NULL(), cloud_re_ice => NULL()
+  real(jprb), pointer, dimension(:,:)   :: cloud_overlap_param => NULL()
+#endif
 
   integer :: ncol, nlev         ! Number of columns and levels
   integer :: istartcol, iendcol ! Range of columns to process
@@ -315,21 +322,21 @@ program ecrad_ifs_driver
   call flux%allocate(yradiation%rad_config, 1, ncol, nlev)
 
   ! set relevant fluxes to zero
-  flux%lw_up(:,:) = 0._jprb
-  flux%lw_dn(:,:) = 0._jprb
-  flux%sw_up(:,:) = 0._jprb
-  flux%sw_dn(:,:) = 0._jprb
-  flux%sw_dn_direct(:,:) = 0._jprb
-  flux%lw_up_clear(:,:) = 0._jprb
-  flux%lw_dn_clear(:,:) = 0._jprb
-  flux%sw_up_clear(:,:) = 0._jprb
-  flux%sw_dn_clear(:,:) = 0._jprb
-  flux%sw_dn_direct_clear(:,:) = 0._jprb
+  if(allocated(flux%lw_up)) flux%lw_up(:,:) = 0._jprb
+  if(allocated(flux%lw_dn)) flux%lw_dn(:,:) = 0._jprb
+  if(allocated(flux%sw_up)) flux%sw_up(:,:) = 0._jprb
+  if(allocated(flux%sw_dn)) flux%sw_dn(:,:) = 0._jprb
+  if(allocated(flux%sw_dn_direct)) flux%sw_dn_direct(:,:) = 0._jprb
+  if(allocated(flux%lw_up_clear)) flux%lw_up_clear(:,:) = 0._jprb
+  if(allocated(flux%lw_dn_clear)) flux%lw_dn_clear(:,:) = 0._jprb
+  if(allocated(flux%sw_up_clear)) flux%sw_up_clear(:,:) = 0._jprb
+  if(allocated(flux%sw_dn_clear)) flux%sw_dn_clear(:,:) = 0._jprb
+  if(allocated(flux%sw_dn_direct_clear)) flux%sw_dn_direct_clear(:,:) = 0._jprb
 
-  flux%lw_dn_surf_canopy(:,:) = 0._jprb
-  flux%sw_dn_diffuse_surf_canopy(:,:) = 0._jprb
-  flux%sw_dn_direct_surf_canopy(:,:) = 0._jprb
-  flux%lw_derivatives(:,:) = 0._jprb
+  if(allocated(flux%lw_dn_surf_canopy)) flux%lw_dn_surf_canopy(:,:) = 0._jprb
+  if(allocated(flux%sw_dn_diffuse_surf_canopy)) flux%sw_dn_diffuse_surf_canopy(:,:) = 0._jprb
+  if(allocated(flux%sw_dn_direct_surf_canopy)) flux%sw_dn_direct_surf_canopy(:,:) = 0._jprb
+  if(allocated(flux%lw_derivatives)) flux%lw_derivatives(:,:) = 0._jprb
 
   ! Allocate memory for additional arrays
   allocate(ccn_land(ncol))
@@ -362,11 +369,20 @@ program ecrad_ifs_driver
     cloud_fraction = cloud%fraction
     cloud_q_liq = cloud%q_liq
     cloud_q_ice = cloud%q_ice
+#ifdef BITIDENTITY_TESTING
+    cloud_re_liq => cloud%re_liq
+    cloud_re_ice => cloud%re_ice
+    cloud_overlap_param => cloud%overlap_param
+#endif
   else
     cloud_fraction = 0.0_jprb
     cloud_q_liq = 0.0_jprb
     cloud_q_ice = 0.0_jprb
-  endif
+  end if
+
+  if (allocated(aerosol%mixing_ratio)) then
+    aerosol_mixing_ratio => aerosol%mixing_ratio
+  end if
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -406,7 +422,7 @@ program ecrad_ifs_driver
         ! Call the ECRAD radiation scheme; note that we are simply
         ! passing arrays in rather than ecRad structures, which are
         ! used here just for convenience
-        call radiation_scheme(yradiation, istartcol, iendcol, ncol, nlev, size(aerosol%mixing_ratio,3), &
+        call radiation_scheme(yradiation, istartcol, iendcol, ncol, nlev, yradiation%rad_config%n_aerosol_types, &
              &  single_level%solar_irradiance, single_level%cos_sza, single_level%skin_temperature, &
              &  single_level%sw_albedo, single_level%sw_albedo_direct, single_level%lw_emissivity, &
              &  ccn_land, ccn_sea, longitude_rad, sin_latitude, land_frac, pressure_fl, temperature_fl, &
@@ -415,7 +431,7 @@ program ecrad_ifs_driver
              &  gas%mixing_ratio(:,:,ICH4), gas%mixing_ratio(:,:,IN2O), gas%mixing_ratio(:,:,INO2), &
              &  gas%mixing_ratio(:,:,ICFC11), gas%mixing_ratio(:,:,ICFC12), gas%mixing_ratio(:,:,IHCFC22), &
              &  gas%mixing_ratio(:,:,ICCl4), gas%mixing_ratio(:,:,IO3), cloud_fraction, cloud_q_liq, &
-             &  cloud_q_ice, zeros, zeros, tegen_aerosol, aerosol%mixing_ratio, flux%sw_up, flux%lw_up, &
+             &  cloud_q_ice, zeros, zeros, tegen_aerosol, aerosol_mixing_ratio, flux%sw_up, flux%lw_up, &
              &  flux%sw_up_clear, flux%lw_up_clear, flux%sw_dn(:,nlev+1), flux%lw_dn(:,nlev+1), &
              &  flux%sw_dn_clear(:,nlev+1), flux%lw_dn_clear(:,nlev+1), &
              &  flux%sw_dn_direct(:,nlev+1), flux%sw_dn_direct_clear(:,nlev+1), flux_sw_direct_normal, &
@@ -425,8 +441,8 @@ program ecrad_ifs_driver
 #ifdef BITIDENTITY_TESTING
             ! To validate results against standalone ecrad, we overwrite effective
             ! radii, cloud overlap and seed with input values
-             &  ,pre_liq=cloud%re_liq, pre_ice=cloud%re_ice, &
-             &  pcloud_overlap=cloud%overlap_param, &
+             &  ,pre_liq=cloud_re_liq, pre_ice=cloud_re_ice, &
+             &  pcloud_overlap=cloud_overlap_param, &
              &  iseed=single_level%iseed &
 #endif
              & )
@@ -450,21 +466,28 @@ program ecrad_ifs_driver
   ! "up" fluxes are actually net fluxes at this point - we modify the
   ! upwelling flux so that net=dn-up, while the TOA and surface
   ! downwelling fluxes are correct.
-  flux%sw_up = -flux%sw_up
-  flux%sw_up(:,1) = flux%sw_up(:,1)+flux%sw_dn(:,1)
-  flux%sw_up(:,nlev+1) = flux%sw_up(:,nlev+1)+flux%sw_dn(:,nlev+1)
+  if(yradiation%rad_config%do_sw) then
+    flux%sw_up = -flux%sw_up
+    flux%sw_up(:,1) = flux%sw_up(:,1)+flux%sw_dn(:,1)
+    flux%sw_up(:,nlev+1) = flux%sw_up(:,nlev+1)+flux%sw_dn(:,nlev+1)
+    if(yradiation%rad_config%do_clear) then
+      flux%sw_up_clear = -flux%sw_up_clear
+      flux%sw_up_clear(:,1) = flux%sw_up_clear(:,1)+flux%sw_dn_clear(:,1)
+      flux%sw_up_clear(:,nlev+1) = flux%sw_up_clear(:,nlev+1)+flux%sw_dn_clear(:,nlev+1)
+    endif
 
-  flux%lw_up = -flux%lw_up
-  flux%lw_up(:,1) = flux%lw_up(:,1)+flux%lw_dn(:,1)
-  flux%lw_up(:,nlev+1) = flux%lw_up(:,nlev+1)+flux%lw_dn(:,nlev+1)
+  endif
 
-  flux%sw_up_clear = -flux%sw_up_clear
-  flux%sw_up_clear(:,1) = flux%sw_up_clear(:,1)+flux%sw_dn_clear(:,1)
-  flux%sw_up_clear(:,nlev+1) = flux%sw_up_clear(:,nlev+1)+flux%sw_dn_clear(:,nlev+1)
-
-  flux%lw_up_clear = -flux%lw_up_clear
-  flux%lw_up_clear(:,1) = flux%lw_up_clear(:,1)+flux%lw_dn_clear(:,1)
-  flux%lw_up_clear(:,nlev+1) = flux%lw_up_clear(:,nlev+1)+flux%lw_dn_clear(:,nlev+1)
+  if(yradiation%rad_config%do_lw) then
+    flux%lw_up = -flux%lw_up
+    flux%lw_up(:,1) = flux%lw_up(:,1)+flux%lw_dn(:,1)
+    flux%lw_up(:,nlev+1) = flux%lw_up(:,nlev+1)+flux%lw_dn(:,nlev+1)
+    if(yradiation%rad_config%do_clear) then
+      flux%lw_up_clear = -flux%lw_up_clear
+      flux%lw_up_clear(:,1) = flux%lw_up_clear(:,1)+flux%lw_dn_clear(:,1)
+      flux%lw_up_clear(:,nlev+1) = flux%lw_up_clear(:,nlev+1)+flux%lw_dn_clear(:,nlev+1)
+    endif
+  endif
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
