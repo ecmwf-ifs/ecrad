@@ -84,8 +84,8 @@ contains
     
     ! Pressure and temperature (SI units) are on half-levels, i.e. of
     ! length (ncol,nlev+1)
-    call file%get('pressure_hl',   thermodynamics%pressure_hl)
-    call file%get('temperature_hl',thermodynamics%temperature_hl)
+    call file%get_ptr('pressure_hl',   thermodynamics%pressure_hl)
+    call file%get_ptr('temperature_hl',thermodynamics%temperature_hl)
 
     ! Extract array dimensions
     ncol = size(thermodynamics%pressure_hl,1)
@@ -135,7 +135,7 @@ contains
       end if
     else if (file%exists('cos_solar_zenith_angle')) then
       ! Single-level variables, all with dimensions (ncol)
-      call file%get('cos_solar_zenith_angle',single_level%cos_sza)
+      call file%get_ptr('cos_solar_zenith_angle',single_level%cos_sza)
     else if (.not. config%do_sw) then
       ! If cos_solar_zenith_angle not present and shortwave radiation
       ! not to be performed, we create an array of zeros as some gas
@@ -154,19 +154,19 @@ contains
       ! --------------------------------------------------------
 
       ! Read cloud descriptors with dimensions (ncol, nlev)
-      call file%get('cloud_fraction',cloud%fraction)
+      call file%get_ptr('cloud_fraction',cloud%fraction)
 
       ! Fractional standard deviation of in-cloud water content
       if (file%exists('fractional_std')) then
-        call file%get('fractional_std', cloud%fractional_std)
+        call file%get_ptr('fractional_std', cloud%fractional_std)
       end if
       
       ! Cloud water content and effective radius may be provided
       ! generically, in which case they have dimensions (ncol, nlev,
       ! ntype)
       if (file%exists('q_hydrometeor')) then
-        call file%get('q_hydrometeor',  cloud%mixing_ratio, ipermute=[2,1,3])     ! kg/kg
-        call file%get('re_hydrometeor', cloud%effective_radius, ipermute=[2,1,3]) ! m
+        call file%get_ptr('q_hydrometeor',  cloud%mixing_ratio, ipermute=[2,1,3])     ! kg/kg
+        call file%get_ptr('re_hydrometeor', cloud%effective_radius, ipermute=[2,1,3]) ! m
       else
         ! Ice and liquid properties provided in separate arrays
         allocate(cloud%mixing_ratio(ncol,nlev,2))
@@ -193,12 +193,12 @@ contains
       call single_level%init_seed_simple(1,ncol)
       ! Overwrite with user-specified values if available
       if (file%exists('iseed')) then
-        call file%get('iseed', single_level%iseed)
+        call file%get_ptr('iseed', single_level%iseed)
       end if
 
       ! Cloud overlap parameter
       if (file%exists('overlap_param')) then
-        call file%get('overlap_param', cloud%overlap_param)
+        call file%get_ptr('overlap_param', cloud%overlap_param)
       end if
 
       ! Optional scaling of liquid water mixing ratio
@@ -238,7 +238,7 @@ contains
         ! adjacent layers, stored in cloud%overlap_param
         call cloud%set_overlap_param(thermodynamics, &
              &    driver_config%overlap_decorr_length_override)
-      else if (.not. allocated(cloud%overlap_param)) then 
+      else if (.not. associated(cloud%overlap_param)) then 
         if (driver_config%iverbose >= 1) then
           write(nulout,'(a,g10.3,a)') 'Warning: overlap decorrelation length set to ', &
                &  decorr_length_default, ' m'
@@ -276,7 +276,7 @@ contains
         end if
         call cloud%create_fractional_std(ncol, nlev, &
              &  driver_config%fractional_std_override)
-      else if (.not. allocated(cloud%fractional_std)) then
+      else if (.not. associated(cloud%fractional_std)) then
         call cloud%create_fractional_std(ncol, nlev, 0.0_jprb)
         if (driver_config%iverbose >= 1) then
           write(nulout,'(a)') 'Warning: cloud optical depth fractional standard deviation set to zero'
@@ -357,12 +357,12 @@ contains
 
           is_cloud_size_scalable = .true.
 
-          call file%get('inv_cloud_effective_size', cloud%inv_cloud_effective_size)
+          call file%get_ptr('inv_cloud_effective_size', cloud%inv_cloud_effective_size)
           ! For finer control we can specify the effective size for
           ! in-cloud inhomogeneities as well
           if (file%exists('inv_inhom_effective_size')) then
             if (.not. driver_config%do_ignore_inhom_effective_size) then
-              call file%get('inv_inhom_effective_size', cloud%inv_inhom_effective_size)
+              call file%get_ptr('inv_inhom_effective_size', cloud%inv_inhom_effective_size)
             else
               if (driver_config%iverbose >= 1) then
                 write(nulout,'(a)') 'Ignoring inv_inhom_effective_size so treated as equal to inv_cloud_effective_size'
@@ -445,7 +445,7 @@ contains
           ! Scale cloud effective size
           cloud%inv_cloud_effective_size = cloud%inv_cloud_effective_size &
                &                         / driver_config%effective_size_scaling
-          if (allocated(cloud%inv_inhom_effective_size)) then
+          if (associated(cloud%inv_inhom_effective_size)) then
             if (driver_config%iverbose >= 2) then
               write(nulout, '(a,g10.3)') '  Scaling effective size of clouds and their inhomogeneities with ', &
                    &                           driver_config%effective_size_scaling
@@ -472,7 +472,7 @@ contains
 
     ! Single-level variable with dimensions (ncol)
     if (file%exists('skin_temperature')) then
-      call file%get('skin_temperature',single_level%skin_temperature) ! K
+      call file%get_ptr('skin_temperature',single_level%skin_temperature) ! K
     else
       allocate(single_level%skin_temperature(ncol))
       single_level%skin_temperature(1:ncol) = thermodynamics%temperature_hl(1:ncol,nlev+1)
@@ -499,14 +499,14 @@ contains
         ! ...but if in the NetCDF file it has only dimension (ncol), in
         ! order that nalbedobands is correctly set to 1, we need to turn
         ! off transposition
-        call file%get('sw_albedo',    single_level%sw_albedo, do_transp=.false.)
+        call file%get_ptr('sw_albedo',    single_level%sw_albedo, do_transp=.false.)
         if (file%exists('sw_albedo_direct')) then
-          call file%get('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.false.)
+          call file%get_ptr('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.false.)
         end if
       else
-        call file%get('sw_albedo',    single_level%sw_albedo, do_transp=.true.)
+        call file%get_ptr('sw_albedo',    single_level%sw_albedo, do_transp=.true.)
         if (file%exists('sw_albedo_direct')) then
-          call file%get('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.true.)
+          call file%get_ptr('sw_albedo_direct', single_level%sw_albedo_direct, do_transp=.true.)
         end if
       end if
     end if
@@ -522,9 +522,9 @@ contains
       end if
     else
       if (file%get_rank('lw_emissivity') == 1) then
-        call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.false.)
+        call file%get_ptr('lw_emissivity',single_level%lw_emissivity, do_transp=.false.)
       else
-        call file%get('lw_emissivity',single_level%lw_emissivity, do_transp=.true.)
+        call file%get_ptr('lw_emissivity',single_level%lw_emissivity, do_transp=.true.)
       end if
     end if
   
@@ -543,7 +543,7 @@ contains
 
     if (config%use_aerosols) then
       ! Load aerosol data
-      call file%get('aerosol_mmr', aerosol%mixing_ratio, ipermute=[2,3,1]);
+      call file%get_ptr('aerosol_mmr', aerosol%mixing_ratio, ipermute=[2,3,1]);
       ! Store aerosol level bounds
       aerosol%istartlev = lbound(aerosol%mixing_ratio, 2)
       aerosol%iendlev   = ubound(aerosol%mixing_ratio, 2)

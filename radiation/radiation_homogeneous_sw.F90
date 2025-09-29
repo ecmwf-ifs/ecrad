@@ -193,7 +193,7 @@ contains
           ! Sum over g-points to compute and save clear-sky broadband
           ! fluxes
           flux%sw_up_clear(jcol,:) = sum(flux_up,1)
-          if (allocated(flux%sw_dn_direct_clear)) then
+          if (associated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,:) &
                  &  = sum(flux_dn_direct,1)
             flux%sw_dn_clear(jcol,:) = sum(flux_dn_diffuse,1) &
@@ -212,7 +212,7 @@ contains
                  &                   flux%sw_up_clear_band(:,jcol,:))
             call indexed_sum_profile(flux_dn_direct, config%i_spec_from_reordered_g_sw, &
                  &                   flux%sw_dn_clear_band(:,jcol,:))
-            if (allocated(flux%sw_dn_direct_clear_band)) then
+            if (associated(flux%sw_dn_direct_clear_band)) then
               flux%sw_dn_direct_clear_band(:,jcol,:) &
                    &  = flux%sw_dn_clear_band(:,jcol,:)
             end if
@@ -280,7 +280,7 @@ contains
 
           ! Store overcast broadband fluxes
           flux%sw_up(jcol,:) = sum(flux_up,1)
-          if (allocated(flux%sw_dn_direct)) then
+          if (associated(flux%sw_dn_direct)) then
             flux%sw_dn_direct(jcol,:) = sum(flux_dn_direct,1)
             flux%sw_dn(jcol,:) = sum(flux_dn_diffuse,1) &
                  &  + flux%sw_dn_direct(jcol,:)
@@ -299,7 +299,7 @@ contains
                  &                   flux%sw_up_band(:,jcol,:))
             call indexed_sum_profile(flux_dn_direct, config%i_spec_from_reordered_g_sw, &
                  &                   flux%sw_dn_band(:,jcol,:))
-            if (allocated(flux%sw_dn_direct_band)) then
+            if (associated(flux%sw_dn_direct_band)) then
               flux%sw_dn_direct_band(:,jcol,:) &
                    &  = flux%sw_dn_band(:,jcol,:)
             end if
@@ -313,7 +313,7 @@ contains
           ! calculated: copy them over
           flux%sw_up(jcol,:) = flux%sw_up_clear(jcol,:)
           flux%sw_dn(jcol,:) = flux%sw_dn_clear(jcol,:)
-          if (allocated(flux%sw_dn_direct)) then
+          if (associated(flux%sw_dn_direct)) then
             flux%sw_dn_direct(jcol,:) = flux%sw_dn_direct_clear(jcol,:)
           end if
           flux%sw_dn_diffuse_surf_g(:,jcol) = flux%sw_dn_diffuse_surf_clear_g(:,jcol)
@@ -322,7 +322,7 @@ contains
           if (config%do_save_spectral_flux) then
             flux%sw_up_band(:,jcol,:) = flux%sw_up_clear_band(:,jcol,:)
             flux%sw_dn_band(:,jcol,:) = flux%sw_dn_clear_band(:,jcol,:)
-            if (allocated(flux%sw_dn_direct_band)) then
+            if (associated(flux%sw_dn_direct_band)) then
               flux%sw_dn_direct_band(:,jcol,:) = flux%sw_dn_direct_clear_band(:,jcol,:)
             end if
           end if
@@ -333,7 +333,7 @@ contains
         ! Set fluxes to zero if sun is below the horizon
         flux%sw_up(jcol,:) = 0.0_jprb
         flux%sw_dn(jcol,:) = 0.0_jprb
-        if (allocated(flux%sw_dn_direct)) then
+        if (associated(flux%sw_dn_direct)) then
           flux%sw_dn_direct(jcol,:) = 0.0_jprb
         end if
         flux%sw_dn_diffuse_surf_g(:,jcol) = 0.0_jprb
@@ -342,7 +342,7 @@ contains
         if (config%do_clear) then
           flux%sw_up_clear(jcol,:) = 0.0_jprb
           flux%sw_dn_clear(jcol,:) = 0.0_jprb
-          if (allocated(flux%sw_dn_direct_clear)) then
+          if (associated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,:) = 0.0_jprb
           end if
           flux%sw_dn_diffuse_surf_clear_g(:,jcol) = 0.0_jprb
@@ -352,13 +352,13 @@ contains
         if (config%do_save_spectral_flux) then
           flux%sw_dn_band(:,jcol,:) = 0.0_jprb
           flux%sw_up_band(:,jcol,:) = 0.0_jprb
-          if (allocated(flux%sw_dn_direct_band)) then
+          if (associated(flux%sw_dn_direct_band)) then
             flux%sw_dn_direct_band(:,jcol,:) = 0.0_jprb
           end if
           if (config%do_clear) then
             flux%sw_dn_clear_band(:,jcol,:) = 0.0_jprb
             flux%sw_up_clear_band(:,jcol,:) = 0.0_jprb
-            if (allocated(flux%sw_dn_direct_clear_band)) then
+            if (associated(flux%sw_dn_direct_clear_band)) then
               flux%sw_dn_direct_clear_band(:,jcol,:) = 0.0_jprb
             end if
           end if

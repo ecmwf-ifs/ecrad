@@ -39,74 +39,74 @@ module radiation_flux
      ! All the following are broad-band fluxes in W m-2 with
      ! dimensions (ncol,nlev+1).  Note that only those fluxes that are
      ! requested will be used, so clear-sky and direct-beam arrays may
-     ! not be allocated
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  lw_up, lw_dn, &   ! Upwelling and downwelling longwave
-          &  sw_up, sw_dn, &   ! Upwelling and downwelling shortwave
-          &  sw_dn_direct, &   ! Direct-beam shortwave into a horizontal plane
-          &  lw_up_clear, lw_dn_clear, & ! Clear-sky quantities...
-          &  sw_up_clear, sw_dn_clear, &
-          &  sw_dn_direct_clear
+     ! not be associated
+     real(jprb), pointer, dimension(:,:) :: &
+          &  lw_up=>null(), lw_dn=>null(), &   ! Upwelling and downwelling longwave
+          &  sw_up=>null(), sw_dn=>null(), &   ! Upwelling and downwelling shortwave
+          &  sw_dn_direct=>null(), &   ! Direct-beam shortwave into a horizontal plane
+          &  lw_up_clear=>null(), lw_dn_clear=>null(), & ! Clear-sky quantities...
+          &  sw_up_clear=>null(), sw_dn_clear=>null(), &
+          &  sw_dn_direct_clear=>null()
      ! As above but fluxes in each spectral band in W m-2 with
-     ! dimensions (nband,ncol,nlev+1).  These are only allocated if
+     ! dimensions (nband,ncol,nlev+1).  These are only associated if
      ! config%do_save_spectral_flux==.true.
-     real(jprb), allocatable, dimension(:,:,:) :: &
-          &  lw_up_band, lw_dn_band, &   ! Upwelling and downwelling longwave
-          &  sw_up_band, sw_dn_band, &   ! Upwelling and downwelling shortwave
-          &  sw_dn_direct_band, &        ! Direct-beam shortwave
-          &  lw_up_clear_band, lw_dn_clear_band, & ! Clear-sky quantities...
-          &  sw_up_clear_band, sw_dn_clear_band, &
-          &  sw_dn_direct_clear_band
+     real(jprb), pointer, dimension(:,:,:) :: &
+          &  lw_up_band=>null(), lw_dn_band=>null(), &   ! Upwelling and downwelling longwave
+          &  sw_up_band=>null(), sw_dn_band=>null(), &   ! Upwelling and downwelling shortwave
+          &  sw_dn_direct_band=>null(), &        ! Direct-beam shortwave
+          &  lw_up_clear_band=>null(), lw_dn_clear_band=>null(), & ! Clear-sky quantities...
+          &  sw_up_clear_band=>null(), sw_dn_clear_band=>null(), &
+          &  sw_dn_direct_clear_band=>null()
      ! Surface downwelling quantities at each g point, dimensioned
      ! (ng,ncol), that are always saved by the solver, except for the
      ! clear-sky ones that are only produced if
      ! config%do_clear==.true.
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  lw_dn_surf_g, lw_dn_surf_clear_g, &
-          &  sw_dn_diffuse_surf_g, sw_dn_direct_surf_g, &
-          &  sw_dn_diffuse_surf_clear_g, sw_dn_direct_surf_clear_g
+     real(jprb), pointer, dimension(:,:) :: &
+          &  lw_dn_surf_g=>null(), lw_dn_surf_clear_g=>null(), &
+          &  sw_dn_diffuse_surf_g=>null(), sw_dn_direct_surf_g=>null(), &
+          &  sw_dn_diffuse_surf_clear_g=>null(), sw_dn_direct_surf_clear_g=>null()
      ! Top-of-atmosphere quantities at each g point, dimensioned
      ! (ng,ncol), that are always saved by the solver, except for the
      ! clear-sky ones that are only produced if
      ! config%do_clear==.true.
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  lw_up_toa_g, lw_up_toa_clear_g, &
-          &  sw_dn_toa_g, sw_up_toa_g, sw_up_toa_clear_g
+     real(jprb), pointer, dimension(:,:) :: &
+          &  lw_up_toa_g=>null(), lw_up_toa_clear_g=>null(), &
+          &  sw_dn_toa_g=>null(), sw_up_toa_g=>null(), sw_up_toa_clear_g=>null()
      ! Shortwave downwelling spectral fluxes in W m-2 at the surface,
      ! from which quantities such as photosynthetically active and UV
-     ! radiation can be computed. Only allocated if
+     ! radiation can be computed. Only associated if
      ! config%do_surface_sw_spectral_flux==.true.  Note that the
      ! clear-sky quantities are only computed if
      ! config%do_clear==.true., but direct fluxes are computed whether
      ! or not do_direct==.true.. The dimensions are (nband,ncol).
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  sw_dn_surf_band, sw_dn_direct_surf_band, &
-          &  sw_dn_surf_clear_band, sw_dn_direct_surf_clear_band
-     ! Top-of-atmosphere spectral fluxes in W m-2. Only allocated if
+     real(jprb), pointer, dimension(:,:) :: &
+          &  sw_dn_surf_band=>null(), sw_dn_direct_surf_band=>null(), &
+          &  sw_dn_surf_clear_band=>null(), sw_dn_direct_surf_clear_band=>null()
+     ! Top-of-atmosphere spectral fluxes in W m-2. Only associated if
      ! config%do_toa_spectral_flux=.true.. Note that the clear-sky
      ! quantities are only computed if config%do_clear==.true.. The
      ! dimensions are (nband,ncol).
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  lw_up_toa_band, lw_up_toa_clear_band, &
-          &  sw_dn_toa_band, sw_up_toa_band, sw_up_toa_clear_band
+     real(jprb), pointer, dimension(:,:) :: &
+          &  lw_up_toa_band=>null(), lw_up_toa_clear_band=>null(), &
+          &  sw_dn_toa_band=>null(), sw_up_toa_band=>null(), sw_up_toa_clear_band=>null()
      ! Surface downwelling fluxes in W m-2 at the spectral resolution
      ! needed by any subsequent canopy radiative transfer.  If
      ! config%use_canopy_full_spectrum_[sw|lw] then these will be at
      ! g-point resolution; otherwise they will be at
      ! config%n_albedo_bands and config%n_emiss_bands resolution.
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  lw_dn_surf_canopy, &
-          &  sw_dn_diffuse_surf_canopy, sw_dn_direct_surf_canopy
+     real(jprb), pointer, dimension(:,:) :: &
+          &  lw_dn_surf_canopy=>null(), &
+          &  sw_dn_diffuse_surf_canopy=>null(), sw_dn_direct_surf_canopy=>null()
 
      ! Diagnosed cloud cover from the short- and long-wave solvers
-     real(jprb), allocatable, dimension(:) :: &
-          &  cloud_cover_lw, cloud_cover_sw
+     real(jprb), pointer, dimension(:) :: &
+          &  cloud_cover_lw=>null(), cloud_cover_sw=>null()
      ! Longwave derivatives needed by Hogan and Bozzo (2015) method
      ! for approximate longwave updates in between the full radiation
      ! calls: rate of change of upwelling broad-band flux with respect
      ! to surface value, dimensioned (ncol,nlev+1)
-     real(jprb), allocatable, dimension(:,:) :: &
-          &  lw_derivatives
+     real(jprb), pointer, dimension(:,:) :: &
+          &  lw_derivatives=>null()
 
    contains
      procedure :: allocate   => allocate_flux_type
@@ -315,76 +315,164 @@ contains
 
     if (lhook) call dr_hook('radiation_flux:deallocate',0,hook_handle)
 
-    if (allocated(this%lw_up)) then
+    if (associated(this%lw_up)) then
       deallocate(this%lw_up)
-      if (allocated(this%lw_dn))       deallocate(this%lw_dn)
-      if (allocated(this%lw_up_clear)) deallocate(this%lw_up_clear)
-      if (allocated(this%lw_dn_clear)) deallocate(this%lw_dn_clear)
+      if (associated(this%lw_dn)) then
+        deallocate(this%lw_dn)
+        this%lw_dn=>null()
+      end if
+      if (associated(this%lw_up_clear)) then
+        deallocate(this%lw_up_clear)
+        this%lw_up_clear=>null()
+      end if
+      if (associated(this%lw_dn_clear)) then
+        deallocate(this%lw_dn_clear)
+        this%lw_dn_clear=>null()
+      end if
     end if
 
-    if (allocated(this%sw_up)) then
+    if (associated(this%sw_up)) then
       deallocate(this%sw_up)
-      if (allocated(this%sw_dn))        deallocate(this%sw_dn)
-      if (allocated(this%sw_up_clear))  deallocate(this%sw_up_clear)
-      if (allocated(this%sw_dn_clear))  deallocate(this%sw_dn_clear)
-      if (allocated(this%sw_dn_direct)) deallocate(this%sw_dn_direct)
-      if (allocated(this%sw_dn_direct_clear)) &
-           &   deallocate(this%sw_dn_direct_clear)
+      if (associated(this%sw_dn)) then
+        deallocate(this%sw_dn)
+        this%sw_dn=>null()
+      end if
+      if (associated(this%sw_up_clear)) then
+        deallocate(this%sw_up_clear)
+        this%sw_up_clear=>null()
+      end if
+      if (associated(this%sw_dn_clear)) then
+        deallocate(this%sw_dn_clear)
+        this%sw_dn_clear=>null()
+      end if
+      if (associated(this%sw_dn_direct)) then
+        deallocate(this%sw_dn_direct)
+        this%sw_dn_direct=>null()
+      end if
+      if (associated(this%sw_dn_direct_clear)) then
+        deallocate(this%sw_dn_direct_clear)
+        this%sw_dn_direct_clear=>null()
+      end if
     end if
 
-    if (allocated(this%lw_up_band)) then
+    if (associated(this%lw_up_band)) then
       deallocate(this%lw_up_band)
-      if (allocated(this%lw_dn_band))       deallocate(this%lw_dn_band)
-      if (allocated(this%lw_up_clear_band)) deallocate(this%lw_up_clear_band)
-      if (allocated(this%lw_dn_clear_band)) deallocate(this%lw_dn_clear_band)
+      if (associated(this%lw_dn_band)) then
+        deallocate(this%lw_dn_band)
+        this%lw_dn_band=>null()
+      end if
+      if (associated(this%lw_up_clear_band)) then
+        deallocate(this%lw_up_clear_band)
+        this%lw_up_clear_band=>null()
+      end if
+      if (associated(this%lw_dn_clear_band)) then
+        deallocate(this%lw_dn_clear_band)
+        this%lw_dn_clear_band=>null()
+      end if
     end if
     
-    if (allocated(this%sw_up_band)) then
+    if (associated(this%sw_up_band)) then
       deallocate(this%sw_up_band)
-      if (allocated(this%sw_dn_band))        deallocate(this%sw_dn_band)
-      if (allocated(this%sw_up_clear_band))  deallocate(this%sw_up_clear_band)
-      if (allocated(this%sw_dn_clear_band))  deallocate(this%sw_dn_clear_band)
-      if (allocated(this%sw_dn_direct_band)) deallocate(this%sw_dn_direct_band)
-      if (allocated(this%sw_dn_direct_clear_band)) &
-           &   deallocate(this%sw_dn_direct_clear_band)      
+      if (associated(this%sw_dn_band)) then
+        deallocate(this%sw_dn_band)
+        this%sw_dn_band=>null()
+      end if
+      if (associated(this%sw_up_clear_band)) then
+        deallocate(this%sw_up_clear_band)
+        this%sw_up_clear_band=>null()
+      end if
+      if (associated(this%sw_dn_clear_band)) then
+        deallocate(this%sw_dn_clear_band)
+        this%sw_dn_clear_band=>null()
+      end if
+      if (associated(this%sw_dn_direct_band)) then
+        deallocate(this%sw_dn_direct_band)
+        this%sw_dn_direct_band=>null()
+      end if
+      if (associated(this%sw_dn_direct_clear_band)) then
+        deallocate(this%sw_dn_direct_clear_band)
+        this%sw_dn_direct_clear_band=>null()
+      end if      
     end if
 
-    if (allocated(this%sw_dn_surf_band)) then
+    if (associated(this%sw_dn_surf_band)) then
       deallocate(this%sw_dn_surf_band)
       deallocate(this%sw_dn_direct_surf_band)
     end if
-    if (allocated(this%sw_dn_surf_clear_band)) then
+    if (associated(this%sw_dn_surf_clear_band)) then
       deallocate(this%sw_dn_surf_clear_band)
       deallocate(this%sw_dn_direct_surf_clear_band)
     end if
 
-    if (allocated(this%lw_dn_surf_canopy)) deallocate(this%lw_dn_surf_canopy)
-    if (allocated(this%sw_dn_diffuse_surf_canopy)) deallocate(this%sw_dn_diffuse_surf_canopy)
-    if (allocated(this%sw_dn_direct_surf_canopy)) deallocate(this%sw_dn_direct_surf_canopy)
+    if (associated(this%lw_dn_surf_canopy)) then
+        deallocate(this%lw_dn_surf_canopy)
+        this%lw_dn_surf_canopy=>null()
+      end if
+    if (associated(this%sw_dn_diffuse_surf_canopy)) then
+        deallocate(this%sw_dn_diffuse_surf_canopy)
+        this%sw_dn_diffuse_surf_canopy=>null()
+      end if
+    if (associated(this%sw_dn_direct_surf_canopy)) then
+        deallocate(this%sw_dn_direct_surf_canopy)
+        this%sw_dn_direct_surf_canopy=>null()
+      end if
 
-    if (allocated(this%cloud_cover_sw)) then
+    if (associated(this%cloud_cover_sw)) then
       deallocate(this%cloud_cover_sw)
     end if
-    if (allocated(this%cloud_cover_lw)) then
+    if (associated(this%cloud_cover_lw)) then
       deallocate(this%cloud_cover_lw)
     end if
 
-    if (allocated(this%lw_derivatives)) then
+    if (associated(this%lw_derivatives)) then
       deallocate(this%lw_derivatives)
     end if
 
-    if (allocated(this%lw_dn_surf_g))               deallocate(this%lw_dn_surf_g)
-    if (allocated(this%lw_dn_surf_clear_g))         deallocate(this%lw_dn_surf_clear_g)
-    if (allocated(this%sw_dn_diffuse_surf_g))       deallocate(this%sw_dn_diffuse_surf_g)
-    if (allocated(this%sw_dn_direct_surf_g))        deallocate(this%sw_dn_direct_surf_g)
-    if (allocated(this%sw_dn_diffuse_surf_clear_g)) deallocate(this%sw_dn_diffuse_surf_clear_g)
-    if (allocated(this%sw_dn_direct_surf_clear_g))  deallocate(this%sw_dn_direct_surf_clear_g)
+    if (associated(this%lw_dn_surf_g)) then
+        deallocate(this%lw_dn_surf_g)
+        this%lw_dn_surf_g=>null()
+      end if
+    if (associated(this%lw_dn_surf_clear_g)) then
+        deallocate(this%lw_dn_surf_clear_g)
+        this%lw_dn_surf_clear_g=>null()
+      end if
+    if (associated(this%sw_dn_diffuse_surf_g)) then
+        deallocate(this%sw_dn_diffuse_surf_g)
+        this%sw_dn_diffuse_surf_g=>null()
+      end if
+    if (associated(this%sw_dn_direct_surf_g)) then
+        deallocate(this%sw_dn_direct_surf_g)
+        this%sw_dn_direct_surf_g=>null()
+      end if
+    if (associated(this%sw_dn_diffuse_surf_clear_g)) then
+        deallocate(this%sw_dn_diffuse_surf_clear_g)
+        this%sw_dn_diffuse_surf_clear_g=>null()
+      end if
+    if (associated(this%sw_dn_direct_surf_clear_g)) then
+        deallocate(this%sw_dn_direct_surf_clear_g)
+        this%sw_dn_direct_surf_clear_g=>null()
+      end if
 
-    if (allocated(this%lw_up_toa_g))                deallocate(this%lw_up_toa_g)
-    if (allocated(this%sw_up_toa_g))                deallocate(this%sw_up_toa_g)
-    if (allocated(this%sw_dn_toa_g))                deallocate(this%sw_dn_toa_g)
-    if (allocated(this%lw_up_toa_clear_g))          deallocate(this%lw_up_toa_clear_g)
-    if (allocated(this%sw_up_toa_clear_g))          deallocate(this%sw_up_toa_clear_g)
+    if (associated(this%lw_up_toa_g)) then
+        deallocate(this%lw_up_toa_g)
+        this%lw_up_toa_g=>null()
+      end if
+    if (associated(this%sw_up_toa_g)) then
+        deallocate(this%sw_up_toa_g)
+        this%sw_up_toa_g=>null()
+      end if
+    if (associated(this%sw_dn_toa_g)) then
+        deallocate(this%sw_dn_toa_g)
+        this%sw_dn_toa_g=>null()
+      end if
+    if (associated(this%lw_up_toa_clear_g)) then
+        deallocate(this%lw_up_toa_clear_g)
+        this%lw_up_toa_clear_g=>null()
+      end if
+    if (associated(this%sw_up_toa_clear_g)) then
+        deallocate(this%sw_up_toa_clear_g)
+        this%sw_up_toa_clear_g=>null()
+      end if
 
     if (lhook) call dr_hook('radiation_flux:deallocate',1,hook_handle)
 
@@ -711,7 +799,7 @@ contains
     
     real(jprb), intent(in) :: pressure_hl(:,:)
 
-    real(jprb), allocatable :: hr_K_day(:,:)
+    real(jprb), pointer :: hr_K_day(:,:)
 
     real(jprb) :: scaling(istartcol:iendcol,nlev)
     

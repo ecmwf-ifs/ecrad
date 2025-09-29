@@ -24,7 +24,7 @@ module radiation_check
 contains
 
   !---------------------------------------------------------------------
-  ! Return .true. if 1D allocatable array "var" is out of physical
+  ! Return .true. if 1D pointer array "var" is out of physical
   ! range specified by boundmin and boundmax, and issue a warning.
   ! "do_fix" determines whether erroneous values are fixed to lie
   ! within the physical range. To check only a subset of the array,
@@ -33,7 +33,7 @@ contains
 
     use radiation_io,     only : nulout
 
-    real(jprb), allocatable, intent(inout) :: var(:)
+    real(jprb), pointer, intent(inout) :: var(:)
     character(len=*),        intent(in) :: var_name
     real(jprb),              intent(in) :: boundmin, boundmax
     logical,                 intent(in) :: do_fix
@@ -45,7 +45,7 @@ contains
 
     is_bad = .false.
 
-    if (allocated(var)) then
+    if (associated(var)) then
 
       if (present(i1) .and. present(i2)) then
         varmin = minval(var(i1:i2))
@@ -78,7 +78,7 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Return .true. if 2D allocatable array "var" is out of physical
+  ! Return .true. if 2D pointer array "var" is out of physical
   ! range specified by boundmin and boundmax, and issue a warning.  To
   ! check only a subset of the array, specify i1 and i2 for the range
   ! of the first dimension and j1 and j2 for the range of the second.
@@ -87,7 +87,7 @@ contains
 
     use radiation_io,     only : nulout
 
-    real(jprb), allocatable, intent(inout) :: var(:,:)
+    real(jprb), pointer, intent(inout) :: var(:,:)
     character(len=*),        intent(in) :: var_name
     real(jprb),              intent(in) :: boundmin, boundmax
     logical,                 intent(in) :: do_fix
@@ -102,7 +102,7 @@ contains
 
     is_bad = .false.
 
-    if (allocated(var)) then
+    if (associated(var)) then
 
       if (present(i1) .and. present(i2)) then
         ii1 = i1
@@ -140,7 +140,7 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Return .true. if 3D allocatable array "var" is out of physical
+  ! Return .true. if 3D pointer array "var" is out of physical
   ! range specified by boundmin and boundmax, and issue a warning.  To
   ! check only a subset of the array, specify i1 and i2 for the range
   ! of the first dimension, j1 and j2 for the second and k1 and k2 for
@@ -150,7 +150,7 @@ contains
 
     use radiation_io,     only : nulout
 
-    real(jprb), allocatable, intent(inout) :: var(:,:,:)
+    real(jprb), pointer, intent(inout) :: var(:,:,:)
     character(len=*),        intent(in) :: var_name
     real(jprb),              intent(in) :: boundmin, boundmax
     logical,                 intent(in) :: do_fix
@@ -165,7 +165,7 @@ contains
 
     is_bad = .false.
 
-    if (allocated(var)) then
+    if (associated(var)) then
 
       if (present(i1) .and. present(i2)) then
         ii1 = i1
