@@ -23,7 +23,7 @@ module radiation_cloud_optics
 
 contains
 
-  ! Provides elemental function "delta_eddington_scat_od"
+! Provides elemental function "delta_eddington_scat_od"
 #include "radiation_delta_eddington.h"
 
   !---------------------------------------------------------------------
@@ -232,18 +232,18 @@ contains
     use radiation_thermodynamics, only    : thermodynamics_type
     use radiation_cloud, only             : cloud_type
     use radiation_constants, only         : AccelDueToGravity
-    use radiation_ice_optics_fu, only     : calc_ice_optics_fu_sw, &
-         &                                  calc_ice_optics_fu_lw
+    use radiation_ice_optics_fu, only     : calc_ice_optics_fu_sw, calc_ice_optics_fu_sw_single_band, &
+         &                                  calc_ice_optics_fu_lw, calc_ice_optics_fu_lw_single_band
     use radiation_ice_optics_baran, only  : calc_ice_optics_baran, &
          &                                  calc_ice_optics_baran2016
     use radiation_ice_optics_baran2017, only  : calc_ice_optics_baran2017
     use radiation_ice_optics_yi, only     : calc_ice_optics_yi_sw, &
          &                                  calc_ice_optics_yi_lw
-    use radiation_liquid_optics_socrates, only:calc_liq_optics_socrates
+    use radiation_liquid_optics_socrates, only:calc_liq_optics_socrates, calc_liq_optics_socrates_single_band
     use radiation_liquid_optics_jahangir, only:calc_liq_optics_jahangir
     use radiation_liquid_optics_nielsen, only:calc_liq_optics_nielsen
-    use radiation_liquid_optics_slingo, only:calc_liq_optics_slingo, &
-         &                                   calc_liq_optics_lindner_li
+    use radiation_liquid_optics_slingo, only:calc_liq_optics_slingo, calc_liq_optics_slingo_single_band, &
+         &                                   calc_liq_optics_lindner_li, calc_liq_optics_lindner_li_single_band
 
     integer, intent(in) :: nlev               ! number of model levels
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
@@ -268,12 +268,17 @@ contains
     ! Longwave and shortwave optical depth, scattering optical depth
     ! and asymmetry factor, for liquid and ice in all bands but a
     ! single cloud layer
+#if defined(OMPGPU)
+    real(jprb) :: od_lw_liq, scat_od_lw_liq, g_lw_liq, od_lw_ice, scat_od_lw_ice, g_lw_ice
+    real(jprb) :: od_sw_liq, scat_od_sw_liq, g_sw_liq, od_sw_ice, scat_od_sw_ice, g_sw_ice
+#else
     real(jprb), dimension(config%n_bands_lw) :: &
          &  od_lw_liq, scat_od_lw_liq, g_lw_liq, &
          &  od_lw_ice, scat_od_lw_ice, g_lw_ice
     real(jprb), dimension(config%n_bands_sw) :: &
          &  od_sw_liq, scat_od_sw_liq, g_sw_liq, &
          &  od_sw_ice, scat_od_sw_ice, g_sw_ice
+#endif
 
     ! In-cloud water path of cloud liquid or ice (i.e. liquid or ice
     ! gridbox-mean water path divided by cloud fraction); kg m-2
@@ -297,6 +302,216 @@ contains
     end if
 
     associate(ho => config%cloud_optics)
+
+#if defined(OMPGPU)
+      ! Array-wise assignment
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+      do jcol=istartcol, iendcol
+        do jlev=1, nlev
+          do jb=1, config%n_bands_sw
+            od_sw_cloud(jb,jlev,jcol) = 0.0_jprb
+            ssa_sw_cloud(jb,jlev,jcol) = 0.0_jprb
+            g_sw_cloud(jb,jlev,jcol) = 0.0_jprb
+          end do
+        end do
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+      do jcol=istartcol, iendcol
+        do jlev=1, nlev
+          do jb=1, config%n_bands_lw
+            od_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+          end do
+        end do
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+      do jcol=istartcol, iendcol
+        do jlev=1, nlev
+          do jb=1, config%n_bands_lw_if_scattering
+            ssa_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+            g_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+          end do
+        end do
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !
+      ! LONGWAVE
+      !
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+      do jlev = 1,nlev
+         do jcol = istartcol,iendcol
+            do jb = 1, config%n_bands_lw
+               ! Only do anything if cloud is present (assume that
+               ! cloud%crop_cloud_fraction has already been called)
+               if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+
+                  ! Compute in-cloud liquid and ice water path
+                  if (config%is_homogeneous) then
+                     ! Homogeneous solvers assume cloud fills the box
+                     ! horizontally, so we don't divide by cloud fraction
+                     factor = ( thermodynamics%pressure_hl(jcol,jlev+1)    &
+                          &  -thermodynamics%pressure_hl(jcol,jlev  )  ) &
+                          &  / AccelDueToGravity
+                  else
+                     factor = ( thermodynamics%pressure_hl(jcol,jlev+1)    &
+                          &  -thermodynamics%pressure_hl(jcol,jlev  )  ) &
+                          &  / (AccelDueToGravity * cloud%fraction(jcol,jlev))
+                  end if
+                  lwp_in_cloud = factor * cloud%q_liq(jcol,jlev)
+                  iwp_in_cloud = factor * cloud%q_ice(jcol,jlev)
+
+                  ! init to 0
+                  od_lw_liq = 0.0_jprb
+                  scat_od_lw_liq = 0.0_jprb
+                  g_lw_liq = 0.0_jprb
+
+                  od_lw_ice = 0.0_jprb
+                  scat_od_lw_ice = 0.0_jprb
+                  g_lw_ice = 0.0_jprb
+
+                  ! Only compute liquid properties if liquid cloud is present
+                  if (lwp_in_cloud > 0.0_jprb) then
+                     if (config%i_liq_model == ILiquidModelSOCRATES) then
+                        call calc_liq_optics_socrates_single_band(jb, &
+                             &  config%cloud_optics%liq_coeff_lw, &
+                             &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
+                             &  od_lw_liq, scat_od_lw_liq, g_lw_liq)
+                     else if (config%i_liq_model == ILiquidModelSlingo) then
+                        call calc_liq_optics_lindner_li_single_band(jb, &
+                             &  config%cloud_optics%liq_coeff_lw, &
+                             &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
+                             &  od_lw_liq, scat_od_lw_liq, g_lw_liq)
+                     end if
+                     ! Originally delta-Eddington has been off in ecRad for
+                     ! liquid clouds in the longwave, but it should be on
+                     !call delta_eddington_scat_od(od_lw_liq, scat_od_lw_liq, g_lw_liq)
+                  endif
+                  ! Only compute ice properties if ice cloud is present
+                  if (iwp_in_cloud > 0.0_jprb) then
+                     call calc_ice_optics_fu_lw_single_band(jb, &
+                          &  config%cloud_optics%ice_coeff_lw, &
+                          &  iwp_in_cloud, cloud%re_ice(jcol,jlev), &
+                          &  od_lw_ice, scat_od_lw_ice, g_lw_ice)
+                     if (config%do_fu_lw_ice_optics_bug) then
+                        ! Reproduce bug in old IFS scheme
+                        scat_od_lw_ice = od_lw_ice - scat_od_lw_ice
+                     end if
+                     call delta_eddington_scat_od(od_lw_ice, scat_od_lw_ice, g_lw_ice)
+                  end if ! Ice present
+
+                  ! Combine liquid and ice
+                  if (config%do_lw_cloud_scattering) then
+                     od_lw_cloud(jb,jlev,jcol) = od_lw_liq + od_lw_ice
+                     if (scat_od_lw_liq+scat_od_lw_ice > 0.0_jprb) then
+                        g_lw_cloud(jb,jlev,jcol) = (g_lw_liq * scat_od_lw_liq  + g_lw_ice * scat_od_lw_ice) &
+                             &  / (scat_od_lw_liq+scat_od_lw_ice)
+                     else
+                        g_lw_cloud(jb,jlev,jcol) = 0.0_jprb
+                     end if
+                     ssa_lw_cloud(jb,jlev,jcol) = (scat_od_lw_liq + scat_od_lw_ice) &
+                          &                     / (od_lw_liq + od_lw_ice)
+                  else
+                     ! If longwave scattering is to be neglected then the
+                     ! best approximation is to set the optical depth equal
+                     ! to the absorption optical depth
+                     ! Added for DWD (2020)
+                     !NEC$ shortloop
+                     od_lw_cloud(jb,jlev,jcol) = od_lw_liq - scat_od_lw_liq &
+                          &                    + od_lw_ice - scat_od_lw_ice
+                   end if
+               end if
+            enddo
+         enddo
+      enddo
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !
+      ! SHORTWAVE
+      !
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+      do jlev = 1,nlev
+         do jcol = istartcol,iendcol
+            do jb = 1, config%n_bands_sw
+               ! Only do anything if cloud is present (assume that
+               ! cloud%crop_cloud_fraction has already been called)
+               if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
+
+                  ! Compute in-cloud liquid and ice water path
+                  if (config%is_homogeneous) then
+                     ! Homogeneous solvers assume cloud fills the box
+                     ! horizontally, so we don't divide by cloud fraction
+                     factor = ( thermodynamics%pressure_hl(jcol,jlev+1)    &
+                          &  -thermodynamics%pressure_hl(jcol,jlev  )  ) &
+                          &  / AccelDueToGravity
+                  else
+                     factor = ( thermodynamics%pressure_hl(jcol,jlev+1)    &
+                          &  -thermodynamics%pressure_hl(jcol,jlev  )  ) &
+                          &  / (AccelDueToGravity * cloud%fraction(jcol,jlev))
+                  end if
+                  lwp_in_cloud = factor * cloud%q_liq(jcol,jlev)
+                  iwp_in_cloud = factor * cloud%q_ice(jcol,jlev)
+
+                  ! init to 0
+                  od_sw_liq = 0.0_jprb
+                  scat_od_sw_liq = 0.0_jprb
+                  g_sw_liq = 0.0_jprb
+
+                  od_sw_ice = 0.0_jprb
+                  scat_od_sw_ice = 0.0_jprb
+                  g_sw_ice = 0.0_jprb
+
+                  ! Only compute liquid properties if liquid cloud is present
+                  if (lwp_in_cloud > 0.0_jprb) then
+                     if (config%i_liq_model == ILiquidModelSOCRATES) then
+                        call calc_liq_optics_socrates_single_band(jb, &
+                             &  config%cloud_optics%liq_coeff_sw, &
+                             &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
+                             &  od_sw_liq, scat_od_sw_liq, g_sw_liq)
+                     else if (config%i_liq_model == ILiquidModelSlingo) then
+                        call calc_liq_optics_slingo_single_band(jb, &
+                             &  config%cloud_optics%liq_coeff_sw, &
+                             &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
+                             &  od_sw_liq, scat_od_sw_liq, g_sw_liq)
+                     end if
+                     ! Delta-Eddington scaling in the shortwave only
+                     if (.not. config%do_sw_delta_scaling_with_gases) then
+                        call delta_eddington_scat_od(od_sw_liq, scat_od_sw_liq, g_sw_liq)
+                     end if
+
+                     ! Originally delta-Eddington has been off in ecRad for
+                     ! liquid clouds in the longwave, but it should be on
+                     !call delta_eddington_scat_od(od_lw_liq, scat_od_lw_liq, g_lw_liq)
+                  endif
+                  ! Only compute ice properties if ice cloud is present
+                  if (iwp_in_cloud > 0.0_jprb) then
+                     ! Compute shortwave properties
+                     call calc_ice_optics_fu_sw_single_band(jb, &
+                          &  config%cloud_optics%ice_coeff_sw, &
+                          &  iwp_in_cloud, cloud%re_ice(jcol,jlev), &
+                          &  od_sw_ice, scat_od_sw_ice, g_sw_ice)
+
+                     ! Delta-Eddington scaling in both longwave and shortwave
+                     ! (assume that particles are larger than wavelength even
+                     ! in longwave)
+                     if (.not. config%do_sw_delta_scaling_with_gases) then
+                        call delta_eddington_scat_od(od_sw_ice, scat_od_sw_ice, g_sw_ice)
+                     end if
+                  end if ! Ice present
+                  od_sw_cloud(jb,jlev,jcol) = od_sw_liq + od_sw_ice
+                  g_sw_cloud(jb,jlev,jcol) = (g_sw_liq * scat_od_sw_liq + g_sw_ice * scat_od_sw_ice) &
+                       &  / (scat_od_sw_liq + scat_od_sw_ice)
+                  ssa_sw_cloud(jb,jlev,jcol) = (scat_od_sw_liq + scat_od_sw_ice) / (od_sw_liq + od_sw_ice)
+               end if
+            enddo
+         enddo
+      enddo
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+#else ! OPENACC or other
 
       ! Array-wise assignment
       !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
@@ -547,6 +762,7 @@ contains
 
     !$ACC END PARALLEL
 
+#endif
     end associate
 
     if (lhook) call dr_hook('radiation_cloud_optics:cloud_optics',1,hook_handle)
