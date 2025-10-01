@@ -42,6 +42,7 @@ module radiation_cloud_cover
   ! Maximum cloud fraction distinguishable from 1
   real(jprb), parameter :: MaxCloudFrac = 1.0_jprb-epsilon(1.0_jprb)*10.0_jprb
 
+  !$omp declare target(beta2alpha)
 
 contains
 
