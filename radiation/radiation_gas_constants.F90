@@ -38,7 +38,7 @@ module radiation_gas_constants
   integer, parameter :: INO2   = 12
   integer, parameter :: NMaxGases = 12
   !$ACC DECLARE COPYIN(NMaxGases)
-
+  !!$OMP DECLARE TARGET(NMaxGases)
   ! Molar masses (g mol-1) of dry air and the various gases above
   real(jprb), parameter :: AirMolarMass = 28.970_jprb
   real(jprb), parameter, dimension(0:NMaxGases) :: GasMolarMass = (/ &
