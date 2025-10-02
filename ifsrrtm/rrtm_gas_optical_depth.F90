@@ -213,6 +213,9 @@ CALL RRTM_TAUMOL16 (KIDIA,KFDIA,KLEV,ZTAU,&
 !- Loop over g-channels.
 #if defined(OMPGPU)
 !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+#if defined(__amdflang__)
+!$OMP TILE SIZES(1,256,1)
+#endif
 DO JLEV = 1, KLEV
   DO JLON = KIDIA, KFDIA
     DO JI = 1, JPGPT
@@ -220,8 +223,15 @@ DO JLEV = 1, KLEV
     ENDDO
   ENDDO
 ENDDO
+#if defined(__amdflang__)
+!$OMP END TILE
+#endif
 !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #else
+!$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+#if defined(__amdflang__)
+!$OMP INTERCHANGE PERMUTATION(1,3,2)
+#endif
 !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
 !$ACC LOOP GANG VECTOR TILE(1,8,32)
 DO JLEV = 1, KLEV
@@ -233,6 +243,7 @@ DO JLEV = 1, KLEV
   ENDDO
 ENDDO
 !$ACC END PARALLEL
+!$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
 !     -----------------------------------------------------------------
 
