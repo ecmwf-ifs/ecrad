@@ -19,6 +19,7 @@ module radiation_adding_ica_sw
 
   public
 
+  !$omp declare target(adding_ica_sw_omp)
 contains
 
   subroutine adding_ica_sw(ncol, nlev, incoming_toa, &
@@ -161,5 +162,129 @@ contains
 #endif
 
   end subroutine adding_ica_sw
+
+  subroutine adding_ica_sw_omp(jg, ng, nlev, incoming_toa, &
+       &  albedo_surf_diffuse, albedo_surf_direct, cos_sza, &
+       &  reflectance, transmittance, ref_dir, trans_dir_diff, trans_dir_dir, &
+       &  flux_up, flux_dn_diffuse, flux_dn_direct, albedo, inv_denominator,&
+       &  source)
+
+    use parkind1, only           : jprb
+    implicit none
+
+    ! Inputs
+    integer, intent(in) :: jg, ng ! number of columns (may be spectral intervals)
+    integer, intent(in) :: nlev ! number of levels
+
+    ! Incoming downwelling solar radiation at top-of-atmosphere (W m-2)
+    real(jprb), intent(in),  dimension(ng)         :: incoming_toa
+
+    ! Surface albedo to diffuse and direct radiation
+    real(jprb), intent(in),  dimension(ng)         :: albedo_surf_diffuse, &
+         &                                              albedo_surf_direct
+
+    ! Cosine of the solar zenith angle
+    real(jprb), intent(in)                           :: cos_sza
+
+    ! Diffuse reflectance and transmittance of each layer
+    real(jprb), intent(in),  dimension(ng, nlev)   :: reflectance, transmittance
+
+    ! Fraction of direct-beam solar radiation entering the top of a
+    ! layer that is reflected back up or scattered forward into the
+    ! diffuse stream at the base of the layer
+    real(jprb), intent(in),  dimension(ng, nlev)   :: ref_dir, trans_dir_diff
+
+    ! Direct transmittance, i.e. fraction of direct beam that
+    ! penetrates a layer without being scattered or absorbed
+    real(jprb), intent(in),  dimension(ng, nlev)   :: trans_dir_dir
+
+    ! Resulting fluxes (W m-2) at half-levels: diffuse upwelling,
+    ! diffuse downwelling and direct downwelling
+    real(jprb), intent(out), dimension(ng, nlev+1) :: flux_up, flux_dn_diffuse, &
+         &                                              flux_dn_direct
+
+    real(jprb), intent(out), dimension(ng, nlev+1) :: albedo, inv_denominator
+
+    ! Upwelling radiation at each half-level due to scattering of the
+    ! direct beam below that half-level (W m-2)
+    real(jprb), intent(out), dimension(ng, nlev+1) :: source
+
+    ! Loop index for model level and column
+    integer :: jlev
+
+    ! Compute profile of direct (unscattered) solar fluxes at each
+    ! half-level by working down through the atmosphere
+    flux_dn_direct(jg,1) = incoming_toa(jg)
+    do jlev = 1,nlev
+      flux_dn_direct(jg,jlev+1) = flux_dn_direct(jg,jlev)*trans_dir_dir(jg,jlev)
+    end do
+
+    !
+    ! Ideally, we would use the associate statement below, however this doesn't
+    ! work with NVCOMPILER. Thus, we pass albedo and inv_denominator in from the
+    ! calling code however, we pass it in as flux up and flux_dn_diffuse. That is,
+    ! the flux_up and flux_dn_diffuse are temporarilly reusable.
+    !
+    !associate(albedo=>flux_up, inv_denominator=>flux_dn_diffuse)
+
+    albedo(jg,nlev+1) = albedo_surf_diffuse(jg)
+
+    ! At the surface, the direct solar beam is reflected back into the
+    ! diffuse stream
+    source(jg,nlev+1) = albedo_surf_direct(jg) * flux_dn_direct(jg,nlev+1) * cos_sza
+
+    ! Work back up through the atmosphere and compute the albedo of
+    ! the entire earth/atmosphere system below that half-level, and
+    ! also the "source", which is the upwelling flux due to direct
+    ! radiation that is scattered below that level
+! Added for DWD (2020)
+!NEC$ outerloop_unroll(8)
+    do jlev = nlev,1,-1
+      ! Next loop over columns. We could do this by indexing the
+      ! entire inner dimension as follows, e.g. for the first line:
+      !   inv_denominator(jg,jlev) = 1.0_jprb / (1.0_jprb-albedo(jg,jlev+1)*reflectance(jg,jlev))
+      ! and similarly for subsequent lines, but this slows down the
+      ! routine by a factor of 2!  Rather, we do it with an explicit
+      ! loop.
+
+      ! Lacis and Hansen (1974) Eq 33, Shonk & Hogan (2008) Eq 10:
+       inv_denominator(jg,jlev+1) = 1.0_jprb / (1.0_jprb-albedo(jg,jlev+1)*reflectance(jg,jlev))
+       ! Shonk & Hogan (2008) Eq 9, Petty (2006) Eq 13.81:
+       albedo(jg,jlev) = reflectance(jg,jlev) + transmittance(jg,jlev) * transmittance(jg,jlev) &
+            &                                     * albedo(jg,jlev+1) * inv_denominator(jg,jlev+1)
+       ! Shonk & Hogan (2008) Eq 11:
+       source(jg,jlev) = ref_dir(jg,jlev)*flux_dn_direct(jg,jlev) &
+            &  + transmittance(jg,jlev)*(source(jg,jlev+1) &
+            &        + albedo(jg,jlev+1)*trans_dir_diff(jg,jlev)*flux_dn_direct(jg,jlev)) &
+            &  * inv_denominator(jg,jlev+1)
+    end do
+
+    ! At top-of-atmosphere there is no diffuse downwelling radiation
+    flux_dn_diffuse(jg,1) = 0.0_jprb
+
+    ! At top-of-atmosphere, all upwelling radiation is due to
+    ! scattering by the direct beam below that level
+    flux_up(jg,1) = source(jg,1)
+
+    ! Work back down through the atmosphere computing the fluxes at
+    ! each half-level
+! Added for DWD (2020)
+!NEC$ outerloop_unroll(8)
+    do jlev = 1,nlev
+       ! Shonk & Hogan (2008) Eq 14 (after simplification):
+       flux_dn_diffuse(jg,jlev+1) &
+            &  = (transmittance(jg,jlev)*flux_dn_diffuse(jg,jlev) &
+            &     + reflectance(jg,jlev)*source(jg,jlev+1) &
+            &     + trans_dir_diff(jg,jlev)*flux_dn_direct(jg,jlev)) * inv_denominator(jg,jlev+1)
+       ! Shonk & Hogan (2008) Eq 12:
+       flux_up(jg,jlev+1) = albedo(jg,jlev+1)*flux_dn_diffuse(jg,jlev+1) &
+            &            + source(jg,jlev+1)
+       flux_dn_direct(jg,jlev) = flux_dn_direct(jg,jlev)*cos_sza
+    end do
+
+    flux_dn_direct(jg,nlev+1) = flux_dn_direct(jg,nlev+1)*cos_sza
+    !end associate
+
+  end subroutine adding_ica_sw_omp
 
 end module radiation_adding_ica_sw

@@ -43,6 +43,15 @@ module radiation_two_stream
   ! Uncomment the following to turn Dr Hook on.
 !#define DO_DR_HOOK_TWO_STREAM
 
+  !$omp declare target(calc_two_stream_gammas_sw_single_band_omp)
+  !$omp declare target(calc_reflectance_transmittance_sw_single_band_omp)
+  !$omp declare target(calc_ref_trans_sw_omp)
+  !$omp declare target(calc_ref_trans_sw_single_level_omp)
+
+  !$omp declare target(calc_ref_trans_lw_single_level_omp)
+  !$omp declare target(calc_no_scattering_transmittance_lw_omp)
+  !$omp declare target(calc_no_scattering_transmittance_lw_single_cell_omp)
+
 contains
 
   !---------------------------------------------------------------------
@@ -1077,5 +1086,595 @@ contains
 #endif
 
   end subroutine calc_frac_scattered_diffuse_sw
+
+  !---------------------------------------------------------------------
+  !
+  ! OpenMP routines
+  !
+  !---------------------------------------------------------------------
+
+
+  !---------------------------------------------------------------------
+  ! OpenMP-optimized variant that avoids the local allocation of gamma
+  ! coefficients
+  subroutine calc_ref_trans_lw_single_level_omp(jg, ng, &
+    &    od, ssa, asymmetry, planck, &
+    &    reflectance, transmittance, source_up, source_dn)
+
+    integer, intent(in) :: jg, ng
+
+    ! Optical depth and single scattering albedo
+    real(jprb), intent(in) :: od
+
+    ! Single scattering albedo and asymmetry factor
+    real(jprb), intent(in) :: ssa, asymmetry
+
+    ! The Planck terms (functions of temperature) at the top and
+    ! bottom of the layer
+    real(jprb), intent(in), dimension(ng,2) :: planck
+
+    ! The diffuse reflectance and transmittance, i.e. the fraction of
+    ! diffuse radiation incident on a layer from either top or bottom
+    ! that is reflected back or transmitted through
+    real(jprb), intent(out), dimension(ng) :: reflectance, transmittance
+
+    ! The upward emission at the top of the layer and the downward
+    ! emission at its base, due to emission from within the layer
+    real(jprb), intent(out), dimension(ng) :: source_up, source_dn
+
+    real(jprb) :: gamma1, gamma2
+
+    ! The two transfer coefficients from the two-stream
+    ! differential equations
+    !real(jprb), dimension(ng)                     :: k_exponent, exponential
+    real(jprb) :: reftrans_factor
+    real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
+    real(jprb) :: coeff, coeff_up_top, coeff_up_bot, coeff_dn_top, coeff_dn_bot, factor
+
+    !
+    ! Ideally, we would use the associate statement below, however this doesn't
+    ! work with NVCOMPILER with OpenMP offload. Thus, we just use the more the array
+    ! that is pointed to :(
+    !
+#if defined(__amdflang__)
+    associate (exponential=>transmittance, k_exponent=>source_up)
+#endif
+
+    factor = (LwDiffusivityWP * 0.5_jprb) * ssa
+    gamma1 = LwDiffusivityWP - factor*(1.0_jprb + asymmetry)
+    gamma2 = factor * (1.0_jprb - asymmetry)
+#if defined(__amdflang__)
+    k_exponent(jg) = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
+         1.0e-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
+
+    exponential(jg) = exp(-k_exponent(jg)*od)
+#else
+    source_up(jg) = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
+         1.0e-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
+
+    transmittance(jg) = exp(-source_up(jg)*od)
+#endif
+
+    if (od > 1.0e-3_jprb) then
+#if defined(__amdflang__)
+       exponential2 = exponential(jg)*exponential(jg)
+       reftrans_factor = 1.0 / (k_exponent(jg)  + gamma1 + (k_exponent(jg) - gamma1)*exponential2)
+#else
+       exponential2 = transmittance(jg)*transmittance(jg)
+       reftrans_factor = 1.0 / (source_up(jg)  + gamma1 + (source_up(jg) - gamma1)*exponential2)
+#endif
+       ! Meador & Weaver (1980) Eq. 25
+       reflectance(jg) = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
+       ! Meador & Weaver (1980) Eq. 26
+#if defined(__amdflang__)
+       transmittance(jg) = 2.0_jprb * k_exponent(jg) * exponential(jg) * reftrans_factor
+#else
+       transmittance(jg) = 2.0_jprb * source_up(jg) * transmittance(jg) * reftrans_factor
+#endif
+       ! Compute upward and downward emission assuming the Planck
+       ! function to vary linearly with optical depth within the layer
+       ! (e.g. Wiscombe , JQSRT 1976).
+
+       ! Stackhouse and Stephens (JAS 1991) Eqs 5 & 12
+       coeff = (planck(jg,2)-planck(jg,1)) / (od*(gamma1+gamma2))
+       coeff_up_top  =  coeff + planck(jg,1)
+       coeff_up_bot  =  coeff + planck(jg,2)
+       coeff_dn_top  = -coeff + planck(jg,1)
+       coeff_dn_bot  = -coeff + planck(jg,2)
+       source_up(jg) =  coeff_up_top - reflectance(jg) * coeff_dn_top - transmittance(jg) * coeff_up_bot
+       source_dn(jg) =  coeff_dn_bot - reflectance(jg) * coeff_up_bot - transmittance(jg) * coeff_dn_top
+    else if (od < 1.0e-8_jprb) then
+       source_up(jg) = 0.0_jprb
+       source_dn(jg) = 0.0_jprb
+    else
+      reflectance(jg) = gamma2 * od
+#if defined(__amdflang__)
+      transmittance(jg) = (1.0_jprb - k_exponent(jg)*od) / (1.0_jprb + od*(gamma1-k_exponent(jg)))
+#else
+      transmittance(jg) = (1.0_jprb - source_up(jg)*od) / (1.0_jprb + od*(gamma1-source_up(jg)))
+#endif
+       source_up(jg) = (1.0_jprb - reflectance(jg) - transmittance(jg)) &
+            &       * 0.5 * (planck(jg,1) + planck(jg,2))
+       source_dn(jg) = source_up(jg)
+    end if
+
+#if defined(__amdflang__)
+    end associate
+#endif
+
+  end subroutine calc_ref_trans_lw_single_level_omp
+
+  !---------------------------------------------------------------------
+  ! Compute the longwave transmittance to diffuse radiation in the
+  ! no-scattering case, as well as the upward flux at the top and the
+  ! downward flux at the base of the layer due to emission from within
+  ! the layer assuming a linear variation of Planck function within
+  ! the layer.
+  subroutine calc_no_scattering_transmittance_lw_omp(jg, ng, nlev, &
+       &    od, planck, transmittance, source_up, source_dn)
+
+    integer, intent(in) :: jg, ng, nlev
+
+    ! Optical depth and single scattering albedo
+    real(jprb), intent(in), dimension(ng,nlev) :: od
+
+    ! The Planck terms (functions of temperature) at the top and
+    ! bottom of the layer
+    real(jprb), intent(in), dimension(ng,nlev+1) :: planck
+
+    ! The diffuse transmittance, i.e. the fraction of diffuse
+    ! radiation incident on a layer from either top or bottom that is
+    ! reflected back or transmitted through
+    real(jprb), intent(out), dimension(ng,nlev) :: transmittance
+
+    ! The upward emission at the top of the layer and the downward
+    ! emission at its base, due to emission from within the layer
+    real(jprb), intent(out), dimension(ng,nlev) :: source_up, source_dn
+
+    real(jprb) :: coeff, coeff_up_top, coeff_up_bot, coeff_dn_top, coeff_dn_bot !, planck_mean
+
+    integer :: jlev
+
+    do jlev = 1, nlev
+       ! Compute upward and downward emission assuming the Planck
+       ! function to vary linearly with optical depth within the layer
+       ! (e.g. Wiscombe , JQSRT 1976).
+       coeff = LwDiffusivityWP*od(jg,jlev)
+!#ifdef DWD_TWO_STREAM_OPTIMIZATIONS
+       transmittance(jg,jlev) = exp(-coeff)
+       !#endif
+       if (od(jg,jlev) > 1.0e-3_jprb) then
+          ! Simplified from calc_reflectance_transmittance_lw above
+          coeff = (planck(jg,jlev+1)-planck(jg,jlev)) / coeff
+          coeff_up_top  =  coeff + planck(jg,jlev)
+          coeff_up_bot  =  coeff + planck(jg,jlev+1)
+          coeff_dn_top  = -coeff + planck(jg,jlev)
+          coeff_dn_bot  = -coeff + planck(jg,jlev+1)
+          source_up(jg,jlev) =  coeff_up_top - transmittance(jg,jlev) * coeff_up_bot
+          source_dn(jg,jlev) =  coeff_dn_bot - transmittance(jg,jlev) * coeff_dn_top
+       else
+          ! Linear limit at low optical depth
+          source_up(jg,jlev) = coeff * 0.5_jprb * (planck(jg,jlev)+planck(jg,jlev+1))
+          source_dn(jg,jlev) = source_up(jg,jlev)
+       end if
+    end do
+
+  end subroutine calc_no_scattering_transmittance_lw_omp
+
+  !---------------------------------------------------------------------
+  ! Compute the longwave transmittance to diffuse radiation in the
+  ! no-scattering case, as well as the upward flux at the top and the
+  ! downward flux at the base of the layer due to emission from within
+  ! the layer assuming a linear variation of Planck function within
+  ! the layer.
+  subroutine calc_no_scattering_transmittance_lw_single_cell_omp( &
+       &    od, planck_top, planck_bot, transmittance, source_up, source_dn)
+
+    ! Optical depth and single scattering albedo as scalar
+    real(jprb), intent(in) :: od
+
+    ! The Planck terms (functions of temperature) at the top and
+    ! bottom of the layer
+    real(jprb), intent(in) :: planck_top, planck_bot
+
+    ! The diffuse transmittance, i.e. the fraction of diffuse
+    ! radiation incident on a layer from either top or bottom that is
+    ! reflected back or transmitted through
+    real(jprb), intent(out) :: transmittance
+
+    ! The upward emission at the top of the layer and the downward
+    ! emission at its base, due to emission from within the layer
+    real(jprb), intent(out) :: source_up, source_dn
+
+    real(jprb) :: coeff, coeff_up_top, coeff_up_bot, coeff_dn_top, coeff_dn_bot !, planck_mean
+
+    ! Compute upward and downward emission assuming the Planck
+    ! function to vary linearly with optical depth within the layer
+    ! (e.g. Wiscombe , JQSRT 1976).
+    coeff = LwDiffusivityWP*od
+    transmittance = exp(-coeff)
+    if (od > 1.0e-3_jprb) then
+       ! Simplified from calc_reflectance_transmittance_lw above
+       coeff = (planck_bot-planck_top) / coeff
+       coeff_up_top  =  coeff + planck_top
+       coeff_up_bot  =  coeff + planck_bot
+       coeff_dn_top  = -coeff + planck_top
+       coeff_dn_bot  = -coeff + planck_bot
+       source_up =  coeff_up_top - transmittance * coeff_up_bot
+       source_dn =  coeff_dn_bot - transmittance * coeff_dn_top
+    else
+       ! Linear limit at low optical depth
+       source_up = coeff * 0.5_jprb * (planck_top+planck_bot)
+       source_dn = source_up
+    end if
+
+  end subroutine calc_no_scattering_transmittance_lw_single_cell_omp
+
+  !---------------------------------------------------------------------
+  ! Calculate the two-stream coefficients gamma1-gamma4 in the
+  ! shortwave
+  subroutine calc_two_stream_gammas_sw_single_band_omp(jg, mu0, ssa, g, &
+       &                                               gamma1, gamma2, gamma3)
+
+    integer, intent(in) :: jg
+    ! Cosine of solar zenith angle, single scattering albedo and
+    ! asymmetry factor:
+    real(jprb), intent(in)  :: mu0
+    real(jprb), intent(in)  :: ssa, g
+    real(jprb), intent(out) :: gamma1, gamma2, gamma3
+
+    real(jprb) :: factor
+
+    ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
+    ! Atmospheric Physics 53, 147-66)
+! Added for DWD (2020)
+!NEC$ shortloop
+    !      gamma1 = 2.0_jprb  - ssa * (1.25_jprb + 0.75_jprb*g)
+    !      gamma2 = 0.75_jprb *(ssa * (1.0_jprb - g))
+    !      gamma3 = 0.5_jprb  - (0.75_jprb*mu0)*g
+    ! Optimized version:
+    factor = 0.75_jprb*g
+    gamma1 = 2.0_jprb  - ssa * (1.25_jprb + factor)
+    gamma2 = ssa * (0.75_jprb - factor)
+    gamma3 = 0.5_jprb  - mu0*factor
+
+  end subroutine calc_two_stream_gammas_sw_single_band_omp
+
+  !---------------------------------------------------------------------
+  ! Compute the shortwave reflectance and transmittance to diffuse
+  ! radiation using the Meador & Weaver formulas, as well as the
+  ! "direct" reflection and transmission, which really means the rate
+  ! of transfer of direct solar radiation (into a plane perpendicular
+  ! to the direct beam) into diffuse upward and downward streams at
+  ! the top and bottom of the layer, respectively.  Finally,
+  ! trans_dir_dir is the transmittance of the atmosphere to direct
+  ! radiation with no scattering.
+  subroutine calc_reflectance_transmittance_sw_single_band_omp(jg, ng, mu0, od, ssa, &
+       &      gamma1, gamma2, gamma3, ref_diff, trans_diff, &
+       &      ref_dir, trans_dir_diff, trans_dir_dir)
+
+    integer, intent(in) :: jg, ng
+
+    ! Cosine of solar zenith angle
+    real(jprb), intent(in) :: mu0
+
+    ! Optical depth and single scattering albedo
+    real(jprb), intent(in) :: od, ssa
+
+    ! The three transfer coefficients from the two-stream
+    ! differentiatial equations (computed by calc_two_stream_gammas)
+    real(jprb), intent(in) :: gamma1, gamma2, gamma3
+
+    ! The direct reflectance and transmittance, i.e. the fraction of
+    ! incoming direct solar radiation incident at the top of a layer
+    ! that is either reflected back (ref_dir) or scattered but
+    ! transmitted through the layer to the base (trans_dir_diff)
+    real(jprb), intent(out), dimension(ng) :: ref_dir, trans_dir_diff
+
+    ! The diffuse reflectance and transmittance, i.e. the fraction of
+    ! diffuse radiation incident on a layer from either top or bottom
+    ! that is reflected back or transmitted through
+    real(jprb), intent(out), dimension(ng) :: ref_diff, trans_diff
+
+    ! Transmittance of the direct been with no scattering
+    real(jprb), intent(out), dimension(ng) :: trans_dir_dir
+
+    real(jprd) :: gamma4, alpha1, alpha2, k_exponent, reftrans_factor
+    real(jprb) :: exponential0 ! = exp(-od/mu0)
+    real(jprd) :: exponential  ! = exp(-k_exponent*od)
+    real(jprd) :: exponential2 ! = exp(-2*k_exponent*od)
+    real(jprd) :: k_mu0, k_gamma3, k_gamma4
+    real(jprd) :: k_2_exponential, od_over_mu0
+
+    ! Local value of cosine of solar zenith angle, in case it needs to be
+    ! tweaked to avoid near division by zero. This is intentionally in working
+    ! precision (jprb) rather than fixing at double precision (jprd).
+    real(jprb) :: mu0_local
+
+! Added for DWD (2020)
+!NEC$ shortloop
+
+    gamma4 = 1.0_jprd - gamma3
+    alpha1 = gamma1*gamma4     + gamma2*gamma3 ! Eq. 16
+    alpha2 = gamma1*gamma3 + gamma2*gamma4    ! Eq. 17
+
+    k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
+         &       1.0e-12_jprd)) ! Eq 18
+
+    ! We had a rare crash where k*mu0 was within around 1e-13 of 1,
+    ! leading to ref_dir and trans_dir_diff being well outside the range
+    ! 0-1. The following approach is appropriate when k_exponent is double
+    ! precision and mu0_local is single precision, although work is needed
+    ! to make this entire routine secure in single precision.
+    mu0_local = mu0
+    if (abs(1.0_jprd - k_exponent*mu0) < 1000.0_jprd * epsilon(1.0_jprd)) then
+       mu0_local = mu0 * (1.0_jprb + SIGN(1._jprd,k_exponent*mu0-1._jprd)*10.0_jprb*epsilon(1.0_jprb))
+    end if
+
+    od_over_mu0 = max(od / mu0_local, 0.0_jprd)
+
+    ! Note that if the minimum value is reduced (e.g. to 1.0e-24)
+    ! then noise starts to appear as a function of solar zenith
+    ! angle
+    k_mu0 = k_exponent*mu0_local
+    k_gamma3 = k_exponent*gamma3
+    k_gamma4 = k_exponent*gamma4
+    ! Check for mu0 <= 0!
+    exponential0 = exp(-od_over_mu0)
+    trans_dir_dir(jg) = exponential0
+    exponential = exp(-k_exponent*od)
+
+    exponential2 = exponential*exponential
+    k_2_exponential = 2.0_jprd * k_exponent * exponential
+
+    reftrans_factor = 1.0_jprd / (k_exponent + gamma1 + (k_exponent - gamma1)*exponential2)
+
+    ! Meador & Weaver (1980) Eq. 25
+    ref_diff(jg) = gamma2 * (1.0_jprd - exponential2) * reftrans_factor
+
+    ! Meador & Weaver (1980) Eq. 26
+    trans_diff(jg) = k_2_exponential * reftrans_factor
+
+    ! Here we need mu0 even though it wasn't in Meador and Weaver
+    ! because we are assuming the incoming direct flux is defined
+    ! to be the flux into a plane perpendicular to the direction of
+    ! the sun, not into a horizontal plane
+    reftrans_factor = mu0_local * ssa * reftrans_factor / (1.0_jprd - k_mu0*k_mu0)
+
+    ! Meador & Weaver (1980) Eq. 14, multiplying top & bottom by
+    ! exp(-k_exponent*od) in case of very high optical depths
+    ref_dir(jg) = reftrans_factor &
+         &  * ( (1.0_jprd - k_mu0) * (alpha2 + k_gamma3) &
+         &     -(1.0_jprd + k_mu0) * (alpha2 - k_gamma3)*exponential2 &
+         &     -k_2_exponential*(gamma3 - alpha2*mu0_local)*exponential0)
+
+    ! Meador & Weaver (1980) Eq. 15, multiplying top & bottom by
+    ! exp(-k_exponent*od), minus the 1*exp(-od/mu0) term representing direct
+    ! unscattered transmittance.
+    trans_dir_diff(jg) = reftrans_factor * ( k_2_exponential*(gamma4 + alpha1*mu0_local) &
+         & - exponential0 &
+         & * ( (1.0_jprd + k_mu0) * (alpha1 + k_gamma4) &
+         &    -(1.0_jprd - k_mu0) * (alpha1 - k_gamma4) * exponential2) )
+
+    ! Final check that ref_dir + trans_dir_diff <= 1
+    ref_dir(jg) = max(0.0_jprb, min(ref_dir(jg), 1.0_jprb))
+    trans_dir_diff(jg) = max(0.0_jprb, min(trans_dir_diff(jg), 1.0_jprb-ref_dir(jg)))
+
+  end subroutine calc_reflectance_transmittance_sw_single_band_omp
+
+  !---------------------------------------------------------------------
+  ! OpenMP-optimized variant that avoids the local allocation of gamma
+  ! coefficients
+  subroutine calc_ref_trans_sw_omp(jg, ng, nlev, mu0, od, ssa, &
+    &      asymmetry, ref_diff, trans_diff, &
+    &      ref_dir, trans_dir_diff, trans_dir_dir)
+
+    implicit none
+
+    integer, intent(in) :: jg, ng, nlev
+
+    ! Cosine of solar zenith angle
+    real(jprb), intent(in) :: mu0
+
+    ! Optical depth and single scattering albedo
+    real(jprb), intent(in), dimension(ng, nlev) :: od, ssa, asymmetry
+
+    ! The direct reflectance and transmittance, i.e. the fraction of
+    ! incoming direct solar radiation incident at the top of a layer
+    ! that is either reflected back (ref_dir) or scattered but
+    ! transmitted through the layer to the base (trans_dir_diff)
+    real(jprb), intent(out), dimension(ng, nlev) :: ref_dir, trans_dir_diff
+
+    ! The diffuse reflectance and transmittance, i.e. the fraction of
+    ! diffuse radiation incident on a layer from either top or bottom
+    ! that is reflected back or transmitted through
+    real(jprb), intent(out), dimension(ng, nlev) :: ref_diff, trans_diff
+
+    ! Transmittance of the direct been with no scattering
+    real(jprb), intent(out), dimension(ng, nlev) :: trans_dir_dir
+
+    real(jprb) :: gamma1, gamma2, gamma3, gamma4
+    real(jprb) :: alpha1, alpha2, k_exponent
+    real(jprb) :: exponential ! = exp(-k_exponent*od)
+
+    real(jprb) :: reftrans_factor, factor
+    real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
+    real(jprb) :: k_mu0, k_gamma3, k_gamma4
+    real(jprb) :: k_2_exponential, one_minus_kmu0_sqr
+    integer    :: jlev
+
+    ! GPU-capable and vector-optimized version for ICON
+    do jlev = 1, nlev
+
+      trans_dir_dir(jg,jlev) = max(-max(od(jg,jlev) * (1.0_jprb/mu0),0.0_jprb),-1000.0_jprb)
+      trans_dir_dir(jg,jlev) = exp(trans_dir_dir(jg,jlev))
+
+      ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
+      ! Atmospheric Physics 53, 147-66)
+      factor = 0.75_jprb*asymmetry(jg,jlev)
+
+      gamma1 = 2.0_jprb  - ssa(jg,jlev) * (1.25_jprb + factor)
+      gamma2 = ssa(jg,jlev) * (0.75_jprb - factor)
+      gamma3 = 0.5_jprb  - mu0*factor
+      gamma4 = 1.0_jprb - gamma3
+
+      alpha1 = gamma1*gamma4 + gamma2*gamma3 ! Eq. 16
+      alpha2 = gamma1*gamma3 + gamma2*gamma4 ! Eq. 17
+#ifdef PARKIND1_SINGLE
+      k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-6_jprb))  ! Eq 18
+#else
+      k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-12_jprb)) ! Eq 18
+#endif
+
+      exponential = exp(-k_exponent*od(jg,jlev))
+
+      k_mu0 = k_exponent*mu0
+      one_minus_kmu0_sqr = 1.0_jprb - k_mu0*k_mu0
+      k_gamma3 = k_exponent*gamma3
+      k_gamma4 = k_exponent*gamma4
+      exponential2 = exponential*exponential
+      k_2_exponential = 2.0_jprb * k_exponent * exponential
+      reftrans_factor = 1.0_jprb / (k_exponent + gamma1 + (k_exponent - gamma1)*exponential2)
+
+      ! Meador & Weaver (1980) Eq. 25
+      ref_diff(jg,jlev) = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
+
+      ! Meador & Weaver (1980) Eq. 26
+      trans_diff(jg,jlev) = k_2_exponential * reftrans_factor
+
+      ! Here we need mu0 even though it wasn't in Meador and Weaver
+      ! because we are assuming the incoming direct flux is defined to
+      ! be the flux into a plane perpendicular to the direction of the
+      ! sun, not into a horizontal plane
+      reftrans_factor = mu0 * ssa(jg,jlev) * reftrans_factor &
+           &  / merge(one_minus_kmu0_sqr, epsilon(1.0_jprb), abs(one_minus_kmu0_sqr) > epsilon(1.0_jprb))
+
+      ! Meador & Weaver (1980) Eq. 14, multiplying top & bottom by
+      ! exp(-k_exponent*od) in case of very high optical depths
+      ref_dir(jg,jlev) = reftrans_factor &
+           &  * ( (1.0_jprb - k_mu0) * (alpha2 + k_gamma3) &
+           &     -(1.0_jprb + k_mu0) * (alpha2 - k_gamma3)*exponential2 &
+           &     -k_2_exponential*(gamma3 - alpha2*mu0)*trans_dir_dir(jg,jlev) )
+
+      ! Meador & Weaver (1980) Eq. 15, multiplying top & bottom by
+      ! exp(-k_exponent*od), minus the 1*exp(-od/mu0) term
+      ! representing direct unscattered transmittance.
+      trans_dir_diff(jg,jlev) = reftrans_factor * ( k_2_exponential*(gamma4 + alpha1*mu0) &
+           & - trans_dir_dir(jg,jlev) &
+           & * ( (1.0_jprb + k_mu0) * (alpha1 + k_gamma4) &
+           &    -(1.0_jprb - k_mu0) * (alpha1 - k_gamma4) * exponential2) )
+
+      ! Final check that ref_dir + trans_dir_diff <= 1
+      ref_dir(jg,jlev)        = max(0.0_jprb, min(ref_dir(jg,jlev), mu0*(1.0_jprb-trans_dir_dir(jg,jlev))))
+      trans_dir_diff(jg,jlev) = max(0.0_jprb, min(trans_dir_diff(jg,jlev), mu0*(1.0_jprb-trans_dir_dir(jg,jlev))-ref_dir(jg,jlev)))
+
+    end do
+
+  end subroutine calc_ref_trans_sw_omp
+
+  !---------------------------------------------------------------------
+  ! OpenMP-optimized variant that avoids the local allocation of gamma
+  ! coefficients
+  subroutine calc_ref_trans_sw_single_level_omp(jg, ng, mu0, od, ssa, &
+    &      asymmetry, ref_diff, trans_diff, &
+    &      ref_dir, trans_dir_diff, trans_dir_dir)
+
+    implicit none
+
+    integer, intent(in) :: jg, ng
+
+    ! Cosine of solar zenith angle
+    real(jprb), intent(in) :: mu0
+
+    ! Optical depth and single scattering albedo
+    real(jprb), intent(in) :: od, ssa, asymmetry
+
+    ! The direct reflectance and transmittance, i.e. the fraction of
+    ! incoming direct solar radiation incident at the top of a layer
+    ! that is either reflected back (ref_dir) or scattered but
+    ! transmitted through the layer to the base (trans_dir_diff)
+    real(jprb), intent(out), dimension(ng) :: ref_dir, trans_dir_diff
+
+    ! The diffuse reflectance and transmittance, i.e. the fraction of
+    ! diffuse radiation incident on a layer from either top or bottom
+    ! that is reflected back or transmitted through
+    real(jprb), intent(out), dimension(ng) :: ref_diff, trans_diff
+
+    ! Transmittance of the direct been with no scattering
+    real(jprb), intent(out), dimension(ng) :: trans_dir_dir
+
+    real(jprb) :: gamma1, gamma2, gamma3, gamma4
+    real(jprb) :: alpha1, alpha2, k_exponent
+    real(jprb) :: exponential ! = exp(-k_exponent*od)
+
+    real(jprb) :: reftrans_factor, factor
+    real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
+    real(jprb) :: k_mu0, k_gamma3, k_gamma4
+    real(jprb) :: k_2_exponential, one_minus_kmu0_sqr
+
+    ! GPU-capable and vector-optimized version for ICON
+    trans_dir_dir(jg) = max(-max(od * (1.0_jprb/mu0),0.0_jprb),-1000.0_jprb)
+    trans_dir_dir(jg) = exp(trans_dir_dir(jg))
+
+    ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
+    ! Atmospheric Physics 53, 147-66)
+    factor = 0.75_jprb*asymmetry
+
+    gamma1 = 2.0_jprb  - ssa * (1.25_jprb + factor)
+    gamma2 = ssa * (0.75_jprb - factor)
+    gamma3 = 0.5_jprb  - mu0*factor
+    gamma4 = 1.0_jprb - gamma3
+
+    alpha1 = gamma1*gamma4 + gamma2*gamma3 ! Eq. 16
+    alpha2 = gamma1*gamma3 + gamma2*gamma4 ! Eq. 17
+#ifdef PARKIND1_SINGLE
+    k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-6_jprb))  ! Eq 18
+#else
+    k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-12_jprb)) ! Eq 18
+#endif
+
+    exponential = exp(-k_exponent*od)
+
+    k_mu0 = k_exponent*mu0
+    one_minus_kmu0_sqr = 1.0_jprb - k_mu0*k_mu0
+    k_gamma3 = k_exponent*gamma3
+    k_gamma4 = k_exponent*gamma4
+    exponential2 = exponential*exponential
+    k_2_exponential = 2.0_jprb * k_exponent * exponential
+    reftrans_factor = 1.0_jprb / (k_exponent + gamma1 + (k_exponent - gamma1)*exponential2)
+
+    ! Meador & Weaver (1980) Eq. 25
+    ref_diff(jg) = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
+
+    ! Meador & Weaver (1980) Eq. 26
+    trans_diff(jg) = k_2_exponential * reftrans_factor
+
+    ! Here we need mu0 even though it wasn't in Meador and Weaver
+    ! because we are assuming the incoming direct flux is defined to
+    ! be the flux into a plane perpendicular to the direction of the
+    ! sun, not into a horizontal plane
+    reftrans_factor = mu0 * ssa * reftrans_factor &
+         &  / merge(one_minus_kmu0_sqr, epsilon(1.0_jprb), abs(one_minus_kmu0_sqr) > epsilon(1.0_jprb))
+
+    ! Meador & Weaver (1980) Eq. 14, multiplying top & bottom by
+    ! exp(-k_exponent*od) in case of very high optical depths
+    ref_dir(jg) = reftrans_factor &
+         &  * ( (1.0_jprb - k_mu0) * (alpha2 + k_gamma3) &
+         &     -(1.0_jprb + k_mu0) * (alpha2 - k_gamma3)*exponential2 &
+         &     -k_2_exponential*(gamma3 - alpha2*mu0)*trans_dir_dir(jg) )
+
+    ! Meador & Weaver (1980) Eq. 15, multiplying top & bottom by
+    ! exp(-k_exponent*od), minus the 1*exp(-od/mu0) term
+    ! representing direct unscattered transmittance.
+    trans_dir_diff(jg) = reftrans_factor * ( k_2_exponential*(gamma4 + alpha1*mu0) &
+         & - trans_dir_dir(jg) &
+         & * ( (1.0_jprb + k_mu0) * (alpha1 + k_gamma4) &
+         &    -(1.0_jprb - k_mu0) * (alpha1 - k_gamma4) * exponential2) )
+
+    ! Final check that ref_dir + trans_dir_diff <= 1
+    ref_dir(jg)        = max(0.0_jprb, min(ref_dir(jg), mu0*(1.0_jprb-trans_dir_dir(jg))))
+    trans_dir_diff(jg) = max(0.0_jprb, min(trans_dir_diff(jg), mu0*(1.0_jprb-trans_dir_dir(jg))-ref_dir(jg)))
+
+  end subroutine calc_ref_trans_sw_single_level_omp
 
 end module radiation_two_stream

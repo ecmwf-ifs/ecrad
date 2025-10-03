@@ -21,6 +21,8 @@ module radiation_adding_ica_lw
 
   public
 
+  !$omp declare target(fast_adding_ica_lw_omp)
+  !$omp declare target(calc_fluxes_no_scattering_lw_omp)
 contains
 
   !---------------------------------------------------------------------
@@ -281,6 +283,125 @@ contains
 
   end subroutine fast_adding_ica_lw
 
+  !---------------------------------------------------------------------
+  ! Use the scalar "adding" method to compute longwave flux profiles,
+  ! including scattering in cloudy layers only.
+  subroutine fast_adding_ica_lw_omp(jg, ng, nlev, &
+       &  reflectance, transmittance, source_up, source_dn, emission_surf, albedo_surf, &
+       &  is_clear_sky_layer, i_cloud_top, flux_dn_clear, &
+       &  flux_up, flux_dn, albedo, inv_denominator, source)
+
+    use parkind1, only           : jprb
+    implicit none
+
+    ! Inputs
+    integer, intent(in) :: jg ! spectral index
+    integer, intent(in) :: ng ! number of spectral bands
+    integer, intent(in) :: nlev ! number of levels
+
+    ! Surface emission (W m-2) and albedo
+    real(jprb), intent(in),  dimension(ng) :: emission_surf, albedo_surf
+
+    ! Diffuse reflectance and transmittance of each layer
+    real(jprb), intent(in),  dimension(ng, nlev)   :: reflectance, transmittance
+
+    ! Emission from each layer in an upward and downward direction
+    real(jprb), intent(in),  dimension(ng, nlev)   :: source_up, source_dn
+
+    ! Determine which layers are cloud-free
+    logical, intent(in) :: is_clear_sky_layer(nlev)
+
+    ! Index to highest cloudy layer
+    integer, intent(in) :: i_cloud_top
+
+    ! Pre-computed clear-sky downwelling fluxes (W m-2) at half-levels
+    real(jprb), intent(in), dimension(ng, nlev+1)  :: flux_dn_clear
+
+    ! Resulting fluxes (W m-2) at half-levels: diffuse upwelling and
+    ! downwelling
+    real(jprb), intent(out), dimension(ng, nlev+1) :: flux_up, flux_dn
+    real(jprb), intent(out), dimension(ng, nlev+1) :: albedo, inv_denominator
+
+    ! Upwelling radiation at each half-level due to emission below
+    ! that half-level (W m-2)
+    real(jprb), intent(out), dimension(ng, nlev+1) :: source
+
+    ! Loop index for model level and column
+    integer :: jlev
+
+    !
+    ! Ideally, we would use the associate statement below, however this doesn't
+    ! work with NVCOMPILER. Thus, we pass albedo and inv_denominator in from the
+    ! calling code. However, we pass it in as flux up and flux_dn. That is, the
+    ! flux_up and flux_dn are temporarilly reusable.
+    !
+    !associate(albedo=>flux_up, inv_denominator=>flux_dn)
+
+    albedo(jg,nlev+1) = albedo_surf(jg)
+
+    ! At the surface, the source is thermal emission
+    source(jg,nlev+1) = emission_surf(jg)
+
+    ! Work back up through the atmosphere and compute the albedo of
+    ! the entire earth/atmosphere system below that half-level, and
+    ! also the "source", which is the upwelling flux due to emission
+    ! below that level
+    do jlev = nlev,i_cloud_top,-1
+      if (is_clear_sky_layer(jlev)) then
+         ! Reflectance of this layer is zero, simplifying the expression
+         albedo(jg,jlev) = transmittance(jg,jlev)*transmittance(jg,jlev)*albedo(jg,jlev+1)
+         source(jg,jlev) = source_up(jg,jlev) &
+              &  + transmittance(jg,jlev) * (source(jg,jlev+1) &
+              &                    + albedo(jg,jlev+1)*source_dn(jg,jlev))
+      else
+         ! Loop over columns; explicit loop seems to be faster
+         ! Lacis and Hansen (1974) Eq 33, Shonk & Hogan (2008) Eq 10:
+         inv_denominator(jg,jlev+1) = 1.0_jprb &
+              &  / (1.0_jprb-albedo(jg,jlev+1)*reflectance(jg,jlev))
+         ! Shonk & Hogan (2008) Eq 9, Petty (2006) Eq 13.81:
+         albedo(jg,jlev) = reflectance(jg,jlev) + transmittance(jg,jlev)*transmittance(jg,jlev) &
+              &  * albedo(jg,jlev+1) * inv_denominator(jg,jlev+1)
+         ! Shonk & Hogan (2008) Eq 11:
+         source(jg,jlev) = source_up(jg,jlev) &
+              &  + transmittance(jg,jlev) * (source(jg,jlev+1) &
+              &                    + albedo(jg,jlev+1)*source_dn(jg,jlev)) &
+              &                   * inv_denominator(jg,jlev+1)
+      end if
+    end do
+
+    ! Copy over downwelling fluxes above cloud from clear sky
+    do jlev = 1,i_cloud_top
+       flux_dn(jg,jlev) = flux_dn_clear(jg,jlev)
+    enddo
+
+    ! Compute the fluxes above the highest cloud
+    flux_up(jg,i_cloud_top) = source(jg,i_cloud_top) &
+         &                 + albedo(jg,i_cloud_top)*flux_dn(jg,i_cloud_top)
+    do jlev = i_cloud_top-1,1,-1
+       flux_up(jg,jlev) = transmittance(jg,jlev)*flux_up(jg,jlev+1) + source_up(jg,jlev)
+    end do
+
+    ! Work back down through the atmosphere from cloud top computing
+    ! the fluxes at each half-level
+    do jlev = i_cloud_top,nlev
+      if (is_clear_sky_layer(jlev)) then
+         flux_dn(jg,jlev+1) = transmittance(jg,jlev)*flux_dn(jg,jlev) &
+              &               + source_dn(jg,jlev)
+         flux_up(jg,jlev+1) = albedo(jg,jlev+1)*flux_dn(jg,jlev+1) &
+              &               + source(jg,jlev+1)
+      else
+         ! Shonk & Hogan (2008) Eq 14 (after simplification):
+         flux_dn(jg,jlev+1) &
+              &  = (transmittance(jg,jlev)*flux_dn(jg,jlev) &
+              &     + reflectance(jg,jlev)*source(jg,jlev+1) &
+              &     + source_dn(jg,jlev)) * inv_denominator(jg,jlev+1)
+         ! Shonk & Hogan (2008) Eq 12:
+         flux_up(jg,jlev+1) = albedo(jg,jlev+1)*flux_dn(jg,jlev+1) &
+              &               + source(jg,jlev+1)
+      end if
+   end do
+
+  end subroutine fast_adding_ica_lw_omp
 
   !---------------------------------------------------------------------
   ! If there is no scattering then fluxes may be computed simply by
@@ -369,5 +490,62 @@ contains
 #endif
 
   end subroutine calc_fluxes_no_scattering_lw
+
+
+  !---------------------------------------------------------------------
+  ! If there is no scattering then fluxes may be computed simply by
+  ! passing down through the atmosphere computing the downwelling
+  ! fluxes from the transmission and emission of each layer, and then
+  ! passing back up through the atmosphere to compute the upwelling
+  ! fluxes in the same way.
+  subroutine calc_fluxes_no_scattering_lw_omp(jg, ng, nlev, &
+       &  transmittance, source_up, source_dn, emission_surf, albedo_surf, flux_up, flux_dn)
+
+    use parkind1, only           : jprb
+    implicit none
+
+    ! Inputs
+    integer, intent(in) :: jg, ng
+    integer, intent(in) :: nlev ! number of levels
+
+    ! Surface emission (W m-2) and albedo
+    real(jprb), intent(in),  dimension(ng) :: emission_surf, albedo_surf
+
+    ! Diffuse reflectance and transmittance of each layer
+    real(jprb), intent(in),  dimension(ng, nlev)   :: transmittance
+
+    ! Emission from each layer in an upward and downward direction
+    real(jprb), intent(in),  dimension(ng, nlev)   :: source_up, source_dn
+
+    ! Resulting fluxes (W m-2) at half-levels: diffuse upwelling and
+    ! downwelling
+    real(jprb), intent(out), dimension(ng, nlev+1) :: flux_up, flux_dn
+
+    ! Loop index for model level
+    integer :: jlev, jcol
+
+    ! At top-of-atmosphere there is no diffuse downwelling radiation
+    flux_dn(jg,1) = 0.0_jprb
+
+    ! Work down through the atmosphere computing the downward fluxes
+    ! at each half-level
+! Added for DWD (2020)
+!NEC$ outerloop_unroll(8)
+    do jlev = 1,nlev
+       flux_dn(jg,jlev+1) = transmittance(jg,jlev)*flux_dn(jg,jlev) + source_dn(jg,jlev)
+    end do
+
+    ! Surface reflection and emission
+    flux_up(jg,nlev+1) = emission_surf(jg) + albedo_surf(jg) * flux_dn(jg,nlev+1)
+
+    ! Work back up through the atmosphere computing the upward fluxes
+    ! at each half-level
+! Added for DWD (2020)
+!NEC$ outerloop_unroll(8)
+    do jlev = nlev,1,-1
+       flux_up(jg,jlev) = transmittance(jg,jlev)*flux_up(jg,jlev+1) + source_up(jg,jlev)
+    end do
+
+  end subroutine calc_fluxes_no_scattering_lw_omp
 
 end module radiation_adding_ica_lw

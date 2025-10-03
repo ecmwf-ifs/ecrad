@@ -34,6 +34,11 @@
 
 module radiation_lw_derivatives
 
+  implicit none
+
+  !$omp declare target(calc_lw_derivatives_ica_omp)
+  !$omp declare target(modify_lw_derivatives_ica_omp)
+
   public
 
 contains
@@ -184,7 +189,109 @@ contains
 
   end subroutine modify_lw_derivatives_ica
 
+  !---------------------------------------------------------------------
+  ! Calculation for the Independent Column Approximation
+  ! uses global memory to for writing out the results of the reduction
+  subroutine calc_lw_derivatives_ica_omp(ng, nlev, icol, transmittance, flux_up_surf, lw_derivatives, lw_derivatives_g)
 
+    use parkind1, only           : jprb
+    implicit none
+
+    ! Inputs
+    integer,    intent(in) :: ng   ! number of spectral intervals
+    integer,    intent(in) :: nlev ! number of levels
+    integer,    intent(in) :: icol ! Index of column for output
+    real(jprb), intent(in) :: transmittance(ng,nlev)
+    real(jprb), intent(in) :: flux_up_surf(ng) ! Upwelling surface spectral flux (W m-2)
+
+    ! Output
+    real(jprb), intent(out) :: lw_derivatives(:,:) ! dimensioned (ncol,nlev+1)
+
+    ! Rate of change of spectral flux at a given height with respect
+    ! to the surface value
+    real(jprb), intent(inout) :: lw_derivatives_g(ng)
+
+    real(jprb) :: sum_flux_up_surf, sum_lw_derivatives_g
+
+    integer    :: jlev, jg
+
+    sum_flux_up_surf = 0.0_jprb
+    do jg = 1,ng
+       sum_flux_up_surf = sum_flux_up_surf + flux_up_surf(jg)
+    end do
+    ! Initialize the derivatives at the surface
+    do jg = 1,ng
+      lw_derivatives_g(jg) = flux_up_surf(jg) / sum_flux_up_surf
+    end do
+    lw_derivatives(icol, nlev+1) = 1.0_jprb
+
+    ! Move up through the atmosphere computing the derivatives at each
+    ! half-level
+    do jlev = nlev,1,-1
+      sum_lw_derivatives_g = 0.0_jprb
+      do jg = 1,ng
+        lw_derivatives_g(jg) = lw_derivatives_g(jg) * transmittance(jg,jlev)
+        sum_lw_derivatives_g = sum_lw_derivatives_g + lw_derivatives_g(jg)
+      end do
+      lw_derivatives(icol,jlev) = sum_lw_derivatives_g
+    end do
+
+  end subroutine calc_lw_derivatives_ica_omp
+
+  !---------------------------------------------------------------------
+  ! Calculation for the Independent Column Approximation
+  ! uses global memory to for writing out the results of the reduction
+  subroutine modify_lw_derivatives_ica_omp(ng, nlev, icol, transmittance, flux_up_surf, &
+       &                                   weight, lw_derivatives, lw_derivatives_g)
+
+    use parkind1, only           : jprb
+
+    implicit none
+
+    ! Inputs
+    integer,    intent(in) :: ng   ! number of spectral intervals
+    integer,    intent(in) :: nlev ! number of levels
+    integer,    intent(in) :: icol ! Index of column for output
+    real(jprb), intent(in) :: transmittance(ng,nlev)
+    real(jprb), intent(in) :: flux_up_surf(ng) ! Upwelling surface spectral flux (W m-2)
+    real(jprb), intent(in) :: weight ! Weight new values against existing
+
+    ! Output
+    real(jprb), intent(inout) :: lw_derivatives(:,:) ! dimensioned (ncol,nlev+1)
+
+    ! Rate of change of spectral flux at a given height with respect
+    ! to the surface value
+    real(jprb), intent(inout) :: lw_derivatives_g(ng)
+
+    real(jprb) :: sum_flux_up_surf, sum_lw_derivatives_g
+
+    integer    :: jlev, jg
+
+    sum_flux_up_surf = 0.0_jprb
+    do jg = 1,ng
+      sum_flux_up_surf = sum_flux_up_surf + flux_up_surf(jg)
+    end do
+    ! Initialize the derivatives at the surface
+    do jg = 1,ng
+      lw_derivatives_g(jg) = flux_up_surf(jg) / sum_flux_up_surf
+    end do
+
+    ! This value must be 1 so no weighting applied
+    lw_derivatives(icol, nlev+1) = 1.0_jprb
+
+    ! Move up through the atmosphere computing the derivatives at each
+    ! half-level
+    do jlev = nlev,1,-1
+      sum_lw_derivatives_g = 0.0_jprb
+      do jg = 1,ng
+        lw_derivatives_g(jg) = lw_derivatives_g(jg) * transmittance(jg,jlev)
+        sum_lw_derivatives_g = sum_lw_derivatives_g + lw_derivatives_g(jg)
+      end do
+      lw_derivatives(icol,jlev) = (1.0_jprb - weight) * lw_derivatives(icol,jlev) &
+           &                    + weight * sum_lw_derivatives_g
+    end do
+
+  end subroutine modify_lw_derivatives_ica_omp
 
   !---------------------------------------------------------------------
   ! Calculation for solvers involving multiple regions and matrices
