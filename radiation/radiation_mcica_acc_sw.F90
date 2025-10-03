@@ -59,6 +59,10 @@ contains
     use radiation_cloud_generator_acc, only: cloud_generator_acc
     use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
 
+#ifdef HAVE_NVTX
+    use nvtx
+#endif
+
     implicit none
 
     ! Inputs
@@ -159,6 +163,10 @@ contains
     integer :: jlev, jcol, jg
 
     real(jphook) :: hook_handle
+
+#ifdef HAVE_NVTX
+    call nvtxStartRange("radiation::radiation::mcica_acc_sw")
+#endif
 
     if (lhook) call dr_hook('radiation_mcica_acc_sw:solver_mcica_acc_sw',0,hook_handle)
 
@@ -575,6 +583,11 @@ contains
     !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_mcica_acc_sw:solver_mcica_acc_sw',1,hook_handle)
+
+#ifdef HAVE_NVTX
+    !$ACC WAIT(1)
+    call nvtxEndRange
+#endif
 
   end subroutine solver_mcica_acc_sw
 
