@@ -242,6 +242,14 @@ contains
     use radiation_general_cloud_optics, only : general_cloud_optics
     use radiation_aerosol_optics, only : add_aerosol_optics
 
+#ifdef HAVE_NVTX
+    use nvtx
+#endif
+#ifdef HAVE_ROCTX
+    use roctx_profiling, only: roctxstartrange, roctxendrange
+    use iso_c_binding, only: c_null_char
+#endif
+
     ! Inputs
     integer, intent(in) :: ncol               ! number of columns
     integer, intent(in) :: nlev               ! number of model levels
@@ -331,6 +339,12 @@ contains
 
       ! Input arrays arranged in order of increasing pressure /
       ! decreasing height: progress normally
+#ifdef HAVE_NVTX
+      call nvtxStartRange("radiation::get_albedos")
+#endif
+#ifdef HAVE_ROCTX
+      call roctxStartRange("radiation::get_albedos"//c_null_char)
+#endif
 
       ! Extract surface albedos at each gridpoint
       call single_level%get_albedos(single_level, &
@@ -338,6 +352,15 @@ contains
            &                        sw_albedo_direct, sw_albedo_diffuse, &
            &                        lw_albedo)
 
+#ifdef HAVE_NVTX
+      !$ACC WAIT(1)
+      call nvtxEndRange
+      call nvtxStartRange("radiation::gas_optics")
+#endif
+#ifdef HAVE_ROCTX
+      call roctxEndRange
+      call roctxStartRange("radiation::gas_optics"//c_null_char)
+#endif
       ! Compute gas absorption optical depth in shortwave and
       ! longwave, shortwave single scattering albedo (i.e. fraction of
       ! extinction due to Rayleigh scattering), Planck functions and
@@ -366,6 +389,15 @@ contains
                &  incoming_sw=incoming_sw)
         end if
       end if
+#ifdef HAVE_NVTX
+      !$ACC WAIT(1)
+      call nvtxEndRange
+      call nvtxStartRange("radiation::cloud_optics")
+#endif
+#ifdef HAVE_ROCTX
+      call roctxEndRange
+      call roctxStartRange("radiation::cloud_optics"//c_null_char)
+#endif
 
       if (config%do_clouds) then
         ! Crop the cloud fraction to remove clouds that have too small
@@ -396,6 +428,15 @@ contains
         end if
       end if ! do_clouds
 
+#ifdef HAVE_NVTX
+      !$ACC WAIT(1)
+      call nvtxEndRange
+      call nvtxStartRange("radiation::aerosol_optics")
+#endif
+#ifdef HAVE_ROCTX
+      call roctxEndRange
+      call roctxStartRange("radiation::aerosol_optics"//c_null_char)
+#endif
       if (config%use_aerosols) then
         if (config%i_gas_model_sw == IGasModelMonochromatic) then
 !          call add_aerosol_optics_mono(nlev,istartcol,iendcol, &
@@ -426,6 +467,14 @@ contains
         end do
         !$ACC END PARALLEL
       end if
+
+#ifdef HAVE_NVTX
+      !$ACC WAIT(1)
+      call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+      call roctxEndRange
+#endif
 
       ! For diagnostic purposes, save these intermediate variables to
       ! a NetCDF file
