@@ -94,6 +94,45 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     ENDDO
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
+#if defined(OMPGPU)
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
+    DO iplon = KIDIA, KFDIA
+       DO i_lay = 1, laytrop_min
+         IF (k_jp(iplon,i_lay) < layreffr                           &
+              &    .AND. k_jp(iplon,i_lay+1) >= layreffr)           &
+              &    i_laysolfr(iplon) = MIN(i_lay+1,k_laytrop(iplon))
+       ENDDO
+    ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(IND0, IND1, INDS, INDF, Z_TAURAY)
+    DO i_lay = 1, laytrop_min
+      DO iplon = KIDIA, KFDIA
+         ind0 = ((k_jp(iplon,i_lay)-1)*5+(k_jt(iplon,i_lay)-1))*nspa(20) + 1
+         ind1 = (k_jp(iplon,i_lay)*5+(k_jt1(iplon,i_lay)-1))*nspa(20) + 1
+         inds = k_indself(iplon,i_lay)
+         indf = k_indfor(iplon,i_lay)
+         z_tauray = p_colmol(iplon,i_lay) * rayl
+!$NEC unroll(NG20)
+         DO ig = 1 , ng20
+           p_taug(iplon,i_lay,ig) = p_colh2o(iplon,i_lay) *      &
+                & ((p_fac00(iplon,i_lay) * absa(ind0,ig) +       &
+                & p_fac10(iplon,i_lay) * absa(ind0+1,ig) +       &
+                & p_fac01(iplon,i_lay) * absa(ind1,ig) +         &
+                & p_fac11(iplon,i_lay) * absa(ind1+1,ig)) +      &
+                & p_selffac(iplon,i_lay) * (selfrefc(inds,ig) +  &
+                & p_selffrac(iplon,i_lay) *                      &
+                & (selfrefc(inds+1,ig) - selfrefc(inds,ig))) +   &
+                & p_forfac(iplon,i_lay) * (forrefc(indf,ig) +    &
+                & p_forfrac(iplon,i_lay) *                       &
+                & (forrefc(indf+1,ig) - forrefc(indf,ig))))      &
+                & + p_colch4(iplon,i_lay) * absch4c(ig)
+           p_taur(iplon,i_lay,ig) = z_tauray
+           IF(i_lay == i_laysolfr(iplon)) p_sfluxzen(iplon,ig)=sfluxrefc(ig)
+         ENDDO
+      ENDDO
+    ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#else
     !$ACC LOOP SEQ
     DO i_lay = 1, llaytrop_min
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(IND0, IND1, INDS, INDF, Z_TAURAY)
@@ -127,6 +166,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       ENDDO
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
+#endif
 
     !$ACC LOOP SEQ
     DO i_lay = llaytrop_min+1, llaytrop_max
