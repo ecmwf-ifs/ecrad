@@ -248,7 +248,8 @@ contains
     use radiation_homogeneous_lw, only : solver_homogeneous_lw
     use radiation_tcrad_lw,       only : solver_tcrad_lw, radiance_solver_tcrad_lw
     use radiation_adept_tripleclouds_lw, only : solver_adept_tripleclouds_lw, &
-         &                                      radiance_solver_adept_tripleclouds_lw
+         &                                      radiance_solver_adept_tripleclouds_lw, &
+         &                                      radiance_solver_adept_tripleclouds_lw_ad
 #ifdef FLOTSAM
     use radiation_flotsam_sw,     only : radiance_solver_flotsam_sw
 #endif
@@ -476,7 +477,7 @@ contains
                  &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
                  &  planck_hl, lw_emission, lw_albedo, flux)
           else
-            call radiance_solver_adept_tripleclouds_lw(nlev,istartcol,iendcol, &
+            call radiance_solver_adept_tripleclouds_lw_ad(nlev,istartcol,iendcol, &
                  &  config, thermodynamics, &
                  &  cloud, single_level%cos_sensor_zenith_angle, & 
                  &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &

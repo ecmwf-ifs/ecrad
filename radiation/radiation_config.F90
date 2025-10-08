@@ -63,10 +63,10 @@ module radiation_config
   enum, bind(c) 
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
           &     ISolverSpartacus, ISolverTripleclouds, &
-          &     ISolverTcrad, ISolverTcradICA, &
+          &     ISolverTcrad, ISolverTcradICA, ISolverTcAdept, &
           &     ISolverFlotsam, ISolverFlotsamICA, &
           &     ISolverDISORT, ISolverHomogeneousDISORT, ISolverCloudlessDISORT, &
-          &     ISolverPOMART3D, ISolverPOMART3DTICA, ISolverTcAdept
+          &     ISolverPOMART3D, ISolverPOMART3DTICA
   end enum
   character(len=*), parameter :: SolverName(0:14) = [ 'Cloudless        ', &
        &                                              'Homogeneous      ', &
@@ -75,14 +75,14 @@ module radiation_config
        &                                              'Tripleclouds     ', &
        &                                              'TCRAD            ', &
        &                                              'TCRADICA         ', &
+       &                                              'TCAdept          ', &
        &                                              'FLOTSAM          ', &
        &                                              'FLOTSAMICA       ', &
        &                                              'DISORT           ', &
        &                                              'HomogeneousDISORT', &
        &                                              'CloudlessDISORT  ', &
        &                                              'POMART3D         ', &
-       &                                              'POMART3DTICA     ', &
-       &                                              'TCAdept          ']
+       &                                              'POMART3DTICA     ']
 
 
   ! How is the gridbox-mean cloud water adjusted to obtain the
@@ -97,18 +97,18 @@ module radiation_config
 
   ! Array specifying cloud scaling assumption associated with each
   ! solver
-  integer, parameter :: SolverCloudScaling(0:13) &
+  integer, parameter :: SolverCloudScaling(0:14) &
        &  = [ ICloudScalingZero, ICloudScalingOne, &
        &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingFraction, &
-       &      ICloudScalingFraction, ICloudScalingFraction, & ! TCRAD
+       &      ICloudScalingFraction, ICloudScalingFraction, ICloudScalingFraction, & ! TCRAD
        &      ICloudScalingFraction, ICloudScalingFraction, & ! FLOTSAM
        &      ICloudScalingCover, ICloudScalingOne, ICloudScalingZero, & ! DISORT
        &      ICloudScalingOne, ICloudScalingOne ] ! POMART3D
 
-  integer, parameter :: SolverPhaseFuncMode(0:13) &
+  integer, parameter :: SolverPhaseFuncMode(0:14) &
        &  = [ IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, &
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, &
-       &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, & ! TCRAD
+       &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, & ! TCRAD
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry, & ! FLOTSAM (need special entry here?)
        &      IPhaseFuncLegendre,  IPhaseFuncLegendre,  IPhaseFuncLegendre, & ! DISORT
        &      IPhaseFuncAsymmetry, IPhaseFuncAsymmetry ] ! POMART3D

@@ -1,7 +1,7 @@
 INPUT = ecrad_meridian
 
 #DRIVER = totalview ../../bin/ecrad -a
-DRIVER = forge ../../bin/ecrad
+DRIVER =  ../../bin/ecrad
 IFS_DRIVER = ../../bin/ecrad_ifs
 IFS_DRIVER_BLOCKED = ../../bin/ecrad_ifs_blocked
 CHANGENAM = ../common/change_namelist.sh
@@ -10,7 +10,8 @@ CHANGENAM = ../common/change_namelist.sh
 # Integrated Forecasting System (IFS)
 #CONFIG = configCY43R3.nam
 #CONFIG = configCY46R1.nam
-CONFIG = configCY49R1.nam
+#CONFIG = configCY49R1.nam
+CONFIG = configCY49R1_tcrad.nam
 CONFIG_ECCKD = configCY49R1.nam
 CONFIG_MIXED = configCY49R1_mixed.nam
 CONFIG_DISORT = configDISORT.nam
@@ -136,7 +137,7 @@ test_tcrad:
 
 # Tripleclouds solver with exponential-random overlap 
 test_tcadept:
-	$(CHANGENAM) $(CONFIG_ECCKD) config_tcadept.nam \
+	$(CHANGENAM) $(CONFIG) config_tcadept.nam \
 		sw_solver_name='"Tripleclouds"' lw_solver_name='"TCAdept"' \
 		overlap_scheme_name='"Exp-Ran"' #gas_model_name='"Monochromatic"'
 	$(DRIVER) config_tcadept.nam $(INPUT).nc $(INPUT)_tcadept_out.nc

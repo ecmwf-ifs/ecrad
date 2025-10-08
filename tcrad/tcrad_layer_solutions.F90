@@ -1183,11 +1183,11 @@ contains
         ! and also by the single-scattering co-albedo
         planck_top(:,1) = planck_hl(:,jlev) * region_fracs(1,jlev)
         planck_top(:,2:nreg) = spread(planck_hl(:,jlev),2,nreg-1) &
-             &  * (1.0_jprb - 0.0_jprb*ssa(:,2:nreg,jlev)) &
+             &  * (1.0_jprb - 0.0*ssa(:,2:nreg,jlev)) &
              &  * spread(region_fracs(2:nreg,jlev),1,nspec)
         planck_base(:,1) = planck_hl(:,jlev+1) * region_fracs(1,jlev)
         planck_base(:,2:nreg) = spread(planck_hl(:,jlev+1),2,nreg-1) &
-             &  * (1.0_jprb - 0.0_jprb*ssa(:,2:nreg,jlev)) &
+             &  * (1.0_jprb - 0.0*ssa(:,2:nreg,jlev)) &
              &  * spread(region_fracs(2:nreg,jlev),1,nspec)
       else
         ! Clear layer
@@ -1324,11 +1324,11 @@ contains
           else
             ! Low optical depth approximation: emission only
             if (present(source_up)) then
-              source_up(jspec,1,jlev) = ssa(jspec,jreg,jlev)*od(jspec,jreg,jlev) &
+              source_up(jspec,jreg,jlev) = od(jspec,jreg,jlev) &
                    &  * 0.5_jprb*(planck_base(jspec,jreg)+planck_top(jspec,jreg)) / mu
             end if
             if (present(source_dn)) then
-              source_dn(jspec,1,jlev) = ssa(jspec,jreg,jlev)*od(jspec,jreg,jlev) &
+              source_dn(jspec,jreg,jlev) = od(jspec,jreg,jlev) &
                    &  * 0.5_jprb*(planck_base(jspec,jreg)+planck_top(jspec,jreg)) / mu
             end if
           end if
