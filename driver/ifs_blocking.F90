@@ -501,6 +501,288 @@ subroutine ifs_copy_inputs_to_blocked ( &
 
 end subroutine ifs_copy_inputs_to_blocked
 
+
+subroutine ifs_copy_inputs_to_blocked_new ( driver_config, ifs_config, &
+  &  yradiation, single_level, ncol, nlev, jrl, zrgp, &
+  &  PMU0, PTEMPERATURE_SKIN, PALBEDO_DIF, PALBEDO_DIR, &
+  &  PSPECTRALEMISS, &
+  &  PCCN_LAND, PCCN_SEA, &
+  &  PGELAM, PGEMU, PLAND_SEA_MASK, &
+  &  PPRESSURE, PTEMPERATURE, &
+  &  PPRESSURE_H, PTEMPERATURE_H, &
+  &  PQ, PCO2, PCH4, PN2O, PNO2, PCFC11, PCFC12, PHCFC22, PCCL4, PO3, &
+  &  PCLOUD_FRAC, PQ_LIQUID, PQ_ICE, PQ_RAIN, PQ_SNOW, &
+  &  PAEROSOL_OLD, PAEROSOL, &
+  &  PFLUX_SW, PFLUX_LW, PFLUX_SW_CLEAR, PFLUX_LW_CLEAR, &
+  &  PFLUX_SW_DN, PFLUX_LW_DN, PFLUX_SW_DN_CLEAR, PFLUX_LW_DN_CLEAR, &
+  &  PFLUX_DIR, PFLUX_DIR_CLEAR, PFLUX_DIR_INTO_SUN, &
+  &  PFLUX_UV, PFLUX_PAR, PFLUX_PAR_CLEAR, &
+  &  PFLUX_SW_DN_TOA, PEMIS_OUT, PLWDERIVATIVE, &
+  &  PSWDIFFUSEBAND, PSWDIRECTBAND, &
+  ! OPTIONAL ARGUMENTS for bit-identical results in tests
+  &  iseed, PRE_LIQ, PRE_ICE, PCLOUD_OVERLAP)
+
+  use radiation_single_level,   only : single_level_type
+  use ecrad_driver_config,      only : driver_config_type
+  use radiation_setup,          only : tradiation
+  use radiation_io,             only : nulout
+
+  implicit none
+
+  ! Configuration specific to this driver
+  type(driver_config_type), intent(in)     :: driver_config
+
+  type(ifs_config_type), intent(in)     :: ifs_config
+
+  ! Configuration for the radiation scheme, IFS style
+  type(tradiation), intent(in)          :: yradiation
+
+  integer, intent(in) :: ncol, nlev         ! Number of columns and levels
+
+  ! Derived types for the inputs to the radiation scheme
+  type(single_level_type), intent(in)   :: single_level
+
+  ! monolithic IFS data structure to pass to radiation scheme
+  real(kind=jprb), intent(in), allocatable :: zrgp(:,:,:)
+
+  ! Seed for random number generator
+  integer, intent(inout), allocatable, optional :: iseed(:)
+
+  integer, intent(in) :: jrl
+
+  real(kind=jprb), intent(inout), allocatable :: PMU0(:)                        !(KLON, ) ! Cosine of solar zenith ang
+  real(kind=jprb), intent(inout), allocatable :: PTEMPERATURE_SKIN(:)           !(KLON) ! (K)
+  real(kind=jprb), intent(inout), allocatable :: PALBEDO_DIF(:,:)               !(KLON,YRADIATION%YRERAD%NSW)
+  real(kind=jprb), intent(inout), allocatable :: PALBEDO_DIR(:,:)               !(KLON,YRADIATION%YRERAD%NSW)
+  real(kind=jprb), intent(inout), allocatable :: PSPECTRALEMISS(:,:)            !(KLON,YRADIATION%YRERAD%NLWEMISS)
+  real(kind=jprb), intent(inout), allocatable :: PCCN_LAND(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PCCN_SEA(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PGELAM(:)                      !(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PGEMU(:)                       !(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PLAND_SEA_MASK(:)              !((KLON)
+  real(kind=jprb), intent(inout), allocatable :: PPRESSURE(:,:)                 !((KLON,KLEV)    ! (Pa)
+  real(kind=jprb), intent(inout), allocatable :: PTEMPERATURE(:,:)              !(KLON,KLEV) ! (K)
+  real(kind=jprb), intent(inout), allocatable :: PPRESSURE_H(:,:)               !(KLON,KLEV+1)    ! (Pa)
+  real(kind=jprb), intent(inout), allocatable :: PTEMPERATURE_H(:,:)            !(KLON,KLEV+1) ! (K)
+  real(kind=jprb), intent(inout), allocatable :: PQ(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PCO2(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PCH4(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PN2O(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PNO2(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PCFC11(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PCFC12(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PHCFC22(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PCCL4(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PO3(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PCLOUD_FRAC(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PQ_LIQUID(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PQ_ICE(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PQ_RAIN(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PQ_SNOW(:,:)!(KLON,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PAEROSOL_OLD(:,:,:)!(KLON,6,KLEV)
+  real(kind=jprb), intent(inout), allocatable :: PAEROSOL(:,:,:)!(KLON,KLEV,KAEROSOL)
+  ! OUT
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_LW(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW_CLEAR(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_LW_CLEAR(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW_DN(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_LW_DN(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW_DN_CLEAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_LW_DN_CLEAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_DIR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_DIR_CLEAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_DIR_INTO_SUN(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_UV(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_PAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_PAR_CLEAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW_DN_TOA(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PEMIS_OUT(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PLWDERIVATIVE(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PSWDIFFUSEBAND(:,:)!(KLON,YRADIATION%YRERAD%NSW)
+  real(kind=jprb), intent(inout), allocatable :: PSWDIRECTBAND(:,:)!(KLON,YRADIATION%YRERAD%NSW)
+  real(kind=jprb), optional, intent(inout), allocatable :: PRE_LIQ(:,:)!(KLON, KLEV)
+  real(kind=jprb), optional, intent(inout), allocatable :: PRE_ICE(:,:)!(KLON, KLEV)
+  real(kind=jprb), optional, intent(inout), allocatable :: PCLOUD_OVERLAP(:,:)!(KLON, KLEV-1)
+
+  ! number of column blocks, block size
+  integer :: ngpblks, nproma
+  integer :: ibeg, iend, il, ib, ifld, jemiss, jalb, jlev, joff, jaer
+
+  ! Extract some config values
+  nproma=driver_config%nblocksize        ! nproma size
+  ngpblks=(ncol-1)/nproma+1              ! number of column blocks
+
+  associate(yderad=>yradiation%yrerad, rad_config=>yradiation%rad_config)
+
+  PMU0(:)=0._jprb
+  PTEMPERATURE_SKIN(:)=0._jprb
+  PALBEDO_DIF(:,:)=0._jprb
+  PALBEDO_DIR(:,:)=0._jprb
+  PSPECTRALEMISS(:,:)=0._jprb
+  PGELAM(:)=0._jprb
+  PGEMU(:)=0._jprb
+  PLAND_SEA_MASK(:)=0._jprb
+  PPRESSURE(:,:)=0._jprb
+  PTEMPERATURE(:,:)=0._jprb
+  PPRESSURE_H(:,:)=0._jprb
+  PTEMPERATURE_H(:,:)=0._jprb
+  PQ(:,:)=0._jprb
+  PCO2(:,:)=0._jprb
+  PCH4(:,:)=0._jprb
+  PN2O(:,:)=0._jprb
+  PNO2(:,:)=0._jprb
+  PCFC11(:,:)=0._jprb
+  PCFC12(:,:)=0._jprb
+  PHCFC22(:,:)=0._jprb
+  PCCL4(:,:)=0._jprb
+  PO3(:,:)=0._jprb
+  PCLOUD_FRAC(:,:)=0._jprb
+  PQ_LIQUID(:,:)=0._jprb
+  PQ_ICE(:,:)=0._jprb
+  PQ_RAIN(:,:)=0._jprb
+  PQ_SNOW(:,:)=0._jprb
+  PAEROSOL_OLD(:,:,:)=0._jprb
+  PAEROSOL(:,:,:)=0._jprb
+  PCCN_LAND(:)=0._jprb
+  PCCN_SEA(:)=0._jprb
+
+  PNO2(:,:)=0._jprb
+  PFLUX_SW(:,:)=0._jprb
+  PFLUX_LW(:,:)=0._jprb
+  PFLUX_SW_CLEAR(:,:)=0._jprb
+  PFLUX_LW_CLEAR(:,:)=0._jprb
+  PFLUX_SW_DN(:)=0._jprb
+  PFLUX_LW_DN(:)=0._jprb
+  PFLUX_SW_DN_CLEAR(:)=0._jprb
+  PFLUX_LW_DN_CLEAR(:)=0._jprb
+  PFLUX_DIR(:)=0._jprb
+  PFLUX_DIR_CLEAR(:)=0._jprb
+  PFLUX_DIR_INTO_SUN(:)=0._jprb
+  PFLUX_UV(:)=0._jprb
+  PFLUX_PAR(:)=0._jprb
+  PFLUX_PAR_CLEAR(:)=0._jprb
+  PFLUX_SW_DN_TOA(:)=0._jprb
+  PEMIS_OUT(:)=0._jprb
+  PLWDERIVATIVE(:,:)=0._jprb
+  PSWDIFFUSEBAND(:,:)=0._jprb
+  PSWDIRECTBAND(:,:)=0._jprb
+#ifdef BITIDENTITY_TESTING
+  PRE_LIQ(:,:)=0._jprb
+  PRE_ICE(:,:)=0._jprb
+  PCLOUD_OVERLAP(:,:)=0._jprb
+#endif
+
+
+  ibeg=jrl
+  iend=min(ibeg+nproma-1,ncol)
+  il=iend-ibeg+1
+  ib=(jrl-1)/nproma+1
+  PMU0(1:il)                    =  zrgp(1:il,ifs_config%iamu0,ib)   ! cosine of solar zenith ang (mu0)
+
+  do jemiss=1,yderad%nlwemiss
+     PSPECTRALEMISS(1:il,jemiss)             =  zrgp(1:il,ifs_config%iemiss+jemiss-1,ib)
+  enddo
+
+  PTEMPERATURE_SKIN(1:il)         = zrgp(1:il,ifs_config%its,ib)
+  PLAND_SEA_MASK(1:il)            = zrgp(1:il,ifs_config%islm,ib)
+  PCCN_LAND(1:il)                 = zrgp(1:il,ifs_config%iccnl,ib)
+  PCCN_SEA(1:il)                  = zrgp(1:il,ifs_config%iccno,ib)
+  PGELAM(1:il)                    = zrgp(1:il,ifs_config%igelam,ib)
+  PGEMU(1:il)                     = zrgp(1:il,ifs_config%igemu,ib)
+  do jalb=1,yderad%nsw
+     PALBEDO_DIF(1:il,jalb)             =  zrgp(1:il,ifs_config%iald+jalb-1,ib)
+  enddo
+
+  if (allocated(single_level%sw_albedo_direct)) then
+     do jalb=1,yderad%nsw
+        PALBEDO_DIR(1:il,jalb)             =  zrgp(1:il,ifs_config%ialp+jalb-1,ib)
+     end do
+  else
+     do jalb=1,yderad%nsw
+        PALBEDO_DIR(1:il,jalb)             =  zrgp(1:il,ifs_config%ialp+jalb-1,ib)
+     end do
+  end if
+  
+  do jlev=1,nlev
+     PTEMPERATURE(1:il,jlev)            = zrgp(1:il,ifs_config%iti+jlev-1,ib)
+     PPRESSURE(1:il,jlev)               = zrgp(1:il,ifs_config%ipr+jlev-1,ib)
+  enddo
+
+  do jlev=1,nlev
+     PQ(1:il,jlev)                          = zrgp(1:il,ifs_config%iwv+jlev-1,ib)
+     if (rad_config%do_clouds) then
+        PCLOUD_FRAC(1:il,jlev)              = zrgp(1:il,ifs_config%iclc+jlev-1,ib)
+        PQ_LIQUID(1:il,jlev)                = zrgp(1:il,ifs_config%ilwa+jlev-1,ib)
+        PQ_ICE(1:il,jlev)                   = zrgp(1:il,ifs_config%iiwa+jlev-1,ib)
+     else
+        PCLOUD_FRAC(1:il,jlev)             = 0._jprb
+        PQ_LIQUID(1:il,jlev)             = 0._jprb
+        PQ_ICE(1:il,jlev)             = 0._jprb
+     endif
+     PQ_SNOW(1:il,jlev)                  = 0._jprb  ! snow
+     PQ_RAIN(1:il,jlev)                  = 0._jprb  ! rain
+  enddo
+
+  PAEROSOL_OLD(:,:,:) = 0._jprb
+  if (yderad%naermacc == 1) then
+     joff=ifs_config%iaero
+     do jaer=1,rad_config%n_aerosol_types
+        do jlev=1,nlev
+           PAEROSOL(1:il,jlev,jaer) = zrgp(1:il,joff,ib)
+           joff=joff+1
+        enddo
+     enddo
+  endif
+
+  do jlev=1,nlev+1
+     PPRESSURE_H(1:il,jlev)             = zrgp(1:il,ifs_config%iaprs+jlev-1,ib)
+     PTEMPERATURE_H(1:il,jlev)          = zrgp(1:il,ifs_config%ihti+jlev-1,ib)
+  enddo
+
+  PCO2(1:il,1:nlev) = zrgp(1:il,ifs_config%iico2:ifs_config%iico2+nlev-1,ib)
+  PCH4(1:il,1:nlev) = zrgp(1:il,ifs_config%iich4:ifs_config%iich4+nlev-1,ib)
+  PN2O(1:il,1:nlev) = zrgp(1:il,ifs_config%iin2o:ifs_config%iin2o+nlev-1,ib)
+  PCFC11(1:il,1:nlev) = zrgp(1:il,ifs_config%ic11:ifs_config%ic11+nlev-1,ib)
+  PCFC12(1:il,1:nlev) = zrgp(1:il,ifs_config%ic12:ifs_config%ic12+nlev-1,ib)
+  PHCFC22(1:il,1:nlev) = zrgp(1:il,ifs_config%ic22:ifs_config%ic22+nlev-1,ib)
+  PCCL4(1:il,1:nlev) = zrgp(1:il,ifs_config%icl4:ifs_config%icl4+nlev-1,ib)
+  PO3(1:il,1:nlev) = zrgp(1:il,ifs_config%ioz:ifs_config%ioz+nlev-1,ib)
+
+  ! local workaround variables for standalone input files
+#ifdef BITIDENTITY_TESTING
+  ! To validate results against standalone ecrad, we overwrite effective
+  ! radii, cloud overlap and seed with input values
+  if (rad_config%do_clouds) then
+     do jlev=1,nlev
+        ! missing full-level temperature and pressure as well as land-sea-mask
+        PRE_LIQ(1:il,jlev) = zrgp(1:il,ifs_config%ire_liq+jlev-1,ib)
+        PRE_ICE(1:il,jlev) = zrgp(1:il,ifs_config%ire_ice+jlev-1,ib)
+     enddo
+     do jlev=1,nlev-1
+        ! for the love of it, I can't figure this one out. Probably to do with
+        ! my crude approach of setting PGEMU?
+        PCLOUD_OVERLAP(1:il,jlev) = zrgp(1:il,ifs_config%ioverlap+jlev-1,ib)
+     enddo
+     if(present(iseed)) iseed(1:il) = single_level%iseed(ibeg:iend)
+          
+  else
+     do jlev=1,nlev
+        ! missing full-level temperature and pressure as well as land-sea-mask
+        PRE_LIQ(1:il,jlev) = 0._jprb
+        PRE_ICE(1:il,jlev) = 0._jprb
+     enddo
+     do jlev=1,nlev-1
+        PCLOUD_OVERLAP(1:il,jlev) = 0._jprb
+     enddo
+     if(present(iseed)) iseed(1:il) = 0
+  endif ! do_clouds
+#endif
+
+end associate
+
+end subroutine ifs_copy_inputs_to_blocked_new
+
 subroutine ifs_copy_fluxes_from_blocked(&
     & driver_config, ifs_config, yradiation, ncol, nlev,&
     & zrgp, flux, flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear,&
@@ -590,5 +872,106 @@ subroutine ifs_copy_fluxes_from_blocked(&
     deallocate(zrgp)
 
 end subroutine ifs_copy_fluxes_from_blocked
+
+subroutine ifs_copy_fluxes_from_blocked_new(&
+     & driver_config, ifs_config, yradiation, ncol, nlev,jrl,&
+     & PFLUX_SW, PFLUX_LW, PFLUX_SW_CLEAR, PFLUX_LW_CLEAR, &
+     & PFLUX_SW_DN, PFLUX_LW_DN, PFLUX_SW_DN_CLEAR, PFLUX_LW_DN_CLEAR, &
+     & PFLUX_DIR, PFLUX_DIR_CLEAR, PFLUX_DIR_INTO_SUN, &
+     & PFLUX_UV, PFLUX_PAR, PFLUX_PAR_CLEAR, &
+     & PFLUX_SW_DN_TOA, PEMIS_OUT, PLWDERIVATIVE, &
+     & PSWDIFFUSEBAND, PSWDIRECTBAND, zrgp)
+  use ecrad_driver_config,      only : driver_config_type
+  use radiation_setup,          only : tradiation
+  use radiation_flux,           only : flux_type
+
+  ! Configuration specific to this driver
+  type(driver_config_type), intent(in)     :: driver_config
+
+  type(ifs_config_type), intent(in)     :: ifs_config
+
+  ! Configuration for the radiation scheme, IFS style
+  type(tradiation), intent(in)          :: yradiation
+
+  integer, intent(in) :: ncol, nlev         ! Number of columns and levels
+
+  ! monolithic IFS data structure passed to radiation scheme
+  !real(kind=jprb), intent(inout), allocatable :: zrgp(:,:,:)
+
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_LW(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW_CLEAR(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_LW_CLEAR(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW_DN(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_LW_DN(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW_DN_CLEAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_LW_DN_CLEAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_DIR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_DIR_CLEAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_DIR_INTO_SUN(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_UV(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_PAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_PAR_CLEAR(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PFLUX_SW_DN_TOA(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PEMIS_OUT(:)!(KLON)
+  real(kind=jprb), intent(inout), allocatable :: PLWDERIVATIVE(:,:)!(KLON,KLEV+1)
+  real(kind=jprb), intent(inout), allocatable :: PSWDIFFUSEBAND(:,:)!(KLON,YRADIATION%YRERAD%NSW)
+  real(kind=jprb), intent(inout), allocatable :: PSWDIRECTBAND(:,:)!(KLON,YRADIATION%YRERAD%NSW)
+
+  ! monolithic IFS data structure passed to radiation scheme
+  real(kind=jprb), intent(inout), allocatable :: zrgp(:,:,:)
+  integer, intent(in) :: jrl
+
+  ! number of column blocks, block size
+  integer :: ngpblks, nproma
+  integer :: ibeg, iend, il, ib, jlev, jg
+
+  ! Extract some config values
+  nproma=driver_config%nblocksize        ! nproma size
+  ngpblks=(ncol-1)/nproma+1              ! number of column blocks
+
+  !  -------------------------------------------------------
+  !
+  !  OUTPUT LOOP
+  !
+  !  -------------------------------------------------------
+  
+  ibeg=jrl
+  iend=min(ibeg+nproma-1,ncol)
+  il=iend-ibeg+1
+  ib=(jrl-1)/nproma+1
+
+  do jlev=1,nlev+1
+     zrgp(1:il,ifs_config%ifrso+jlev-1,ib) = PFLUX_SW(1:il,jlev)
+     zrgp(1:il,ifs_config%ifrth+jlev-1,ib) = PFLUX_LW(1:il,jlev)
+     zrgp(1:il,ifs_config%iswfc+jlev-1,ib) = PFLUX_SW_CLEAR(1:il,jlev)
+     zrgp(1:il,ifs_config%ilwfc+jlev-1,ib) = PFLUX_LW_CLEAR(1:il,jlev)
+     if (yradiation%yrerad%lapproxlwupdate) then
+        zrgp(1:il,ifs_config%ilwderivative+jlev-1,ib) = PLWDERIVATIVE(1:il,jlev)
+     else
+        zrgp(1:il,ifs_config%ilwderivative+jlev-1,ib) = 0.0_jprb
+     endif
+  end do
+  
+  zrgp(1:il,ifs_config%ifrsod,ib) = PFLUX_SW_DN(1:il)
+  zrgp(1:il,ifs_config%ifrted,ib) = PFLUX_LW_DN(1:il)
+  zrgp(1:il,ifs_config%ifrsodc,ib) = PFLUX_SW_DN_CLEAR(1:il)
+  zrgp(1:il,ifs_config%ifrtedc,ib) = PFLUX_LW_DN_CLEAR(1:il)
+  zrgp(1:il,ifs_config%ifdir,ib) = PFLUX_DIR(1:il)
+  zrgp(1:il,ifs_config%icdir,ib) = PFLUX_DIR_CLEAR(1:il)
+  zrgp(1:il,ifs_config%isudu,ib) = PFLUX_DIR_INTO_SUN(1:il)
+  zrgp(1:il,ifs_config%iuvdf,ib) = PFLUX_UV(1:il)
+  zrgp(1:il,ifs_config%iparf,ib) = PFLUX_PAR(1:il)
+  zrgp(1:il,ifs_config%iparcf,ib) = PFLUX_PAR_CLEAR(1:il)
+  zrgp(1:il,ifs_config%itincf,ib) = PFLUX_SW_DN_TOA(1:il)
+  zrgp(1:il,ifs_config%iemit,ib) = PEMIS_OUT(1:il)
+  if (yradiation%yrerad%lapproxswupdate) then
+     do jg=1,yradiation%yrerad%nsw
+        zrgp(1:il,ifs_config%iswdiffuseband+jg-1,ib) = PSWDIFFUSEBAND(1:il,jg)
+        zrgp(1:il,ifs_config%iswdirectband+jg-1,ib) = PSWDIRECTBAND(1:il,jg)
+     end do
+  endif
+
+end subroutine ifs_copy_fluxes_from_blocked_new
 
 end module ifs_blocking

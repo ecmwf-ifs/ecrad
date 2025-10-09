@@ -14,13 +14,16 @@ ecbuild_add_library(
         ecrad_driver_read_input.F90
         ecrad_driver_config.F90
         print_matrix_mod.F90
+	ifs_blocking.F90
     PUBLIC_DEFINITIONS
         $<$<NOT:${HAVE_OMP}>:NO_OPENMP>
         ${GPU_OFFLOAD}GPU
     PUBLIC_LIBS
+        ifs.${PREC}
         ecrad.${PREC}
         ecrad_base.${PREC}
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+    PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 # To ensure device code is generated and all link time dependencies are
@@ -39,6 +42,7 @@ ecbuild_add_executable(
     LIBS
         driver_lib.${PREC}
     LINKER_LANGUAGE Fortran
+    DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 ecbuild_add_executable(
@@ -51,19 +55,20 @@ ecbuild_add_executable(
         $<${HAVE_NVTX}:${NVTX_TARGET}>
         $<${HAVE_ROCTX}:${ROCTX_LIBRARIES}>
     LINKER_LANGUAGE Fortran
+    DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 ecbuild_add_executable(
     TARGET ecrad_ifs_blocked_${PREC}
     SOURCES
         ecrad_ifs_driver_blocked.F90
-        ifs_blocking.F90
     LIBS
         ifs.${PREC}
         driver_lib.${PREC}
         $<${HAVE_NVTX}:${NVTX_TARGET}>
         $<${HAVE_ROCTX}:${ROCTX_LIBRARIES}>
     LINKER_LANGUAGE Fortran
+    DEFINITIONS ${GPU_OFFLOAD}GPU
 )
 
 
@@ -85,6 +90,41 @@ if( CMAKE_BUILD_TYPE MATCHES "Debug" )
     elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC")
         set_source_files_properties(
             "ecrad_ifs_driver_blocked.F90"
+            PROPERTIES COMPILE_FLAGS "-Mnobounds"
+        )
+    endif()
+endif()
+
+ecbuild_add_executable(
+    TARGET ecrad_ifs_blocked_new_${PREC}
+    SOURCES
+        ecrad_ifs_driver_blocked_new.F90
+    LIBS
+        ifs.${PREC}
+        driver_lib.${PREC}
+        $<${HAVE_NVTX}:${NVTX_TARGET}>
+        $<${HAVE_ROCTX}:${ECRAD_GPU_ROCPROFILER_SDK_LIBRARIES}>
+    DEFINITIONS ${GPU_OFFLOAD}GPU
+)
+
+# For ecrad_ifs_driver_blocked_new we have to disable bounds checking
+# (which is enabled in Debug builds) because sequence association
+# and values initialized to -9999 for unused arguments is used in
+# the call to RADIATION_SCHEME.
+if( CMAKE_BUILD_TYPE MATCHES "Debug" )
+    if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
+        set_source_files_properties(
+            "ecrad_ifs_driver_blocked_new.F90"
+            PROPERTIES COMPILE_FLAGS "-fcheck=no-bounds"
+        )
+    elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+        set_source_files_properties(
+            "ecrad_ifs_driver_blocked_new.F90"
+            PROPERTIES COMPILE_FLAGS "-check nobounds"
+        )
+    elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC")
+        set_source_files_properties(
+            "ecrad_ifs_driver_blocked_new.F90"
             PROPERTIES COMPILE_FLAGS "-Mnobounds"
         )
     endif()
