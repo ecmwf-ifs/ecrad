@@ -20,6 +20,8 @@ module radiation_liquid_optics_nielsen
 
   integer, parameter :: NLiqOpticsCoeffsNielsenSW = 8
 
+  public :: calc_liq_optics_nielsen, NLiqOpticsCoeffsNielsenSW
+
 contains
 
   !---------------------------------------------------------------------
