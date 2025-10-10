@@ -49,6 +49,8 @@ set( radiation_SOURCES
         radiation_liquid_optics_socrates.F90
         radiation_lw_derivatives.F90
         radiation_matrix.F90
+        radiation_mcica_omp_lw.F90
+        radiation_mcica_omp_sw.F90
         radiation_mcica_acc_lw.F90
         radiation_mcica_acc_sw.F90
         radiation_mcica_lw.F90

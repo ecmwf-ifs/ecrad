@@ -45,8 +45,15 @@ module radiation_random_numbers
 
   implicit none
 
+  !$omp declare target(uniform_distribution_omp)
+
+#if defined(__INTEL_COMPILER) || (defined(__NVCOMPILER) && defined(OMPGPU))
+  ! This is needed in order for the intel llvm ifx compiler to build this successfully
+  public
+#else
   public :: rng_type, IRngMinstdVector, IRngNative, initialize_acc, &
-    &  uniform_distribution_acc, IMinstdA0, IMinstdA, IMinstdM
+    &  uniform_distribution_acc, IMinstdA0, IMinstdA, IMinstdM, IMinstdScale, uniform_distribution_omp
+#endif
 
   enum, bind(c)
     enumerator IRngNative, &    ! Built-in Fortran-90 RNG
@@ -342,6 +349,22 @@ contains
     randnum = IMinstdScale * istate
 
   end function uniform_distribution_acc
+
+  !---------------------------------------------------------------------
+  ! Populate vector "randnum" with pseudo-random numbers; if rannum is
+  ! of length greater than nmaxstreams (specified when the generator
+  ! was initialized) then only the first nmaxstreams elements will be
+  ! assigned.
+  subroutine uniform_distribution_omp(istate,randnum)
+
+    integer(kind=jpib), intent(inout) :: istate
+    real(kind=jprb), intent(out)   :: randnum
+
+    ! C++ minstd_rand algorithm
+    istate = mod(IMinstdA * istate, IMinstdM)
+    randnum = IMinstdScale * istate
+
+  end subroutine uniform_distribution_omp
 
 
 end module radiation_random_numbers
