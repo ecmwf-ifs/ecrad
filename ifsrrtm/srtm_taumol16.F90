@@ -210,6 +210,35 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
 
+#if defined(OMPGPU)
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(ind0, ind1, z_tauray)
+    DO iplon = KIDIA, KFDIA
+       DO i_lay = laytrop_max+1, i_nlayers
+          IF (k_jp(iplon,i_lay-1) < layreffr &
+               &  .AND. k_jp(iplon,i_lay) >= layreffr)  i_laysolfr(iplon) = i_lay
+       ENDDO
+    ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(ind0, ind1, z_tauray)
+    DO i_lay = laytrop_max+1, i_nlayers
+      DO iplon = KIDIA, KFDIA
+         ind0 = ((k_jp(iplon,i_lay)-13)*5+(k_jt(iplon,i_lay)-1))*nspb(16) + 1
+         ind1 = ((k_jp(iplon,i_lay)-12)*5+(k_jt1(iplon,i_lay)-1))*nspb(16)+ 1
+         z_tauray = p_colmol(iplon,i_lay) * rayl
+!$NEC unroll(NG16)
+         DO ig = 1, ng16
+           p_taug(iplon,i_lay,ig) = p_colch4(iplon,i_lay) * &
+                & (p_fac00(iplon,i_lay) * absb(ind0  ,ig) + &
+                & p_fac10(iplon,i_lay) * absb(ind0+1,ig)  + &
+                & p_fac01(iplon,i_lay) * absb(ind1  ,ig)  + &
+                & p_fac11(iplon,i_lay) * absb(ind1+1,ig))
+           IF (i_lay == i_laysolfr(iplon)) p_sfluxzen(iplon,ig) = sfluxrefc(ig)
+           p_taur(iplon,i_lay,ig) = z_tauray
+         ENDDO
+      ENDDO
+    ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#else
     !$ACC LOOP SEQ
     DO i_lay = llaytrop_max+1, i_nlayers
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(ind0, ind1, z_tauray)
@@ -234,6 +263,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       ENDDO
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO
+#endif
     !$ACC END PARALLEL
 
     !$ACC WAIT
