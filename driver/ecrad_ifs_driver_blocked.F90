@@ -72,6 +72,10 @@ program ecrad_ifs_driver
 #ifdef HAVE_NVTX
   use nvtx
 #endif
+#ifdef HAVE_ROCTX
+  use roctx_profiling, only: roctxstartrange, roctxendrange
+  use iso_c_binding, only: c_null_char
+#endif
 
   implicit none
 
@@ -400,6 +404,9 @@ program ecrad_ifs_driver
 #ifdef HAVE_NVTX
      call nvtxStartRange("ecrad_it")
 #endif
+#ifdef HAVE_ROCTX
+    call roctxStartRange("ecrad_it"//c_null_char)
+#endif
 
 #ifdef COPY_ASYNC
 #if defined(OMPGPU)
@@ -567,6 +574,9 @@ program ecrad_ifs_driver
 !    end if
 #ifdef HAVE_NVTX
      call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+     call roctxEndRange
 #endif
 
   end do

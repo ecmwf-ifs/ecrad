@@ -233,6 +233,13 @@ contains
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_single_level,   only : single_level_type
     use radiation_gas
+#ifdef HAVE_NVTX
+    use nvtx
+#endif
+#ifdef HAVE_ROCTX
+    use roctx_profiling, only: roctxstartrange, roctxendrange
+    use iso_c_binding, only: c_null_char
+#endif
 
     integer, intent(in) :: ncol               ! number of columns
     integer, intent(in) :: nlev               ! number of model levels
@@ -374,6 +381,13 @@ contains
 #include "srtm_setcoef.intfb.h"
 #include "srtm_gas_optical_depth.intfb.h"
 
+#ifdef HAVE_NVTX
+    call nvtxStartRange("radiation::ifs_rrtm_gas_optics")
+#endif
+#ifdef HAVE_ROCTX
+    call roctxStartRange("radiation::ifs_rrtm_gas_optics"//c_null_char)
+#endif
+
     if (lhook) call dr_hook('radiation_ifs_rrtm:gas_optics',0,hook_handle)
 
     do_sw = (config%do_sw .and. config%i_gas_model_sw == IGasModelIFSRRTMG)
@@ -467,6 +481,12 @@ contains
     ! Warning: O2 is hard-coded within the following function so the
     ! user-provided concentrations of this gas are ignored for both
     ! the longwave and shortwave
+#ifdef HAVE_NVTX
+    call nvtxStartRange("radiation::rrtm_prepare_gases")
+#endif
+#ifdef HAVE_ROCTX
+    call roctxStartRange("radiation::rrtm_prepare_gases"//c_null_char)
+#endif
     CALL RRTM_PREPARE_GASES &
          & ( istartcol, iendcol, ncol, nlev, &
          &   thermodynamics%pressure_hl(:,istartlev:iendlev+1), &
@@ -485,9 +505,20 @@ contains
          &   gas%mixing_ratio(:,istartlev:iendlev,IO3), &
          &  ZCOLDRY, ZWBRODL,ZWKL, ZWX, &
          &  ZPAVEL , ZTAVEL , ZPZ , ZTZ, IREFLECT)
+#ifdef HAVE_NVTX
+    call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+    call roctxEndRange
+#endif
 
     if (do_lw) then
-
+#ifdef HAVE_NVTX
+       call nvtxStartRange("radiation::rrtm_setcoef_140GP")
+#endif
+#ifdef HAVE_ROCTX
+      call roctxStartRange("radiation::rrtm_setcoef_140GP"//c_null_char)
+#endif
       CALL RRTM_SETCOEF_140GP &
            &( istartcol, iendcol, nlev , ZCOLDRY  , ZWBRODL , ZWKL , &
            &  ZFAC00 , ZFAC01   , ZFAC10 , ZFAC11 , ZFORFAC,ZFORFRAC,INDFOR, JP, JT, JT1 , &
@@ -497,6 +528,12 @@ contains
            &  ZRAT_H2OCO2, ZRAT_H2OCO2_1, ZRAT_H2OO3, ZRAT_H2OO3_1, &
            &  ZRAT_H2ON2O, ZRAT_H2ON2O_1, ZRAT_H2OCH4, ZRAT_H2OCH4_1, &
            &  ZRAT_N2OCO2, ZRAT_N2OCO2_1, ZRAT_O3CO2, ZRAT_O3CO2_1)
+#ifdef HAVE_NVTX
+      call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+      call roctxEndRange
+#endif
 
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(3)
@@ -509,6 +546,13 @@ contains
       end do
       !$ACC END PARALLEL
 
+#ifdef HAVE_NVTX
+      call nvtxStartRange("radiation::rrtm_gas_optical_depth")
+#endif
+#ifdef HAVE_ROCTX
+      call roctxStartRange("radiation::rrtm_gas_optical_depth"//c_null_char)
+#endif
+
       CALL RRTM_GAS_OPTICAL_DEPTH &
            &( istartcol, iendcol, nlev, ZOD_LW, ZPAVEL, ZCOLDRY, ZCOLBRD, ZWX ,&
            &  ZTAUAERL, ZFAC00 , ZFAC01, ZFAC10 , ZFAC11 , ZFORFAC,ZFORFRAC,INDFOR, &
@@ -519,6 +563,12 @@ contains
            &  ZRAT_H2OCO2, ZRAT_H2OCO2_1, ZRAT_H2OO3, ZRAT_H2OO3_1, &
            &  ZRAT_H2ON2O, ZRAT_H2ON2O_1, ZRAT_H2OCH4, ZRAT_H2OCH4_1, &
            &  ZRAT_N2OCO2, ZRAT_N2OCO2_1, ZRAT_O3CO2, ZRAT_O3CO2_1)
+#ifdef HAVE_NVTX
+      call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+      call roctxEndRange
+#endif
 
       if (present(lw_albedo)) then
 
@@ -601,6 +651,12 @@ contains
 
     if (do_sw) then
 
+#ifdef HAVE_NVTX
+      call nvtxStartRange("radiation::srtm_sefcoeff")
+#endif
+#ifdef HAVE_ROCTX
+      call roctxStartRange("radiation::srtm_sefcoeff"//c_null_char)
+#endif
       CALL SRTM_SETCOEF &
            & ( istartcol, iendcol, nlev,&
            & ZPAVEL  , ZTAVEL,&
@@ -611,6 +667,12 @@ contains
            & ZFAC00  , ZFAC01   , ZFAC10  , ZFAC11,&
            & JP      , JT       , JT1     , single_level%cos_sza(istartcol:iendcol)  &
            & )
+#ifdef HAVE_NVTX
+      call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+      call roctxEndRange
+#endif
 
       ! SRTM_GAS_OPTICAL_DEPTH will not initialize profiles when the sun
       ! is below the horizon, so we do it here
@@ -634,6 +696,13 @@ contains
       end do
       !$ACC END PARALLEL
 
+#ifdef HAVE_NVTX
+      call nvtxStartRange("radiation::srtm_gas_optical_depth")
+#endif
+#ifdef HAVE_ROCTX
+      call roctxStartRange("radiation::srtm_gas_optical_depth"//c_null_char)
+#endif
+
       CALL SRTM_GAS_OPTICAL_DEPTH &
            &( istartcol, iendcol , nlev  , ZONEMINUS_ARRAY,&
            & single_level%cos_sza(istartcol:iendcol), ILAYTROP,&
@@ -642,6 +711,12 @@ contains
            & ZFAC00  , ZFAC01   , ZFAC10 , ZFAC11  ,&
            & JP      , JT       , JT1    ,&
            & ZOD_SW  , ZSSA_SW  , ZINCSOL )
+#ifdef HAVE_NVTX
+      call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+      call roctxEndRange
+#endif
 
       ! Scale the incoming solar per band, if requested
       if (config%use_spectral_solar_scaling) then
@@ -724,6 +799,12 @@ contains
 
     !$ACC WAIT
     !$ACC END DATA
+#ifdef HAVE_NVTX
+    call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+    call roctxEndRange
+#endif
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:gas_optics',1,hook_handle)
 

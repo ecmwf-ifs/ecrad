@@ -93,6 +93,10 @@ USE RADIATION_SAVE,           ONLY : SAVE_INPUTS, SAVE_FLUXES
 #ifdef HAVE_NVTX
 USE NVTX
 #endif
+#ifdef HAVE_ROCTX
+USE ROCTX_PROFILING, ONLY: ROCTXSTARTRANGE, ROCTXENDRANGE
+USE ISO_C_BINDING, ONLY: C_NULL_CHAR
+#endif
 
 IMPLICIT NONE
 
@@ -321,6 +325,9 @@ ZSIGMA = RSIGMA
 #ifdef HAVE_NVTX
 call nvtxStartRange("allocate")
 #endif
+#ifdef HAVE_ROCTX
+call roctxStartRange("allocate"//c_null_char)
+#endif
 CALL SINGLE_LEVEL%ALLOCATE(KLON, YRERAD%NSW, YRERAD%NLWEMISS, &
      &                     USE_SW_ALBEDO_DIRECT=.TRUE.)
 CALL THERMODYNAMICS%ALLOCATE(KLON, KLEV, USE_H2O_SAT=.TRUE.)
@@ -337,6 +344,9 @@ ENDIF
 CALL FLUX%ALLOCATE(RAD_CONFIG, 1, KLON, KLEV)
 #ifdef HAVE_NVTX
 call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
 #endif
 
 #if defined(_OPENACC) || defined(OMPGPU)
@@ -394,6 +404,9 @@ write(nulout,'(a,a,a,i0,a)') "    ", __FILE__, " : LINE = ", __LINE__, " WARNING
 
 #ifdef HAVE_NVTX
 call nvtxStartRange("thermodynamics setup")
+#endif
+#ifdef HAVE_ROCTX
+call roctxStartRange("thermodynamics setup"//c_null_char)
 #endif
 ! Set thermodynamic profiles: simply copy over the half-level
 ! pressure and temperature
@@ -459,6 +472,10 @@ CALL thermodynamics%calc_saturation_wrt_liquid(thermodynamics, KIDIA, KFDIA, LAC
 #ifdef HAVE_NVTX
 call nvtxEndRange
 call nvtxStartRange("single level setup")
+#endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
+call roctxStartRange("single level setup"//c_null_char)
 #endif
 
 ! Set single-level fileds
@@ -579,6 +596,10 @@ ENDIF
 #ifdef HAVE_NVTX
 call nvtxEndRange
 call nvtxStartRange("cloud setup")
+#endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
+call roctxStartRange("cloud setup"//c_null_char)
 #endif
 
 ! Set cloud fields
@@ -719,6 +740,10 @@ CALL THERMODYNAMICS%GET_LAYER_MASS(THERMODYNAMICS, KIDIA,KFDIA,ZLAYER_MASS, LACC
 call nvtxEndRange
 call nvtxStartRange("aerosol setup")
 #endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
+call roctxStartRange("aerosol setup"//c_null_char)
+#endif
 
 ! Copy over aerosol mass mixing ratio
 IF (.NOT. LL_USE_TEGEN_AEROSOLS) THEN
@@ -804,6 +829,10 @@ ENDIF
 call nvtxEndRange
 call nvtxStartRange("gas setup")
 #endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
+call roctxStartRange("gas setup"//c_null_char)
+#endif
 
 ! Insert gas mixing ratios (mol mol-1 or kg kg-1)
 CALL GAS%PUT(GAS, IH2O,    IMASSMIXINGRATIO, PQ, LACC=LLACC)
@@ -824,10 +853,16 @@ CALL SET_GAS_UNITS(RAD_CONFIG, GAS, LACC=LLACC)
 #ifdef HAVE_NVTX
 call nvtxEndRange
 #endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
+#endif
 
 ! Call radiation scheme
 #ifdef HAVE_NVTX
 call nvtxStartRange("radiation")
+#endif
+#ifdef HAVE_ROCTX
+call roctxStartRange("radiation"//c_null_char)
 #endif
 
 CALL RADIATION(KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,&
@@ -835,6 +870,9 @@ CALL RADIATION(KLON, KLEV, KIDIA, KFDIA, RAD_CONFIG,&
 
 #ifdef HAVE_NVTX
 call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
 #endif
 
 ! Check fluxes are within physical bounds
@@ -918,6 +956,9 @@ ENDIF
 
 #ifdef HAVE_NVTX
 call nvtxStartRange("compute fluxes")
+#endif
+#ifdef HAVE_ROCTX
+call roctxStartRange("compute fluxes"//c_null_char)
 #endif
 ! Compute required output fluxes
 ! First the net fluxes
@@ -1020,6 +1061,10 @@ ENDIF
 call nvtxEndRange
 call nvtxStartRange("cleanup")
 #endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
+call roctxStartRange("cleanup"//c_null_char)
+#endif
 
 !$ACC END DATA
 !$OMP TARGET EXIT DATA MAP(DELETE:ZRE_LIQUID_UM, ZRE_ICE_UM, ZDECORR_LEN_KM,ZLAYER_MASS)
@@ -1046,6 +1091,9 @@ CALL FLUX%DEALLOCATE
 
 #ifdef HAVE_NVTX
 call nvtxEndRange
+#endif
+#ifdef HAVE_ROCTX
+call roctxEndRange
 #endif
 
 END ASSOCIATE
