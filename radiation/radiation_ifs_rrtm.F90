@@ -403,6 +403,36 @@ contains
       call radiation_abort()
     endif
 #endif
+    !$OMP TARGET ENTER DATA MAP(ALLOC:incoming_sw_scale, &
+    !$OMP             ZOD_LW, ZOD_SW, ZSSA_SW, ZINCSOL, &
+    !$OMP             ZCOLMOL, ZCOLDRY, ZWBRODL, ZCOLBRD, ZWKL, &
+    !$OMP             ZWX, &
+    !$OMP             ZTAUAERL, &
+    !$OMP             ZFAC00, ZFAC01, ZFAC10, ZFAC11, &
+    !$OMP             ZFORFAC, ZFORFRAC, INDFOR, &
+    !$OMP             INDMINOR, ZSCALEMINOR, ZSCALEMINORN2, ZMINORFRAC, &
+    !$OMP             ZRAT_H2OCO2,ZRAT_H2OCO2_1, &
+    !$OMP             ZRAT_H2OO3 ,ZRAT_H2OO3_1, &
+    !$OMP             ZRAT_H2ON2O,ZRAT_H2ON2O_1, &
+    !$OMP             ZRAT_H2OCH4,ZRAT_H2OCH4_1, &
+    !$OMP             ZRAT_N2OCO2,ZRAT_N2OCO2_1, &
+    !$OMP             ZRAT_O3CO2 ,ZRAT_O3CO2_1, &
+    !$OMP             JP, JT, JT1, &
+    !$OMP             ZONEMINUS_ARRAY, &
+    !$OMP             ZCOLH2O, ZCOLCO2, ZCOLO3, ZCOLN2O, ZCOLCH4, ZCOLO2, &
+    !$OMP             ZCO2MULT, &
+    !$OMP             ILAYTROP, ILAYSWTCH, ILAYLOW, &
+    !$OMP             ZPAVEL, ZTAVEL, ZPZ, ZTZ, &
+    !$OMP             ZSELFFAC, ZSELFFRAC, &
+    !$OMP             INDSELF, &
+    !$OMP             ZPFRAC, &
+    !$OMP             IREFLECT, &
+    !$OMP             pressure_fl, temperature_fl)
+#if defined(__amdflang) && defined(OMPGPU)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: config, single_level, thermodynamics, gas, &
+    !$OMP             od_lw, od_sw, ssa_sw, lw_albedo, planck_hl, lw_emission, &
+    !$OMP             incoming_sw)
+#endif
 
     !$ACC DATA CREATE(incoming_sw_scale, &
     !$ACC             ZOD_LW, ZOD_SW, ZSSA_SW, ZINCSOL, &
@@ -441,15 +471,18 @@ contains
     ZPI = 2.0_jprb*ASIN(1.0_jprb)
     ZFLUXFAC = ZPI * 1.E+4
     ZONEMINUS = 1.0_jprb - 1.0e-6_jprb
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP GANG VECTOR
     do jcol= istartcol,iendcol
       ZONEMINUS_ARRAY(jcol) = ZONEMINUS
     end do
     !$ACC END PARALLEL
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     ! Are full level temperature and pressure available in thermodynmics? If not, interpolate.
     if (thermodynamics%rrtm_pass_temppres_fl) then
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jlev=1,nlev
@@ -459,7 +492,9 @@ contains
         end do
       end do
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     else
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jlev=1,nlev
@@ -473,6 +508,7 @@ contains
         end do
       end do
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     end if
 
     ! Check we have gas mixing ratios in the right units
@@ -535,6 +571,7 @@ contains
       call roctxEndRange
 #endif
 
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(3)
       do jg = 1,JPBAND
@@ -545,6 +582,7 @@ contains
         end do
       end do
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
 #ifdef HAVE_NVTX
       call nvtxStartRange("radiation::rrtm_gas_optical_depth")
@@ -587,6 +625,7 @@ contains
 
           ! lw_emission at this point is actually the planck function of
           ! the surface
+          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
           !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jcol = istartcol,iendcol
@@ -595,6 +634,7 @@ contains
             end do
           end do
           !$ACC END PARALLEL
+          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
         else
           ! Longwave emission has already been computed
           if (config%use_canopy_full_spectrum_lw) then
@@ -634,6 +674,7 @@ contains
         end do
       else
         ! G points have not been reordered
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG COLLAPSE(3)
         do jcol = istartcol,iendcol
@@ -645,6 +686,7 @@ contains
           end do
         end do
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
       end if
 
     end if
@@ -676,6 +718,7 @@ contains
 
       ! SRTM_GAS_OPTICAL_DEPTH will not initialize profiles when the sun
       ! is below the horizon, so we do it here
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(3)
       do jg = 1, JPGPT_SW
@@ -687,6 +730,8 @@ contains
         end do
       end do
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do jg = 1, JPGPT_SW
@@ -695,6 +740,7 @@ contains
         end do
       end do
       !$ACC END PARALLEL
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
 #ifdef HAVE_NVTX
       call nvtxStartRange("radiation::srtm_gas_optical_depth")
@@ -720,6 +766,7 @@ contains
 
       ! Scale the incoming solar per band, if requested
       if (config%use_spectral_solar_scaling) then
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jg = 1,JPGPT_SW
@@ -729,12 +776,14 @@ contains
           end do
         end do
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
       end if
 
       ! Scaling factor to ensure that the total solar irradiance is as
       ! requested.  Note that if the sun is below the horizon then
       ! ZINCSOL will be zero.
       if (present(incoming_sw)) then
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR
         do jcol = istartcol,iendcol
@@ -747,6 +796,7 @@ contains
           end if
         end do
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
       end if
 
       if (config%i_solver_sw == ISolverSpartacus) then
@@ -769,6 +819,29 @@ contains
         end do
       else
         ! G points have not been reordered
+#if defined(OMPGPU)
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+#if defined(__amdflang__)
+        !$OMP TILE SIZES(1,256,1)
+#endif
+        do jlev = 1,nlev
+          do jcol = istartcol,iendcol
+            do jg = 1,config%n_g_sw
+              ! Check for negative optical depth
+              od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
+              ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
+            end do
+          end do
+        end do
+#if defined(__amdflang__)
+        !$OMP END TILE
+#endif
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#else
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+#if defined(__amdflang__)
+        !$OMP INTERCHANGE PERMUTATION(2,1,3)
+#endif
         !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
         !$ACC LOOP GANG VECTOR TILE(4,1,32)
         do jcol = istartcol,iendcol
@@ -781,8 +854,10 @@ contains
           end do
         end do
         !$ACC END PARALLEL
-
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
         if (present(incoming_sw)) then
+           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
           !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jcol = istartcol,iendcol
@@ -791,6 +866,7 @@ contains
             end do
           end do
           !$ACC END PARALLEL
+          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
         end if
 
       end if
@@ -799,13 +875,41 @@ contains
 
     !$ACC WAIT
     !$ACC END DATA
+    !$OMP TARGET EXIT DATA MAP(DELETE: incoming_sw_scale, &
+    !$OMP             ZOD_LW, ZOD_SW, ZSSA_SW, ZINCSOL, &
+    !$OMP             ZCOLMOL, ZCOLDRY, ZWBRODL, ZCOLBRD, ZWKL, &
+    !$OMP             ZWX, &
+    !$OMP             ZTAUAERL, &
+    !$OMP             ZFAC00, ZFAC01, ZFAC10, ZFAC11, &
+    !$OMP             ZFORFAC, ZFORFRAC, INDFOR, &
+    !$OMP             INDMINOR, ZSCALEMINOR, ZSCALEMINORN2, ZMINORFRAC, &
+    !$OMP             ZRAT_H2OCO2,ZRAT_H2OCO2_1, &
+    !$OMP             ZRAT_H2OO3 ,ZRAT_H2OO3_1, &
+    !$OMP             ZRAT_H2ON2O,ZRAT_H2ON2O_1, &
+    !$OMP             ZRAT_H2OCH4,ZRAT_H2OCH4_1, &
+    !$OMP             ZRAT_N2OCO2,ZRAT_N2OCO2_1, &
+    !$OMP             ZRAT_O3CO2 ,ZRAT_O3CO2_1, &
+    !$OMP             JP, JT, JT1, &
+    !$OMP             ZONEMINUS_ARRAY, &
+    !$OMP             ZCOLH2O, ZCOLCO2, ZCOLO3, ZCOLN2O, ZCOLCH4, ZCOLO2, &
+    !$OMP             ZCO2MULT, &
+    !$OMP             ILAYTROP, ILAYSWTCH, ILAYLOW, &
+    !$OMP             ZPAVEL, ZTAVEL, ZPZ, ZTZ, &
+    !$OMP             ZSELFFAC, ZSELFFRAC, &
+    !$OMP             INDSELF, &
+    !$OMP             ZPFRAC, &
+    !$OMP             IREFLECT, &
+    !$OMP             pressure_fl, temperature_fl)
+#if defined(__amdflang) && defined(OMPGPU)
+    !$OMP END TARGET DATA
+#endif
+
 #ifdef HAVE_NVTX
     call nvtxEndRange
 #endif
 #ifdef HAVE_ROCTX
     call roctxEndRange
 #endif
-
     if (lhook) call dr_hook('radiation_ifs_rrtm:gas_optics',1,hook_handle)
 
   end subroutine gas_optics
@@ -839,6 +943,16 @@ contains
     real(jprb), dimension(config%n_g_lw,nlev+1,istartcol:iendcol), intent(out) :: &
          &   planck_hl
 
+#if defined(OMPGPU)
+    ! Planck function values per band
+    real(jprb), dimension(istartcol:iendcol, config%n_bands_lw,nlev+1) :: planck_store
+
+    ! Look-up table variables for Planck function
+    real(jprb), dimension(istartcol:iendcol,nlev+1) :: frac
+    integer,    dimension(istartcol:iendcol,nlev+1) :: ind
+
+    real(jprb) ::  planck_tmp(istartcol:iendcol,config%n_g_lw,nlev+1)
+#else
     ! Planck function values per band
     real(jprb), dimension(istartcol:iendcol,nlev+1, config%n_bands_lw) :: planck_store
 
@@ -846,6 +960,8 @@ contains
     real(jprb), dimension(istartcol:iendcol,nlev+1) :: frac
     integer,    dimension(istartcol:iendcol,nlev+1) :: ind
 
+    real(jprb) ::  planck_tmp(istartcol:iendcol,config%n_g_lw)
+#endif
     ! Temperature (K) of a half-level
     real(jprb) :: temperature
 
@@ -868,10 +984,84 @@ contains
     ! Work out interpolations: for each half level, the index of the
     ! lowest interpolation bound, and the fraction into interpolation
     ! interval
+#if defined(OMPGPU)
+    !$OMP TARGET ENTER DATA MAP(ALLOC:planck_store, frac, ind, planck_tmp)
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(temperature)
+    do jlev = 1,nlev+1
+      do jcol = istartcol,iendcol
+        temperature = thermodynamics%temperature_hl(jcol,jlev+ilevoffset)
+        if (temperature < 339.0_jprb .and. temperature >= 160.0_jprb) then
+           ! Linear interpolation between -113 and 66 degC
+          ind(jcol,jlev)  = int(temperature - 159.0_jprb)
+          frac(jcol,jlev) = temperature - int(temperature)
+        else if(temperature >= 339.0_jprb) then
+          ! Extrapolation above 66 degC
+          ind(jcol,jlev)  = 180
+          frac(jcol,jlev) = temperature - 339.0_jprb
+        else
+          ! Cap below -113 degC (to avoid possible negative Planck
+          ! function values)
+          ind(jcol,jlev)  = 1
+          frac(jcol,jlev) = 0.0_jprb
+        end if
+      end do
+    end do
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+    ! Calculate Planck functions per band
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3) PRIVATE(factor)
+    do jlev = 1,nlev+1
+      do jband = 1,config%n_bands_lw
+        do jcol = istartcol,iendcol
+          factor = zfluxfac * delwave(jband)
+          planck_store(jcol,jband,jlev) = factor &
+               &  * (totplnk(ind(jcol,jlev),jband) &
+               &  + frac(jcol,jlev)*(totplnk(ind(jcol,jlev)+1,jband)-totplnk(ind(jcol,jlev),jband)))
+         end do
+       end do
+     end do
+     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+     ! G points have not been reordered
+     ! Top-of-atmosphere half level - note that PFRAC is on model
+     ! levels not half levels
+     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(iband)
+     do jg = 1,config%n_g_lw
+        do jcol = istartcol,iendcol
+           iband = config%i_band_from_g_lw(jg)
+           planck_hl(jg,1,jcol) = planck_store(jcol,iband,1) * PFRAC(jcol,jg,nlev)
+        end do
+     end do
+     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3) PRIVATE(iband)
+     do jlev = 2,nlev+1
+        do jg = 1,config%n_g_lw
+           do jcol = istartcol,iendcol
+              iband = config%i_band_from_g_lw(jg)
+              planck_tmp(jcol,jg,jlev) = planck_store(jcol,iband,jlev) * PFRAC(jcol,jg,nlev+2-jlev)
+           end do
+        end do
+     end do
+     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+     do jlev = 2,nlev+1
+        do jcol = istartcol,iendcol
+           do jg = 1,config%n_g_lw
+              planck_hl(jg,jlev,jcol) = planck_tmp(jcol,jg,jlev)
+           end do
+        end do
+    end do
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+    !$OMP TARGET EXIT DATA MAP(DELETE:planck_store, frac, ind, planck_tmp)
+
+#else
     !$ACC PARALLEL DEFAULT(NONE) CREATE(planck_store, frac, ind) PRESENT(config, thermodynamics, PFRAC, &
     !$ACC   planck_hl) ASYNC(1)
     !$ACC LOOP SEQ
     do jlev = 1,nlev+1
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(temperature)
       !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(temperature)
       do jcol = istartcol,iendcol
         temperature = thermodynamics%temperature_hl(jcol,jlev+ilevoffset)
@@ -958,8 +1148,8 @@ contains
 #endif
 
     !$ACC END PARALLEL
-
     !$ACC WAIT
+#endif
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_atmos',1,hook_handle)
 
@@ -1011,8 +1201,10 @@ contains
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_surf',0,hook_handle)
 
     ZFLUXFAC = 2.0_jprb*ASIN(1.0_jprb) * 1.0e4_jprb
+    !$OMP TARGET ENTER DATA MAP(ALLOC:planck_store, frac, ind)
 
     ! Work out surface interpolations
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(Tsurf)
     !$ACC PARALLEL DEFAULT(NONE) CREATE(planck_store, frac, ind) PRESENT(config, temperature, PFRAC, planck_surf) &
     !$ACC   ASYNC(1)
     !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(Tsurf)
@@ -1033,7 +1225,21 @@ contains
         frac(jcol) = 0.0_jprb
       end if
     end do
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
+#if defined(OMPGPU)
+    ! Calculate Planck functions per band
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(factor)    
+    do jband = 1,config%n_bands_lw
+      do jcol = istartcol,iendcol
+        factor = zfluxfac * delwave(jband)
+        planck_store(jcol,jband) = factor &
+             &  * (totplnk(ind(jcol),jband) &
+             &  + frac(jcol)*(totplnk(ind(jcol)+1,jband)-totplnk(ind(jcol),jband)))
+      end do
+    end do
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#else
     ! Calculate Planck functions per band
     !$ACC LOOP SEQ PRIVATE(factor)
     do jband = 1,config%n_bands_lw
@@ -1045,6 +1251,7 @@ contains
              &  + frac(jcol)*(totplnk(ind(jcol)+1,jband)-totplnk(ind(jcol),jband)))
       end do
     end do
+#endif
 
     if (config%i_solver_lw == ISolverSpartacus) then
       ! We need to rearrange the gas optics info in memory: reordering
@@ -1053,6 +1260,17 @@ contains
       ! the spectrum that are optically thin for gases) and reorder
       ! in pressure since the the functions above treat pressure
       ! decreasing with increasing index.
+#if defined(OMPGPU)
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(iband, ig)
+      do jgreorder = 1,config%n_g_lw
+        do jcol = istartcol,iendcol
+          iband = config%i_band_from_reordered_g_lw(jgreorder)
+          ig = config%i_g_from_reordered_g_lw(jgreorder)
+          planck_surf(jgreorder,jcol) = planck_store(jcol,iband) * PFRAC(jcol,ig)
+        end do
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#else
       !$ACC LOOP SEQ PRIVATE(iband, ig)
       do jgreorder = 1,config%n_g_lw
         iband = config%i_band_from_reordered_g_lw(jgreorder)
@@ -1062,8 +1280,19 @@ contains
           planck_surf(jgreorder,jcol) = planck_store(jcol,iband) * PFRAC(jcol,ig)
         end do
       end do
+#endif
     else
       ! G points have not been reordered
+#if defined(OMPGPU)
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(iband)
+      do jg = 1,config%n_g_lw
+        do jcol = istartcol,iendcol
+          iband = config%i_band_from_g_lw(jg)
+          planck_surf(jg,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg)
+        end do
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#else
       !$ACC LOOP SEQ PRIVATE(iband)
       do jg = 1,config%n_g_lw
         iband = config%i_band_from_g_lw(jg)
@@ -1072,10 +1301,12 @@ contains
           planck_surf(jg,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg)
         end do
       end do
+#endif
     end if
     !$ACC END PARALLEL
 
     !$ACC WAIT
+    !$OMP TARGET EXIT DATA MAP(DELETE:planck_store, frac, ind)
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_surf',1,hook_handle)
 

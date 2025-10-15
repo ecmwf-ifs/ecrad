@@ -819,6 +819,24 @@ contains
 
     nlev = size(this%fraction,2)
 
+#if defined(OMPGPU)
+    !$OMP TARGET ENTER DATA MAP(ALLOC:sum_mixing_ratio)
+    do jlev = 1,nlev
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
+      do jcol = istartcol,iendcol
+         sum_mixing_ratio(jcol) = 0.0_jprb
+         do jh = 1, this%ntype
+            sum_mixing_ratio(jcol) = sum_mixing_ratio(jcol) + this%mixing_ratio(jcol,jlev,jh)
+         end do
+         if (this%fraction(jcol,jlev)        < cloud_fraction_threshold &
+              &  .or. sum_mixing_ratio(jcol) < cloud_mixing_ratio_threshold) then
+            this%fraction(jcol,jlev) = 0.0_jprb
+        end if
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+    end do
+    !$OMP TARGET EXIT DATA MAP(DELETE:sum_mixing_ratio)
+#else
     !$ACC PARALLEL DEFAULT(PRESENT) CREATE(sum_mixing_ratio) ASYNC(1)
     !$ACC LOOP SEQ
     do jlev = 1,nlev
@@ -842,6 +860,7 @@ contains
       end do
     end do
     !$ACC END PARALLEL
+#endif
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',1,hook_handle)
 

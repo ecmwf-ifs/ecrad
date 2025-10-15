@@ -433,6 +433,10 @@ contains
 
     real(jphook) :: hook_handle
 
+#if defined(OMPGPU)
+    integer :: istart, iend, ig
+    real(jprb) :: s1, s2
+#endif
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',0,hook_handle)
 
 #if defined(_OPENACC) || defined(OMPGPU)
@@ -457,6 +461,12 @@ contains
                &  + this%sw_dn_direct_surf_band(:,jcol)
         end do
       else
+
+#if defined(OMPGPU)
+        istart = lbound(this%sw_dn_surf_band,1)
+        iend = ubound(this%sw_dn_surf_band,1)
+#endif
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
         !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
         !$ACC   VECTOR_LENGTH(32*((config%n_g_sw-1)/32+1)) ASYNC(1)
         !$ACC LOOP GANG
@@ -467,11 +477,20 @@ contains
           call indexed_sum(this%sw_dn_diffuse_surf_g(:,jcol), &
                &           config%i_band_from_reordered_g_sw, &
                &           this%sw_dn_surf_band(:,jcol))
+#if defined(OMPGPU)
+          do ig = istart, iend
+             this%sw_dn_surf_band(ig,jcol) &
+                  &  = this%sw_dn_surf_band(ig,jcol) &
+                  &  + this%sw_dn_direct_surf_band(ig,jcol)
+          end do
+#else
           this%sw_dn_surf_band(:,jcol) &
                &  = this%sw_dn_surf_band(:,jcol) &
                &  + this%sw_dn_direct_surf_band(:,jcol)
+#endif
         end do
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
       end if
 
       if (config%do_clear) then
@@ -488,6 +507,11 @@ contains
                  &  + this%sw_dn_direct_surf_clear_band(:,jcol)
           end do
         else
+#if defined(OMPGPU)
+          istart = lbound(this%sw_dn_surf_clear_band,1)
+          iend = ubound(this%sw_dn_surf_clear_band,1)
+#endif
+          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
           !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC   VECTOR_LENGTH(32*(config%n_g_sw-1)/32+1) ASYNC(1)
           !$ACC LOOP GANG
@@ -498,11 +522,20 @@ contains
             call indexed_sum(this%sw_dn_diffuse_surf_clear_g(:,jcol), &
                  &           config%i_band_from_reordered_g_sw, &
                  &           this%sw_dn_surf_clear_band(:,jcol))
+#if defined(OMPGPU)
+            do ig = istart, iend
+               this%sw_dn_surf_clear_band(ig,jcol) &
+                    &  = this%sw_dn_surf_clear_band(ig,jcol) &
+                    &  + this%sw_dn_direct_surf_clear_band(ig,jcol)
+            end do
+#else
             this%sw_dn_surf_clear_band(:,jcol) &
                  &  = this%sw_dn_surf_clear_band(:,jcol) &
                  &  + this%sw_dn_direct_surf_clear_band(:,jcol)
+#endif
           end do
           !$ACC END PARALLEL
+          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
         end if
       end if
 
@@ -511,6 +544,7 @@ contains
     ! Fluxes in bands required for canopy radiative transfer
     if (config%do_sw .and. config%do_canopy_fluxes_sw) then
       if (config%use_canopy_full_spectrum_sw) then
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
@@ -520,6 +554,7 @@ contains
           end do
         end do
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
       else if (config%do_nearest_spectral_sw_albedo) then
         !$ACC DATA CREATE(i_albedo_from_reordered_g_sw)
         !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
@@ -536,6 +571,7 @@ contains
                &               i_albedo_from_reordered_g_sw, &
                &               this%sw_dn_diffuse_surf_canopy, istartcol, iendcol)
         else
+          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
           !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC   VECTOR_LENGTH(32*(config%n_g_sw-1)/32+1) ASYNC(1)
           !$ACC LOOP GANG
@@ -548,6 +584,7 @@ contains
                  &           this%sw_dn_diffuse_surf_canopy(:,jcol))
           end do
           !$ACC END PARALLEL
+          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
         end if
         !$ACC END DATA
       else
@@ -555,6 +592,7 @@ contains
         ! this%sw_dn_[direct_]surf_band to be defined, i.e.
         ! config%do_surface_sw_spectral_flux == .true.
         nalbedoband = size(config%sw_albedo_weights,1)
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) &
         !$ACC     PRESENT(this%sw_dn_diffuse_surf_canopy, this%sw_dn_direct_surf_canopy, &
         !$ACC             config%sw_albedo_weights)
@@ -565,9 +603,27 @@ contains
             this%sw_dn_direct_surf_canopy (jalbedoband,jcol) = 0.0_jprb
           end do
         end do
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol, iendcol
           do jalbedoband = 1,nalbedoband
+#if defined(OMPGPU)
+            s1 = 0
+            s2 = 0
+            do jband = 1,config%n_bands_sw
+              if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
+                ! Initially, "diffuse" is actually "total"
+                s1 = s1 + config%sw_albedo_weights(jalbedoband,jband) &
+                    &    * this%sw_dn_surf_band(jband,jcol)
+                s2 = s2 + config%sw_albedo_weights(jalbedoband,jband) &
+                   &    * this%sw_dn_direct_surf_band(jband,jcol)
+              end if
+            end do
+            this%sw_dn_diffuse_surf_canopy(jalbedoband,jcol) = this%sw_dn_diffuse_surf_canopy(jalbedoband,jcol) + s1
+            this%sw_dn_direct_surf_canopy(jalbedoband,jcol) = this%sw_dn_direct_surf_canopy(jalbedoband,jcol) + s2
+#else
             !$ACC LOOP SEQ
             do jband = 1,config%n_bands_sw
               if (config%sw_albedo_weights(jalbedoband,jband) /= 0.0_jprb) then
@@ -582,8 +638,11 @@ contains
                     &    * this%sw_dn_direct_surf_band(jband,jcol)
               end if
             end do
+#endif
           end do
         end do
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jalbedoband = 1,nalbedoband
@@ -594,12 +653,14 @@ contains
           end do
         end do
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
       end if
 
     end if ! do_canopy_fluxes_sw
 
     if (config%do_lw .and. config%do_canopy_fluxes_lw) then
       if (config%use_canopy_full_spectrum_lw) then
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
@@ -608,7 +669,32 @@ contains
           end do
         end do
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
       else if (config%do_nearest_spectral_lw_emiss) then
+#if defined (OMPGPU)
+        !$OMP TARGET ENTER DATA MAP(alloc:i_emiss_from_reordered_g_lw)
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
+        do jg = 1,config%n_g_lw
+          i_emiss_from_reordered_g_lw(jg) = config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw(jg))
+        end do
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+        if (use_indexed_sum_vec) then
+          call indexed_sum_vec(this%lw_dn_surf_g, &
+               &               i_emiss_from_reordered_g_lw, &
+               &               this%lw_dn_surf_canopy, istartcol, iendcol)
+              !  &               config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw), &
+        else
+          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
+          do jcol = istartcol,iendcol
+            call indexed_sum(this%lw_dn_surf_g(:,jcol), &
+               &             i_emiss_from_reordered_g_lw, &
+                 &           this%lw_dn_surf_canopy(:,jcol))
+          end do
+          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+        end if
+        !$OMP TARGET EXIT DATA MAP(delete:i_emiss_from_reordered_g_lw)
+#else
         !$ACC DATA CREATE(i_emiss_from_reordered_g_lw)
         !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP GANG VECTOR
@@ -635,7 +721,9 @@ contains
           !$ACC END PARALLEL
         end if
         !$ACC END DATA
+#endif
       else
+        !$OMP TARGET ENTER DATA MAP(ALLOC: lw_dn_surf_band)
         !$ACC DATA CREATE(lw_dn_surf_band) ASYNC(1)
         ! Compute fluxes in each longwave emissivity interval using
         ! weights; first sum over g points to get the values in bands
@@ -644,6 +732,7 @@ contains
                &               config%i_band_from_reordered_g_lw, &
                &               lw_dn_surf_band, istartcol, iendcol)
         else
+          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
           !$ACC PARALLEL DEFAULT(PRESENT) NUM_GANGS(iendcol-istartcol+1) NUM_WORKERS(1) &
           !$ACC   VECTOR_LENGTH(32*(config%n_g_lw-1)/32+1) ASYNC(1)
           !$ACC LOOP GANG
@@ -653,8 +742,10 @@ contains
                  &           lw_dn_surf_band(:,jcol))
           end do
           !$ACC END PARALLEL
+          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
         end if
         nalbedoband = size(config%lw_emiss_weights,1)
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC PARALLEL DEFAULT(PRESENT) &
         !$ACC   PRESENT(this%lw_dn_surf_canopy, config%lw_emiss_weights) ASYNC(1)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
@@ -663,22 +754,38 @@ contains
             this%lw_dn_surf_canopy(jalbedoband,jcol) = 0.0_jprb
           end do
         end do
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+        !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC LOOP GANG VECTOR COLLAPSE(2)
         do jcol = istartcol,iendcol
           do jalbedoband = 1,nalbedoband
+#if defined(OMPGPU)
+            s1 = 0
+            do jband = 1,config%n_bands_lw
+               if (config%lw_emiss_weights(jalbedoband,jband) /= 0.0_jprb) then
+                  s1 = s1 + config%lw_emiss_weights(jalbedoband,jband) &
+                   &    * lw_dn_surf_band(jband,jcol)
+               end if
+            end do
+            this%lw_dn_surf_canopy(jalbedoband,jcol) &
+                 &  = this%lw_dn_surf_canopy(jalbedoband,jcol) + s1
+#else
             !$ACC LOOP SEQ
             do jband = 1,config%n_bands_lw
-            if (config%lw_emiss_weights(jalbedoband,jband) /= 0.0_jprb) then
-                this%lw_dn_surf_canopy(jalbedoband,jcol) &
-                    &  = this%lw_dn_surf_canopy(jalbedoband,jcol) &
-                   &  + config%lw_emiss_weights(jalbedoband,jband) &
-                    &    * lw_dn_surf_band(jband,jcol)
-            end if
-          end do
+               if (config%lw_emiss_weights(jalbedoband,jband) /= 0.0_jprb) then
+                  this%lw_dn_surf_canopy(jalbedoband,jcol) &
+                       &  = this%lw_dn_surf_canopy(jalbedoband,jcol) &
+                       &  + config%lw_emiss_weights(jalbedoband,jband) &
+                       &    * lw_dn_surf_band(jband,jcol)
+               end if
+            end do
+#endif
         end do
         end do
         !$ACC END PARALLEL
+        !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
         !$ACC END DATA
+        !$OMP TARGET EXIT DATA MAP(DELETE: lw_dn_surf_band)
       end if
     end if
 
@@ -752,7 +859,6 @@ contains
     end if
 
     if (config%do_lw .and. config%do_toa_spectral_flux) then
-
       if (use_indexed_sum_vec) then
         call indexed_sum_vec(this%lw_up_toa_g, &
              &               config%i_band_from_reordered_g_lw, &
@@ -891,7 +997,7 @@ contains
   !---------------------------------------------------------------------
   ! As "add_indexed_sum" but this version overwrites existing contents
   ! of "dest"
-  pure subroutine indexed_sum(source, ind, dest)
+  subroutine indexed_sum(source, ind, dest)
 
     real(jprb), intent(in)  :: source(:)
     integer,    intent(in)  :: ind(:)
@@ -901,18 +1007,32 @@ contains
 
     !$ACC ROUTINE VECTOR
 
-    dest = 0.0
+    istart = lbound(dest,1)
+    iend   = ubound(dest,1)
 
+#if defined(OMPGPU)
+    do jg = istart, iend
+       dest(jg) = 0.0
+    end do
+#else
+    dest = 0.0
+#endif
+    !! Nested parallelism does yet work with amdflang. Leave
+    !! these commented out for now. PJM 10/2/2025
     istart = lbound(source,1)
     iend   = ubound(source,1)
 
+    !!$OMP PARALLEL DO PRIVATE(ig)
     !$ACC LOOP VECTOR PRIVATE(ig)
     do jg = istart, iend
       ig = ind(jg)
+      !!$OMP ATOMIC UPDATE
       !$ACC ATOMIC UPDATE
       dest(ig) = dest(ig) + source(jg)
       !$ACC END ATOMIC
+      !!$END OMP ATOMIC
     end do
+    !!$OMP END PARALLEL DO
 
   end subroutine indexed_sum
 
