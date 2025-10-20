@@ -105,6 +105,7 @@ ecbuild_add_library(
         $<${HAVE_NVTX}:${NVTX_TARGET}>
         $<${HAVE_ROCTX}:${ROCTX_LIBRARIES}>
     PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
+    PUBLIC_DEFINITIONS WITH_ECRAD_DERIVED_TYPE_WORKAROUND
 )
 
 # To ensure device code is generated and all link time dependencies are
