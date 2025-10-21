@@ -201,10 +201,12 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC             FORFAC, FORFRAC, JP, JT, jt1, COLH2O, LAYTROP, SELFFAC, &
     !$ACC             SELFFRAC, MINORFRAC, INDSELF, fracs, &
     !$ACC             INDFOR, INDMINOR, SCALEMINORN2, COLBRD)
+#ifndef __NVCOMPILER
     !$OMP TARGET DATA MAP(PRESENT, ALLOC: PAVEL, taug, P_TAUAERL, FAC00, FAC01, FAC10, FAC11, &
     !$OMP             FORFAC, FORFRAC, JP, JT, jt1, COLH2O, LAYTROP, SELFFAC, &
     !$OMP             SELFFRAC, MINORFRAC, INDSELF, fracs, &
     !$OMP             INDFOR, INDMINOR, SCALEMINORN2, COLBRD)
+#endif
 
 #if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
@@ -409,6 +411,8 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       ENDIF
 
       !$ACC END DATA
+#ifndef __NVCOMPILER
       !$OMP END TARGET DATA
+#endif
 
 END SUBROUTINE RRTM_TAUMOL1

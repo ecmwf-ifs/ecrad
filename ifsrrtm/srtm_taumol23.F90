@@ -78,10 +78,12 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC             k_indself, p_forfac, p_forfrac, k_indfor, p_sfluxzen, &
     !$ACC             p_taug, p_taur , prmu0)
     !$OMP TARGET ENTER DATA MAP(ALLOC: i_laysolfr)
+#ifndef __NVCOMPILER
     !$OMP TARGET DATA MAP(PRESENT, ALLOC: p_fac00, p_fac01, p_fac10, p_fac11, k_jp, k_jt, k_jt1, &
     !$OMP             p_colh2o, p_colmol, k_laytrop, p_selffac, p_selffrac, &
     !$OMP             k_indself, p_forfac, p_forfrac, k_indfor, p_sfluxzen, &
     !$OMP             p_taug, p_taur , prmu0)
+#endif
 
     i_nlayers = klev
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
@@ -234,6 +236,8 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC END DATA
 
     !$OMP TARGET EXIT DATA MAP(DELETE: i_laysolfr)
+#ifndef __NVCOMPILER
     !$OMP END TARGET DATA
+#endif
 
 END SUBROUTINE SRTM_TAUMOL23
