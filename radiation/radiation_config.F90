@@ -1506,7 +1506,8 @@ contains
     end if
 
     if (this%i_solver_lw == ISolverTcrad &
-         &  .or. this%i_solver_lw == ISolverTcradICA) then
+         &  .or. this%i_solver_lw == ISolverTcradICA &
+         &  .or. this%i_solver_lw == ISolverTcAdept) then
       if (this%use_tcrad_eddington) then
         call set_two_stream_scheme(ITwoStreamEddington)
       else
@@ -1775,7 +1776,8 @@ contains
       end if
       
       if (this%i_solver_lw == ISolverTcrad &
-           &   .or. this%i_solver_lw == ISolverTcradICA) then
+           &   .or. this%i_solver_lw == ISolverTcradICA &
+           &   .or. this%i_solver_lw == ISolverTcAdept) then
         write(nulout, '(a)') '  TCRAD options:'
         call print_integer('    Number of regions', 'n_regions', this%nregions)
         call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &

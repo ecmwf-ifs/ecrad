@@ -130,6 +130,10 @@ contains
       do_shadowing = .false.
     end if
 
+    if (config%use_tcrad_eddington) then
+      tc_config%two_stream_scheme = TWO_STREAM_EDDINGTON
+    end if
+    
     do jcol = istartcol,iendcol
 
       if (config%do_clear) then
@@ -287,6 +291,10 @@ contains
 
     tc_config%do_specular_surface = config%do_specular_surface
     
+    if (config%use_tcrad_eddington) then
+      tc_config%two_stream_scheme = TWO_STREAM_EDDINGTON
+    end if
+    
     do jcol = istartcol,iendcol
       
       od_cloud_regrid    = od_cloud(config%i_band_from_reordered_g_lw,:,jcol)
@@ -312,7 +320,6 @@ contains
       end if
       
     end do
-
     if (lhook) call dr_hook('radiation_tcrad_lw:radiance_solver_tcrad_lw',1,hook_handle)
     
   end subroutine radiance_solver_adept_tripleclouds_lw
@@ -418,6 +425,10 @@ contains
 
     tc_config%do_specular_surface = config%do_specular_surface
     
+    if (config%use_tcrad_eddington) then
+      tc_config%two_stream_scheme = TWO_STREAM_EDDINGTON
+    end if
+    
     do jcol = istartcol,iendcol
       
       od_cloud_regrid    = od_cloud(config%i_band_from_reordered_g_lw,:,jcol)
@@ -439,10 +450,10 @@ contains
              &         ssa_cloud_ad, g_cloud_ad, overlap_param_ad)
 
         
-        do jlev = 1,nlev
-          write(101,*) jcol, jlev, spectral_radiance(1), planck_hl_ad(1,jlev), cloud_fraction_ad(jlev), od_ad(1,jlev), &
-               &  od_cloud_ad(1,jlev), ssa_cloud_ad(1,jlev), g_cloud_ad(1,jlev)
-        end do
+        !do jlev = 1,nlev
+        !  write(101,*) jcol, jlev, spectral_radiance(1), planck_hl_ad(1,jlev), cloud_fraction_ad(jlev), od_ad(1,jlev), &
+        !       &  od_cloud_ad(1,jlev), ssa_cloud_ad(1,jlev), g_cloud_ad(1,jlev)
+        !end do
         
       end if
 
