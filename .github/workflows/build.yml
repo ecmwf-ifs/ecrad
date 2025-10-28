@@ -93,15 +93,12 @@ jobs:
         printenv
 
     - name: Cache Dependencies
-      # There seems to be a problem with cached NVHPC dependencies, leading to SIGILL perhaps due to slightly different architectures
       if: matrix.caching
       id: deps-cache
-      # uses: pat-s/always-upload-cache@v2.1.5
       uses: actions/cache@v4
       with:
         path: ${{ env.DEPS_DIR }}
         key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ env.CACHE_SUFFIX }}
-        save-always: true
 
     # Free up disk space for nvhpc
     - name: Free Disk Space (Ubuntu)
