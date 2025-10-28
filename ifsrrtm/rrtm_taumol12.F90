@@ -1,7 +1,7 @@
 !----------------------------------------------------------------------------
 SUBROUTINE RRTM_TAUMOL12 (KIDIA,KFDIA,KLEV,taug,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
- & colh2o,colco2,laytrop,selffac,selffrac,indself,fracs, &  
+ & colh2o,colco2,laytrop,selffac,selffrac,indself,fracs, &
  & rat_h2oco2, rat_h2oco2_1,laytrop_min,laytrop_max)
 
 !     BAND 12:  1800-2080 cm-1 (low - H2O,CO2; high - nothing)
@@ -97,9 +97,11 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC DATA PRESENT(taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
     !$ACC             colh2o, colco2, laytrop, selffac, selffrac, indself, fracs, &
     !$ACC             rat_h2oco2, rat_h2oco2_1, indfor, forfrac, forfac)
+#ifndef __NVCOMPILER
     !$OMP TARGET DATA MAP(PRESENT, ALLOC: taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
     !$OMP             colh2o, colco2, laytrop, selffac, selffrac, indself, fracs, &
     !$OMP             rat_h2oco2, rat_h2oco2_1, indfor, forfrac, forfac)
+#endif
 
 #if !defined(_OPENACC) && !defined(OMPGPU)
     ixlow  = 0
@@ -673,6 +675,8 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       ENDIF
 
       !$ACC END DATA
+#ifndef __NVCOMPILER
       !$OMP END TARGET DATA
+#endif
 
 END SUBROUTINE RRTM_TAUMOL12

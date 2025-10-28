@@ -9,7 +9,7 @@ SUBROUTINE SRTM_GAS_OPTICAL_DEPTH &
  &   PFORFAC , PFORFRAC , KINDFOR , PSELFFAC, PSELFFRAC, KINDSELF ,&
  &   PFAC00  , PFAC01   , PFAC10  , PFAC11 ,&
  &   KJP     , KJT      , KJT1 ,&
- !-- output arrays 
+ !-- output arrays
  &   POD, PSSA, PINCSOL)
 
 
@@ -130,10 +130,12 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('SRTM_GAS_OPTICAL_DEPTH',0,ZHOOK_HANDLE)
 
 !$OMP TARGET ENTER DATA MAP(ALLOC:IW, ZTAUG, ZTAUR, ZSFLXZEN)
+#ifndef __NVCOMPILER
 !$OMP TARGET DATA MAP(PRESENT, ALLOC:PONEMINUS, PRMU0, KLAYTROP, PCOLCH4, PCOLCO2, PCOLH2O, &
 !$OMP             PCOLMOL, PCOLO2, PCOLO3, PFORFAC, PFORFRAC, KINDFOR, PSELFFAC, &
 !$OMP             PSELFFRAC, KINDSELF, PFAC00, PFAC01, PFAC10, PFAC11, KJP, &
 !$OMP             KJT, KJT1, POD, PSSA, PINCSOL)
+#endif
 
 !$ACC DATA CREATE(IW, ZTAUG, ZTAUR, ZSFLXZEN) &
 !$ACC     PRESENT(PONEMINUS, PRMU0, KLAYTROP, PCOLCH4, PCOLCO2, PCOLH2O, &
@@ -166,7 +168,7 @@ IF (ICOUNT/=0) THEN
     IBM = JB-15
     IGT = NGC(IBM)
 
-    !-- for each band, computes the gaseous and Rayleigh optical thickness 
+    !-- for each band, computes the gaseous and Rayleigh optical thickness
     !  for all g-points within the band
 
     IF (JB == 16) THEN
@@ -352,7 +354,9 @@ ENDIF
 
 !$OMP TARGET EXIT DATA MAP(DELETE:laytrop_min,laytrop_max)
 !$OMP TARGET EXIT DATA MAP(DELETE: IW, ZTAUG, ZTAUR, ZSFLXZEN)
+#ifndef __NVCOMPILER
 !$OMP END TARGET DATA
+#endif
 
 !     ------------------------------------------------------------------
 

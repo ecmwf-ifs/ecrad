@@ -110,10 +110,12 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
     !$ACC             selffrac, indself, fracs, rat_h2on2o, rat_h2on2o_1, &
     !$ACC             indfor, forfac, forfrac, minorfrac, indminor) &
     !$ACC       CREATE(colco)
+#ifndef __NVCOMPILER
     !$OMP TARGET DATA MAP(PRESENT, ALLOC: taug, P_TAUAERL, fac00, fac01, fac10, fac11, jp, jt, jt1, &
     !$OMP             colh2o, coln2o, colco2, colo3, coldry, laytrop, selffac, &
     !$OMP             selffrac, indself, fracs, rat_h2on2o, rat_h2on2o_1, &
     !$OMP             indfor, forfac, forfrac, minorfrac, indminor)
+#endif
     !$OMP TARGET ENTER DATA MAP(ALLOC: colco)
 
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
@@ -797,6 +799,8 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       !$ACC WAIT
       !$ACC END DATA
       !$OMP TARGET EXIT DATA MAP(DELETE:colco)
+#ifndef __NVCOMPILER
       !$OMP END TARGET DATA
+#endif
 
 END SUBROUTINE RRTM_TAUMOL13
