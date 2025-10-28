@@ -188,8 +188,33 @@ jobs:
         cmake_options:    "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_options }} -DENABLE_SINGLE_PRECISION=ON -DENABLE_BITIDENTITY_TESTING=ON -DENABLE_ACC=OFF"
         ctest_options: "--output-on-failure ${{ matrix.ctest_options }}"
 
-#    - name: Codecov Upload
-#      if: steps.build-test.outputs.coverage_file
-#      uses: codecov/codecov-action@v2
-#      with:
-#        files: ${{ steps.build-test.outputs.coverage_file }}
+  make:
+    name: Makefile build
+
+    strategy:
+      fail-fast: false    # false: try to complete all jobs
+
+      matrix:
+        name:
+          - linux gnu
+
+        include:
+
+          - name: linux gnu
+            os: ubuntu-24.04
+            profile: gfortran
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install libnetcdff-dev nco
+
+    - name: Build & Test
+      run: |
+        make PROFILE=${{ matrix.profile }} -j
+        make test PROFILE=${{ matrix.profile }}
