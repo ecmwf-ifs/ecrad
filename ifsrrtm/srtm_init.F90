@@ -11,7 +11,6 @@ USE PARSRTM  , ONLY : JPG, JPSW
 USE YOESRTM  , ONLY : NGN
 USE YOESRTWN , ONLY : NG, NGM, WT, NGC, RWGT, WTSM
 !USE YOESRTWN , ONLY : NG, NGM, WT, NGC, NGN, RWGT, WTSM
-!USE YOMLUN   , ONLY : NULOUT
 
 IMPLICIT NONE
 
@@ -89,8 +88,8 @@ IF (PRESENT(NWVCONTINUUM)) THEN
 END IF
 
 !-- read in the cloud optical properties
-!- creates module YOESRTOP with EXTLIQ1, SSALIQ1, ASYLIQ1, 
-!  EXTICE3, SSAICE3, ASYICE3, FDLICE3  
+!- creates module YOESRTOP with EXTLIQ1, SSALIQ1, ASYLIQ1,
+!  EXTICE3, SSAICE3, ASYICE3, FDLICE3
 
 !-- RRTM_SW cloud optical properties are not used
 !   SRTM_CLDPROP is not called
@@ -150,4 +149,3 @@ CALL SRTM_CMBGB29
 !-----------------------------------------------------------------------
 IF (LHOOK) CALL DR_HOOK('SRTM_INIT',1,ZHOOK_HANDLE)
 END SUBROUTINE SRTM_INIT
-
