@@ -32,7 +32,7 @@ SUBROUTINE ICE_EFFECTIVE_RADIUS &
 USE PARKIND1 , ONLY : JPIM, JPRB
 USE YOMHOOK  , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOERAD   , ONLY : TERAD
-USE YOMLUN   , ONLY : NULERR
+USE YOMLUN_ECRAD, ONLY : NULERR
 USE YOMCST   , ONLY : RD, RTT
 
 ! -------------------------------------------------------------------
@@ -73,7 +73,7 @@ REAL(KIND=JPRB) :: ZAIR_DENSITY_GM3 ! Air density in g m-3
 
 REAL(KIND=JPRB) :: ZTEMPERATURE_C   ! Temperature, degrees Celcius
 REAL(KIND=JPRB) :: ZAIWC, ZBIWC     ! Factors in empirical relationship
-REAL(KIND=JPRB) :: ZDEFAULT_RE_UM   ! Default effective radius in microns 
+REAL(KIND=JPRB) :: ZDEFAULT_RE_UM   ! Default effective radius in microns
 REAL(KIND=JPRB) :: ZDIAMETER_UM     ! Effective diameter in microns
 
 ! Min effective diameter in microns; may vary with latitude
@@ -96,7 +96,7 @@ IF (LHOOK) CALL DR_HOOK('ICE_EFFECTIVE_RADIUS',0,ZHOOK_HANDLE)
 SELECT CASE(YDERAD%NRADIP)
 CASE(0)
   ! Ice effective radius fixed at 40 microns
-  PRE_UM(KIDIA:KFDIA,:) = 40.0_JPRB  
+  PRE_UM(KIDIA:KFDIA,:) = 40.0_JPRB
 
 CASE(1,2)
   ! Ice effective radius from Liou and Ou (1994)
@@ -162,7 +162,7 @@ CASE(3)
       ENDIF
     ENDDO
   ENDDO
-  
+
 CASE DEFAULT
   WRITE(NULERR,'(A,I0,A)') 'ICE EFFECTIVE RADIUS OPTION NRADLP=',YDERAD%NRADIP,' NOT AVAILABLE'
   CALL ABOR1('ERROR IN ICE_EFFECTIVE_RADIUS')
@@ -172,5 +172,5 @@ END SELECT
 ! -------------------------------------------------------------------
 
 IF (LHOOK) CALL DR_HOOK('ICE_EFFECTIVE_RADIUS',1,ZHOOK_HANDLE)
-  
+
 END SUBROUTINE ICE_EFFECTIVE_RADIUS
