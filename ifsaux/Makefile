@@ -1,4 +1,4 @@
-SOURCES = parkind1.F90 yomlun_ecrad.F90 yomcst.F90 abor1.F90 \
+SOURCES = parkind1.F90 yomlun_ecrad.F90 yomcst_ecrad.F90 abor1.F90 \
 	yomtag.F90 mpl_module.F90 yommp0_ifsaux.F90 yomdyncore.F90
 MAKE_INCLUDES = ../bin/make_intfbl.1.pl
 INCLUDE_DIR = ../include
@@ -22,7 +22,7 @@ includes:
 clean:
 	rm -f *.o $(LIBIFSAUX)
 
-yomlun_ecrad.o yomhook.o random_numbers_mix.o yomcst.o yomtag.o mpl_module.o yomdyncore.o: parkind1.o
+yomlun_ecrad.o yomhook.o random_numbers_mix.o yomcst_ecrad.o yomtag.o mpl_module.o yomdyncore.o: parkind1.o
 abor1.o: yomlun_ecrad.o
 
 .PHONY: deps includes

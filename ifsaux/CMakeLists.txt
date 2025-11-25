@@ -8,7 +8,7 @@
 # nor does it submit to any jurisdiction.
 
 set( ifsaux_SOURCES
-        yomcst.F90
+        yomcst_ecrad.F90
         yomdyncore.F90
         yomlun_ecrad.F90
         yommp0_ifsaux.F90

@@ -7,7 +7,7 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
 
-MODULE YOMCST
+MODULE YOMCST_ECRAD
 
 USE PARKIND1  ,ONLY : JPRB
 
@@ -73,4 +73,4 @@ REAL(KIND=JPRB), PARAMETER :: RMCCL4 = 153.823_JPRB
 REAL(KIND=JPRB), PARAMETER :: RCPD  = 3.5_JPRB*RD
 REAL(KIND=JPRB), PARAMETER :: RLMLT = RLSTT-RLVTT
 
-END MODULE YOMCST
+END MODULE YOMCST_ECRAD
