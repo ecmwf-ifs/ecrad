@@ -10,7 +10,7 @@
 # nor does it submit to any jurisdiction.
 
 
-EXT="parkind1.o|yomhook.o|yomcst.o|yomdyncore.o|yomlun_ecrad.o|abor1.o|yomtag.o|mpl_module.o|yommp0_ifsaux.o"
+EXT="parkind1.o|yomhook.o|yomcst_ecrad.o|yomdyncore.o|yomlun_ecrad.o|abor1.o|yomtag.o|mpl_module.o|yommp0_ifsaux.o"
 
 while [ "$1" ]
 do
