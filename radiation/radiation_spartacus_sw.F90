@@ -28,7 +28,7 @@
 !   2018-09-14  R. Hogan  Added "Zero" encroachment option
 !   2018-10-08  R. Hogan  Call calc_region_properties
 !   2018-10-15  R. Hogan  Added call to fast_expm_exchange instead of expm
-!   2019-01-12  R. Hogan  Use inv_inhom_effective_size if allocated
+!   2019-01-12  R. Hogan  Use inv_inhom_effective_size if associated
 !   2019-02-10  R. Hogan  Renamed "encroachment" to "entrapment"
 
 module radiation_spartacus_sw
@@ -343,13 +343,13 @@ contains
       if (mu0 < 1.0e-10_jprb) then
         flux%sw_dn(jcol,:) = 0.0_jprb
         flux%sw_up(jcol,:) = 0.0_jprb
-        if (allocated(flux%sw_dn_direct)) then
+        if (associated(flux%sw_dn_direct)) then
           flux%sw_dn_direct(jcol,:) = 0.0_jprb
         end if
         if (config%do_clear) then
           flux%sw_dn_clear(jcol,:) = 0.0_jprb
           flux%sw_up_clear(jcol,:) = 0.0_jprb
-          if (allocated(flux%sw_dn_direct_clear)) then
+          if (associated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,:) = 0.0_jprb
           end if
         end if
@@ -357,13 +357,13 @@ contains
         if (config%do_save_spectral_flux) then
           flux%sw_dn_band(:,jcol,:) = 0.0_jprb
           flux%sw_up_band(:,jcol,:) = 0.0_jprb
-          if (allocated(flux%sw_dn_direct_band)) then
+          if (associated(flux%sw_dn_direct_band)) then
             flux%sw_dn_direct_band(:,jcol,:) = 0.0_jprb
           end if
           if (config%do_clear) then
             flux%sw_dn_clear_band(:,jcol,:) = 0.0_jprb
             flux%sw_up_clear_band(:,jcol,:) = 0.0_jprb
-            if (allocated(flux%sw_dn_direct_clear_band)) then
+            if (associated(flux%sw_dn_direct_clear_band)) then
               flux%sw_dn_direct_clear_band(:,jcol,:) = 0.0_jprb
             end if
           end if
@@ -493,7 +493,7 @@ contains
           end if
 
           if (config%do_3d_effects .and. &
-               &  allocated(cloud%inv_cloud_effective_size) .and. &
+               &  associated(cloud%inv_cloud_effective_size) .and. &
                &  .not. (nreg == 2 .and. cloud%fraction(jcol,jlev) &
                &  > 1.0-config%cloud_fraction_threshold)) then
             if (cloud%inv_cloud_effective_size(jcol,jlev) > 0.0_jprb) then
@@ -528,7 +528,7 @@ contains
                 ! the user may specify the effective size of
                 ! inhomogeneities separately from the cloud effective
                 ! size.
-                if (allocated(cloud%inv_inhom_effective_size)) then
+                if (associated(cloud%inv_inhom_effective_size)) then
                   edge_length(2,jlev) = four_over_pi &
                        &  * region_fracs(3,jlev,jcol)*(1.0_jprb-region_fracs(3,jlev,jcol)) &
                        &  * min(cloud%inv_inhom_effective_size(jcol,jlev), &
@@ -1384,13 +1384,13 @@ end if
       ! Store the TOA broadband fluxes
       flux%sw_up(jcol,1) = sum(sum(flux_up_above,1))
       flux%sw_dn(jcol,1) = mu0 * sum(direct_dn_clear(:))
-      if (allocated(flux%sw_dn_direct)) then
+      if (associated(flux%sw_dn_direct)) then
         flux%sw_dn_direct(jcol,1) = flux%sw_dn(jcol,1)
       end if
       if (config%do_clear) then
         flux%sw_up_clear(jcol,1) = sum(flux_up_clear)
         flux%sw_dn_clear(jcol,1) = flux%sw_dn(jcol,1)
-        if (allocated(flux%sw_dn_direct_clear)) then
+        if (associated(flux%sw_dn_direct_clear)) then
           flux%sw_dn_direct_clear(jcol,1) = flux%sw_dn_clear(jcol,1)
         end if
       end if
@@ -1404,7 +1404,7 @@ end if
              &           config%i_spec_from_reordered_g_sw, &
              &           flux%sw_dn_band(:,jcol,1))
         flux%sw_dn_band(:,jcol,1) = mu0 * flux%sw_dn_band(:,jcol,1)
-        if (allocated(flux%sw_dn_direct_band)) then
+        if (associated(flux%sw_dn_direct_band)) then
           flux%sw_dn_direct_band(:,jcol,1) = flux%sw_dn_band(:,jcol,1)
         end if
         if (config%do_clear) then
@@ -1412,7 +1412,7 @@ end if
           call indexed_sum(flux_up_clear, &
                &           config%i_spec_from_reordered_g_sw, &
                &           flux%sw_up_clear_band(:,jcol,1))
-          if (allocated(flux%sw_dn_direct_clear_band)) then
+          if (associated(flux%sw_dn_direct_clear_band)) then
             flux%sw_dn_direct_clear_band(:,jcol,1) &
                  &   = flux%sw_dn_clear_band(:,jcol,1)
           end if
@@ -1454,12 +1454,12 @@ end if
         ! Integrate downwelling direct flux across spectrum and
         ! regions, and store (the diffuse part will be added later)
         flux%sw_dn(jcol,jlev+1) = mu0 * sum(sum(direct_dn_above,1))
-        if (allocated(flux%sw_dn_direct)) then
+        if (associated(flux%sw_dn_direct)) then
           flux%sw_dn_direct(jcol,jlev+1) = flux%sw_dn(jcol,jlev+1)
         end if
         if (config%do_clear) then
           flux%sw_dn_clear(jcol,jlev+1) = mu0 * sum(direct_dn_clear)
-          if (allocated(flux%sw_dn_direct_clear)) then
+          if (associated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,jlev+1) &
                  &  = flux%sw_dn_clear(jcol,jlev+1)
           end if
@@ -1471,7 +1471,7 @@ end if
                &           flux%sw_dn_band(:,jcol,jlev+1))
           flux%sw_dn_band(:,jcol,jlev+1) = mu0 * flux%sw_dn_band(:,jcol,jlev+1)
 
-          if (allocated(flux%sw_dn_direct_band)) then
+          if (associated(flux%sw_dn_direct_band)) then
             flux%sw_dn_direct_band(:,jcol,jlev+1) &
                  &   = flux%sw_dn_band(:,jcol,jlev+1)
           end if
@@ -1481,7 +1481,7 @@ end if
                  &           flux%sw_dn_clear_band(:,jcol,jlev+1))
             flux%sw_dn_clear_band(:,jcol,jlev+1) = mu0 &
                  &   * flux%sw_dn_clear_band(:,jcol,jlev+1)
-            if (allocated(flux%sw_dn_direct_clear_band)) then
+            if (associated(flux%sw_dn_direct_clear_band)) then
               flux%sw_dn_direct_clear_band(:,jcol,jlev+1) &
                    &  = flux%sw_dn_clear_band(:,jcol,jlev+1)
             end if
