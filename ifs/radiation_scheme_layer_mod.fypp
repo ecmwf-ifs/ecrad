@@ -150,6 +150,16 @@ LSPPRAD=.FALSE.
 LRAYFM=.FALSE.
 LEPO3RA=.FALSE.
 
+! We want thread-local copies of the member fields but different compilers
+! can or cannot firstprivatize these objects successfully. Therefore, we
+! have two versions here that (1) either use private field objects and
+! extract these fields from the field stack in a parallel environment or
+! (2) extract these fields first and then mark them as firstprivate
+#ifdef __GFORTRAN__
+#define USE_FIRSTPRIVATE
+#endif
+
+#ifndef USE_FIRSTPRIVATE
 !$OMP PARALLEL &
 !$OMP&  PRIVATE(KIDIA,KFDIA,IBL,&
 !$OMP&    ${chunked_join([f'F_{v_name}' for v_name in variable_names], ', &\n!$OMP&    ')}$ &
@@ -157,6 +167,7 @@ LEPO3RA=.FALSE.
 !$OMP&  PRIVATE(&
 !$OMP&    ${chunked_join([f'P_{v_name}' for v_name in variable_names], ', &\n!$OMP&    ')}$ &
 !$OMP&  )
+#endif
 
 #:for idx, v in enumerate(variables)
 #:if variable_cnt[v.name] > 1
@@ -166,6 +177,15 @@ CALL GET_STACK_MEMBER(ZRGP_FIELDS%FIELD_WRAPPER, ${idx+1}$, F_${v.name}$)
 #:endif
 #:endfor
 
+#ifdef USE_FIRSTPRIVATE
+!$OMP PARALLEL &
+!$OMP&  FIRSTPRIVATE(KIDIA,KFDIA,IBL,&
+!$OMP&    ${chunked_join([f'F_{v_name}' for v_name in variable_names], ', &\n!$OMP&    ')}$ &
+!$OMP&  ) &
+!$OMP&  PRIVATE(&
+!$OMP&    ${chunked_join([f'P_{v_name}' for v_name in variable_names], ', &\n!$OMP&    ')}$ &
+!$OMP&  )
+#endif
 !$OMP DO SCHEDULE(DYNAMIC,1)
 DO JKGLO=1,NGPTOT,NRPROMA
     KIDIA=1
