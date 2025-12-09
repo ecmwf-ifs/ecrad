@@ -217,6 +217,10 @@ program ecrad_ifs_driver
 
   call yradiation%rad_config%read(file_name=file_name)
 
+#ifdef _OPENACC
+  yradiation%yrerad%lecrad_on_gpu = .true.
+#endif
+
   ! Setup aerosols
   if (yradiation%rad_config%use_aerosols) then
     yradiation%yrerad%naermacc = 1 ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
@@ -514,7 +518,7 @@ program ecrad_ifs_driver
              &  pcloud_overlap=zrgp(:,zrgp_fields%ioverlap,ib), &
              &  iseed=iseed(:,ib) &
 #endif
-             & )
+             &  ,lacc=yradiation%yrerad%lecrad_on_gpu)
 #ifdef COPY_ASYNC
           !$acc update host(zrgp(:,ifs_config%ioutbeg:ifs_config%ioutend,ib)) async(3) wait(1)
           !$acc exit data delete(zrgp(:,:,ib)) async(3)

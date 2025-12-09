@@ -206,6 +206,10 @@ program ecrad_ifs_driver
 
   call yradiation%rad_config%read(file_name=file_name)
 
+#ifdef _OPENACC
+  yradiation%yrerad%lecrad_on_gpu = .true.
+#endif
+
   ! Setup aerosols
   if (yradiation%rad_config%use_aerosols) then
     yradiation%yrerad%naermacc = 1 ! MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
