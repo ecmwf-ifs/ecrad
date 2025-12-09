@@ -47,7 +47,7 @@ clean:
 
 ecrad_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_ifs_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
-ecrad_ifs_driver_blocked.o: ecrad_driver_config.o ecrad_driver_read_input.o ifs_blocking.o
-ecrad_driver_read_input.o ifs_blocking.o: ecrad_driver_config.o
+ecrad_ifs_driver_blocked.o: ecrad_driver_config.o ecrad_driver_read_input.o
+ecrad_driver_read_input.o: ecrad_driver_config.o
 
 .PHONY: driver ifs_driver test_programs all
