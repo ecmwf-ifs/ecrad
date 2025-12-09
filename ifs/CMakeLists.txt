@@ -89,6 +89,7 @@ if( HAVE_FIELD_API )
         PUBLIC_LIBS
             field_api_${PREC}
             $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+            $<${HAVE_NVTX}:${NVTX_TARGET}>
     )
 
     set_target_properties( ifs_field_api.${PREC}

@@ -417,8 +417,8 @@ program ecrad_ifs_driver
     !$acc&     async(2)
 
     next_il = min(nproma,ncol)
-    !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,1), &
-    !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,1)) async(2)
+    !$acc update device(zrgp(:,zrgp_fields%iinbeg:zrgp_fields%iinend,1), &
+    !$acc&              zrgp(:,zrgp_fields%ioutend+1:zrgp_fields%ifldstot,1)) async(2)
 #endif
 
 #ifndef NO_OPENMP
@@ -458,8 +458,8 @@ program ecrad_ifs_driver
           !$acc&     async(2) wait(2)
 
           next_il = min(iend+nproma,ncol) - (ibeg+nproma) + 1
-          !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,ib+1), &
-          !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,ib+1)) async(2)
+          !$acc update device(zrgp(:,zrgp_fields%iinbeg:zrgp_fields%iinend,ib+1), &
+          !$acc&              zrgp(:,zrgp_fields%ioutend+1:zrgp_fields%ifldstot,ib+1)) async(2)
         endif
 
 #else  /* COPY_ASYNC */
@@ -470,8 +470,14 @@ program ecrad_ifs_driver
 #endif
         !$acc&
 
-        !$acc update device(zrgp(1:il,ifs_config%iinbeg:ifs_config%iinend,ib), &
-        !$acc&            zrgp(1:il,ifs_config%ioutend+1:ifs_config%ifldstot,ib)) &
+        !$acc update device(zrgp(1:il,zrgp_fields%iinbeg:zrgp_fields%iinend,ib), &
+        !$acc&              zrgp(1:il,zrgp_fields%ioutend+1:zrgp_fields%ifldstot,ib)) &
+        !$acc& async(1)
+
+        ! iaero is an input and output variable but only listed as an output variable in zrgp_fields;
+        !   to work around this, we explicitly offload it here
+        !$acc update device( &
+        !$acc&   zrgp(1:il,zrgp_fields%iaero:zrgp_fields%iaero+yradiation%rad_config%n_aerosol_types*nlev,ib)) &
         !$acc& async(1)
 #endif /* COPY_ASYNC */
 
@@ -520,10 +526,10 @@ program ecrad_ifs_driver
 #endif
              &  ,lacc=yradiation%yrerad%lecrad_on_gpu)
 #ifdef COPY_ASYNC
-          !$acc update host(zrgp(:,ifs_config%ioutbeg:ifs_config%ioutend,ib)) async(3) wait(1)
+          !$acc update host(zrgp(:,zrgp_fields%ioutbeg:zrgp_fields%ioutend,ib)) async(3) wait(1)
           !$acc exit data delete(zrgp(:,:,ib)) async(3)
 #else
-          !$acc update host(zrgp(1:il,ifs_config%ioutbeg:ifs_config%ioutend,ib)) async(1)
+          !$acc update host(zrgp(1:il,zrgp_fields%ioutbeg:zrgp_fields%ioutend,ib)) async(1)
           !$acc end data
 #endif
       end do
