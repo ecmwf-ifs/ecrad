@@ -96,7 +96,7 @@ program ecrad_driver
   integer, external :: omp_get_thread_num
   real(kind=jprd), external :: omp_get_wtime
   ! Start/stop time in seconds
-  real(kind=jprd) :: tstart, tstop, t0
+  real(kind=jprd) :: tstart=0.0, tstop, t0
 #endif
 
   ! For demonstration of get_sw_weights later on
