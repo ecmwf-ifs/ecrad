@@ -54,7 +54,7 @@ program ecrad_driver
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
-  use print_matrix_mod,         only : print_matrix
+  ! use print_matrix_mod,         only : print_matrix
 
   implicit none
 
