@@ -61,7 +61,7 @@ REAL(KIND=JPRB) :: taufor,tauself
     INTEGER(KIND=JPIM) :: ich, icl, ixc0, ixp, jc, jl
 INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
-#include "rrtm_utils.intfb.h"
+#include "compute_laytrop_min_max.intfb.h"
 
     if (present(laytrop_min) .AND. present(laytrop_max)) then
        llaytrop_min = laytrop_min
