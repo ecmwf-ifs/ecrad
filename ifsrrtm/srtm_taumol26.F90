@@ -44,7 +44,7 @@ INTEGER(KIND=JPIM), OPTIONAL, INTENT(INOUT) :: laytrop_min, laytrop_max
 INTEGER(KIND=JPIM) :: IG, I_LAY, I_LAYSOLFR(KIDIA:KFDIA), I_NLAYERS, IPLON
 INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
-#include "rrtm_utils.intfb.h"
+#include "compute_laytrop_min_max.intfb.h"
 
     if (present(laytrop_min) .AND. present(laytrop_max)) then
        llaytrop_min = laytrop_min

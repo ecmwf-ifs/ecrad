@@ -7,7 +7,7 @@ on:
   push:
     branches:
     - master-acc
-    - feature/master-acc-build-hpc
+    - feature/master-acc*
     tags-ignore:
     - '**'
 

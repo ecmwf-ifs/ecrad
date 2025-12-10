@@ -19,12 +19,42 @@ set( ifs_SOURCES
         yoe_spectral_planck.F90
         cloud_overlap_decorr_len.F90
         yoerad.F90
+        ifs_blocking.F90
+        ${CMAKE_CURRENT_BINARY_DIR}/radintg_zrgp_mod.F90
 )
+
+macro( ecrad_ifs_process_fypp fypp_file )
+    # If FYPP has been enabled, regenerate the F90 source files otherwise simply link
+    # or copy commited versions
+    if( HAVE_FYPP )
+        add_custom_command(
+            OUTPUT
+                ${CMAKE_CURRENT_BINARY_DIR}/${fypp_file}.F90
+            COMMAND
+                ${FYPP} -m os -m field_config -M ${CMAKE_CURRENT_SOURCE_DIR}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${fypp_file}.fypp
+                ${CMAKE_CURRENT_BINARY_DIR}/${fypp_file}.F90
+            DEPENDS
+                ${CMAKE_CURRENT_SOURCE_DIR}/${fypp_file}.fypp
+                ${CMAKE_CURRENT_SOURCE_DIR}/radiation_fields_config.yaml
+        )
+    else()
+        file( CREATE_LINK
+            ${CMAKE_CURRENT_SOURCE_DIR}/${fypp_file}.F90
+            ${CMAKE_CURRENT_BINARY_DIR}/${fypp_file}.F90
+            SYMBOLIC COPY_ON_ERROR
+        )
+    endif()
+endmacro()
+
+ecrad_ifs_process_fypp( radintg_zrgp_mod )
 
 ecbuild_add_library(
     TARGET ifs.${PREC}
     TYPE OBJECT
     SOURCES ${ifs_SOURCES}
+    PUBLIC_INCLUDES
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/module_ifs>"
     PRIVATE_LIBS
         ecrad.${PREC}
         ecrad_base.${PREC}
@@ -34,3 +64,37 @@ ecbuild_add_library(
         $<${HAVE_ROCTX}:${ROCTX_LIBRARIES}>
     PRIVATE_DEFINITIONS ${GPU_OFFLOAD}GPU
 )
+set_target_properties( ifs.${PREC}
+    PROPERTIES
+        Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module_ifs"
+)
+
+if( HAVE_FIELD_API )
+
+    ecrad_ifs_process_fypp( radiation_scheme_layer_mod )
+
+    ecbuild_add_library(
+        TARGET ifs_field_api.${PREC}
+        TYPE OBJECT
+        SOURCES
+            ${ifs_SOURCES}
+            ${CMAKE_CURRENT_BINARY_DIR}/radiation_scheme_layer_mod.F90
+        PUBLIC_DEFINITIONS
+            HAVE_FIELD_API
+        PUBLIC_INCLUDES
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/module_ifs_field_api>"
+        PRIVATE_LIBS
+            ecrad.${PREC}
+            ecrad_base.${PREC}
+        PUBLIC_LIBS
+            field_api_${PREC}
+            $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+            $<${HAVE_NVTX}:${NVTX_TARGET}>
+    )
+
+    set_target_properties( ifs_field_api.${PREC}
+        PROPERTIES
+            Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module_ifs_field_api"
+    )
+
+endif()

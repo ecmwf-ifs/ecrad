@@ -40,6 +40,7 @@ TYPE :: TERAD
   LOGICAL :: LDIAGFORCING = .FALSE.
   LOGICAL :: LAPPROXLWUPDATE = .TRUE.
   LOGICAL :: LAPPROXSWUPDATE = .FALSE.
+  LOGICAL :: LECRAD_ON_GPU = .FALSE.
   LOGICAL :: LCCNL = .TRUE.
   LOGICAL :: LCCNO = .TRUE.
   REAL(KIND=JPRB) :: RCCNLND = 900.0_JPRB
@@ -107,8 +108,8 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 ! NSW    : INTEGER : NUMBER OF SHORTWAVE SPECTRAL INTERVALS
 ! NSWNL  : INTEGER : NUMBER OF SHORTWAVE SPECTRAL INTERVALS IN NL MODEL
 ! NSWTL  : INTEGER : NUMBER OF SHORTWAVE SPECTRAL INTERVALS IN TL MODEL
-! NTSW   : INTEGER : MAXIMUM POSSIBLE NUMBER OF SW SPECTRAL INTERVALS 
-! NUV    : INTEGER : NUMBER OF UV SPECTRAL INTERVALS FOR THE UV PROCESSOR   
+! NTSW   : INTEGER : MAXIMUM POSSIBLE NUMBER OF SW SPECTRAL INTERVALS
+! NUV    : INTEGER : NUMBER OF UV SPECTRAL INTERVALS FOR THE UV PROCESSOR
 ! LOPTRPROMA:LOGICAL: .T. NRPROMA will be optimised
 !                   : .F. NRPROMA will not be optimised (forced
 !                   :         by negative NRPROMA in namelist)
@@ -131,7 +132,7 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 !   the following only available in newer modular radiation scheme:
 !          4 = SW/LW Baran data fitted versus ice mixing ratio
 ! NLIQOPT: INTEGER : INDEX FOR LIQUID WATER CLOUD OPTICAL PROPERTIES
-!          0 = SW Fouquart (1991) LW Smith-Shi (1992) YF/SmSh 
+!          0 = SW Fouquart (1991) LW Smith-Shi (1992) YF/SmSh
 !          1 = SW Slingo (1989) LW Savijarvi (1997)
 !          2 = SW Slingo (1989) LW Lindner-Li (2000)
 !   the following only available in RADLSW, not RADLSWR:
@@ -144,16 +145,16 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 ! NCSRADF: INTEGER : 1 IF ACCUMULATED, 2 IF INSTANTANEOUS
 ! LRRTM  : LOGICAL : .T. IF RRTM140MR IS USED FOR LW RADIATION TRANSFER
 
-! LHVOLCA: LOGICAL : .T. IF USING HISTORICAL VOLCANIC AEROSOLS 
+! LHVOLCA: LOGICAL : .T. IF USING HISTORICAL VOLCANIC AEROSOLS
 ! LNEWAER: LOGICAL : .T. IF AEROSOL MONTHLY DISTRIBUTIONS ARE USED
 ! LNOTROAER:LOGICAL: .T. IF NO TROPOSPHERIC AEROSOLS
 ! CRTABLEDIR: CHAR : IF NRADINT > 0 SPECIFIES DIRECTORY PATH FOR RADIATION
 !                  : GRID RTABLE NAMELIST
-! CRTABLEFIL: CHAR : IF NRADINT > 0 SPECIFIES FILE NAME OF RADIATION 
+! CRTABLEFIL: CHAR : IF NRADINT > 0 SPECIFIES FILE NAME OF RADIATION
 !                  : GRID RTABLE NAMELIST
 ! LRAYL  : LOGICAL : .T. NEW RAYLEIGH FOR SW-6 VERSION
 
-! RAOVLP : REAL    : COEFFICIENTS FOR ALPHA1 FACTOR IN HOGAN & 
+! RAOVLP : REAL    : COEFFICIENTS FOR ALPHA1 FACTOR IN HOGAN &
 ! RBOVLP : REAL    : ILLINGWORTH's PARAMETRIZATION
 
 ! LCCNL  : LOGICAL : .T. IF CCN CONCENTRATION OVER LAND IS DIAGNOSED
@@ -163,14 +164,14 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 
 ! LDIFFC : LOGICAL : .T. IF SAVIJARVI'S DIFFUSIVITY CORRECTION IS ON
 
-! NINHOM : INTEGER : 0 IF NO INHOMOGENEITY SCALING EFFECT 
+! NINHOM : INTEGER : 0 IF NO INHOMOGENEITY SCALING EFFECT
 !                    1 IF SIMPLE 0.7 SCALING
 !                    2 IF BARKER, 3 IF CAIRNS ET AL.
 ! RLWINHF: REAL    : INHOMOG. SCALING FACTOR FOR CLOUD LW OPTICAL THICKNESS
 ! RSWINHF: REAL    : INHOMOG. SCALING FACTOR FOR CLOUD SW OPTICAL THICKNESS
 
-! NPERTAER : INTERGER : PERCENTAGE OF PERTURBATION FOR AEROSOL   
-! NPERTOZONE : INTEGER : PERCENTAGE OF PERTURBATION FOR OZONE 
+! NPERTAER : INTERGER : PERCENTAGE OF PERTURBATION FOR AEROSOL
+! NPERTOZONE : INTEGER : PERCENTAGE OF PERTURBATION FOR OZONE
 ! NHINCSOL : INTEGER :  0: Total Solar Irradiance (TSI) fixed at 1366.0 W m-2
 !                       1: Deprecated - use default
 !                       2: Deprecated - use default
@@ -186,7 +187,7 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 ! RMINICE: REAL    : MINIMUM SIZE FOR ICE PARTICLES (um)
 !                    FOR ICE
 ! NMINICE: INTEGER : 1-6 MINIMUM ICE PARTICLE SIZE DEPENDS ON LATITUDE, 0=INDEPENDENT OF LATITUDE
-! NDECOLAT:INTEGER : DECORRELATION LENGTH FOR CF AND CW 
+! NDECOLAT:INTEGER : DECORRELATION LENGTH FOR CF AND CW
 !                     0: SPECIFIED INDEPENDENT OF LATITUDE, 1: SHONK-HOGAN, 2: IMPROVED
 ! NMCICA : INTEGER :  0: NO McICA
 !                     1: McICA w maximum-random in cloud generator
@@ -195,7 +196,7 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 ! NGHGRAD: INTEGER : configuration of 3D GHG climatologies accounted for in radiation
 !                     0: global values
 !                     1: CO2       2: CH4    3: N2O    4: NO2    5:CFC11   6:CFC12
-!                    12: CO2+CH4  13: CO2+CH4+N2O     
+!                    12: CO2+CH4  13: CO2+CH4+N2O
 !                    16: CO2+CH4+N2O+CFC11+CFC12
 ! LETRACGMS: LOGICAL : F=Cariolle climatol. T=GEMS-derived clim for CO2, CH4, O3
 ! LAERCLIM : LOGICAL : .T. for output of the climatological aerosol optical depth at 550 nm
@@ -215,7 +216,7 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 ! NREDGLW  : INTEGER : 0 full resolution for RRTM_LW (256)
 !                      1 ECMWF High resolution model configuration (_LW: 140)
 !                      2 ECMWF EPS configuration (_LW: 70)
-! LDIAGFORCING : LOGICAL : T Write input ozone, ghg and aerosol forcing to 3D fields 
+! LDIAGFORCING : LOGICAL : T Write input ozone, ghg and aerosol forcing to 3D fields
 !                            To be used for diagnostics only; do not use in production runs
 ! NAERMACC : INTEGER : MACC-derived aerosol climatology on a NMCLAT x NMCLON grid
 ! RAESHxx  : REAL    : parameters related to scale height of MACC-derived aerosol climatology
@@ -240,9 +241,9 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 ! LAverageSZA     : LOGICAL : Compute an averaged solar zenith angle
 !                             across the time interval required
 !                             (either a model timestep or a radiation
-!                             timestep). Should be used with 
+!                             timestep). Should be used with
 !                             LCentredTimeSZA=TRUE.
-! LUsePre2017Rad  : LOGICAL : Use the pre-2017 radiation scheme, rather 
+! LUsePre2017Rad  : LOGICAL : Use the pre-2017 radiation scheme, rather
 !                             than the modular scheme contained in the
 !                             separate "radiation" library.  Note that
 !                             the radiation library may make use of the
@@ -270,12 +271,12 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 !                             used. If it starts with "." or "/" then
 !                             a relative path is assumed, otherwise
 !                             the default directory.
-! NLWEMISS      : INTEGER :   Number of emissivity spectral intervals, set 
+! NLWEMISS      : INTEGER :   Number of emissivity spectral intervals, set
 !                             according to the value of NEMISSSCHEME; traditionally
 !                             this has always been 2: outside the IR window and within
 ! NLWOUT        : INTEGER :   Number of spectral intervals to pass LW downwelling flux
 !                             to RADHEATN; traditionally this was 1, but this led
-!                             to errors with LAPPROXLWUPDATE=TRUE, which updated 
+!                             to errors with LAPPROXLWUPDATE=TRUE, which updated
 !                             fluxes using a single broadband emissivity. Now we can
 !                             do approximate updates using full spectral emissivity.
 ! ------------------------------------------------------------------
@@ -307,7 +308,7 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 !                 compute rate of horizontal exchange of radiation
 !                 between clouds and clear skies in SPARTACUS solver
 ! ------------------------------------------------------------------
-! KMODTS : INTEGER   : (A Bozzo) switch for different radiative transfer schemes for UV 
+! KMODTS : INTEGER   : (A Bozzo) switch for different radiative transfer schemes for UV
 !                       = 0 Fouquart&Bonnel adapted by Morcrette and Arola
 !                       = 1 eddington (joseph et al., 1976)
 !                       = 2 pifm (zdunkowski et al., 1980)
@@ -317,7 +318,7 @@ TYPE(TERAD), POINTER :: YRERAD => NULL()
 !                  default for Tegen climatology was 0.03
 ! STBKG : REAL stratospheric background OD@550nm for aerosol climatology.
 !     ------------------------------------------------------------------
-! LDUSEASON : LOGICAL enables a monthly-varying scale height for the 
+! LDUSEASON : LOGICAL enables a monthly-varying scale height for the
 !                     dust aerosol climatology
 ! LAER3D : LOGICAL : to enable aerosol climatology in 3D
 

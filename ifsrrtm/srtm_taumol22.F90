@@ -66,7 +66,7 @@ REAL(KIND=JPRB) :: Z_FAC000, Z_FAC001, Z_FAC010, Z_FAC011, Z_FAC100, Z_FAC101,&
  & Z_TAURAY, Z_O2ADJ , Z_O2CONT
 INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
-#include "rrtm_utils.intfb.h"
+#include "compute_laytrop_min_max.intfb.h"
 
     if (present(laytrop_min) .AND. present(laytrop_max)) then
        llaytrop_min = laytrop_min
