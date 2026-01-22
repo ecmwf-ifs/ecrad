@@ -75,7 +75,7 @@ def get_IMassMixingRatio():
     return ([], [], (numpy.int64, None))
 
 
-@ctypesFF(castInput=True)
+@ctypesFF(castInput=True, indexing='C')
 def run(iconfig, ncol, nlev, nblocksize, pressure_hl, temperature_hl, solar_irradiance,
         spectral_solar_cycle_multiplier,
         cos_solar_zenith_angle, cloud_fraction, fractional_std,
