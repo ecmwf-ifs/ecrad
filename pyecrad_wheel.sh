@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
 
-# This script builds the python wheel using a container with low version of GLIBC
-# allowing execution on a wide range of linux systems.
-# Script can be called with up to two arguments: target and pypi
-# target van be:
-# - get: to get the container and dependencies source code
-# - deps: to build the dependencies
-# - lib: to build the library
-# - wheel: to build the wheels and the source distribution
-# - pypi: to push the source distributions and the wheels on PyPI
-#         in this case, the pypi argument must be provided
-# - all: to perform all these actions
-# pypi is the repository on which wheels are pushed ('pypi' and 'all'
-# targets.
+function usage {
+  echo "
+$0 target [pypi]
+$0 -h
+
+This script builds the python wheel using a container with low version of GLIBC
+allowing execution on a wide range of linux systems.
+
+Script can be called with up to two arguments: target and pypi
+
+target can be:
+- get: to get the container and dependencies source code
+- deps: to build the dependencies
+- lib: to build the library
+- wheel: to build the wheels and the source distribution
+- pypi: to push the source distributions and the wheels on PyPI
+        in this case, the pypi argument must be provided
+- all: to perform all these actions
+
+pypi is the repository on which wheels are pushed ('pypi' and 'all' targets)."
+}
 
 # versions of dependencies
 netcdf_version="v4.9.2"
@@ -60,11 +68,29 @@ export CMAKE_INSTALL_PREFIX=$INSTALL_DIR
 # =============================================================================
 
 # target action
-target=$1
-if [ "$target" != "all" ] && [ "$target" != "get" ] && [ "$target" != "deps" ] && \
-   [ "$target" != "lib" ] && [ "$target" != "wheel" ]  && [ "$target" != "pypi" ]; then
-  echo "First argument must be one of 'all', 'get', 'deps', 'lib', 'wheel', 'pypi'"
-  exit 1
+if [ "$1" == '-h' ]; then
+  usage
+  exit
+else
+  target=$1
+  shift
+  if [ "$target" != "all" ] && [ "$target" != "get" ] && [ "$target" != "deps" ] && \
+     [ "$target" != "lib" ] && [ "$target" != "wheel" ]  && [ "$target" != "pypi" ]; then
+    usage
+    echo
+    echo "First argument must be one of 'all', 'get', 'deps', 'lib', 'wheel', 'pypi'"
+    exit 1
+  fi
+  if [ "$target" == "pypi" ] || [ "$target" == "all" ]; then
+    pypi=$1
+    shift
+    if [ "$pypi" == "" ]; then
+      usage
+      echo
+      echo "The pypi argument is needed to push the wheel"
+      exit 2
+    fi
+  fi
 fi
 
 # ecrad version
@@ -162,10 +188,5 @@ fi
 
 # distribute wheels
 if [ "$target" == "pypi" ] || [ "$target" == "all" ]; then
-  pypi=$2
-  if [ "$pypi" == "" ]; then
-    echo "Second argument must be the PyPI server to use"
-    exit 2
-  fi
   python3 -m twine upload --repository $pypi wheelhouse/pyecrad-${version}-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
 fi

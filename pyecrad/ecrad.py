@@ -25,7 +25,7 @@ class Ecrad():
                 for k, v in namelist.items():
                     nml[k] = v
                 nml.write(namel.name, force=True)
-                setup(namel.name, data_directory)
+                self._iconfig = setup(namel.name, data_directory)
         else:
             self._iconfig = setup(namelist, data_directory)
         self.IVolumeMixingRatio = IVolumeMixingRatio
