@@ -1247,6 +1247,7 @@ contains
     use tcrad_layer_solutions, only : set_two_stream_scheme, &
          &  ITwoStreamEddington, ITwoStreamElsasser, ITwoStreamLegendre, &
          &  ITwoStreamHybrid, ITwoStreamScaledWiscombeGrams
+    use tcrad, only : set_two_stream_scheme_rttov => set_two_stream_scheme
     
     class(config_type), intent(inout)         :: this
 
@@ -1510,8 +1511,10 @@ contains
          &  .or. this%i_solver_lw == ISolverTcAdept) then
       if (this%use_tcrad_eddington) then
         call set_two_stream_scheme(ITwoStreamEddington)
+        call set_two_stream_scheme_rttov(ITwoStreamEddington)
       else
         call set_two_stream_scheme(ITwoStreamElsasser)
+        call set_two_stream_scheme_rttov(ITwoStreamElsasser)
         !call set_two_stream_scheme(ITwoStreamHybrid)
         !call set_two_stream_scheme(ITwoStreamLegendre)
         !call set_two_stream_scheme(ITwoStreamScaledWiscombeGrams)

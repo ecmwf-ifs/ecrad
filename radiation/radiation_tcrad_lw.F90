@@ -320,6 +320,8 @@ contains
          &                               calc_no_scattering_radiance_2region => calc_no_scattering_radiance
     use tcrad_3region_solver, only     : calc_radiance_3region => calc_radiance, &
          &                               calc_no_scattering_radiance_3region => calc_no_scattering_radiance
+    ! From the single source file to be incorporated into RTTOV
+    use tcrad, only                    : calc_radiance_rttov => calc_radiance
     use radiation_constants,  only : GasConstantDryAir, AccelDueToGravity
 
     implicit none
@@ -448,6 +450,8 @@ contains
                  &         do_specular_surface=config%do_specular_surface, &
                  &         do_exact_solution=config%use_tcrad_exact_solution)
           else
+!#define DO_TCRAD_RTTOV 1
+#ifndef DO_TCRAD_RTTOV
             call calc_radiance_3region(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
                  &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
                  &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
@@ -457,6 +461,16 @@ contains
                  &         do_specular_surface=config%do_specular_surface, &
                  &         do_exact_solution=config%use_tcrad_exact_solution, &
                  &         do_independent_columns=do_independent_columns)
+#else
+            write(*,*) 'RUNNING SINGLE-FILE TCRAD FOR RTTOV'
+            call calc_radiance_rttov(config%n_g_lw, nlev, emission(:,jcol), albedo(:,jcol), &
+                 &         planck_hl(:,:,jcol), cloud%fraction(jcol,:), cloud%fractional_std(jcol,:), &
+                 &         od(:,:,jcol), od_cloud_regrid, ssa_cloud_regrid, g_cloud_regrid, &
+                 &         cloud%overlap_param(jcol,:), &
+                 &         cos_sensor_zenith_angle(jcol), spectral_radiance, &
+                 &         cloud_cover=flux%cloud_cover_lw(jcol), &
+                 &         do_specular_surface=config%do_specular_surface)
+#endif
           end if
         end if
       else

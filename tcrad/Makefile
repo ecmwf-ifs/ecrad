@@ -1,5 +1,6 @@
 SOURCES = tcrad_3region_solver.F90 tcrad_2region_solver.F90 \
-	tcrad_layer_solutions.F90 tcrad_tilted.F90 tcrad_clear_sky_solver.F90
+	tcrad_layer_solutions.F90 tcrad_tilted.F90 tcrad_clear_sky_solver.F90 \
+	tcrad.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBMR = ../lib/libtcrad.a

@@ -316,7 +316,7 @@ subroutine calc_radiance(nspec, nlev, surf_emission, surf_albedo, planck_hl, &
         call calc_radiance_trans_source_exact(nspec, nlev, NREGION, mu, &
              &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
              &  flux_up_base, flux_dn_top, transmittance, &
-             &  source_up=source_up, source_dn=source_Dn)
+             &  source_up=source_up, source_dn=source_dn)
       else
         ! Compute transmittance and source towards sensor and towards
         ! surface
