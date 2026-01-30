@@ -227,7 +227,7 @@ contains
     use radiation_config,         only : config_type, &
          &   IGasModelMonochromatic, IGasModelIFSRRTMG, IGasModelECCKD, &
          &   ISolverMcICA, ISolverSpartacus, ISolverHomogeneous, &
-         &   ISolverTripleclouds, ISolverTcrad, ISolverTcAdept, ISolverTcradICA, &
+         &   ISolverTripleclouds, ISolverTcrad, ISolverTcAdept, ISolverTCRTTOV, ISolverTcradICA, &
          &   ISolverFlotsam, ISolverFlotsamICA, &
          &   ISolverTripleclouds, ISolverDISORT, ISolverCloudlessDISORT
     use radiation_single_level,   only : single_level_type
@@ -250,6 +250,7 @@ contains
     use radiation_adept_tripleclouds_lw, only : solver_adept_tripleclouds_lw, &
          &                                      radiance_solver_adept_tripleclouds_lw, &
          &                                      radiance_solver_adept_tripleclouds_lw_ad
+    use radiation_rttov_tcrad_lw, only : radiance_solver_rttov_tcrad_lw, radiance_solver_rttov_tcrad_lw_ad
 #ifdef FLOTSAM
     use radiation_flotsam_sw,     only : radiance_solver_flotsam_sw
 #endif
@@ -476,8 +477,14 @@ contains
                  &  cloud, single_level%cos_sensor_zenith_angle, & 
                  &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
                  &  planck_hl, lw_emission, lw_albedo, flux)
-          else
+          else if (config%i_solver_lw == ISolverTcadept) then
             call radiance_solver_adept_tripleclouds_lw_ad(nlev,istartcol,iendcol, &
+                 &  config, thermodynamics, &
+                 &  cloud, single_level%cos_sensor_zenith_angle, & 
+                 &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
+                 &  planck_hl, lw_emission, lw_albedo, flux)            
+          else
+            call radiance_solver_rttov_tcrad_lw_ad(nlev,istartcol,iendcol, &
                  &  config, thermodynamics, &
                  &  cloud, single_level%cos_sensor_zenith_angle, & 
                  &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &

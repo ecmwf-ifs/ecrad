@@ -63,12 +63,12 @@ module radiation_config
   enum, bind(c) 
      enumerator ISolverCloudless, ISolverHomogeneous, ISolverMcICA, &
           &     ISolverSpartacus, ISolverTripleclouds, &
-          &     ISolverTcrad, ISolverTcradICA, ISolverTcAdept, &
+          &     ISolverTcrad, ISolverTcradICA, ISolverTcAdept, ISolverTcRTTOV, &
           &     ISolverFlotsam, ISolverFlotsamICA, &
           &     ISolverDISORT, ISolverHomogeneousDISORT, ISolverCloudlessDISORT, &
           &     ISolverPOMART3D, ISolverPOMART3DTICA
   end enum
-  character(len=*), parameter :: SolverName(0:14) = [ 'Cloudless        ', &
+  character(len=*), parameter :: SolverName(0:15) = [ 'Cloudless        ', &
        &                                              'Homogeneous      ', &
        &                                              'McICA            ', &
        &                                              'SPARTACUS        ', &
@@ -76,6 +76,7 @@ module radiation_config
        &                                              'TCRAD            ', &
        &                                              'TCRADICA         ', &
        &                                              'TCAdept          ', &
+       &                                              'TCRTTOV          ', &
        &                                              'FLOTSAM          ', &
        &                                              'FLOTSAMICA       ', &
        &                                              'DISORT           ', &
@@ -1511,13 +1512,17 @@ contains
          &  .or. this%i_solver_lw == ISolverTcAdept) then
       if (this%use_tcrad_eddington) then
         call set_two_stream_scheme(ITwoStreamEddington)
-        call set_two_stream_scheme_rttov(ITwoStreamEddington)
       else
         call set_two_stream_scheme(ITwoStreamElsasser)
-        call set_two_stream_scheme_rttov(ITwoStreamElsasser)
         !call set_two_stream_scheme(ITwoStreamHybrid)
         !call set_two_stream_scheme(ITwoStreamLegendre)
         !call set_two_stream_scheme(ITwoStreamScaledWiscombeGrams)
+      end if
+    else if (this%i_solver_lw == ISolverTcRTTOV) then
+      if (this%use_tcrad_eddington) then
+        call set_two_stream_scheme_rttov(ITwoStreamEddington)
+      else
+        call set_two_stream_scheme_rttov(ITwoStreamElsasser)
       end if
     end if
 
@@ -1780,7 +1785,8 @@ contains
       
       if (this%i_solver_lw == ISolverTcrad &
            &   .or. this%i_solver_lw == ISolverTcradICA &
-           &   .or. this%i_solver_lw == ISolverTcAdept) then
+           &   .or. this%i_solver_lw == ISolverTcAdept &
+           &   .or. this%i_solver_lw == ISolverTcRTTOV) then
         write(nulout, '(a)') '  TCRAD options:'
         call print_integer('    Number of regions', 'n_regions', this%nregions)
         call print_integer('    Number of angles per hemisphere', 'n_angles_per_hemisphere_lw', &

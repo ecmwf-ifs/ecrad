@@ -48,7 +48,7 @@ module tcrad
 
   ! Optionally have a different diffusivity in cloud, where radiation
   ! tends to be more isotropic
-  real(jprb), private :: lw_diffusivity_cloud = 1.66_jprb
+  real(jprb) :: lw_diffusivity_cloud = 1.66_jprb
   
   ! To avoid division by near-zero values use simpler formulae in the
   ! low optical depth regime

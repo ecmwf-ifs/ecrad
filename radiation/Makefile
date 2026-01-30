@@ -30,7 +30,8 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_gauss_gamma.F90 radiation_gauss_logbeta.F90 \
 	radiation_gauss_logbeta_skewness.F90 \
 	radiation_aerosol_optics_description.F90 radiation_disort_lw.F90 \
-	radiation_gaussian_quadrature.F90 radiation_disort_sw.F90
+	radiation_gaussian_quadrature.F90 radiation_disort_sw.F90 \
+	radiation_rttov_tcrad_lw.F90
 
 ifdef FLOTSAM_DIR
 SOURCES += radiation_flotsam_sw.F90 
@@ -64,7 +65,7 @@ radiation_interface.o: radiation_aerosol.o radiation_config.o \
 	radiation_tcrad_lw.o \
 	radiation_ecckd_interface.o radiation_general_cloud_optics.o \
 	radiation_adept_tripleclouds_lw.o \
-	radiation_disort_lw.o radiation_disort_sw.o
+	radiation_disort_lw.o radiation_disort_sw.o radiation_rttov_tcrad_lw.o
 
 ifdef FLOTSAM_DIR
 radiation_interface.o: radiation_flotsam_sw.o
