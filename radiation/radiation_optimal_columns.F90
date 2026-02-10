@@ -1,4 +1,4 @@
-! radiation_optimal_columns.F90 - Generate optimal sub-columns for a shortwave radiance solver
+ ! radiation_optimal_columns.F90 - Generate optimal sub-columns for a shortwave radiance solver
 !
 ! (C) Copyright 2021- ECMWF.
 !
@@ -8,7 +8,7 @@
 ! In applying this licence, ECMWF does not waive the privileges and immunities
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
-!
+
 ! Author:  Robin Hogan
 ! Email:   r.j.hogan@ecmwf.int
 !
@@ -37,6 +37,7 @@ contains
     !use radiation_gauss_gamma, only : calc_gauss_gamma
     !use radiation_gauss_logbeta, only : calc_gauss_logbeta
     use radiation_gauss_logbeta_skewness, only : calc_gauss_logbeta_skewness
+    use radiation_gauss_logbeta_skewness_r32, only : calc_gauss_logbeta_skewness_r32 => calc_gauss_logbeta_skewness
 
     implicit none
 
@@ -263,7 +264,11 @@ contains
       !call calc_gauss_lognormal(ng, nsub, cloudy_fsd_od_local, weight, node)
       !call calc_gauss_gamma(ng, nsub, cloudy_fsd_od_local, weight, node)
       !call calc_gauss_logbeta(ng, nsub, cloudy_fsd_od_local, weight, node)
-      call calc_gauss_logbeta_skewness(ng, nsub, cloudy_fsd_od_local, -0.25_jprb, weight, node)
+
+      ! Note that this routine uses incorrect coefficients, but it may perform better for nsub=2
+      !call calc_gauss_logbeta_skewness(ng, nsub, cloudy_fsd_od_local, -0.25_jprb, weight, node)
+      ! This is the corrected version with a different optimal skewness of -0.5
+      call calc_gauss_logbeta_skewness_r32(ng, nsub, cloudy_fsd_od_local, -0.5_jprb, weight, node)
 
       ! Scale the results into the output "weight" and "od_out"
       ! variables

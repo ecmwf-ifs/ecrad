@@ -29,7 +29,8 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_gauss_gamma.F90 radiation_gauss_logbeta.F90 \
 	radiation_gauss_logbeta_skewness.F90 \
 	radiation_aerosol_optics_description.F90 radiation_disort_lw.F90 \
-	radiation_gaussian_quadrature.F90 radiation_disort_sw.F90
+	radiation_gaussian_quadrature.F90 radiation_disort_sw.F90 \
+	radiation_gauss_logbeta_skewness_r32.F90
 
 ifdef FLOTSAM_DIR
 SOURCES += radiation_flotsam_sw.F90 
@@ -118,7 +119,8 @@ radiation_spartacus_sw.o radiation_spartacus_lw.o radiation_flotsam_sw.o \
 
 radiation_flotsam_sw.o: radiation_optimal_columns.o radiation_cloud_generator.o
 radiation_optimal_columns.o: radiation_gen_gauss_laguerre.o radiation_gauss_lognormal.o \
-	radiation_gauss_gamma.o radiation_gauss_logbeta.o
+	radiation_gauss_gamma.o radiation_gauss_logbeta.o radiation_gauss_logbeta_skewness.o \
+	radiation_gauss_logbeta_skewness_r32.o
 radiation_ecckd.o: radiation_ecckd_gas.o radiation_spectral_definition.o
 radiation_ecckd_gas.o: radiation_gas_constants.o
 radiation_ecckd_interface.o: radiation_config.o radiation_single_level.o radiation_thermodynamics.o \

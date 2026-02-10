@@ -837,6 +837,10 @@ contains
              &  dim2_name="column", dim1_name="band_sw", &
              &  units_str=trim(sw_units_str), long_name="Clear-sky solar radiance")
       end if
+      call out_file%define_variable("cloud_cover_sw", &
+           &  dim1_name="column", units_str="1", &
+           &  long_name="Total cloud cover diagnosed by shortwave solver", &
+           &  standard_name="cloud_area_fraction")
 
     end if
 
@@ -868,6 +872,7 @@ contains
       if (config%do_clear) then
         call out_file%put("radiance_sw_clear_band", flux%sw_radiance_clear_band)
       end if
+      call out_file%put("cloud_cover_sw",   flux%cloud_cover_sw)
     end if
 
     ! Close file

@@ -195,8 +195,9 @@ contains
           write(101,*) jcol, total_cloud_cover, sum(spread(od_cloud(1,:,jcol),1,config%n_cloudy_subcolumns_sw) &
                &  *od_scaling_sub_sc(:,:),2)
         else
-          write(101,*) jcol, total_cloud_cover, sum(od_cloud_sub_oc(1,:,:),1)
-          write(101,*) jcol, total_cloud_cover, weight_sub_oc(1,:)
+          !write(101,*) jcol, total_cloud_cover, sum(od_cloud_sub_oc(1,:,:),1)
+          !write(101,*) jcol, total_cloud_cover, weight_sub_oc(1,:)
+          write(101,*) jcol, total_cloud_cover, sum(od_cloud(:,:,jcol),2), cloudy_fsd_od, single_level%cos_sensor_zenith_angle(jcol)
         end if
 #endif
 
