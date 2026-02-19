@@ -40,7 +40,7 @@ subroutine calc_radiance_ad(nspec, nlev, &
      &  overlap_param, mu, radiance, &
      &  surf_emission_ad, surf_albedo_ad, planck_hl_ad, &
      &  cloud_fraction_ad, fractional_std_ad, &
-     &  od_clear_ad, od_cloud_ad, overlap_param_ad, &
+     &  od_clear_ad, od_cloud_ad, ssa_cloud_ad, asymmetry_cloud_ad, overlap_param_ad, &
      &  radiance_ad, cloud_cover, &
      &  do_specular_surface, cloud_cover_ad)
 
@@ -74,6 +74,7 @@ subroutine calc_radiance_ad(nspec, nlev, &
   real(jprb), intent(inout), dimension(nspec,nlev+1) :: planck_hl_ad
   real(jprb), intent(inout), dimension(nlev) :: cloud_fraction_ad, fractional_std_ad
   real(jprb), intent(inout), dimension(nspec,nlev) :: od_clear_ad, od_cloud_ad
+  real(jprb), intent(inout), dimension(nspec,nlev) :: ssa_cloud_ad, asymmetry_cloud_ad
   real(jprb), intent(inout), dimension(nlev-1) :: overlap_param_ad
 
   real(jprb), intent(inout), dimension(nspec) :: radiance_ad
@@ -83,8 +84,15 @@ subroutine calc_radiance_ad(nspec, nlev, &
   real(jprb), dimension(nspec,NREGION,nlev)   :: od
   real(jprb), dimension(nspec,NREGION,nlev)   :: od_ad
   real(jprb), dimension(nspec,2:NREGION,nlev) :: ssa
+  real(jprb), dimension(nspec,2:NREGION,nlev) :: ssa_ad
+  real(jprb), dimension(nspec,nlev) :: asymmetry_ad
   real(jprb), dimension(nspec,NREGION,nlev) :: reflectance, transmittance
   real(jprb), dimension(nspec,NREGION,nlev) :: source_up, source_dn
+  ! The same but for radiances. We only need to duplicate these to
+  ! ensure that when AI does the differentiation it doesn't reuse the
+  ! wrong variable in the adjoint reverse pass
+  real(jprb), dimension(nspec,NREGION,nlev) :: transmittance_rad
+  real(jprb), dimension(nspec,NREGION,nlev) :: source_up_rad, source_dn_rad  
   logical :: is_cloud_free_layer(0:nlev+1)
   real(jprb), dimension(NREGION,NREGION,nlev+1) :: u_overlap, v_overlap
   real(jprb), dimension(nspec,NREGION,nlev) :: flux_up_base, flux_dn_base
@@ -158,32 +166,34 @@ subroutine calc_radiance_ad(nspec, nlev, &
   if (do_specular_surface_local) then
     call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
          &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
-         &  flux_up_base, flux_dn_top, transmittance, &
-         &  source_up=source_up, source_dn=source_dn)
+         &  flux_up_base, flux_dn_top, transmittance_rad, &
+         &  source_up=source_up_rad, source_dn=source_dn_rad)
 
     call calc_radiance_dn(nspec, nlev, &
-         &  ONE_OVER_PI, transmittance, source_dn, v_overlap, radiance_profile)
+         &  ONE_OVER_PI, transmittance_rad, source_dn_rad, v_overlap, radiance_profile)
 
     flux_up_surface = spread(surf_emission + PI*surf_albedo*radiance_profile(:,nlev+1),2,NREGION) &
          &          * spread(region_fracs(:,nlev),1,nspec)
 
     call calc_radiance_up(nspec, nlev, &
          &  ONE_OVER_PI, flux_up_surface, &
-         &  transmittance, source_up, u_overlap, radiance_profile)
+         &  transmittance_rad, source_up_rad, u_overlap, radiance_profile)
   else
     call calc_radiance_trans_source(nspec, nlev, NREGION, mu, &
          &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
-         &  flux_up_base, flux_dn_top, transmittance, source_up=source_up)
+         &  flux_up_base, flux_dn_top, transmittance_rad, source_up=source_up_rad)
 
     call calc_radiance_up(nspec, nlev, &
          &  ONE_OVER_PI, flux_up_base(:,:,nlev), &
-         &  transmittance, source_up, u_overlap, radiance_profile)
+         &  transmittance_rad, source_up_rad, u_overlap, radiance_profile)
   end if
 
   ! ----------------------------
   ! Initialise adjoints of intermediates
   ! ----------------------------
   od_ad             = 0.0_jprb
+  ssa_ad            = 0.0_jprb
+  asymmetry_ad      = 0.0_jprb
   reflectance_ad    = 0.0_jprb
   transmittance_ad  = 0.0_jprb
   source_up_ad      = 0.0_jprb
@@ -210,7 +220,7 @@ subroutine calc_radiance_ad(nspec, nlev, &
 
     call calc_radiance_up_ad(nspec, nlev, &
          &  ONE_OVER_PI, flux_up_surface, &
-         &  transmittance, source_up, u_overlap, radiance_profile, &
+         &  transmittance_rad, source_up_rad, u_overlap, radiance_profile, &
          &  flux_up_surface_ad, transmittance_ad, source_up_ad, u_overlap_ad, radiance_profile_ad)
 
     ! flux_up_surface = spread(surf_emission + PI*surf_albedo*radiance_profile(:,nlev+1),2,NREGION) * spread(region_fracs(:,nlev),1,nspec)
@@ -228,14 +238,14 @@ subroutine calc_radiance_ad(nspec, nlev, &
     flux_up_surface_ad = 0.0_jprb
 
     call calc_radiance_dn_ad(nspec, nlev, &
-         &  ONE_OVER_PI, transmittance, source_dn, v_overlap, radiance_profile, &
+         &  ONE_OVER_PI, transmittance_rad, source_dn_rad, v_overlap, radiance_profile, &
          &  transmittance_ad, source_dn_ad, v_overlap_ad, radiance_profile_ad)
 
     call calc_radiance_trans_source_ad(nspec, nlev, NREGION, &
          &  mu, region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
          &  flux_up_base, flux_dn_top, &
-         &  transmittance, source_up, source_dn, &
-         &  region_fracs_ad, planck_hl_ad, od_ad, &  ! od_ad accumulated below, so pass dummy in/out? handled later
+         &  transmittance_rad, source_up_rad, source_dn_rad, &
+         &  region_fracs_ad, planck_hl_ad, od_ad, ssa_ad, asymmetry_ad, &
          &  flux_up_base_ad, flux_dn_top_ad, &
          &  transmittance_ad, source_up_ad, source_dn_ad)
 
@@ -243,22 +253,21 @@ subroutine calc_radiance_ad(nspec, nlev, &
 
     call calc_radiance_up_ad(nspec, nlev, &
          &  ONE_OVER_PI, flux_up_base(:,:,nlev), &
-         &  transmittance, source_up, u_overlap, radiance_profile, &
+         &  transmittance_rad, source_up_rad, u_overlap, radiance_profile, &
          &  flux_up_base_ad(:,:,nlev), transmittance_ad, source_up_ad, u_overlap_ad, radiance_profile_ad)
 
     call calc_radiance_trans_source_ad(nspec, nlev, NREGION, &
          &  mu, region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
          &  flux_up_base, flux_dn_top, &
-         &  transmittance, source_up, source_dn, &
-         &  region_fracs_ad, planck_hl_ad, od_ad, &
-         &  flux_up_base_ad, flux_dn_top_ad, &
-         &  transmittance_ad, source_up_ad, source_dn_ad)
+         &  transmittance_rad, source_up=source_up_rad, &
+         &  region_fracs_ad=region_fracs_ad, planck_hl_ad=planck_hl_ad, od_ad=od_ad, ssa_ad=ssa_ad, asymmetry_ad=asymmetry_ad, &
+         &  flux_up_base_ad=flux_up_base_ad, flux_dn_top_ad=flux_dn_top_ad, &
+         &  transmittance_ad=transmittance_ad, source_up_ad=source_up_ad)
 
   end if
 
-  ! NOTE: calc_radiance_trans_source_ad expects od_ad argument; we
-  ! handle od adjoint accumulation separately below, so we use od as a
-  ! placeholder and rely on flux/source adjoints to be correct.
+  ! NOTE: od and ssa adjoints are accumulated below back to
+  ! od_clear/od_cloud/od_scaling.
 
   ! ----------------------------
   ! Reverse of two-stream flux
@@ -279,20 +288,12 @@ subroutine calc_radiance_ad(nspec, nlev, &
   call calc_reflectance_transmittance_ad(nspec, nlev, NREGION, &
        &  region_fracs, planck_hl, od, ssa, asymmetry_cloud, &
        &  reflectance, transmittance, source_up, source_dn, &
-       &  region_fracs_ad, planck_hl_ad, od_ad, &  ! od_ad handled below
+       &  region_fracs_ad, planck_hl_ad, od_ad, ssa_ad, asymmetry_ad, &
        &  reflectance_ad, transmittance_ad, source_up_ad, source_dn_ad)
 
   ! ----------------------------
-  ! Accumulate od adjoint back to od_clear/od_cloud/od_scaling
-  ! Here we rebuild od_ad from contributions left in the placeholder
-  ! "od" argument by the routines above is not possible; therefore,
-  ! we approximate by treating od as the variable receiving adjoints
-  ! from reflectance/transmittance and radiance_trans_source.
+  ! Accumulate od and ssa adjoints back to od_clear/od_cloud/od_scaling
   ! ----------------------------
-  ! We store od_ad in-place in od (was used as placeholder); by now
-  ! od contains adjoints.
-  ! (This relies on the called _ad routines updating their od_ad argument.)
-  !
   do jlev = 1,nlev
     do jspec = 1,nspec
       ! Clear region
@@ -302,10 +303,27 @@ subroutine calc_radiance_ad(nspec, nlev, &
         od_clear_ad(jspec,jlev) = od_clear_ad(jspec,jlev) + od_ad(jspec,jreg,jlev)
         od_cloud_ad(jspec,jlev) = od_cloud_ad(jspec,jlev) + od_ad(jspec,jreg,jlev) * od_scaling(jreg,jlev)
         od_scaling_ad(jreg,jlev) = od_scaling_ad(jreg,jlev) + od_ad(jspec,jreg,jlev) * od_cloud(jspec,jlev)
+
+        ! ssa(jspec,jreg,jlev) = ssa_cloud*od_cloud*od_scaling / od(jspec,jreg,jlev)
+        if (ssa_ad(jspec,jreg,jlev) /= 0.0_jprb) then
+          ssa_cloud_ad(jspec,jlev) = ssa_cloud_ad(jspec,jlev) &
+               &  + ssa_ad(jspec,jreg,jlev) * od_cloud(jspec,jlev) * od_scaling(jreg,jlev) / od(jspec,jreg,jlev)
+          od_clear_ad(jspec,jlev) = od_clear_ad(jspec,jlev) &
+               &  - ssa_ad(jspec,jreg,jlev) * ssa(jspec,jreg,jlev) / od(jspec,jreg,jlev)
+          od_cloud_ad(jspec,jlev) = od_cloud_ad(jspec,jlev) &
+               &  + ssa_ad(jspec,jreg,jlev) * ssa_cloud(jspec,jlev) * od_scaling(jreg,jlev) / od(jspec,jreg,jlev) &
+               &  - ssa_ad(jspec,jreg,jlev) * ssa(jspec,jreg,jlev) * od_scaling(jreg,jlev) / od(jspec,jreg,jlev)
+          od_scaling_ad(jreg,jlev) = od_scaling_ad(jreg,jlev) &
+               &  + ssa_ad(jspec,jreg,jlev) * ssa_cloud(jspec,jlev) * od_cloud(jspec,jlev) / od(jspec,jreg,jlev) &
+               &  - ssa_ad(jspec,jreg,jlev) * ssa(jspec,jreg,jlev) * od_cloud(jspec,jlev) / od(jspec,jreg,jlev)
+        end if
       end do
     end do
   end do
   od_ad = 0.0_jprb
+  ssa_ad = 0.0_jprb
+  asymmetry_cloud_ad = asymmetry_cloud_ad + asymmetry_ad
+  asymmetry_ad = 0.0_jprb
 
   ! ----------------------------
   ! Reverse overlap matrices
@@ -433,8 +451,9 @@ subroutine calc_radiance_dn_ad(nspec, nlev, &
 
   end do
 
-  ! TOA interface radiance is fixed zero in forward, so we ignore rad_top_ad at jlev=1.
-  radiance_dn_ad(:,1) = 0.0_jprb
+  ! TOA interface radiance is fixed locally in the internal trajectory; keep
+  ! radiance_dn_ad(:,1) untouched since radiance_dn is intent(inout) and NL does
+  ! not overwrite index 1.
 
   if (lhook) call dr_hook('tcrad:calc_radiance_dn_ad',1,hook_handle)
 
@@ -446,7 +465,7 @@ subroutine calc_radiance_trans_source_ad(nspec, nlev, nreg, &
      &  mu, region_fracs, planck_hl, od, ssa, asymmetry, &
      &  flux_up_base, flux_dn_top, &
      &  transmittance, source_up, source_dn, &
-     &  region_fracs_ad, planck_hl_ad, od_ad, &
+     &  region_fracs_ad, planck_hl_ad, od_ad, ssa_ad, asymmetry_ad, &
      &  flux_up_base_ad, flux_dn_top_ad, &
      &  transmittance_ad, source_up_ad, source_dn_ad)
 
@@ -461,7 +480,7 @@ subroutine calc_radiance_trans_source_ad(nspec, nlev, nreg, &
   real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
   real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
   real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
-  real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa     ! microphysical: NOT adjointed
+  real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa
   real(jprb), intent(in), dimension(nspec,nlev) :: asymmetry      ! microphysical: NOT adjointed
   real(jprb), intent(in), dimension(nspec,nreg,nlev) :: flux_up_base, flux_dn_top
 
@@ -472,6 +491,8 @@ subroutine calc_radiance_trans_source_ad(nspec, nlev, nreg, &
   real(jprb), intent(inout), dimension(nreg,nlev) :: region_fracs_ad
   real(jprb), intent(inout), dimension(nspec,nlev+1) :: planck_hl_ad
   real(jprb), intent(inout), dimension(nspec,nreg,nlev) :: od_ad
+  real(jprb), intent(inout), dimension(nspec,2:nreg,nlev) :: ssa_ad
+  real(jprb), intent(inout), dimension(nspec,nlev) :: asymmetry_ad
   real(jprb), intent(inout), dimension(nspec,nreg,nlev) :: flux_up_base_ad, flux_dn_top_ad
 
   real(jprb), intent(inout), dimension(nspec,nreg,nlev) :: transmittance_ad
@@ -490,6 +511,14 @@ subroutine calc_radiance_trans_source_ad(nspec, nlev, nreg, &
   real(jprb) :: p_same, p_opposite, planck_prime, c1, c2, scaling1, scaling2
   real(jprb) :: rt_denom, factor2, exp2, denom1
   real(jprb) :: t
+  real(jprb) :: ssa_eps, ssa_p, ssa_m
+  real(jprb) :: asym_eps, asym_p, asym_m
+  real(jprb) :: sup_p, sup_m, sdn_p, sdn_m, d_sup_d_ssa, d_sdn_d_ssa
+  real(jprb) :: d_sup_d_asym, d_sdn_d_asym
+  real(jprb) :: gamma1_p, gamma2_p, gamma1_m, gamma2_m, k_p, k_m
+  real(jprb) :: exp_p, exp_m, rtf_p, rtf_m, fac2_p, fac2_m
+  real(jprb) :: c1_p, c1_m, c2_p, c2_m, coeff_p, coeff_m
+  real(jprb) :: sc1_p, sc1_m, sc2_p, sc2_m, denom_p, denom_m
 
   ! Adjoint scalars
   real(jprb) :: t_ad, od_ad_loc, pb_ad, pt_ad, planck_prime_ad
@@ -498,6 +527,7 @@ subroutine calc_radiance_trans_source_ad(nspec, nlev, nreg, &
   real(jprb) :: sup_ad, sdn_ad, tmp_ad, term_ad
   real(jprb) :: fup_ad, fdn_ad
   real(jprb) :: t_ad_total
+  real(jprb) :: sup_seed, sdn_seed
 
   real(jphook) :: hook_handle
 
@@ -544,6 +574,165 @@ subroutine calc_radiance_trans_source_ad(nspec, nlev, nreg, &
         planck_prime_ad = 0.0_jprb
         fup_ad = 0.0_jprb
         fdn_ad = 0.0_jprb
+        sup_seed = merge(source_up_ad(jspec,jreg,jlev), 0.0_jprb, do_up)
+        sdn_seed = merge(source_dn_ad(jspec,jreg,jlev), 0.0_jprb, do_dn)
+
+        if (od(jspec,jreg,jlev) > OD_THRESH .and. (sup_seed /= 0.0_jprb .or. sdn_seed /= 0.0_jprb)) then
+          ssa_eps = 1.0e-6_jprb * max(1.0_jprb, abs(ssa(jspec,jreg,jlev)))
+          ssa_p = ssa(jspec,jreg,jlev) + ssa_eps
+          ssa_m = ssa(jspec,jreg,jlev) - ssa_eps
+
+          if (i_two_stream_scheme == ITwoStreamEddington) then
+            gamma1_p = 1.75_jprb - ssa_p*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
+            gamma2_p = ssa_p*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+            gamma1_m = 1.75_jprb - ssa_m*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
+            gamma2_m = ssa_m*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+          else if (i_two_stream_scheme == ITwoStreamScaledWiscombeGrams) then
+            factor = 0.5_jprb * (1.0_jprb-0.75_jprb*asymmetry(jspec,jlev)/(1.0_jprb-asymmetry(jspec,jlev)))
+            gamma1_p = lw_diffusivity_cloud * (1.0_jprb - ssa_p*(1.0_jprb-factor))
+            gamma2_p = lw_diffusivity_cloud * ssa_p * factor
+            gamma1_m = lw_diffusivity_cloud * (1.0_jprb - ssa_m*(1.0_jprb-factor))
+            gamma2_m = lw_diffusivity_cloud * ssa_m * factor
+          else
+            gamma1_p = lw_diffusivity_cloud - (lw_diffusivity_cloud * 0.5_jprb) * ssa_p * (1.0_jprb + asymmetry(jspec,jlev))
+            gamma2_p = (lw_diffusivity_cloud * 0.5_jprb) * ssa_p * (1.0_jprb - asymmetry(jspec,jlev))
+            gamma1_m = lw_diffusivity_cloud - (lw_diffusivity_cloud * 0.5_jprb) * ssa_m * (1.0_jprb + asymmetry(jspec,jlev))
+            gamma2_m = (lw_diffusivity_cloud * 0.5_jprb) * ssa_m * (1.0_jprb - asymmetry(jspec,jlev))
+          end if
+
+          k_p = sqrt(max((gamma1_p - gamma2_p) * (gamma1_p + gamma2_p), MIN_K_SQUARED))
+          k_m = sqrt(max((gamma1_m - gamma2_m) * (gamma1_m + gamma2_m), MIN_K_SQUARED))
+          exp_p = exp(-k_p*od(jspec,jreg,jlev))
+          exp_m = exp(-k_m*od(jspec,jreg,jlev))
+          coeff_p = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / (od(jspec,jreg,jlev)*(gamma1_p+gamma2_p))
+          coeff_m = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / (od(jspec,jreg,jlev)*(gamma1_m+gamma2_m))
+
+          rtf_p = 1.0_jprb / (k_p + gamma1_p + (k_p-gamma1_p)*exp_p*exp_p)
+          rtf_m = 1.0_jprb / (k_m + gamma1_m + (k_m-gamma1_m)*exp_m*exp_m)
+          fac2_p = exp_p * gamma2_p / (gamma1_p + k_p)
+          fac2_m = exp_m * gamma2_m / (gamma1_m + k_m)
+
+          c1_p = rtf_p * (flux_up_base(jspec,jreg,jlev) - fac2_p*flux_dn_top(jspec,jreg,jlev) &
+               &  - (planck_base(jspec,jreg)+coeff_p) + fac2_p*(planck_top(jspec,jreg)-coeff_p))
+          c1_m = rtf_m * (flux_up_base(jspec,jreg,jlev) - fac2_m*flux_dn_top(jspec,jreg,jlev) &
+               &  - (planck_base(jspec,jreg)+coeff_m) + fac2_m*(planck_top(jspec,jreg)-coeff_m))
+          c2_p = rtf_p * (flux_dn_top(jspec,jreg,jlev) - fac2_p*flux_up_base(jspec,jreg,jlev) &
+               &  - (planck_top(jspec,jreg)-coeff_p) + fac2_p*(planck_base(jspec,jreg)+coeff_p))
+          c2_m = rtf_m * (flux_dn_top(jspec,jreg,jlev) - fac2_m*flux_up_base(jspec,jreg,jlev) &
+               &  - (planck_top(jspec,jreg)-coeff_m) + fac2_m*(planck_base(jspec,jreg)+coeff_m))
+
+          denom_p = merge(1.0_jprb-k_p*mu, epsilon(1.0_jprb), abs(1.0_jprb-k_p*mu)>epsilon(1.0_jprb))
+          denom_m = merge(1.0_jprb-k_m*mu, epsilon(1.0_jprb), abs(1.0_jprb-k_m*mu)>epsilon(1.0_jprb))
+          sc1_p = (exp_p - t) / denom_p
+          sc1_m = (exp_m - t) / denom_m
+          sc2_p = (1.0_jprb - exp_p*t) / (1.0_jprb + k_p*mu)
+          sc2_m = (1.0_jprb - exp_m*t) / (1.0_jprb + k_m*mu)
+
+          p_same     = 1.0_jprb + 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity_cloud
+          p_opposite = 1.0_jprb - 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity_cloud
+          planck_prime = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / od(jspec,jreg,jlev)
+
+          sup_p = 0.5_jprb*ssa_p*(1.0_jprb - t)*planck_prime*(p_same-p_opposite)/(gamma1_p+gamma2_p) &
+               &  + planck_top(jspec,jreg)-planck_base(jspec,jreg)*t + planck_prime*mu*(1.0_jprb-t) &
+               &  + 0.5_jprb*ssa_p * (p_same*((gamma1_p+k_p)*sc1_p*c1_p + gamma2_p*sc2_p*c2_p) &
+               &                     + p_opposite*(gamma2_p*sc1_p*c1_p + (gamma1_p+k_p)*sc2_p*c2_p))
+          sup_m = 0.5_jprb*ssa_m*(1.0_jprb - t)*planck_prime*(p_same-p_opposite)/(gamma1_m+gamma2_m) &
+               &  + planck_top(jspec,jreg)-planck_base(jspec,jreg)*t + planck_prime*mu*(1.0_jprb-t) &
+               &  + 0.5_jprb*ssa_m * (p_same*((gamma1_m+k_m)*sc1_m*c1_m + gamma2_m*sc2_m*c2_m) &
+               &                     + p_opposite*(gamma2_m*sc1_m*c1_m + (gamma1_m+k_m)*sc2_m*c2_m))
+          sdn_p = -0.5_jprb*ssa_p*(1.0_jprb - t)*planck_prime*(p_same-p_opposite)/(gamma1_p+gamma2_p) &
+               &  + planck_base(jspec,jreg)-planck_top(jspec,jreg)*t - planck_prime*mu*(1.0_jprb-t) &
+               &  + 0.5_jprb*ssa_p * (p_opposite*((gamma1_p+k_p)*sc2_p*c1_p + gamma2_p*sc1_p*c2_p) &
+               &                     + p_same*(gamma2_p*sc2_p*c1_p + (gamma1_p+k_p)*sc1_p*c2_p))
+          sdn_m = -0.5_jprb*ssa_m*(1.0_jprb - t)*planck_prime*(p_same-p_opposite)/(gamma1_m+gamma2_m) &
+               &  + planck_base(jspec,jreg)-planck_top(jspec,jreg)*t - planck_prime*mu*(1.0_jprb-t) &
+               &  + 0.5_jprb*ssa_m * (p_opposite*((gamma1_m+k_m)*sc2_m*c1_m + gamma2_m*sc1_m*c2_m) &
+               &                     + p_same*(gamma2_m*sc2_m*c1_m + (gamma1_m+k_m)*sc1_m*c2_m))
+
+          d_sup_d_ssa = (sup_p - sup_m) / (2.0_jprb*ssa_eps)
+          d_sdn_d_ssa = (sdn_p - sdn_m) / (2.0_jprb*ssa_eps)
+          ssa_ad(jspec,jreg,jlev) = ssa_ad(jspec,jreg,jlev) + sup_seed*d_sup_d_ssa + sdn_seed*d_sdn_d_ssa
+
+          asym_eps = 1.0e-6_jprb * max(1.0_jprb, abs(asymmetry(jspec,jlev)))
+          asym_p = asymmetry(jspec,jlev) + asym_eps
+          asym_m = asymmetry(jspec,jlev) - asym_eps
+
+          if (i_two_stream_scheme == ITwoStreamEddington) then
+            gamma1_p = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asym_p)
+            gamma2_p = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asym_p) - 0.25_jprb
+            gamma1_m = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asym_m)
+            gamma2_m = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asym_m) - 0.25_jprb
+          else if (i_two_stream_scheme == ITwoStreamScaledWiscombeGrams) then
+            gamma1_p = lw_diffusivity_cloud * (1.0_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb-0.5_jprb * (1.0_jprb-0.75_jprb*asym_p/(1.0_jprb-asym_p))))
+            gamma2_p = lw_diffusivity_cloud * ssa(jspec,jreg,jlev) * (0.5_jprb * (1.0_jprb-0.75_jprb*asym_p/(1.0_jprb-asym_p)))
+            gamma1_m = lw_diffusivity_cloud * (1.0_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb-0.5_jprb * (1.0_jprb-0.75_jprb*asym_m/(1.0_jprb-asym_m))))
+            gamma2_m = lw_diffusivity_cloud * ssa(jspec,jreg,jlev) * (0.5_jprb * (1.0_jprb-0.75_jprb*asym_m/(1.0_jprb-asym_m)))
+          else
+            gamma1_p = lw_diffusivity_cloud - (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev) * (1.0_jprb + asym_p)
+            gamma2_p = (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev) * (1.0_jprb - asym_p)
+            gamma1_m = lw_diffusivity_cloud - (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev) * (1.0_jprb + asym_m)
+            gamma2_m = (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev) * (1.0_jprb - asym_m)
+          end if
+
+          k_p = sqrt(max((gamma1_p - gamma2_p) * (gamma1_p + gamma2_p), MIN_K_SQUARED))
+          k_m = sqrt(max((gamma1_m - gamma2_m) * (gamma1_m + gamma2_m), MIN_K_SQUARED))
+          exp_p = exp(-k_p*od(jspec,jreg,jlev))
+          exp_m = exp(-k_m*od(jspec,jreg,jlev))
+          coeff_p = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / (od(jspec,jreg,jlev)*(gamma1_p+gamma2_p))
+          coeff_m = (planck_base(jspec,jreg)-planck_top(jspec,jreg)) / (od(jspec,jreg,jlev)*(gamma1_m+gamma2_m))
+          rtf_p = 1.0_jprb / (k_p + gamma1_p + (k_p-gamma1_p)*exp_p*exp_p)
+          rtf_m = 1.0_jprb / (k_m + gamma1_m + (k_m-gamma1_m)*exp_m*exp_m)
+          fac2_p = exp_p * gamma2_p / (gamma1_p + k_p)
+          fac2_m = exp_m * gamma2_m / (gamma1_m + k_m)
+
+          c1_p = rtf_p * (flux_up_base(jspec,jreg,jlev) - fac2_p*flux_dn_top(jspec,jreg,jlev) &
+               &  - (planck_base(jspec,jreg)+coeff_p) + fac2_p*(planck_top(jspec,jreg)-coeff_p))
+          c1_m = rtf_m * (flux_up_base(jspec,jreg,jlev) - fac2_m*flux_dn_top(jspec,jreg,jlev) &
+               &  - (planck_base(jspec,jreg)+coeff_m) + fac2_m*(planck_top(jspec,jreg)-coeff_m))
+          c2_p = rtf_p * (flux_dn_top(jspec,jreg,jlev) - fac2_p*flux_up_base(jspec,jreg,jlev) &
+               &  - (planck_top(jspec,jreg)-coeff_p) + fac2_p*(planck_base(jspec,jreg)+coeff_p))
+          c2_m = rtf_m * (flux_dn_top(jspec,jreg,jlev) - fac2_m*flux_up_base(jspec,jreg,jlev) &
+               &  - (planck_top(jspec,jreg)-coeff_m) + fac2_m*(planck_base(jspec,jreg)+coeff_m))
+
+          denom_p = merge(1.0_jprb-k_p*mu, epsilon(1.0_jprb), abs(1.0_jprb-k_p*mu)>epsilon(1.0_jprb))
+          denom_m = merge(1.0_jprb-k_m*mu, epsilon(1.0_jprb), abs(1.0_jprb-k_m*mu)>epsilon(1.0_jprb))
+          sc1_p = (exp_p - t) / denom_p
+          sc1_m = (exp_m - t) / denom_m
+          sc2_p = (1.0_jprb - exp_p*t) / (1.0_jprb + k_p*mu)
+          sc2_m = (1.0_jprb - exp_m*t) / (1.0_jprb + k_m*mu)
+
+          p_same     = 1.0_jprb + 3.0_jprb * asym_p * mu / lw_diffusivity_cloud
+          p_opposite = 1.0_jprb - 3.0_jprb * asym_p * mu / lw_diffusivity_cloud
+          sup_p = 0.5_jprb*ssa(jspec,jreg,jlev)*(1.0_jprb - t)*planck_prime*(p_same-p_opposite)/(gamma1_p+gamma2_p) &
+               &  + planck_top(jspec,jreg)-planck_base(jspec,jreg)*t + planck_prime*mu*(1.0_jprb-t) &
+               &  + 0.5_jprb*ssa(jspec,jreg,jlev) * (p_same*((gamma1_p+k_p)*sc1_p*c1_p + gamma2_p*sc2_p*c2_p) &
+               &                                   + p_opposite*(gamma2_p*sc1_p*c1_p + (gamma1_p+k_p)*sc2_p*c2_p))
+
+          p_same     = 1.0_jprb + 3.0_jprb * asym_m * mu / lw_diffusivity_cloud
+          p_opposite = 1.0_jprb - 3.0_jprb * asym_m * mu / lw_diffusivity_cloud
+          sup_m = 0.5_jprb*ssa(jspec,jreg,jlev)*(1.0_jprb - t)*planck_prime*(p_same-p_opposite)/(gamma1_m+gamma2_m) &
+               &  + planck_top(jspec,jreg)-planck_base(jspec,jreg)*t + planck_prime*mu*(1.0_jprb-t) &
+               &  + 0.5_jprb*ssa(jspec,jreg,jlev) * (p_same*((gamma1_m+k_m)*sc1_m*c1_m + gamma2_m*sc2_m*c2_m) &
+               &                                   + p_opposite*(gamma2_m*sc1_m*c1_m + (gamma1_m+k_m)*sc2_m*c2_m))
+
+          p_same     = 1.0_jprb + 3.0_jprb * asym_p * mu / lw_diffusivity_cloud
+          p_opposite = 1.0_jprb - 3.0_jprb * asym_p * mu / lw_diffusivity_cloud
+          sdn_p = -0.5_jprb*ssa(jspec,jreg,jlev)*(1.0_jprb - t)*planck_prime*(p_same-p_opposite)/(gamma1_p+gamma2_p) &
+               &  + planck_base(jspec,jreg)-planck_top(jspec,jreg)*t - planck_prime*mu*(1.0_jprb-t) &
+               &  + 0.5_jprb*ssa(jspec,jreg,jlev) * (p_opposite*((gamma1_p+k_p)*sc2_p*c1_p + gamma2_p*sc1_p*c2_p) &
+               &                                   + p_same*(gamma2_p*sc2_p*c1_p + (gamma1_p+k_p)*sc1_p*c2_p))
+
+          p_same     = 1.0_jprb + 3.0_jprb * asym_m * mu / lw_diffusivity_cloud
+          p_opposite = 1.0_jprb - 3.0_jprb * asym_m * mu / lw_diffusivity_cloud
+          sdn_m = -0.5_jprb*ssa(jspec,jreg,jlev)*(1.0_jprb - t)*planck_prime*(p_same-p_opposite)/(gamma1_m+gamma2_m) &
+               &  + planck_base(jspec,jreg)-planck_top(jspec,jreg)*t - planck_prime*mu*(1.0_jprb-t) &
+               &  + 0.5_jprb*ssa(jspec,jreg,jlev) * (p_opposite*((gamma1_m+k_m)*sc2_m*c1_m + gamma2_m*sc1_m*c2_m) &
+               &                                   + p_same*(gamma2_m*sc2_m*c1_m + (gamma1_m+k_m)*sc1_m*c2_m))
+
+          d_sup_d_asym = (sup_p - sup_m) / (2.0_jprb*asym_eps)
+          d_sdn_d_asym = (sdn_p - sdn_m) / (2.0_jprb*asym_eps)
+          asymmetry_ad(jspec,jlev) = asymmetry_ad(jspec,jlev) + sup_seed*d_sup_d_asym + sdn_seed*d_sdn_d_asym
+        end if
 
         if (od(jspec,jreg,jlev) > OD_THRESH) then
 
@@ -961,11 +1150,13 @@ subroutine calc_radiance_up_ad(nspec, nlev, &
 end subroutine calc_radiance_up_ad
 
 
+
+
 ! ===== FILE: tcrad_calc_reflectance_transmittance_ad.F90 =====
 subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
      &  region_fracs, planck_hl, od, ssa, asymmetry, &
      &  reflectance, transmittance, source_up, source_dn, &
-     &  region_fracs_ad, planck_hl_ad, od_ad, &
+     &  region_fracs_ad, planck_hl_ad, od_ad, ssa_ad, asymmetry_ad, &
      &  reflectance_ad, transmittance_ad, source_up_ad, source_dn_ad)
 
   use yomhook,  only           : lhook, dr_hook, jphook
@@ -977,7 +1168,7 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
   real(jprb), intent(in), dimension(nreg,nlev) :: region_fracs
   real(jprb), intent(in), dimension(nspec,nlev+1) :: planck_hl
   real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
-  real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa        ! microphysical: NOT adjointed
+  real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa
   real(jprb), intent(in), dimension(nspec,nlev) :: asymmetry         ! microphysical: NOT adjointed
 
   real(jprb), intent(in), dimension(nspec,nreg,nlev) :: reflectance, transmittance
@@ -987,6 +1178,8 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
   real(jprb), intent(inout), dimension(nreg,nlev) :: region_fracs_ad
   real(jprb), intent(inout), dimension(nspec,nlev+1) :: planck_hl_ad
   real(jprb), intent(inout), dimension(nspec,nreg,nlev) :: od_ad
+  real(jprb), intent(inout), dimension(nspec,2:nreg,nlev) :: ssa_ad
+  real(jprb), intent(inout), dimension(nspec,nlev) :: asymmetry_ad
 
   real(jprb), intent(inout), dimension(nspec,nreg,nlev) :: reflectance_ad, transmittance_ad
   real(jprb), intent(inout), dimension(nspec,nreg,nlev) :: source_up_ad, source_dn_ad
@@ -998,9 +1191,18 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
   real(jprb) :: coeff, coeff_dn_base, coeff_dn_top, coeff_up_base, coeff_up_top
   real(jprb) :: factor, exponential, exponential2, k_exponent, reftrans_factor
   real(jprb) :: denom, numer
+  real(jprb) :: ssa_eps, ssa_p, ssa_m
+  real(jprb) :: asym_eps, asym_p, asym_m
+  real(jprb) :: refl_p, refl_m, tran_p, tran_m, sup_p, sup_m, sdn_p, sdn_m
+  real(jprb) :: d_refl_d_ssa, d_tran_d_ssa, d_sup_d_ssa, d_sdn_d_ssa
+  real(jprb) :: d_refl_d_asym, d_tran_d_asym, d_sup_d_asym, d_sdn_d_asym
+  real(jprb) :: gamma1_p, gamma2_p, gamma1_m, gamma2_m, k_p, k_m
+  real(jprb) :: exp_p, exp_m, exp2_p, exp2_m, rtf_p, rtf_m, coeff_p, coeff_m
 
   ! Adjoint working variables
   real(jprb) :: su_ad, sd_ad
+  real(jprb) :: su_seed, sd_seed
+  real(jprb) :: su_unscaled, sd_unscaled
   real(jprb) :: refl_ad, tran_ad
   real(jprb) :: coeff_ad, coeff1_ad
   real(jprb) :: exp_ad, exp2_ad, rtf_ad, denom_ad
@@ -1042,12 +1244,10 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
         pbase_ad = 0.0_jprb
 
         ! Unscale sources: source_* = region_fracs * source_*_unscaled
-        su_ad = source_up_ad(jspec,jreg,jlev) * region_fracs(jreg,jlev)
-        sd_ad = source_dn_ad(jspec,jreg,jlev) * region_fracs(jreg,jlev)
-
-        region_fracs_ad(jreg,jlev) = region_fracs_ad(jreg,jlev) &
-             &  + source_up_ad(jspec,jreg,jlev) * (source_up(jspec,jreg,jlev) / max(region_fracs(jreg,jlev), epsilon(1.0_jprb))) &
-             &  + source_dn_ad(jspec,jreg,jlev) * (source_dn(jspec,jreg,jlev) / max(region_fracs(jreg,jlev), epsilon(1.0_jprb)))
+        su_seed = source_up_ad(jspec,jreg,jlev)
+        sd_seed = source_dn_ad(jspec,jreg,jlev)
+        su_ad = su_seed * region_fracs(jreg,jlev)
+        sd_ad = sd_seed * region_fracs(jreg,jlev)
 
         source_up_ad(jspec,jreg,jlev) = 0.0_jprb
         source_dn_ad(jspec,jreg,jlev) = 0.0_jprb
@@ -1056,6 +1256,149 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
         tran_ad = transmittance_ad(jspec,jreg,jlev)
         reflectance_ad(jspec,jreg,jlev) = 0.0_jprb
         transmittance_ad(jspec,jreg,jlev) = 0.0_jprb
+
+        ! Sensitivity of outputs to ssa at this point (holding other state fixed)
+        ssa_eps = 1.0e-6_jprb * max(1.0_jprb, abs(ssa(jspec,jreg,jlev)))
+        ssa_p = ssa(jspec,jreg,jlev) + ssa_eps
+        ssa_m = ssa(jspec,jreg,jlev) - ssa_eps
+
+        if (i_two_stream_scheme == ITwoStreamEddington) then
+          gamma1_p = 1.75_jprb - ssa_p*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
+          gamma2_p = ssa_p*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+          gamma1_m = 1.75_jprb - ssa_m*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
+          gamma2_m = ssa_m*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+        else if (i_two_stream_scheme == ITwoStreamScaledWiscombeGrams) then
+          factor = 0.5_jprb * (1.0_jprb-0.75_jprb*asymmetry(jspec,jlev) &
+               &                        /(1.0_jprb-asymmetry(jspec,jlev)))
+          gamma1_p = lw_diffusivity_cloud * (1.0_jprb - ssa_p*(1.0_jprb-factor))
+          gamma2_p = lw_diffusivity_cloud * ssa_p * factor
+          gamma1_m = lw_diffusivity_cloud * (1.0_jprb - ssa_m*(1.0_jprb-factor))
+          gamma2_m = lw_diffusivity_cloud * ssa_m * factor
+        else
+          gamma1_p = lw_diffusivity_cloud - (lw_diffusivity_cloud * 0.5_jprb) * ssa_p * (1.0_jprb + asymmetry(jspec,jlev))
+          gamma2_p = (lw_diffusivity_cloud * 0.5_jprb) * ssa_p * (1.0_jprb - asymmetry(jspec,jlev))
+          gamma1_m = lw_diffusivity_cloud - (lw_diffusivity_cloud * 0.5_jprb) * ssa_m * (1.0_jprb + asymmetry(jspec,jlev))
+          gamma2_m = (lw_diffusivity_cloud * 0.5_jprb) * ssa_m * (1.0_jprb - asymmetry(jspec,jlev))
+        end if
+
+        k_p = sqrt(max((gamma1_p - gamma2_p) * (gamma1_p + gamma2_p), MIN_K_SQUARED))
+        k_m = sqrt(max((gamma1_m - gamma2_m) * (gamma1_m + gamma2_m), MIN_K_SQUARED))
+
+        if (od(jspec,jreg,jlev) > OD_THRESH_2STREAM) then
+          exp_p = exp(-k_p*od(jspec,jreg,jlev))
+          exp_m = exp(-k_m*od(jspec,jreg,jlev))
+          exp2_p = exp_p*exp_p
+          exp2_m = exp_m*exp_m
+          rtf_p = 1.0_jprb / (k_p + gamma1_p + (k_p-gamma1_p)*exp2_p)
+          rtf_m = 1.0_jprb / (k_m + gamma1_m + (k_m-gamma1_m)*exp2_m)
+
+          refl_p = gamma2_p * (1.0_jprb - exp2_p) * rtf_p
+          refl_m = gamma2_m * (1.0_jprb - exp2_m) * rtf_m
+          tran_p = 2.0_jprb * k_p * exp_p * rtf_p
+          tran_m = 2.0_jprb * k_m * exp_m * rtf_m
+
+          coeff_p = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) / (od(jspec,jreg,jlev)*(gamma1_p+gamma2_p))
+          coeff_m = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) / (od(jspec,jreg,jlev)*(gamma1_m+gamma2_m))
+
+          sup_p = (coeff_p + planck_hl(jspec,jlev)) &
+               &  - refl_p * (-coeff_p + planck_hl(jspec,jlev)) &
+               &  - tran_p * ( coeff_p + planck_hl(jspec,jlev+1))
+          sup_m = (coeff_m + planck_hl(jspec,jlev)) &
+               &  - refl_m * (-coeff_m + planck_hl(jspec,jlev)) &
+               &  - tran_m * ( coeff_m + planck_hl(jspec,jlev+1))
+
+          sdn_p = (-coeff_p + planck_hl(jspec,jlev+1)) &
+               &  - refl_p * ( coeff_p + planck_hl(jspec,jlev+1)) &
+               &  - tran_p * (-coeff_p + planck_hl(jspec,jlev))
+          sdn_m = (-coeff_m + planck_hl(jspec,jlev+1)) &
+               &  - refl_m * ( coeff_m + planck_hl(jspec,jlev+1)) &
+               &  - tran_m * (-coeff_m + planck_hl(jspec,jlev))
+        else
+          refl_p = gamma2_p * od(jspec,jreg,jlev)
+          refl_m = gamma2_m * od(jspec,jreg,jlev)
+          tran_p = (1.0_jprb - k_p*od(jspec,jreg,jlev)) / (1.0_jprb + od(jspec,jreg,jlev)*(gamma1_p-k_p))
+          tran_m = (1.0_jprb - k_m*od(jspec,jreg,jlev)) / (1.0_jprb + od(jspec,jreg,jlev)*(gamma1_m-k_m))
+          sup_p = (1.0_jprb - refl_p - tran_p) * 0.5_jprb * (planck_hl(jspec,jlev) + planck_hl(jspec,jlev+1))
+          sup_m = (1.0_jprb - refl_m - tran_m) * 0.5_jprb * (planck_hl(jspec,jlev) + planck_hl(jspec,jlev+1))
+          sdn_p = sup_p
+          sdn_m = sup_m
+        end if
+
+        d_refl_d_ssa = (refl_p - refl_m) / (2.0_jprb*ssa_eps)
+        d_tran_d_ssa = (tran_p - tran_m) / (2.0_jprb*ssa_eps)
+        d_sup_d_ssa  = (sup_p  - sup_m)  / (2.0_jprb*ssa_eps)
+        d_sdn_d_ssa  = (sdn_p  - sdn_m)  / (2.0_jprb*ssa_eps)
+        ssa_ad(jspec,jreg,jlev) = ssa_ad(jspec,jreg,jlev) &
+             &  + refl_ad*d_refl_d_ssa + tran_ad*d_tran_d_ssa + su_ad*d_sup_d_ssa + sd_ad*d_sdn_d_ssa
+
+        asym_eps = 1.0e-6_jprb * max(1.0_jprb, abs(asymmetry(jspec,jlev)))
+        asym_p = asymmetry(jspec,jlev) + asym_eps
+        asym_m = asymmetry(jspec,jlev) - asym_eps
+
+        if (i_two_stream_scheme == ITwoStreamEddington) then
+          gamma1_p = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asym_p)
+          gamma2_p = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asym_p) - 0.25_jprb
+          gamma1_m = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asym_m)
+          gamma2_m = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asym_m) - 0.25_jprb
+        else if (i_two_stream_scheme == ITwoStreamScaledWiscombeGrams) then
+          gamma1_p = lw_diffusivity_cloud * (1.0_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb-0.5_jprb * (1.0_jprb-0.75_jprb*asym_p/(1.0_jprb-asym_p))))
+          gamma2_p = lw_diffusivity_cloud * ssa(jspec,jreg,jlev) * (0.5_jprb * (1.0_jprb-0.75_jprb*asym_p/(1.0_jprb-asym_p)))
+          gamma1_m = lw_diffusivity_cloud * (1.0_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb-0.5_jprb * (1.0_jprb-0.75_jprb*asym_m/(1.0_jprb-asym_m))))
+          gamma2_m = lw_diffusivity_cloud * ssa(jspec,jreg,jlev) * (0.5_jprb * (1.0_jprb-0.75_jprb*asym_m/(1.0_jprb-asym_m)))
+        else
+          gamma1_p = lw_diffusivity_cloud - (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev) * (1.0_jprb + asym_p)
+          gamma2_p = (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev) * (1.0_jprb - asym_p)
+          gamma1_m = lw_diffusivity_cloud - (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev) * (1.0_jprb + asym_m)
+          gamma2_m = (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev) * (1.0_jprb - asym_m)
+        end if
+
+        k_p = sqrt(max((gamma1_p - gamma2_p) * (gamma1_p + gamma2_p), MIN_K_SQUARED))
+        k_m = sqrt(max((gamma1_m - gamma2_m) * (gamma1_m + gamma2_m), MIN_K_SQUARED))
+
+        if (od(jspec,jreg,jlev) > OD_THRESH_2STREAM) then
+          exp_p = exp(-k_p*od(jspec,jreg,jlev))
+          exp_m = exp(-k_m*od(jspec,jreg,jlev))
+          exp2_p = exp_p*exp_p
+          exp2_m = exp_m*exp_m
+          rtf_p = 1.0_jprb / (k_p + gamma1_p + (k_p-gamma1_p)*exp2_p)
+          rtf_m = 1.0_jprb / (k_m + gamma1_m + (k_m-gamma1_m)*exp2_m)
+
+          refl_p = gamma2_p * (1.0_jprb - exp2_p) * rtf_p
+          refl_m = gamma2_m * (1.0_jprb - exp2_m) * rtf_m
+          tran_p = 2.0_jprb * k_p * exp_p * rtf_p
+          tran_m = 2.0_jprb * k_m * exp_m * rtf_m
+
+          coeff_p = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) / (od(jspec,jreg,jlev)*(gamma1_p+gamma2_p))
+          coeff_m = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) / (od(jspec,jreg,jlev)*(gamma1_m+gamma2_m))
+          sup_p = (coeff_p + planck_hl(jspec,jlev)) &
+               &  - refl_p * (-coeff_p + planck_hl(jspec,jlev)) &
+               &  - tran_p * ( coeff_p + planck_hl(jspec,jlev+1))
+          sup_m = (coeff_m + planck_hl(jspec,jlev)) &
+               &  - refl_m * (-coeff_m + planck_hl(jspec,jlev)) &
+               &  - tran_m * ( coeff_m + planck_hl(jspec,jlev+1))
+          sdn_p = (-coeff_p + planck_hl(jspec,jlev+1)) &
+               &  - refl_p * ( coeff_p + planck_hl(jspec,jlev+1)) &
+               &  - tran_p * (-coeff_p + planck_hl(jspec,jlev))
+          sdn_m = (-coeff_m + planck_hl(jspec,jlev+1)) &
+               &  - refl_m * ( coeff_m + planck_hl(jspec,jlev+1)) &
+               &  - tran_m * (-coeff_m + planck_hl(jspec,jlev))
+        else
+          refl_p = gamma2_p * od(jspec,jreg,jlev)
+          refl_m = gamma2_m * od(jspec,jreg,jlev)
+          tran_p = (1.0_jprb - k_p*od(jspec,jreg,jlev)) / (1.0_jprb + od(jspec,jreg,jlev)*(gamma1_p-k_p))
+          tran_m = (1.0_jprb - k_m*od(jspec,jreg,jlev)) / (1.0_jprb + od(jspec,jreg,jlev)*(gamma1_m-k_m))
+          sup_p = (1.0_jprb - refl_p - tran_p) * 0.5_jprb * (planck_hl(jspec,jlev) + planck_hl(jspec,jlev+1))
+          sup_m = (1.0_jprb - refl_m - tran_m) * 0.5_jprb * (planck_hl(jspec,jlev) + planck_hl(jspec,jlev+1))
+          sdn_p = sup_p
+          sdn_m = sup_m
+        end if
+
+        d_refl_d_asym = (refl_p - refl_m) / (2.0_jprb*asym_eps)
+        d_tran_d_asym = (tran_p - tran_m) / (2.0_jprb*asym_eps)
+        d_sup_d_asym  = (sup_p  - sup_m)  / (2.0_jprb*asym_eps)
+        d_sdn_d_asym  = (sdn_p  - sdn_m)  / (2.0_jprb*asym_eps)
+        asymmetry_ad(jspec,jlev) = asymmetry_ad(jspec,jlev) &
+             &  + refl_ad*d_refl_d_asym + tran_ad*d_tran_d_asym + su_ad*d_sup_d_asym + sd_ad*d_sdn_d_asym
 
         ! Recompute gamma1/gamma2 and k_exponent as in NL (treated constant in AD)
         if (i_two_stream_scheme == ITwoStreamEddington) then
@@ -1072,7 +1415,7 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
           gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
         end if
 
-        k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.E-12_jprb))
+        k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), MIN_K_SQUARED))
 
         if (od(jspec,jreg,jlev) > OD_THRESH_2STREAM) then
 
@@ -1088,6 +1431,12 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
           coeff_up_base =  coeff + planck_hl(jspec,jlev+1)
           coeff_dn_top  = -coeff + planck_hl(jspec,jlev)
           coeff_dn_base = -coeff + planck_hl(jspec,jlev+1)
+          su_unscaled = coeff_up_top &
+               &  - reflectance(jspec,jreg,jlev) * coeff_dn_top &
+               &  - transmittance(jspec,jreg,jlev) * coeff_up_base
+          sd_unscaled = coeff_dn_base &
+               &  - reflectance(jspec,jreg,jlev) * coeff_up_base &
+               &  - transmittance(jspec,jreg,jlev) * coeff_dn_top
 
           ! ---- Adjoint of unscaled sources ----
           ! source_up = coeff_up_top - refl*coeff_dn_top - tran*coeff_up_base
@@ -1097,6 +1446,7 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
           ! source_up
           ptop_ad = ptop_ad + su_ad
           pbase_ad = pbase_ad - su_ad * transmittance(jspec,jreg,jlev)  ! via coeff_up_base includes planck_hl(jlev+1)
+          ptop_ad = ptop_ad - su_ad * reflectance(jspec,jreg,jlev)       ! via coeff_dn_top includes planck_hl(jlev)
           refl_ad = refl_ad - su_ad * coeff_dn_top
           tran_ad = tran_ad - su_ad * coeff_up_base
           coeff_ad = coeff_ad + su_ad   ! coeff_up_top
@@ -1106,6 +1456,7 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
           ! source_dn
           pbase_ad = pbase_ad + sd_ad
           ptop_ad  = ptop_ad - sd_ad * transmittance(jspec,jreg,jlev)  ! via coeff_dn_top includes planck_hl(jlev)
+          pbase_ad = pbase_ad - sd_ad * reflectance(jspec,jreg,jlev)    ! via coeff_up_base includes planck_hl(jlev+1)
           refl_ad = refl_ad - sd_ad * coeff_up_base
           tran_ad = tran_ad - sd_ad * coeff_dn_top
           coeff_ad = coeff_ad - sd_ad   ! coeff_dn_base uses -coeff
@@ -1160,20 +1511,23 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
 
         else
           ! Low optical depth approximation
-          ! reflectance = gamma2*od
-          od_ad_loc = od_ad_loc + reflectance_ad(jspec,jreg,jlev) * gamma2
-          refl_ad = refl_ad  ! already merged
+          !
+          ! NL:
+          !   reflectance    = gamma2*od
+          !   transmittance  = (1-k*od) / (1 + od*(gamma1-k))
+          !   source_*       = (1 - reflectance - transmittance) * 0.5*(Ptop+Pbase)
+          !
+          ! AD (IMPORTANT): backprop through source_* first so that its
+          ! contribution to tran_ad is then propagated through the quotient.
 
-          ! transmittance = (1-k*od) / (1 + od*(g1-k))
           numer = 1.0_jprb - k_exponent*od(jspec,jreg,jlev)
           denom = 1.0_jprb + od(jspec,jreg,jlev)*(gamma1-k_exponent)
-
-          od_ad_loc = od_ad_loc + tran_ad * ( (-k_exponent)*denom - numer*(gamma1-k_exponent) ) / (denom*denom)
-          tran_ad = 0.0_jprb
 
           ! source = (1 - refl - tran) * 0.5*(Ptop+Pbase)
           coeff = 0.5_jprb*(planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1))
           tmp = (1.0_jprb - reflectance(jspec,jreg,jlev) - transmittance(jspec,jreg,jlev))
+          su_unscaled = tmp * coeff
+          sd_unscaled = su_unscaled
           planck_hl_ad(jspec,jlev)   = planck_hl_ad(jspec,jlev)   + (su_ad+sd_ad) * 0.5_jprb * tmp
           planck_hl_ad(jspec,jlev+1) = planck_hl_ad(jspec,jlev+1) + (su_ad+sd_ad) * 0.5_jprb * tmp
           refl_ad = refl_ad - (su_ad+sd_ad) * coeff
@@ -1181,11 +1535,16 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
           su_ad = 0.0_jprb
           sd_ad = 0.0_jprb
 
-          od_ad_loc = od_ad_loc + refl_ad * gamma2  ! refl = gamma2*od
-          refl_ad = 0.0_jprb
+          ! transmittance = numer/denom
+          od_ad_loc = od_ad_loc + tran_ad * ( (-k_exponent)*denom - numer*(gamma1-k_exponent) ) / (denom*denom)
+          tran_ad = 0.0_jprb
 
-          ! tran already applied above
+          ! reflectance = gamma2*od
+          od_ad_loc = od_ad_loc + refl_ad * gamma2
+          refl_ad = 0.0_jprb
         end if
+
+        region_fracs_ad(jreg,jlev) = region_fracs_ad(jreg,jlev) + su_seed*su_unscaled + sd_seed*sd_unscaled
 
         od_ad(jspec,jreg,jlev) = od_ad(jspec,jreg,jlev) + od_ad_loc
 
@@ -1203,12 +1562,10 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
       pbase_ad = 0.0_jprb
 
       ! Unscale sources by region fraction
-      su_ad = source_up_ad(jspec,1,jlev) * region_fracs(1,jlev)
-      sd_ad = source_dn_ad(jspec,1,jlev) * region_fracs(1,jlev)
-
-      region_fracs_ad(1,jlev) = region_fracs_ad(1,jlev) &
-           &  + source_up_ad(jspec,1,jlev) * (source_up(jspec,1,jlev) / max(region_fracs(1,jlev), epsilon(1.0_jprb))) &
-           &  + source_dn_ad(jspec,1,jlev) * (source_dn(jspec,1,jlev) / max(region_fracs(1,jlev), epsilon(1.0_jprb)))
+      su_seed = source_up_ad(jspec,1,jlev)
+      sd_seed = source_dn_ad(jspec,1,jlev)
+      su_ad = su_seed * region_fracs(1,jlev)
+      sd_ad = sd_seed * region_fracs(1,jlev)
 
       source_up_ad(jspec,1,jlev) = 0.0_jprb
       source_dn_ad(jspec,1,jlev) = 0.0_jprb
@@ -1231,6 +1588,8 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
         coeff_up_base =  coeff + planck_hl(jspec,jlev+1)
         coeff_dn_top  = -coeff + planck_hl(jspec,jlev)
         coeff_dn_base = -coeff + planck_hl(jspec,jlev+1)
+        su_unscaled = coeff_up_top - exponential*coeff_up_base
+        sd_unscaled = coeff_dn_base - exponential*coeff_dn_top
 
         coeff_ad = 0.0_jprb
 
@@ -1267,12 +1626,16 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
         tran_ad = 0.0_jprb
 
         ! source = coeff*0.5*(Ptop+Pbase)
+        su_unscaled = coeff * 0.5_jprb * (planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1))
+        sd_unscaled = su_unscaled
         planck_hl_ad(jspec,jlev)   = planck_hl_ad(jspec,jlev)   + (su_ad+sd_ad) * (coeff*0.5_jprb)
         planck_hl_ad(jspec,jlev+1) = planck_hl_ad(jspec,jlev+1) + (su_ad+sd_ad) * (coeff*0.5_jprb)
         od_ad_loc = od_ad_loc + (su_ad+sd_ad) * (0.5_jprb*(planck_hl(jspec,jlev)+planck_hl(jspec,jlev+1))) * lw_diffusivity
         su_ad = 0.0_jprb
         sd_ad = 0.0_jprb
       end if
+
+      region_fracs_ad(1,jlev) = region_fracs_ad(1,jlev) + su_seed*su_unscaled + sd_seed*sd_unscaled
 
       od_ad(jspec,1,jlev) = od_ad(jspec,1,jlev) + od_ad_loc
 
@@ -1283,6 +1646,7 @@ subroutine calc_reflectance_transmittance_ad(nspec, nlev, nreg, &
   if (lhook) call dr_hook('tcrad:calc_reflectance_transmittance_ad',1,hook_handle)
 
 end subroutine calc_reflectance_transmittance_ad
+
 
 
 ! ===== FILE: tcrad_calc_region_properties_ad.F90 =====
@@ -1696,6 +2060,7 @@ subroutine calc_two_stream_flux_ad(nspec, nlev, &
       else
         flux_dn_base_ad(:,1,jlev) = flux_dn_base_ad(:,1,jlev) + flux_dn_top_ad(:,1,jlev+1)
         flux_dn_top_ad(:,1,jlev+1) = 0.0_jprb
+        flux_dn_top_ad(:,2:NREGION,jlev+1) = 0.0_jprb
       end if
     end if
 
@@ -1742,6 +2107,12 @@ subroutine calc_two_stream_flux_ad(nspec, nlev, &
         total_source_ad(jspec,1,jlev+1) = total_source_ad(jspec,1,jlev+1) + numer_ad * reflectance(jspec,1,jlev)
         source_dn_ad(jspec,1,jlev) = source_dn_ad(jspec,1,jlev) + numer_ad
       end do
+      ! In clear layers, only region 1 fluxes are computed in NL.
+      ! Regions 2:NREGION are fixed zeros and must not propagate adjoints.
+      flux_dn_top_ad(:,2:NREGION,jlev)  = 0.0_jprb
+      flux_dn_base_ad(:,2:NREGION,jlev) = 0.0_jprb
+      flux_up_base_ad(:,2:NREGION,jlev) = 0.0_jprb
+      flux_up_top_ad(:,2:NREGION,jlev)  = 0.0_jprb
     else
       do jreg = 1,NREGION
         do jspec = 1,nspec
@@ -1790,17 +2161,34 @@ subroutine calc_two_stream_flux_ad(nspec, nlev, &
   end do
 
   ! --------------------------------------------------------
+  ! Missing adjoint (NL Section 5 init): flux_dn_top(:,:,icloudtop) assignment
+  !   flux_dn_top(:,jreg,icloudtop) = v_overlap(jreg,1,icloudtop) * flux_dn_base(:,1,icloudtop-1)
+  ! --------------------------------------------------------
+  if (icloudtop > 1) then
+    do jreg = 1, NREGION
+      do jspec = 1, nspec
+        v_overlap_ad(jreg,1,icloudtop) = v_overlap_ad(jreg,1,icloudtop) &
+             & + flux_dn_top_ad(jspec,jreg,icloudtop) * flux_dn_base(jspec,1,icloudtop-1)
+        flux_dn_base_ad(jspec,1,icloudtop-1) = flux_dn_base_ad(jspec,1,icloudtop-1) &
+             & + flux_dn_top_ad(jspec,jreg,icloudtop) * v_overlap(jreg,1,icloudtop)
+      end do
+    end do
+    flux_dn_top_ad(:,:,icloudtop) = 0.0_jprb
+  end if
+
+
+  ! --------------------------------------------------------
   ! Section 4 adjoint (clear-sky upwelling to TOA)
   ! --------------------------------------------------------
   if (icloudtop > 1) then
     do jlev = 1,icloudtop-2
-      flux_up_top_ad(:,1,jlev+1) = flux_up_top_ad(:,1,jlev+1) + flux_up_base_ad(:,1,jlev)
-      flux_up_base_ad(:,1,jlev) = 0.0_jprb
-
       source_up_ad(:,1,jlev) = source_up_ad(:,1,jlev) + flux_up_top_ad(:,1,jlev)
       transmittance_ad(:,1,jlev) = transmittance_ad(:,1,jlev) + flux_up_top_ad(:,1,jlev) * flux_up_base(:,1,jlev)
       flux_up_base_ad(:,1,jlev) = flux_up_base_ad(:,1,jlev) + flux_up_top_ad(:,1,jlev) * transmittance(:,1,jlev)
       flux_up_top_ad(:,1,jlev) = 0.0_jprb
+
+      flux_up_top_ad(:,1,jlev+1) = flux_up_top_ad(:,1,jlev+1) + flux_up_base_ad(:,1,jlev)
+      flux_up_base_ad(:,1,jlev) = 0.0_jprb
     end do
 
     source_up_ad(:,1,icloudtop-1) = source_up_ad(:,1,icloudtop-1) + flux_up_top_ad(:,1,icloudtop-1)
@@ -1820,6 +2208,37 @@ subroutine calc_two_stream_flux_ad(nspec, nlev, &
   ! Section 3 adjoint: reverse the adding-method recursion
   ! --------------------------------------------------------
   do jlev = icloudtop, nlev
+
+    ! Recompute level-local adding-method intermediates for this jlev.
+    ! These are needed in the reverse map/inversion and must match NL at jlev.
+    total_albedo_below = 0.0_jprb
+    total_source_below = 0.0_jprb
+    inv_denom = 0.0_jprb
+    if (is_cloud_free_layer(jlev)) then
+      do jspec = 1,nspec
+        inv_denom(jspec,1) = 1.0_jprb / (1.0_jprb - total_albedo(jspec,1,jlev+1)*reflectance(jspec,1,jlev))
+        total_albedo_below(jspec,1) = reflectance(jspec,1,jlev) &
+             &  + transmittance(jspec,1,jlev)*transmittance(jspec,1,jlev)*total_albedo(jspec,1,jlev+1) &
+             &  * inv_denom(jspec,1)
+        total_source_below(jspec,1) = source_up(jspec,1,jlev) &
+             &  + transmittance(jspec,1,jlev)*(total_source(jspec,1,jlev+1) &
+             &  + total_albedo(jspec,1,jlev+1)*source_dn(jspec,1,jlev)) &
+             &  * inv_denom(jspec,1)
+      end do
+    else
+      do jreg = 1,NREGION
+        do jspec = 1,nspec
+          inv_denom(jspec,jreg) = 1.0_jprb / (1.0_jprb - total_albedo(jspec,jreg,jlev+1)*reflectance(jspec,jreg,jlev))
+          total_albedo_below(jspec,jreg) = reflectance(jspec,jreg,jlev) &
+               &  + transmittance(jspec,jreg,jlev)*transmittance(jspec,jreg,jlev)*total_albedo(jspec,jreg,jlev+1) &
+               &  * inv_denom(jspec,jreg)
+          total_source_below(jspec,jreg) = source_up(jspec,jreg,jlev) &
+               &  + transmittance(jspec,jreg,jlev)*(total_source(jspec,jreg,jlev+1) &
+               &  + total_albedo(jspec,jreg,jlev+1)*source_dn(jspec,jreg,jlev)) &
+               &  * inv_denom(jspec,jreg)
+        end do
+      end do
+    end if
 
     ! Map adjoints from total_*(:,:,jlev) back to total_*_below
     total_albedo_below_ad(:,:) = 0.0_jprb
@@ -1860,6 +2279,10 @@ subroutine calc_two_stream_flux_ad(nspec, nlev, &
 
     ! Invert layer-local adding method: compute adjoints of reflectance/transmittance/source_*/total_* at jlev+1
     if (is_cloud_free_layer(jlev)) then
+      ! In NL clear-sky branch, only region 1 is computed; regions 2:NREGION
+      ! remain fixed at zero and must not propagate adjoints.
+      total_albedo_below_ad(:,2:NREGION) = 0.0_jprb
+      total_source_below_ad(:,2:NREGION) = 0.0_jprb
       jreg = 1
       do jspec = 1,nspec
         inv = inv_denom(jspec,jreg)
@@ -1955,6 +2378,36 @@ subroutine calc_two_stream_flux_ad(nspec, nlev, &
     total_source_ad(jspec,:,nlev+1) = 0.0_jprb
   end do
 
+  ! --------------------------------------------------------
+  ! Missing adjoint (NL Section 2): clear-sky downwelling from TOA to cloud top
+  !
+  ! Forward NL:
+  !   flux_dn_top(:,1,1) = 0
+  !   do jlev = 1,icloudtop
+  !     if (jlev > 1) flux_dn_top(:,1,jlev) = flux_dn_base(:,1,jlev-1)
+  !     flux_dn_base(:,1,jlev) = source_dn(:,1,jlev) + transmittance(:,1,jlev)*flux_dn_top(:,1,jlev)
+  !   end do
+  ! --------------------------------------------------------
+  do jlev = icloudtop-1, 1, -1
+
+    ! flux_dn_base = source_dn + transmittance*flux_dn_top
+    source_dn_ad(:,1,jlev) = source_dn_ad(:,1,jlev) + flux_dn_base_ad(:,1,jlev)
+    transmittance_ad(:,1,jlev) = transmittance_ad(:,1,jlev) + flux_dn_base_ad(:,1,jlev) * flux_dn_top(:,1,jlev)
+    flux_dn_top_ad(:,1,jlev) = flux_dn_top_ad(:,1,jlev) + flux_dn_base_ad(:,1,jlev) * transmittance(:,1,jlev)
+    flux_dn_base_ad(:,1,jlev) = 0.0_jprb
+
+    ! if (jlev > 1) flux_dn_top(:,1,jlev) = flux_dn_base(:,1,jlev-1)
+    if (jlev > 1) then
+      flux_dn_base_ad(:,1,jlev-1) = flux_dn_base_ad(:,1,jlev-1) + flux_dn_top_ad(:,1,jlev)
+      flux_dn_top_ad(:,1,jlev) = 0.0_jprb
+    end if
+
+  end do
+
+  ! Forward initializes flux_dn_top(:,:,1)=0, so these adjoints must not propagate
+  flux_dn_top_ad(:,:,1) = 0.0_jprb
+
+
   if (lhook) call dr_hook('tcrad:calc_two_stream_flux_ad',1,hook_handle)
 
 end subroutine calc_two_stream_flux_ad
@@ -2023,7 +2476,7 @@ subroutine calc_overlap_matrices_ad(nlev, &
 
   ! Cloud-cover product bookkeeping (optional)
   real(jprb), allocatable :: prod_prefix(:)
-  real(jprb) :: prod_v11, prod_ad, v11, epsv
+  real(jprb) :: prod_v11, prod_ad, suffix
 
   real(jphook) :: hook_handle
 
@@ -2098,14 +2551,12 @@ subroutine calc_overlap_matrices_ad(nlev, &
   ! Cloud cover adjoint -> v_overlap_ad(1,1,:)
   ! cloud_cover = 1 - prod(v_overlap(1,1,:))
   ! --------------------------------------------------------
-  if (present(cloud_cover_ad) .and. present(cloud_cover)) then
+  if (present(cloud_cover_ad)) then
     prod_ad = -cloud_cover_ad
-    epsv = 1.0e-14_jprb
-    do jlev = 1,nlev+1
-      v11 = v_overlap(1,1,jlev)
-      if (abs(v11) > epsv) then
-        v_overlap_ad(1,1,jlev) = v_overlap_ad(1,1,jlev) + prod_ad * (prod_v11 / v11)
-      end if
+    suffix = 1.0_jprb
+    do jlev = nlev+1,1,-1
+      v_overlap_ad(1,1,jlev) = v_overlap_ad(1,1,jlev) + prod_ad * prod_prefix(jlev) * suffix
+      suffix = suffix * v_overlap(1,1,jlev)
     end do
     cloud_cover_ad = 0.0_jprb
   end if
@@ -2237,6 +2688,8 @@ contains
   end subroutine calc_alpha_overlap_matrix_fwd
 
 
+  
+
   subroutine calc_alpha_overlap_matrix_ad(op, op_inhom, frac_upper_in, frac_lower_in, overlap_matrix, overlap_ad, &
        &  op_ad, op_inhom_ad, frac_upper_ad, frac_lower_ad)
 
@@ -2344,17 +2797,13 @@ contains
     max_cf_ad = 0.0_jprb
 
     ! cf_upper = frac_upper(3)/cf_u_eff
-    if (cf_u_eff > CF_MIN) then
-      frac_upper_ad(3) = frac_upper_ad(3) + cf_upper_ad / cf_u_eff
-      cf_u_eff_ad = cf_u_eff_ad - cf_upper_ad * frac_upper_in(3) / (cf_u_eff*cf_u_eff)
-    end if
+    frac_upper_ad(3) = frac_upper_ad(3) + cf_upper_ad / cf_u_eff
+    cf_u_eff_ad = cf_u_eff_ad - cf_upper_ad * frac_upper_in(3) / (cf_u_eff*cf_u_eff)
     cf_upper_ad = 0.0_jprb
 
     ! cf_lower = frac_lower(3)/cf_l_eff
-    if (cf_l_eff > CF_MIN) then
-      frac_lower_ad(3) = frac_lower_ad(3) + cf_lower_ad / cf_l_eff
-      cf_l_eff_ad = cf_l_eff_ad - cf_lower_ad * frac_lower_in(3) / (cf_l_eff*cf_l_eff)
-    end if
+    frac_lower_ad(3) = frac_lower_ad(3) + cf_lower_ad / cf_l_eff
+    cf_l_eff_ad = cf_l_eff_ad - cf_lower_ad * frac_lower_in(3) / (cf_l_eff*cf_l_eff)
     cf_lower_ad = 0.0_jprb
 
     ! cf_u_eff = max(cf_upper0, CF_MIN)
@@ -2464,6 +2913,7 @@ contains
     cf_lower0_ad = 0.0_jprb
 
   end subroutine calc_alpha_overlap_matrix_ad
+
 
 end subroutine calc_overlap_matrices_ad
 

@@ -254,7 +254,7 @@ contains
              &         cloud%overlap_param(jcol,:), cos_sensor_zenith_angle(jcol), &
              &         spectral_radiance,  &
              &         emission_ad, albedo_ad, planck_hl_ad, cloud_fraction_ad, fractional_std_ad, od_ad, od_cloud_ad, &
-!             &         ssa_cloud_ad, g_cloud_ad, &
+             &         ssa_cloud_ad, g_cloud_ad, &
              &         overlap_param_ad, spectral_radiance_ad, &
              &         cloud_cover=flux%cloud_cover_lw(jcol), do_specular_surface=config%do_specular_surface)
 

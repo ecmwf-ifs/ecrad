@@ -503,6 +503,7 @@ subroutine calc_radiance_tl(nspec, nlev, &
   real(jprb), dimension(nspec,NREGION,nlev)   :: od_tl
 
   real(jprb), dimension(nspec,2:NREGION,nlev) :: ssa
+  real(jprb), dimension(nspec,2:NREGION,nlev) :: ssa_tl
 
   real(jprb), dimension(nspec,NREGION,nlev) :: reflectance, transmittance
   real(jprb), dimension(nspec,NREGION,nlev) :: source_up, source_dn
@@ -582,9 +583,14 @@ subroutine calc_radiance_tl(nspec, nlev, &
          &          + od_cloud_tl*spread(od_scaling(jreg,:),1,nspec) &
          &          + od_cloud*spread(od_scaling_tl(jreg,:),1,nspec)
 
-    ! ssa is treated as microphysical (NO TL): compute nonlinear only
+    ! ssa_cloud is passive, but ssa depends on active od_cloud/od_scaling/od
     ssa(:,jreg,:) = ssa_cloud(:,:)*od_cloud(:,:) &
          &  * spread(od_scaling(jreg,:),1,nspec) / od(:,jreg,:)
+    ssa_tl(:,jreg,:) = ( &
+         &  ssa_cloud(:,:) * (od_cloud_tl(:,:)*spread(od_scaling(jreg,:),1,nspec) &
+         &                   + od_cloud(:,:)   *spread(od_scaling_tl(jreg,:),1,nspec)) * od(:,jreg,:) &
+         &  - ssa_cloud(:,:) * od_cloud(:,:) * spread(od_scaling(jreg,:),1,nspec) * od_tl(:,jreg,:) ) &
+         &  / (od(:,jreg,:)*od(:,jreg,:))
   end do
 
   ! Cloud-free layers
@@ -598,7 +604,7 @@ subroutine calc_radiance_tl(nspec, nlev, &
   call calc_reflectance_transmittance_tl(nspec, nlev, NREGION, &
        &  region_fracs, region_fracs_tl, &
        &  planck_hl, planck_hl_tl, &
-       &  od, od_tl, ssa, asymmetry_cloud, &
+       &  od, od_tl, ssa, ssa_tl, asymmetry_cloud, &
        &  reflectance, reflectance_tl, &
        &  transmittance, transmittance_tl, &
        &  source_up, source_up_tl, source_dn, source_dn_tl)
@@ -629,7 +635,7 @@ subroutine calc_radiance_tl(nspec, nlev, &
          &  mu, &
          &  region_fracs, region_fracs_tl, &
          &  planck_hl, planck_hl_tl, &
-         &  od, od_tl, ssa, asymmetry_cloud, &
+         &  od, od_tl, ssa, ssa_tl, asymmetry_cloud, &
          &  flux_up_base, flux_up_base_tl, flux_dn_top, flux_dn_top_tl, &
          &  transmittance, transmittance_tl, &
          &  source_up, source_up_tl, source_dn, source_dn_tl)
@@ -674,7 +680,7 @@ subroutine calc_radiance_tl(nspec, nlev, &
          &  mu, &
          &  region_fracs, region_fracs_tl, &
          &  planck_hl, planck_hl_tl, &
-         &  od, od_tl, ssa, asymmetry_cloud, &
+         &  od, od_tl, ssa, ssa_tl, asymmetry_cloud, &
          &  flux_up_base, flux_up_base_tl, flux_dn_top, flux_dn_top_tl, &
          &  transmittance, transmittance_tl, &
          &  source_up, source_up_tl)
@@ -700,7 +706,7 @@ end subroutine calc_radiance_tl
 ! ===== FILE: tcrad_calc_radiance_trans_source_tl.F90 =====
 subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
      &  mu, region_fracs, region_fracs_tl, planck_hl, planck_hl_tl, &
-     &  od, od_tl, ssa, asymmetry, &
+     &  od, od_tl, ssa, ssa_tl, asymmetry, &
      &  flux_up_base, flux_up_base_tl, flux_dn_top, flux_dn_top_tl, &
      &  transmittance, transmittance_tl, &
      &  source_up, source_up_tl, source_dn, source_dn_tl)
@@ -721,8 +727,9 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
   real(jprb), intent(in),  dimension(nspec,nreg,nlev) :: flux_up_base, flux_dn_top
   real(jprb), intent(in),  dimension(nspec,nreg,nlev) :: flux_up_base_tl, flux_dn_top_tl
 
-  ! Microphysical inputs (NO TL w.r.t. these)
+  ! Microphysical inputs
   real(jprb), intent(in),  dimension(nspec,2:nreg,nlev) :: ssa
+  real(jprb), intent(in),  dimension(nspec,2:nreg,nlev) :: ssa_tl
   real(jprb), intent(in),  dimension(nspec,nlev) :: asymmetry
 
   ! Outputs (nonlinear + TL)
@@ -745,6 +752,8 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
   real(jprb) :: exponential_tl, planck_prime_tl, coeff_tl, rt_factor_tl
   real(jprb) :: factor_tl, c1_tl, c2_tl, scaling1_tl, scaling2_tl
   real(jprb) :: a, a_tl, d, d_tl
+  real(jprb) :: gamma1_tl, gamma2_tl, k_exponent_tl, k_arg, k_arg_tl
+  real(jprb) :: denom_tl, denom2, denom2_tl
 
   integer(jpim) :: max_reg
   integer(jpim) :: jlev, jspec, jreg
@@ -880,21 +889,36 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
 
         if (od(jspec,jreg,jlev) > OD_THRESH) then
 
-          ! gamma1, gamma2, k_exponent, p_same, p_opposite depend only on microphysics/geometry: TL = 0
+          ! gamma1, gamma2, k_exponent include TL via ssa_tl
           if (i_two_stream_scheme == ITwoStreamEddington) then
             gamma1 = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
             gamma2 = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+            gamma1_tl = -(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev)) * ssa_tl(jspec,jreg,jlev)
+            gamma2_tl =  (1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) * ssa_tl(jspec,jreg,jlev)
           else if (i_two_stream_scheme == ITwoStreamScaledWiscombeGrams) then
             factor = 0.5_jprb * (1.0_jprb-0.75_jprb*asymmetry(jspec,jlev)/(1.0_jprb-asymmetry(jspec,jlev)))
             gamma1 = lw_diffusivity_cloud * (1.0_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb-factor))
             gamma2 = lw_diffusivity_cloud * ssa(jspec,jreg,jlev) * factor
+            gamma1_tl = -lw_diffusivity_cloud * (1.0_jprb-factor) * ssa_tl(jspec,jreg,jlev)
+            gamma2_tl =  lw_diffusivity_cloud * factor * ssa_tl(jspec,jreg,jlev)
           else
             factor = (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev)
+            factor_tl = (lw_diffusivity_cloud * 0.5_jprb) * ssa_tl(jspec,jreg,jlev)
             gamma1 = lw_diffusivity_cloud - factor*(1.0_jprb + asymmetry(jspec,jlev))
             gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
+            gamma1_tl = -(1.0_jprb + asymmetry(jspec,jlev)) * factor_tl
+            gamma2_tl =  (1.0_jprb - asymmetry(jspec,jlev)) * factor_tl
           end if
 
-          k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), MIN_K_SQUARED))
+          k_arg = (gamma1 - gamma2) * (gamma1 + gamma2)
+          k_arg_tl = (gamma1_tl - gamma2_tl) * (gamma1 + gamma2) &
+               &   + (gamma1 - gamma2) * (gamma1_tl + gamma2_tl)
+          k_exponent = sqrt(max(k_arg, MIN_K_SQUARED))
+          if (k_arg > MIN_K_SQUARED) then
+            k_exponent_tl = 0.5_jprb * k_arg_tl / k_exponent
+          else
+            k_exponent_tl = 0.0_jprb
+          end if
 
           p_same     = 1.0_jprb + 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity_cloud
           p_opposite = 1.0_jprb - 3.0_jprb * asymmetry(jspec,jlev) * mu / lw_diffusivity_cloud
@@ -905,18 +929,21 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
                &          / (od(jspec,jreg,jlev)*od(jspec,jreg,jlev))
 
           exponential = exp(-k_exponent*od(jspec,jreg,jlev))
-          exponential_tl = exponential * (-k_exponent) * od_tl(jspec,jreg,jlev)
+          exponential_tl = exponential * (-(k_exponent_tl*od(jspec,jreg,jlev) + k_exponent*od_tl(jspec,jreg,jlev)))
 
           coeff = planck_prime / (gamma1+gamma2)
-          coeff_tl = planck_prime_tl / (gamma1+gamma2)
+          coeff_tl = (planck_prime_tl*(gamma1+gamma2) - planck_prime*(gamma1_tl+gamma2_tl)) / ((gamma1+gamma2)*(gamma1+gamma2))
 
           d = (k_exponent + gamma1) + (k_exponent-gamma1) * exponential*exponential
-          d_tl = (k_exponent-gamma1) * 2.0_jprb * exponential * exponential_tl
+          d_tl = (k_exponent_tl + gamma1_tl) &
+               & + (k_exponent-gamma1) * 2.0_jprb * exponential * exponential_tl &
+               & + (k_exponent_tl-gamma1_tl) * exponential*exponential
           rt_factor = 1.0_jprb / d
           rt_factor_tl = -rt_factor*rt_factor * d_tl
 
           factor = exponential * gamma2 / (gamma1 + k_exponent)
-          factor_tl = exponential_tl * gamma2 / (gamma1 + k_exponent)
+          factor_tl = (exponential_tl*gamma2 + exponential*gamma2_tl) / (gamma1 + k_exponent) &
+               &    - exponential*gamma2*(gamma1_tl+k_exponent_tl) / ((gamma1+k_exponent)*(gamma1+k_exponent))
 
           a = flux_up_base(jspec,jreg,jlev) - factor*flux_dn_top(jspec,jreg,jlev) &
                &  - (planck_base(jspec,jreg)+coeff) + factor*(planck_top(jspec,jreg)-coeff)
@@ -938,12 +965,16 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
 
           one_minus_kmu = 1.0_jprb - k_exponent*mu
           denom = merge(one_minus_kmu, epsilon(1.0_jprb), abs(one_minus_kmu)>epsilon(1.0_jprb))
+          denom_tl = merge(-k_exponent_tl*mu, 0.0_jprb, abs(one_minus_kmu)>epsilon(1.0_jprb))
           scaling1 = (exponential - transmittance(jspec,jreg,jlev)) / denom
-          scaling1_tl = (exponential_tl - transmittance_tl(jspec,jreg,jlev)) / denom
+          scaling1_tl = ((exponential_tl - transmittance_tl(jspec,jreg,jlev))*denom &
+               &      - (exponential - transmittance(jspec,jreg,jlev))*denom_tl) / (denom*denom)
 
-          scaling2 = (1.0_jprb - exponential*transmittance(jspec,jreg,jlev)) / (1.0_jprb + k_exponent*mu)
-          scaling2_tl = (-(exponential_tl*transmittance(jspec,jreg,jlev) + exponential*transmittance_tl(jspec,jreg,jlev))) &
-               &      / (1.0_jprb + k_exponent*mu)
+          denom2 = 1.0_jprb + k_exponent*mu
+          denom2_tl = k_exponent_tl*mu
+          scaling2 = (1.0_jprb - exponential*transmittance(jspec,jreg,jlev)) / denom2
+          scaling2_tl = ((-(exponential_tl*transmittance(jspec,jreg,jlev) + exponential*transmittance_tl(jspec,jreg,jlev)))*denom2 &
+               &      - (1.0_jprb - exponential*transmittance(jspec,jreg,jlev))*denom2_tl) / (denom2*denom2)
 
           if (present(source_up)) then
             source_up(jspec,jreg,jlev) = 0.5_jprb*ssa(jspec,jreg,jlev)*(1.0_jprb - transmittance(jspec,jreg,jlev)) &
@@ -960,10 +991,15 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
               ssa_local = ssa(jspec,jreg,jlev)
 
               ! TL of the "direct emission + linear structure scattering" part
-              source_up_tl(jspec,jreg,jlev) = 0.5_jprb*ssa_local * ( &
+              source_up_tl(jspec,jreg,jlev) = 0.5_jprb*ssa_tl(jspec,jreg,jlev) * ( &
+                   &   (1.0_jprb - transmittance(jspec,jreg,jlev))*planck_prime ) &
+                   &  * (p_same-p_opposite)/(gamma1+gamma2) &
+                   &  + 0.5_jprb*ssa_local * ( &
                    &   (-transmittance_tl(jspec,jreg,jlev))*planck_prime &
                    &   + (1.0_jprb - transmittance(jspec,jreg,jlev))*planck_prime_tl ) &
                    &  * (p_same-p_opposite)/(gamma1+gamma2) &
+                   &  - 0.5_jprb*ssa_local * (1.0_jprb - transmittance(jspec,jreg,jlev))*planck_prime &
+                   &  * (p_same-p_opposite) * (gamma1_tl+gamma2_tl) / ((gamma1+gamma2)*(gamma1+gamma2)) &
                    &  + planck_top_tl(jspec,jreg) &
                    &  - (planck_base_tl(jspec,jreg)*transmittance(jspec,jreg,jlev) &
                    &     + planck_base(jspec,jreg)*transmittance_tl(jspec,jreg,jlev)) &
@@ -972,10 +1008,17 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
 
               ! TL of the exponential scattering part
               source_up_tl(jspec,jreg,jlev) = source_up_tl(jspec,jreg,jlev) &
+                   &  + 0.5_jprb*ssa_tl(jspec,jreg,jlev) * ( &
+                   &  p_same     * ((gamma1+k_exponent)*scaling1*c1 +  gamma2*scaling2*c2) &
+                   & +p_opposite * ( gamma2*scaling1*c1             + (gamma1+k_exponent)*scaling2*c2)) &
                    &  + 0.5_jprb*ssa_local * ( &
-                   &  p_same * ( (gamma1+k_exponent) * (scaling1_tl*c1 + scaling1*c1_tl) &
-                   &          +  gamma2           * (scaling2_tl*c2 + scaling2*c2_tl) ) &
-                   & +p_opposite * ( gamma2 * (scaling1_tl*c1 + scaling1*c1_tl) &
+                   &  p_same * ( (gamma1_tl+k_exponent_tl) * scaling1*c1 &
+                   &          +  (gamma1+k_exponent) * (scaling1_tl*c1 + scaling1*c1_tl) &
+                   &          +  gamma2_tl * scaling2*c2 &
+                   &          +  gamma2    * (scaling2_tl*c2 + scaling2*c2_tl) ) &
+                   & +p_opposite * ( gamma2_tl * scaling1*c1 &
+                   &            +  gamma2 * (scaling1_tl*c1 + scaling1*c1_tl) &
+                   &            + (gamma1_tl+k_exponent_tl) * scaling2*c2 &
                    &            + (gamma1+k_exponent) * (scaling2_tl*c2 + scaling2*c2_tl) ) )
             end if
           end if
@@ -994,10 +1037,15 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
             if (present(source_dn_tl)) then
               ssa_local = ssa(jspec,jreg,jlev)
 
-              source_dn_tl(jspec,jreg,jlev) = -0.5_jprb*ssa_local * ( &
+              source_dn_tl(jspec,jreg,jlev) = -0.5_jprb*ssa_tl(jspec,jreg,jlev) * ( &
+                   &   (1.0_jprb - transmittance(jspec,jreg,jlev))*planck_prime ) &
+                   &  * (p_same-p_opposite)/(gamma1+gamma2) &
+                   &  -0.5_jprb*ssa_local * ( &
                    &   (-transmittance_tl(jspec,jreg,jlev))*planck_prime &
                    &   + (1.0_jprb - transmittance(jspec,jreg,jlev))*planck_prime_tl ) &
                    &  * (p_same-p_opposite)/(gamma1+gamma2) &
+                   &  + 0.5_jprb*ssa_local * (1.0_jprb - transmittance(jspec,jreg,jlev))*planck_prime &
+                   &  * (p_same-p_opposite) * (gamma1_tl+gamma2_tl) / ((gamma1+gamma2)*(gamma1+gamma2)) &
                    &  + planck_base_tl(jspec,jreg) &
                    &  - (planck_top_tl(jspec,jreg)*transmittance(jspec,jreg,jlev) &
                    &     + planck_top(jspec,jreg)*transmittance_tl(jspec,jreg,jlev)) &
@@ -1005,10 +1053,17 @@ subroutine calc_radiance_trans_source_tl(nspec, nlev, nreg, &
                    &  - planck_prime*mu*(-transmittance_tl(jspec,jreg,jlev))
 
               source_dn_tl(jspec,jreg,jlev) = source_dn_tl(jspec,jreg,jlev) &
+                   &  + 0.5_jprb*ssa_tl(jspec,jreg,jlev) * ( &
+                   &  p_opposite * ((gamma1+k_exponent)*scaling2*c1 +  gamma2*scaling1*c2) &
+                   & +p_same     * ( gamma2*scaling2*c1             + (gamma1+k_exponent)*scaling1*c2)) &
                    &  + 0.5_jprb*ssa_local * ( &
-                   &  p_opposite * ( (gamma1+k_exponent) * (scaling2_tl*c1 + scaling2*c1_tl) &
-                   &            +  gamma2           * (scaling1_tl*c2 + scaling1*c2_tl) ) &
-                   & +p_same     * ( gamma2 * (scaling2_tl*c1 + scaling2*c1_tl) &
+                   &  p_opposite * ( (gamma1_tl+k_exponent_tl) * scaling2*c1 &
+                   &            +  (gamma1+k_exponent) * (scaling2_tl*c1 + scaling2*c1_tl) &
+                   &            +  gamma2_tl * scaling1*c2 &
+                   &            +  gamma2    * (scaling1_tl*c2 + scaling1*c2_tl) ) &
+                   & +p_same     * ( gamma2_tl * scaling2*c1 &
+                   &            +  gamma2 * (scaling2_tl*c1 + scaling2*c1_tl) &
+                   &            + (gamma1_tl+k_exponent_tl) * scaling1*c2 &
                    &            + (gamma1+k_exponent) * (scaling1_tl*c2 + scaling1*c2_tl) ) )
             end if
           end if
@@ -1134,7 +1189,7 @@ end subroutine calc_radiance_up_tl
 ! ===== FILE: tcrad_calc_reflectance_transmittance_tl.F90 =====
 subroutine calc_reflectance_transmittance_tl(nspec, nlev, nreg, &
      &  region_fracs, region_fracs_tl, planck_hl, planck_hl_tl, &
-     &  od, od_tl, ssa, asymmetry, &
+     &  od, od_tl, ssa, ssa_tl, asymmetry, &
      &  reflectance, reflectance_tl, transmittance, transmittance_tl, &
      &  source_up, source_up_tl, source_dn, source_dn_tl)
 
@@ -1151,8 +1206,9 @@ subroutine calc_reflectance_transmittance_tl(nspec, nlev, nreg, &
   real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od
   real(jprb), intent(in), dimension(nspec,nreg,nlev) :: od_tl
 
-  ! Microphysical inputs (NO TL w.r.t. these)
+  ! Microphysical inputs
   real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa
+  real(jprb), intent(in), dimension(nspec,2:nreg,nlev) :: ssa_tl
   real(jprb), intent(in), dimension(nspec,nlev) :: asymmetry
 
   ! Outputs (nonlinear + TL)
@@ -1173,6 +1229,8 @@ subroutine calc_reflectance_transmittance_tl(nspec, nlev, nreg, &
   real(jprb) :: exponential_tl, exponential2_tl, reftrans_factor_tl
   real(jprb) :: refl_tl, tran_tl
   real(jprb) :: denom, denom_tl
+  real(jprb) :: factor_tl
+  real(jprb) :: gamma1_tl, gamma2_tl, k_exponent_tl, k_arg, k_arg_tl
 
   ! Loop indices
   integer(jpim) :: jspec, jreg, jlev
@@ -1264,43 +1322,61 @@ subroutine calc_reflectance_transmittance_tl(nspec, nlev, nreg, &
       do jreg = 2,nreg
         do jspec = 1,nspec
 
-          ! gamma1/gamma2/k_exponent depend only on microphysics => TL=0
+          ! gamma1/gamma2/k_exponent include TL via ssa_tl
           if (i_two_stream_scheme == ITwoStreamEddington) then
             gamma1 = 1.75_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev))
             gamma2 = ssa(jspec,jreg,jlev)*(1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) - 0.25_jprb
+            gamma1_tl = -(1.0_jprb + 0.75_jprb*asymmetry(jspec,jlev)) * ssa_tl(jspec,jreg,jlev)
+            gamma2_tl =  (1.0_jprb - 0.75_jprb*asymmetry(jspec,jlev)) * ssa_tl(jspec,jreg,jlev)
           else if (i_two_stream_scheme == ITwoStreamScaledWiscombeGrams) then
             factor = 0.5_jprb * (1.0_jprb-0.75_jprb*asymmetry(jspec,jlev) &
                  &                        /(1.0_jprb-asymmetry(jspec,jlev)))
             gamma1 = lw_diffusivity_cloud * (1.0_jprb - ssa(jspec,jreg,jlev)*(1.0_jprb-factor))
             gamma2 = lw_diffusivity_cloud * ssa(jspec,jreg,jlev) * factor
+            gamma1_tl = -lw_diffusivity_cloud * (1.0_jprb-factor) * ssa_tl(jspec,jreg,jlev)
+            gamma2_tl =  lw_diffusivity_cloud * factor * ssa_tl(jspec,jreg,jlev)
           else
             factor = (lw_diffusivity_cloud * 0.5_jprb) * ssa(jspec,jreg,jlev)
+            factor_tl = (lw_diffusivity_cloud * 0.5_jprb) * ssa_tl(jspec,jreg,jlev)
             gamma1 = lw_diffusivity_cloud - factor*(1.0_jprb + asymmetry(jspec,jlev))
             gamma2 = factor * (1.0_jprb - asymmetry(jspec,jlev))
+            gamma1_tl = -(1.0_jprb + asymmetry(jspec,jlev)) * factor_tl
+            gamma2_tl =  (1.0_jprb - asymmetry(jspec,jlev)) * factor_tl
           end if
 
-          k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
-               1.E-12_jprb))
+          k_arg = (gamma1 - gamma2) * (gamma1 + gamma2)
+          k_arg_tl = (gamma1_tl - gamma2_tl) * (gamma1 + gamma2) &
+               &   + (gamma1 - gamma2) * (gamma1_tl + gamma2_tl)
+          k_exponent = sqrt(max(k_arg, MIN_K_SQUARED))
+          if (k_arg > MIN_K_SQUARED) then
+            k_exponent_tl = 0.5_jprb * k_arg_tl / k_exponent
+          else
+            k_exponent_tl = 0.0_jprb
+          end if
 
           if (od(jspec,jreg,jlev) > OD_THRESH_2STREAM) then
             exponential = exp(-k_exponent*od(jspec,jreg,jlev))
-            exponential_tl = exponential * (-k_exponent) * od_tl(jspec,jreg,jlev)
+            exponential_tl = exponential * (-(k_exponent_tl*od(jspec,jreg,jlev) + k_exponent*od_tl(jspec,jreg,jlev)))
 
             exponential2 = exponential*exponential
             exponential2_tl = 2.0_jprb*exponential*exponential_tl
 
             denom = (k_exponent + gamma1) + (k_exponent - gamma1)*exponential2
-            denom_tl = (k_exponent - gamma1)*exponential2_tl
+            denom_tl = (k_exponent_tl + gamma1_tl) &
+                 &   + (k_exponent_tl-gamma1_tl)*exponential2 + (k_exponent-gamma1)*exponential2_tl
             reftrans_factor = 1.0_jprb / denom
             reftrans_factor_tl = -reftrans_factor*reftrans_factor * denom_tl
 
             reflectance(jspec,jreg,jlev) = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
-            refl_tl = gamma2 * ( (-exponential2_tl) * reftrans_factor &
+            refl_tl = gamma2_tl * (1.0_jprb - exponential2) * reftrans_factor &
+                 &  + gamma2 * ( (-exponential2_tl) * reftrans_factor &
                  &           + (1.0_jprb - exponential2) * reftrans_factor_tl )
             reflectance_tl(jspec,jreg,jlev) = refl_tl
 
             transmittance(jspec,jreg,jlev) = 2.0_jprb * k_exponent * exponential * reftrans_factor
-            tran_tl = 2.0_jprb * k_exponent * (exponential_tl*reftrans_factor + exponential*reftrans_factor_tl)
+            tran_tl = 2.0_jprb * (k_exponent_tl*exponential*reftrans_factor &
+                 &      + k_exponent*exponential_tl*reftrans_factor &
+                 &      + k_exponent*exponential*reftrans_factor_tl)
             transmittance_tl(jspec,jreg,jlev) = tran_tl
 
             coeff = (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev)) &
@@ -1312,7 +1388,8 @@ subroutine calc_reflectance_transmittance_tl(nspec, nlev, nreg, &
 
             ! TL of coeff (gamma1+gamma2 constant)
             denom = od(jspec,jreg,jlev)*(gamma1+gamma2)
-            denom_tl = od_tl(jspec,jreg,jlev)*(gamma1+gamma2)
+            denom_tl = od_tl(jspec,jreg,jlev)*(gamma1+gamma2) &
+                 &   + od(jspec,jreg,jlev)*(gamma1_tl+gamma2_tl)
             coeff1_tl = ((planck_hl_tl(jspec,jlev+1)-planck_hl_tl(jspec,jlev))*denom &
                  &     - (planck_hl(jspec,jlev+1)-planck_hl(jspec,jlev))*denom_tl) &
                  &    / (denom*denom)
@@ -1338,15 +1415,16 @@ subroutine calc_reflectance_transmittance_tl(nspec, nlev, nreg, &
           else
             ! Low optical depth approximation
             reflectance(jspec,jreg,jlev) = gamma2 * od(jspec,jreg,jlev)
-            reflectance_tl(jspec,jreg,jlev) = gamma2 * od_tl(jspec,jreg,jlev)
+            reflectance_tl(jspec,jreg,jlev) = gamma2_tl * od(jspec,jreg,jlev) + gamma2 * od_tl(jspec,jreg,jlev)
 
             transmittance(jspec,jreg,jlev) &
                  &  = (1.0_jprb - k_exponent*od(jspec,jreg,jlev)) &
                  &  / (1.0_jprb + od(jspec,jreg,jlev)*(gamma1-k_exponent))
 
             denom = 1.0_jprb + od(jspec,jreg,jlev)*(gamma1-k_exponent)
-            denom_tl = od_tl(jspec,jreg,jlev)*(gamma1-k_exponent)
-            transmittance_tl(jspec,jreg,jlev) = ( (-k_exponent*od_tl(jspec,jreg,jlev))*denom &
+            denom_tl = od_tl(jspec,jreg,jlev)*(gamma1-k_exponent) &
+                 &   + od(jspec,jreg,jlev)*(gamma1_tl-k_exponent_tl)
+            transmittance_tl(jspec,jreg,jlev) = ( (-(k_exponent_tl*od(jspec,jreg,jlev) + k_exponent*od_tl(jspec,jreg,jlev)))*denom &
                  &  - (1.0_jprb - k_exponent*od(jspec,jreg,jlev))*denom_tl ) / (denom*denom)
 
             source_up(jspec,jreg,jlev) &
@@ -1956,21 +2034,5 @@ subroutine calc_two_stream_flux_tl(nspec, nlev, &
   if (lhook) call dr_hook('tcrad:calc_two_stream_flux_tl',1,hook_handle)
 
 end subroutine calc_two_stream_flux_tl
-
-
-! ===== FILE: tcrad_set_two_stream_scheme_tl.F90 =====
-subroutine set_two_stream_scheme_tl(i_scheme)
-
-  integer(jpim), intent(in) :: i_scheme
-
-  ! No tangent-linear variables: this routine only sets module parameters
-  ! based on an integer switch (no dependence on atmospheric state).
-
-  call set_two_stream_scheme(i_scheme)
-
-end subroutine set_two_stream_scheme_tl
-
-
-
 
 end module tcrad_tl
