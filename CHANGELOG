@@ -1,4 +1,14 @@
-version 1.7.1
+version 1.7.1 (19 August 2025)
+	- radiation_ifs_rrtm: refactored loop and if structure
+	- radiation_ecckd: refactored the provisioning of optional concentration
+	  scaling to reduce the number of present checks
+	- radiation_gas: put_gas now has both double and single precision
+	  interfaces under a generic interface to allow for mixed precision use
+	- Removed allocation of inv_cloud_effective_size from radiation_cloud's
+	  allocate routine
+	- New radiation_cloud_cover: compute_cloud_cover subroutine added as an
+	  alternative cloud_cover API that allows vectorized invocations of
+	  the overlap computations
 	- Shortwave diagnostics can return spectral solar irradiance to
 	  facilitate computing spectral reflectances
 

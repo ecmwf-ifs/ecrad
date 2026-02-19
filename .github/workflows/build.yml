@@ -93,15 +93,12 @@ jobs:
         printenv
 
     - name: Cache Dependencies
-      # There seems to be a problem with cached NVHPC dependencies, leading to SIGILL perhaps due to slightly different architectures
       if: matrix.caching
       id: deps-cache
-      # uses: pat-s/always-upload-cache@v2.1.5
       uses: actions/cache@v4
       with:
         path: ${{ env.DEPS_DIR }}
         key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ env.CACHE_SUFFIX }}
-        save-always: true
 
     # Free up disk space for nvhpc
     - name: Free Disk Space (Ubuntu)
@@ -146,6 +143,7 @@ jobs:
         source /opt/intel/oneapi/setvars.sh
         printenv >> $GITHUB_ENV
         echo "CACHE_SUFFIX=$CC-$($CC -dumpversion)" >> $GITHUB_ENV
+
     - name: Install HDF5
       run: |
         if [[ -f ${{ env.DEPS_DIR }}/hdf5/lib/libhdf5.settings ]]; then
@@ -189,8 +187,33 @@ jobs:
         cmake_options:    "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_options }} -DENABLE_SINGLE_PRECISION=ON -DENABLE_BITIDENTITY_TESTING=ON"
         ctest_options: "${{ matrix.ctest_options }}"
 
-#    - name: Codecov Upload
-#      if: steps.build-test.outputs.coverage_file
-#      uses: codecov/codecov-action@v2
-#      with:
-#        files: ${{ steps.build-test.outputs.coverage_file }}
+  make:
+    name: Makefile build
+
+    strategy:
+      fail-fast: false    # false: try to complete all jobs
+
+      matrix:
+        name:
+          - linux gnu
+
+        include:
+
+          - name: linux gnu
+            os: ubuntu-24.04
+            profile: gfortran
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install libnetcdff-dev nco
+
+    - name: Build & Test
+      run: |
+        make PROFILE=${{ matrix.profile }} -j
+        make test PROFILE=${{ matrix.profile }}

@@ -69,8 +69,8 @@ SUBROUTINE RADIATION_SCHEME &
 ! Modules from ifs or ifsaux libraries
 USE PARKIND1       , ONLY : JPIM, JPRB, JPRD
 USE YOMHOOK        , ONLY : LHOOK, DR_HOOK, JPHOOK
-USE YOMCST         , ONLY : RPI, RSIGMA ! Stefan-Boltzmann constant
-USE YOMLUN         , ONLY : NULERR, NULOUT
+USE YOMCST_ECRAD   , ONLY : RPI, RSIGMA ! Stefan-Boltzmann constant
+USE YOMLUN_ECRAD   , ONLY : NULERR, NULOUT
 USE RADIATION_SETUP, ONLY : ITYPE_TROP_BG_AER, ITYPE_STRAT_BG_AER, TRADIATION
 
 ! Modules from ecRad radiation library

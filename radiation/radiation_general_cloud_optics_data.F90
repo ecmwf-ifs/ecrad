@@ -186,6 +186,9 @@ contains
     call delta_eddington(mass_ext, ssa, asymmetry)
 
     ! Thin averaging
+    if (.not. allocated(this%mass_ext)) then
+      allocate(this%mass_ext(size(mapping,1), size(mass_ext,2)))
+    end if
     this%mass_ext  = matmul(mapping, mass_ext)
     this%ssa       = matmul(mapping, mass_ext*ssa) / this%mass_ext
     this%asymmetry = matmul(mapping, mass_ext*ssa*asymmetry) / (this%mass_ext*this%ssa)

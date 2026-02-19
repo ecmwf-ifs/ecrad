@@ -20,6 +20,8 @@ module radiation_liquid_optics_jahangir
 
   integer, parameter :: NLiqOpticsCoeffsJahangir = 33
 
+  public :: NLiqOpticsCoeffsJahangir, calc_liq_optics_jahangir
+
 contains
 
   !---------------------------------------------------------------------

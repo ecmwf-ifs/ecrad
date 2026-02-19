@@ -137,13 +137,13 @@ contains
     if (lhook) call dr_hook('radiation_cloud_generator:cloud_generator',0,hook_handle)
 
     if (i_overlap_scheme == IOverlapExponentialRandom) then
-      call cum_cloud_cover_exp_ran(nlev, frac, overlap_param, &
+      call cum_cloud_cover_exp_ran(1, 1, 1, nlev, frac, overlap_param, &
            &   cum_cloud_cover, pair_cloud_cover, use_beta_overlap)
     else if (i_overlap_scheme == IOverlapMaximumRandom) then
-      call cum_cloud_cover_max_ran(nlev, frac, &
+      call cum_cloud_cover_max_ran(1, 1, 1, nlev, frac, &
            &   cum_cloud_cover, pair_cloud_cover)
     else if (i_overlap_scheme == IOverlapExponential) then
-      call cum_cloud_cover_exp_exp(nlev, frac, overlap_param, &
+      call cum_cloud_cover_exp_exp(1, 1, 1, nlev, frac, overlap_param, &
            &   cum_cloud_cover, pair_cloud_cover, use_beta_overlap)
     else
       write(nulerr,'(a)') '*** Error: cloud overlap scheme not recognised'
@@ -539,8 +539,7 @@ contains
     use parkind1,              only : jprb
     use radiation_pdf_sampler, only : pdf_sampler_type
     implicit none
-#if defined(__GFORTRAN__) || defined(__PGI) || defined(__NEC__) || defined(__INTEL_LLVM_COMPILER)
-#else
+#if defined(__INTEL_COMPILER) && !defined(__INTEL_LLVM_COMPILER)
     !$omp declare simd(sample_from_pdf_simd) uniform(this) &
     !$omp linear(ref(fsd)) linear(ref(cdf))
 #endif

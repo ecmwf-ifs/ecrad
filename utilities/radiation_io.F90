@@ -29,7 +29,7 @@ module radiation_io
   ! equivalent to standard error, and text sent to this unit from any
   ! node will be logged. Normally, nulerr should only be used before
   ! calling radiation_abort.
-  use yomlun_ifsaux, only : nulout, nulerr
+  use yomlun_ecrad, only : nulout, nulerr
 
   implicit none
   public
