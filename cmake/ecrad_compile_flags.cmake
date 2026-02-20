@@ -17,8 +17,11 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "Cray")
   set(initsnan_flags      "-ei")
 
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
+  set(vectorization_flags "-O3 -march=native")
+  set(alloc_flags         "-fstack-arrays")
   set(checkbounds_flags   "-fcheck=bounds")
   set(fpe_flags           "-ffpe-trap=invalid,zero,overflow")
+  set(fpmodel_flags       "-ffp-contract=off -fno-fast-math")
   set(initsnan_flags      "-finit-real=snan")
 
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "IntelLLVM")
