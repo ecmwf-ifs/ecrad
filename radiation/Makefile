@@ -25,7 +25,8 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_gas_constants.F90 radiation_ecckd_gas.F90 \
 	radiation_spectral_definition.F90 radiation_general_cloud_optics.F90 \
 	radiation_general_cloud_optics_data.F90 radiation_random_numbers.F90 \
-	radiation_aerosol_optics_description.F90
+	radiation_aerosol_optics_description.F90 \
+	radiation_photolysis.F90 interpolation.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBRAD = ../lib/libradiation.a
@@ -114,5 +115,8 @@ radiation_general_cloud_optics_data.o: radiation_spectral_definition.o
 radiation_general_cloud_optics.o: radiation_config.o radiation_cloud.o radiation_thermodynamics.o radiation_constants.o
 
 radiation_aerosol_optics.o: radiation_aerosol.o
+
+radiation_photolysis.o: radiation_config.o radiation_flux.o \
+	radiation_constants.o radiation_ecckd.o interpolation.o
 
 *.o: ecrad_config.h

@@ -9,13 +9,16 @@ SOURCES = print_matrix_mod.F90 ecrad_driver_read_input.F90 \
 OBJECTS := $(SOURCES:.F90=.o)
 EXECUTABLE = ../bin/ecrad
 IFS_EXECUTABLE = ../bin/ecrad_ifs
+PHOTOLYSIS_EXECUTABLE = ../bin/ecrad_photolysis
 IFS_BLOCKED_EXECUTABLE = ../bin/ecrad_ifs_blocked
 
-all: driver ifs_driver test_programs
+all: driver ifs_driver photolysis_driver test_programs
 
 driver: $(EXECUTABLE)
 
 ifs_driver: $(IFS_EXECUTABLE) $(IFS_BLOCKED_EXECUTABLE)
+
+photolysis_driver: $(PHOTOLYSIS_EXECUTABLE)
 
 test_programs: $(TEST_PROGRAMS)
 
@@ -25,10 +28,16 @@ $(EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_driver.o
 	$(FC) $(FCFLAGS) ecrad_driver.o $(OBJECTS) $(LIBS) -o $(EXECUTABLE)
 
 $(IFS_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_ifs_driver.o
-	$(FC) $(FCFLAGS) ecrad_ifs_driver.o $(OBJECTS) -lifs $(LIBS) -o $(IFS_EXECUTABLE)
+	$(FC) $(FCFLAGS) ecrad_ifs_driver.o $(OBJECTS) -lifs $(LIBS) \
+	-o $(IFS_EXECUTABLE)
 
 $(IFS_BLOCKED_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_ifs_driver_blocked.o
-	$(FC) $(FCFLAGS) ifs_blocking.o ecrad_ifs_driver_blocked.o $(OBJECTS) -lifs $(LIBS) -o $(IFS_BLOCKED_EXECUTABLE)
+	$(FC) $(FCFLAGS) ifs_blocking.o ecrad_ifs_driver_blocked.o $(OBJECTS) \
+	-lifs $(LIBS) -o $(IFS_BLOCKED_EXECUTABLE)
+
+$(PHOTOLYSIS_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_photolysis_driver.o
+	$(FC) $(FCFLAGS) ecrad_photolysis_driver.o $(OBJECTS) \
+	-lphotolysis $(LIBS) -o $(PHOTOLYSIS_EXECUTABLE)
 
 test_%: test_%.F90 ../lib/*.a
 	$(FC) $(FCFLAGS) $< $(LIBS) -o $@
@@ -43,11 +52,12 @@ test_%: test_%.F90 ../lib/*.a
 
 clean:
 	rm -f *.o $(EXECUTABLE) $(IFS_EXECUTABLE) $(IFS_BLOCKED_EXECUTABLE) \
-		$(TEST_PROGRAMS)
+		$(PHOTOLYSIS_EXECUTABLE) $(TEST_PROGRAMS)
 
 ecrad_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_ifs_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
+ecrad_photolysis_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_ifs_driver_blocked.o: ecrad_driver_config.o ecrad_driver_read_input.o ifs_blocking.o
 ecrad_driver_read_input.o ifs_blocking.o: ecrad_driver_config.o
 
-.PHONY: driver ifs_driver test_programs all
+.PHONY: driver ifs_driver photolysis_driver test_programs all

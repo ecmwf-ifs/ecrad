@@ -106,14 +106,14 @@ help:
 
 ifndef FIATDIR
 build: directories libifsaux libdummydrhook libutilities libifsrrtm \
-	libradiation driver ifsdriver symlinks
+	libradiation driver ifsdriver photolysisdriver symlinks
 libradiation libutilities: libdummydrhook
 else
 # Note that if we are using Dr Hook from the fiat library we don't
 # want to create mod/yomhook.mod as this can sometimes be found before
 # the one in the fiat directory leading to an error at link stage
 build: directories libifsaux libutilities libifsrrtm libradiation \
-	driver ifsdriver symlinks
+	driver ifsdriver photolysisdriver symlinks
 endif
 
 # git cannot store empty directories so they may need to be created 
@@ -154,6 +154,9 @@ driver: libifsaux libifsrrtm libutilities libradiation
 
 ifsdriver: libifsaux libifsrrtm libutilities libradiation libifs
 	cd driver && $(MAKE) ifs_driver
+
+photolysisdriver: libifsaux libifsrrtm libutilities libradiation
+	cd driver && $(MAKE) photolysis_driver
 
 test_programs: driver
 	cd driver && $(MAKE) test_programs
@@ -200,6 +203,7 @@ clean-symlinks:
 clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
-.PHONY: all build help deps clean-deps libifsaux libdummydrhook libutilities libifsrrtm \
-	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver \
+.PHONY: all build help deps clean-deps libifsaux libdummydrhook libutilities \
+	libifsrrtm libradiation driver symlinks clean clean-toplevel \
+	test test_ifs ifsdriver photolysisdriver \
 	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks

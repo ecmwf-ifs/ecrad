@@ -4,6 +4,7 @@ INPUT = ecrad_meridian
 DRIVER = ../../bin/ecrad
 IFS_DRIVER = ../../bin/ecrad_ifs
 IFS_DRIVER_BLOCKED = ../../bin/ecrad_ifs_blocked
+PHOTOLYSIS_DRIVER  = ../../bin/ecrad_photolysis
 CHANGENAM = ../common/change_namelist.sh
 
 # Various configuration files corresponding to cycles of ECMWF's
@@ -111,6 +112,15 @@ test_ecckd_mcica:
 # ecCKD with Tripleclouds solver (default)
 test_ecckd_tc:
 	$(DRIVER) $(CONFIG_ECCKD) $(INPUT).nc $(INPUT)_ecckd_tc_out.nc
+
+# Photolysis calculation using ecrad_photolysis driver, requiring
+# ecCKD file that includes the far-UV
+test_photolysis:
+	$(CHANGENAM) $(CONFIG_ECCKD) config_photolysis.nam \
+		do_save_gpoint_flux=true do_lw=false  \
+		gas_optics_sw_override_file_name='"ecckd-1.5_sw_photolysis-32_raw-ckd-definition.nc"'
+	$(PHOTOLYSIS_DRIVER) config_photolysis.nam $(INPUT).nc $(INPUT)_photolysis_out.nc \
+		$(INPUT)_photolysis_rates.nc
 
 test_mixed_gas:
 	$(DRIVER) $(CONFIG_MIXED) $(INPUT).nc $(INPUT)_sw_ecckd_lw_ecckd_out.nc

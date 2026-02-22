@@ -107,7 +107,7 @@ contains
     ! Spectral fluxes in memory are dimensioned (nband,ncol,nlev), but
     ! are reoriented in the output file to be (nband,nlev,ncol), where
     ! the convention here is first dimension varying fastest
-    call out_file%permute_3d_arrays( (/ 1, 3, 2 /) )
+    call out_file%permute_3d_arrays( [ 1, 3, 2 ] )
 
     ! Define dimensions
     call out_file%define_dimension("column", ncol)
@@ -536,7 +536,7 @@ contains
     ! Spectral fluxes in memory are dimensioned (nband,ncol,nlev), but
     ! are reoriented in the output file to be (nband,nlev,ncol), where
     ! the convention here is first dimension varying fastest
-    call out_file%permute_3d_arrays( (/ 1, 3, 2 /) )
+    call out_file%permute_3d_arrays( [ 1, 3, 2 ] )
 
     ! Define dimensions
     call out_file%define_dimension("column", ncol)
@@ -1085,7 +1085,7 @@ contains
     ! In the case of aerosols we convert dimensions (ncol,nlev,ntype)
     ! in memory to (nlev,ntype,ncol) in file (in both cases the first
     ! dimension varying fastest).
-    call out_file%permute_3d_arrays( (/ 2, 3, 1 /) ) ! For aerosols
+    call out_file%permute_3d_arrays( [ 2, 3, 1 ] ) ! For aerosols
 
     ! Define dimensions
     call out_file%define_dimension("column",     ncol)
