@@ -90,7 +90,7 @@ contains
     ! the layer thickness (m)
     real(jprb), dimension(nlev) :: inv_cloud_separation_scale, layer_thickness
 
-    real(jprb), dimension(config%n_g_lw) :: spectral_radiance
+    real(jprb), dimension(config%n_g_lw) :: spectral_radiance, spectral_radiance_clear
     
     integer :: jcol
 
@@ -118,16 +118,21 @@ contains
              &         cloud%overlap_param(jcol,:), cos_sensor_zenith_angle(jcol), &
              &         spectral_radiance, &
              &         cloud_cover=flux%cloud_cover_lw(jcol), &
-             &         do_specular_surface=config%do_specular_surface)
-        
+             &         do_specular_surface=config%do_specular_surface, &
+             &         radiance_clear=spectral_radiance_clear)
+
       end if
 
       if (config%do_save_spectral_flux) then
         flux%lw_radiance_band(:,jcol) = spectral_radiance
+        flux%lw_radiance_clear_band(:,jcol) = spectral_radiance_clear
       else
         call indexed_sum(spectral_radiance, &
              &           config%i_band_from_reordered_g_lw, &
              &           flux%lw_radiance_band(:,jcol))
+        call indexed_sum(spectral_radiance_clear, &
+             &           config%i_band_from_reordered_g_lw, &
+             &           flux%lw_radiance_clear_band(:,jcol))
       end if
       
     end do

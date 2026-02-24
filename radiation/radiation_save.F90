@@ -809,6 +809,17 @@ contains
              &  dim2_name="column", dim1_name="band_lw", &
              &  units_str=trim(lw_units_str), long_name="Thermal radiance")
       end if
+      if (config%do_clear) then
+        if (flux%is_brightness_temperature) then
+          call out_file%define_variable("brightness_temperature_lw_clear_band", &
+               &  dim2_name="column", dim1_name="band_lw", &
+               &  units_str="K", long_name="Clear-sky brightness temperature")
+        else
+          call out_file%define_variable("radiance_lw_clear_band", &
+               &  dim2_name="column", dim1_name="band_lw", &
+               &  units_str=trim(lw_units_str), long_name="Clear-sky thermal radiance")
+        end if
+      end if
       call out_file%define_variable("cloud_cover_lw", &
            &  dim1_name="column", units_str="1", &
            &  long_name="Total cloud cover diagnosed by longwave solver", &
@@ -853,6 +864,13 @@ contains
         call out_file%put("brightness_temperature_lw_band", flux%lw_radiance_band)
       else
         call out_file%put("radiance_lw_band", flux%lw_radiance_band)
+      end if
+      if (config%do_clear) then
+        if (flux%is_brightness_temperature) then
+          call out_file%put("brightness_temperature_lw_clear_band", flux%lw_radiance_clear_band)
+        else
+          call out_file%put("radiance_lw_clear_band", flux%lw_radiance_clear_band)
+        end if
       end if
       call out_file%put("cloud_cover_lw",   flux%cloud_cover_lw)
     end if

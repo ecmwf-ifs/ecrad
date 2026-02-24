@@ -478,13 +478,13 @@ contains
                  &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
                  &  planck_hl, lw_emission, lw_albedo, flux)
           else if (config%i_solver_lw == ISolverTcadept) then
-            call radiance_solver_adept_tripleclouds_lw_ad(nlev,istartcol,iendcol, &
+            call radiance_solver_adept_tripleclouds_lw(nlev,istartcol,iendcol, &
                  &  config, thermodynamics, &
                  &  cloud, single_level%cos_sensor_zenith_angle, & 
                  &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &
                  &  planck_hl, lw_emission, lw_albedo, flux)            
           else
-            call radiance_solver_rttov_tcrad_lw_ad(nlev,istartcol,iendcol, &
+            call radiance_solver_rttov_tcrad_lw(nlev,istartcol,iendcol, &
                  &  config, thermodynamics, &
                  &  cloud, single_level%cos_sensor_zenith_angle, & 
                  &  od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, pf_lw_cloud, &

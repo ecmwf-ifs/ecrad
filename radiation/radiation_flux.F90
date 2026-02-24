@@ -118,6 +118,7 @@ module radiation_flux
      ! band or per g-point, dimensioned (nspec,ncol)
      real(jprb), allocatable, dimension(:,:) :: sw_radiance_band
      real(jprb), allocatable, dimension(:,:) :: lw_radiance_band
+     real(jprb), allocatable, dimension(:,:) :: lw_radiance_clear_band
      real(jprb), allocatable, dimension(:,:) :: sw_radiance_clear_band
 
      ! Is lw_radiance_band actually a brightness temperature (in K)?
@@ -464,8 +465,10 @@ contains
     if (config%do_lw) then
       if (config%n_spec_lw > 0) then
         allocate(this%lw_radiance_band(config%n_spec_lw,istartcol:iendcol))
+        allocate(this%lw_radiance_clear_band(config%n_spec_lw,istartcol:iendcol))
       else
         allocate(this%lw_radiance_band(config%n_bands_lw,istartcol:iendcol))
+        allocate(this%lw_radiance_clear_band(config%n_bands_lw,istartcol:iendcol))
       end if
     end if
 
@@ -698,6 +701,10 @@ contains
     if (.not. this%is_brightness_temperature) then
       call ckd_model%calc_brightness_temperature(ncol, this%lw_radiance_band, bt)
       this%lw_radiance_band = bt
+      if (allocated(this%lw_radiance_clear_band)) then
+        call ckd_model%calc_brightness_temperature(ncol, this%lw_radiance_clear_band, bt)
+      end if
+      this%lw_radiance_clear_band = bt
       this%is_brightness_temperature = .true.
     end if
 
