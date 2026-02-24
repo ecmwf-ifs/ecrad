@@ -62,14 +62,14 @@ contains
          &     trim(config%ice_optics_file_name), iverbose=config%iverbosesetup)
 
     ! Check liquid coefficients
-    if (size(config%cloud_optics%liq_coeff_lw, 1) /= config%n_bands_lw) then
+    if (config%do_lw .and. size(config%cloud_optics%liq_coeff_lw, 1) /= config%n_bands_lw) then
       write(nulerr,'(a,i0,a,i0,a)') &
            &  '*** Error: number of longwave bands for droplets (', &
            &  size(config%cloud_optics%liq_coeff_lw, 1), &
            &  ') does not match number for gases (', config%n_bands_lw, ')'
       call radiation_abort()
     end if
-    if (size(config%cloud_optics%liq_coeff_sw, 1) /= config%n_bands_sw) then
+    if (config%do_sw .and. size(config%cloud_optics%liq_coeff_sw, 1) /= config%n_bands_sw) then
       write(nulerr,'(a,i0,a,i0,a)') &
            &  '*** Error: number of shortwave bands for droplets (', &
            &  size(config%cloud_optics%liq_coeff_sw, 1), &
@@ -78,7 +78,7 @@ contains
     end if
 
     if (config%i_liq_model == ILiquidModelSOCRATES) then
-      if (size(config%cloud_optics%liq_coeff_lw, 2) /= NLiqOpticsCoeffsSOCRATES) then
+      if (config%do_lw .and. size(config%cloud_optics%liq_coeff_lw, 2) /= NLiqOpticsCoeffsSOCRATES) then
         write(nulerr,'(a,i0,a,i0,a,i0,a)') &
              &  '*** Error: number of liquid cloud optical coefficients (', &
              &  size(config%cloud_optics%liq_coeff_lw, 2), &
@@ -86,14 +86,14 @@ contains
         call radiation_abort()
       end if
     else if (config%i_liq_model == ILiquidModelSlingo) then
-      if (size(config%cloud_optics%liq_coeff_sw, 2) /= NLiqOpticsCoeffsSlingoSW) then
+      if (config%do_sw .and. size(config%cloud_optics%liq_coeff_sw, 2) /= NLiqOpticsCoeffsSlingoSW) then
         write(nulerr,'(a,i0,a,i0,a,i0,a)') &
              &  '*** Error: number of shortwave liquid cloud optical coefficients (', &
              &  size(config%cloud_optics%liq_coeff_sw, 2), &
              &  ') does not match number expected (', NLiqOpticsCoeffsSlingoSW,')'
         call radiation_abort()
       end if
-      if (size(config%cloud_optics%liq_coeff_lw, 2) /= NLiqOpticsCoeffsLindnerLiLW) then
+      if (config%do_lw .and. size(config%cloud_optics%liq_coeff_lw, 2) /= NLiqOpticsCoeffsLindnerLiLW) then
         write(nulerr,'(a,i0,a,i0,a,i0,a)') &
              &  '*** Error: number of longwave liquid cloud optical coefficients (', &
              &  size(config%cloud_optics%liq_coeff_lw, 2), &
@@ -103,14 +103,14 @@ contains
     end if
 
     ! Check ice coefficients
-    if (size(config%cloud_optics%ice_coeff_lw, 1) /= config%n_bands_lw) then
+    if (config%do_lw .and. size(config%cloud_optics%ice_coeff_lw, 1) /= config%n_bands_lw) then
       write(nulerr,'(a,i0,a,i0,a)') &
            &  '*** Error: number of longwave bands for ice particles (', &
            &  size(config%cloud_optics%ice_coeff_lw, 1), &
            &  ') does not match number for gases (', config%n_bands_lw, ')'
       call radiation_abort()
     end if
-    if (size(config%cloud_optics%ice_coeff_sw, 1) /= config%n_bands_sw) then
+    if (config%do_sw .and. size(config%cloud_optics%ice_coeff_sw, 1) /= config%n_bands_sw) then
       write(nulerr,'(a,i0,a,i0,a)') &
            &  '*** Error: number of shortwave bands for ice particles (', &
            &  size(config%cloud_optics%ice_coeff_sw, 1), &
@@ -119,7 +119,7 @@ contains
     end if
 
     if (config%i_ice_model == IIceModelFu) then
-      if (size(config%cloud_optics%ice_coeff_lw, 2) &
+      if (config%do_lw .and. size(config%cloud_optics%ice_coeff_lw, 2) &
            &  /= NIceOpticsCoeffsFuLW) then
         write(nulerr,'(a,i0,a,i0,a,i0,a)') &
              &  '*** Error: number of LW ice-particle optical coefficients (', &
@@ -127,7 +127,7 @@ contains
              &  ') does not match number expected (', NIceOpticsCoeffsFuLW,')'
         call radiation_abort()
       end if
-      if (size(config%cloud_optics%ice_coeff_sw, 2) &
+      if (config%do_sw .and. size(config%cloud_optics%ice_coeff_sw, 2) &
            &  /= NIceOpticsCoeffsFuSW) then
         write(nulerr,'(a,i0,a,i0,a,i0,a)') &
              &  '*** Error: number of SW ice-particle optical coefficients (', &
@@ -135,7 +135,7 @@ contains
              &  ') does not match number expected (', NIceOpticsCoeffsFuSW,')'
         call radiation_abort()
       end if
-    else if (config%i_ice_model == IIceModelBaran &
+    else if (config%do_lw .and. config%i_ice_model == IIceModelBaran &
          &  .and. size(config%cloud_optics%ice_coeff_lw, 2) &
          &  /= NIceOpticsCoeffsBaran) then
       write(nulerr,'(a,i0,a,i0,a,i0,a)') &
@@ -143,7 +143,7 @@ contains
            &  size(config%cloud_optics%ice_coeff_lw, 2), &
            &  ') does not match number expected (', NIceOpticsCoeffsBaran,')'
       call radiation_abort()
-    else if (config%i_ice_model == IIceModelBaran2016 &
+    else if (config%do_lw .and. config%i_ice_model == IIceModelBaran2016 &
          &  .and. size(config%cloud_optics%ice_coeff_lw, 2) &
          &  /= NIceOpticsCoeffsBaran2016) then
       write(nulerr,'(a,i0,a,i0,a,i0,a)') &
@@ -151,7 +151,7 @@ contains
            &  size(config%cloud_optics%ice_coeff_lw, 2), &
            &  ') does not match number expected (', NIceOpticsCoeffsBaran2016,')'
       call radiation_abort()
-    else if (config%i_ice_model == IIceModelBaran2017) then
+    else if (config%do_lw .and. config%i_ice_model == IIceModelBaran2017) then
       if (size(config%cloud_optics%ice_coeff_lw, 2) &
            &  /= NIceOpticsCoeffsBaran2017) then
         write(nulerr,'(a,i0,a,i0,a,i0,a)') &
@@ -172,7 +172,7 @@ contains
         call radiation_abort()
       end if
     else if (config%i_ice_model == IIceModelYi) then
-      if (size(config%cloud_optics%ice_coeff_lw, 2) &
+      if (config%do_lw .and. size(config%cloud_optics%ice_coeff_lw, 2) &
            &  /= NIceOpticsCoeffsYiLW) then
         write(nulerr,'(a,i0,a,i0,a,i0,a)') &
              &  '*** Error: number of LW ice-particle optical coefficients (', &
@@ -180,7 +180,7 @@ contains
              &  ') does not match number expected (', NIceOpticsCoeffsYiLW,')'
         call radiation_abort()
       end if
-      if (size(config%cloud_optics%ice_coeff_sw, 2) &
+      if (config%do_sw .and. size(config%cloud_optics%ice_coeff_sw, 2) &
            &  /= NIceOpticsCoeffsYiSW) then
         write(nulerr,'(a,i0,a,i0,a,i0,a)') &
              &  '*** Error: number of SW ice-particle optical coefficients (', &
