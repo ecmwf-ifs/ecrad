@@ -36,6 +36,7 @@ contains
     use radiation_flux, only           : flux_type, indexed_sum
     use radiation_cloudless_lw, only   : solver_cloudless_lw
     use tcrad, only                    : calc_radiance
+    use tcrad_clear_sky, only          : calc_radiance_clear_sky
     use radiation_constants,  only : GasConstantDryAir, AccelDueToGravity
 
     implicit none
@@ -118,24 +119,36 @@ contains
              &         cloud%overlap_param(jcol,:), cos_sensor_zenith_angle(jcol), &
              &         spectral_radiance, &
              &         cloud_cover=flux%cloud_cover_lw(jcol), &
-             &         do_specular_surface=config%do_specular_surface, &
-             &         radiance_clear=spectral_radiance_clear)
+             &         do_specular_surface=config%do_specular_surface)
 
       end if
 
       if (config%do_save_spectral_flux) then
         flux%lw_radiance_band(:,jcol) = spectral_radiance
-        flux%lw_radiance_clear_band(:,jcol) = spectral_radiance_clear
       else
         call indexed_sum(spectral_radiance, &
              &           config%i_band_from_reordered_g_lw, &
              &           flux%lw_radiance_band(:,jcol))
-        call indexed_sum(spectral_radiance_clear, &
-             &           config%i_band_from_reordered_g_lw, &
-             &           flux%lw_radiance_clear_band(:,jcol))
+      end if
+
+      if (config%do_clear) then
+        call calc_radiance_clear_sky(config%n_g_lw, nlev,  &
+             &         emission(:,jcol), albedo(:,jcol), &
+             &         planck_hl(:,:,jcol), od(:,:,jcol), &
+             &         cos_sensor_zenith_angle(jcol), &
+             &         spectral_radiance_clear, &
+             &         do_specular_surface=config%do_specular_surface)
+        if (config%do_save_spectral_flux) then
+          flux%lw_radiance_clear_band(:,jcol) = spectral_radiance_clear
+        else
+          call indexed_sum(spectral_radiance_clear, &
+               &           config%i_band_from_reordered_g_lw, &
+               &           flux%lw_radiance_clear_band(:,jcol))
+        end if
       end if
       
     end do
+    
     if (lhook) call dr_hook('radiation_tcrad_lw:radiance_solver_tcrad_lw',1,hook_handle)
     
   end subroutine radiance_solver_rttov_tcrad_lw

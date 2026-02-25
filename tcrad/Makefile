@@ -1,6 +1,6 @@
 SOURCES = tcrad_3region_solver.F90 tcrad_2region_solver.F90 \
 	tcrad_layer_solutions.F90 tcrad_tilted.F90 tcrad_clear_sky_solver.F90 \
-	tcrad.F90 tcrad_tl.F90 tcrad_ad.F90
+	tcrad.F90 tcrad_tl.F90 tcrad_ad.F90 tcrad_clear_sky.F90
 
 OBJECTS := $(SOURCES:.F90=.o)
 LIBMR = ../lib/libtcrad.a
@@ -25,4 +25,4 @@ tcrad_2region_solver.o tcrad_3region_solver.o: tcrad_matrix.h \
 	tcrad_radiance.h tcrad_overlap.h tcrad_region.h \
 	tcrad_flux_interface.h tcrad_radiance_interface.h
 
-tcrad_ad.o tcrad_tl.o: tcrad.o
+tcrad_ad.o tcrad_tl.o tcrad_clear_sky.o: tcrad.o
