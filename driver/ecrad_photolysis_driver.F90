@@ -51,7 +51,7 @@ program ecrad_photolysis_driver
   use radiation_save,           only : save_fluxes, save_net_fluxes, &
        &                               save_inputs
   use radiation_general_cloud_optics, only : save_general_cloud_optics
-  use radiation_photolysis,     only : photolysis_type, NMaxGasNameLen
+  use radiation_photolysis,     only : photolysis_type, NMaxProcessNameLen
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
@@ -110,10 +110,9 @@ program ecrad_photolysis_driver
   real(kind=jprb), allocatable :: photolysis_rate(:,:,:)
   integer :: jcol
   
-  ! Fortran array of strings to store gases required for photolysis
-  ! calculations
-  integer, parameter :: NPhotolysisGases = 4
-  character(len=NMaxGasNameLen) :: photolysis_gases(NPhotolysisGases)
+  ! Fortran array of strings to store required photolysis processes
+  integer, parameter :: NPhotolysisProcesses = 5
+  character(len=NMaxProcessNameLen) :: photolysis_processes(NPhotolysisProcesses)
 
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
@@ -169,13 +168,13 @@ program ecrad_photolysis_driver
     call save_general_cloud_optics(config, 'hydrometeor_optics', iverbose=driver_config%iverbose)
   end if
 
-  ! Configure photolysis, currently hardwiring both the required gases
-  ! and the configuration file to use, but ideally both will be taken
-  ! from a namelist in future
-  photolysis_gases = [character(len=NMaxGasNameLen) :: "hobr", "o3", "no2", "cfc12"]
+  ! Configure photolysis, currently hardwiring both the required
+  ! processes and the configuration file to use, but ideally both will
+  ! be taken from a namelist in future
+  photolysis_processes = [character(len=NMaxProcessNameLen) :: "hobr", "o3_o", "o3_o1d", "no2", "cfc12"]
   
-  call photolysis%configure(config, "photolysis_bascoe-noTdep_50r1.nc", &
-       &                    photolysis_gases, iverbose=driver_config%iverbose)
+  call photolysis%configure(config, "photolysis_CY50R1_sb15d.nc", &
+       &                    photolysis_processes, iverbose=driver_config%iverbose)
 
   ! --------------------------------------------------------
   ! Section 3: Read input data file
@@ -285,7 +284,7 @@ program ecrad_photolysis_driver
   call flux%allocate(config, 1, ncol, nlev)
 
   if (do_photolysis) then
-    allocate(photolysis_rate(photolysis%ngas,nlev,ncol))
+    allocate(photolysis_rate(photolysis%nproc,nlev,ncol))
   end if
 
   if (driver_config%iverbose >= 2) then

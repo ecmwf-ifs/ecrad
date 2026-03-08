@@ -1,4 +1,4 @@
-! radiation_photolysis.F90 - Derived type containing data to compute photolysis rates
+! radiation_photolysis.F90 - Derived type containing data/routines to compute photolysis rates
 !
 ! (C) Copyright 2026- ECMWF.
 !
@@ -20,22 +20,25 @@ module radiation_photolysis
   implicit none
   public
 
-  integer, parameter :: NMaxGasNameLen = 20
+  integer, parameter :: NMaxProcessNameLen = 20
   
   !---------------------------------------------------------------------
   ! This derived type contains all the data needed to calculate
   ! photolysis rates from spectral fluxes output from ecRad
   type photolysis_type
 
-    ! Look-up table versus temperature of scaled cross-sections, so
-    ! that when the matrix for a particular temperature is extracted,
-    ! it can be matrix-vector multiplied by the vector of actinic
-    ! fluxes in a vector of ecCKD g-points and will return a vector of
-    ! photolysis rates for a set of gases. Dimensioned (ngas,ng,ntemp).
+    ! Look-up table versus temperature of scaled photolysis
+    ! cross-sections, so that when the matrix for a particular
+    ! temperature is extracted, it can be matrix-vector multiplied by
+    ! the vector of actinic fluxes in a vector of ecCKD g-points and
+    ! will return a vector of photolysis rates for a set of photolysis
+    ! processes. This has already been multiplied by the quantum yield
+    ! so may be less than the actual absorption
+    ! cross-section. Dimensioned (nproc,ng,ntemp).
     real(jprb), allocatable :: cross_section_lut(:,:,:)
 
-    ! Store the gas names as an allocatable array of fixed-length strings
-    character(len=NMaxGasNameLen), allocatable :: gas_names(:)
+    ! Store the process names as an allocatable array of fixed-length strings
+    character(len=NMaxProcessNameLen), allocatable :: process_names(:)
 
     ! Number of temperatures in look-up table
     integer :: ntemperature = 0
@@ -45,10 +48,13 @@ module radiation_photolysis
     ! for photolysis
     integer :: ng = 0
 
-    ! Number of gases whose photolysis rates are to be computed. If a
-    ! particular gas has more than one pathway that needs to be
-    ! computed separately, it needs an additional entry here
-    integer :: ngas = 0
+    ! Number of photolysis rates to be computed. If a particular gas
+    ! has more than one process then it needs to be computed
+    ! separately so is counted as a separate process. The names of
+    ! processes are typically of the form <gas>_<product>, e.g. o3_o
+    ! and o3_o1d to distinguish the reactions O3+hv->O2+O(3P) from
+    ! O3+hv->O2+O(1D).
+    integer :: nproc = 0
 
     ! Indices to the first and last g-point of the ecCKD model that is
     ! relevant for photolysis
@@ -69,8 +75,8 @@ contains
 
   !---------------------------------------------------------------------
   ! Configure the photolysis_type structure from a netCDF file and a
-  ! list of gases to consider
-  subroutine configure(this, config, file_name, gases, iverbose)
+  ! list of processes to consider
+  subroutine configure(this, config, file_name, processes, iverbose)
 
     use easy_netcdf,     only : netcdf_file
     use radiation_config,only : config_type
@@ -84,8 +90,8 @@ contains
     type(config_type),      intent(in)    :: config
     ! Configuration structure, only used for the data directory
     character(len=*),       intent(in)    :: file_name
-    ! Array of strings containing gases whose photolysis rates are required
-    character(len=*),       intent(in)    :: gases(:)
+    ! Array of strings containing the photolysis processes that are required
+    character(len=*),       intent(in)    :: processes(:)
     ! Verbosity level from 1 (least) to 5 (most verbose)
     integer, optional,      intent(in)    :: iverbose
     
@@ -94,13 +100,13 @@ contains
     ! Temperature for look-up table
     real(jprb), allocatable :: temperature(:) ! K
 
-    ! Photolysis data for one gas as read from file
+    ! Photolysis data for one process as read from file
     real(jprb), allocatable :: wavelength_nm(:)
     real(jprb), allocatable :: cross_section_cm2(:,:)
-    real(jprb), allocatable :: quantum_yield(:)
+    real(jprb), allocatable :: quantum_yield(:,:)
     real(jprb), allocatable :: wavenumber_cm1(:) ! Reverse order
 
-    ! Photolysis data for one gas interpolated to ecCKD wavenumber
+    ! Photolysis data for one process interpolated to ecCKD wavenumber
     ! grid
     real(jprb), allocatable :: wavenumber_int_cm1(:) ! cm-1
     real(jprb), allocatable :: cross_section_int_cm2(:)
@@ -119,14 +125,19 @@ contains
     ! Number of wavenumbers in ecCKD spectral description
     integer :: nwavn
 
-    ! Number of wavelengths for a single gas in photolysis file
+    ! Number of wavelengths for a single process in photolysis file
     integer :: nwavl
 
-    ! Loop indices for gases and temperatures
-    integer :: jgas, jt
+    ! Loop indices for processes and temperatures
+    integer :: jproc, jt
 
-    ! Is the photolysis of the current gas temperature dependent?
+    ! Is the absorption cross-section of the current process
+    ! temperature dependent?
     logical :: is_temperature_dependent
+    
+    ! Is the quantum yield of the current process temperature
+    ! dependent?
+    logical :: is_quantum_yield_t_dependent
     
     integer :: iverbose_local
     
@@ -159,8 +170,8 @@ contains
     this%dtemperature = (temperature(this%ntemperature)-temperature(1)) &
          &            / real(this%ntemperature,jprb)
 
-    this%ngas    = size(gases)
-    allocate(this%gas_names(this%ngas))
+    this%nproc = size(processes)
+    allocate(this%process_names(this%nproc))
     
     ! Initially assume all g points relevant for photolysis
     this%istartg = 1
@@ -170,12 +181,12 @@ contains
     if (iverbose_local >= 2) then
       write(nulout,'(a,i0,a,i0,a,i0,a)') &
            &  'Setting up photolysis calculation for ', &
-           &  this%ngas, ' gases and ', this%ng, &
+           &  this%nproc, ' processes and ', this%ng, &
            &  ' spectral g-points as a look-up table with ',  &
            &  this%ntemperature, ' temperatures'
     end if
 
-    allocate(this%cross_section_lut(this%ngas,this%ng,this%ntemperature))
+    allocate(this%cross_section_lut(this%nproc,this%ng,this%ntemperature))
 
     ! Allocate variables on wavenumber grid
     nwavn = ckd_model%spectral_def%nwav
@@ -202,13 +213,13 @@ contains
     gpoint_fraction_renorm = gpoint_fraction_renorm &
          &  / spread(sum(gpoint_fraction_renorm, 2), 2, this%ng)
     
-    ! Loop over requested gases
-    do jgas = 1,this%ngas
-      this%gas_names(jgas) = trim(gases(jgas))
-      ! Load photolysis data for this gas
-      call file%get(trim(gases(jgas)) // "_wavelength", wavelength_nm)
-      call file%get(trim(gases(jgas)) // "_quantum_yield", quantum_yield)
-      call file%get(trim(gases(jgas)) // "_cross_section", cross_section_cm2)
+    ! Loop over requested processes
+    do jproc = 1,this%nproc
+      this%process_names(jproc) = trim(processes(jproc))
+      ! Load photolysis data for this process
+      call file%get(trim(processes(jproc)) // "_wavelength", wavelength_nm)
+      call file%get(trim(processes(jproc)) // "_quantum_yield", quantum_yield)
+      call file%get(trim(processes(jproc)) // "_cross_section", cross_section_cm2)
 
       ! Interpolate on to ecCKD wavenumber grid
       nwavl = size(wavelength_nm)
@@ -222,15 +233,21 @@ contains
         is_temperature_dependent = .false.
       end if
       
+      if (size(quantum_yield,2) == this%ntemperature) then
+        is_quantum_yield_t_dependent = .true.
+      else
+        is_quantum_yield_t_dependent = .false.
+      end if
+      
       if (iverbose_local >= 2) then
-        if (is_temperature_dependent) then
-          write(nulout,'(a,a,a,f0.1,a,f0.1,a)') '  Temperature dependent photolysis of gas "', &
-               &  trim(gases(jgas)), &
+        if (is_temperature_dependent .or. is_quantum_yield_t_dependent) then
+          write(nulout,'(a,a,a,f0.1,a,f0.1,a)') '  Temperature-dependent photolysis "', &
+               &  trim(processes(jproc)), &
                &  '" sensitive to wavenumbers ', wavenumber_cm1(1), '-', &
                &  wavenumber_cm1(nwavl), ' cm-1'
         else
-          write(nulout,'(a,a,a,f0.1,a,f0.1,a)') '  Temperature independent photolysis of gas "', &
-               &  trim(gases(jgas)), &
+          write(nulout,'(a,a,a,f0.1,a,f0.1,a)') '  Temperature-independent photolysis "', &
+               &  trim(processes(jproc)), &
                &  '" sensitive to wavenumbers ', wavenumber_cm1(1), '-', &
                &  wavenumber_cm1(nwavl), ' cm-1'
         end if
@@ -240,35 +257,52 @@ contains
            &  .or. wavenumber_int_cm1(nwavn) < wavenumber_cm1(nwavl)) then
         if (iverbose >= 1) then
           write(nulout,'(a,a,a,f0.1,a,f0.1,a)') '    Warning: photolysis of "', &
-               &  trim(gases(jgas)), &
+               &  trim(processes(jproc)), &
                &  '" sensitive to wavenumbers out of available range ', &
                &  wavenumber_int_cm1(1), '-', wavenumber_int_cm1(nwavn), ' cm-1'
         end if
       end if
-      
-      ! Interpolate to wavenumber grid
-      call interpolate(wavenumber_cm1, quantum_yield(nwavl:1:-1), &
-           &           wavenumber_int_cm1, quantum_yield_int, 0.0_jprb)
 
-      if (is_temperature_dependent) then
+      ! Need to cope with the case of either of the absorption
+      ! cross-section or the quantum yield being temperature dependent
+      if (is_temperature_dependent .or. is_quantum_yield_t_dependent) then
         do jt = 1,this%ntemperature
-          call interpolate(wavenumber_cm1, cross_section_cm2(nwavl:1:-1,jt), &
-               &           wavenumber_int_cm1, cross_section_int_cm2, 0.0_jprb)
+          ! Interpolate to wavenumber grid
+          if (is_temperature_dependent) then
+            call interpolate(wavenumber_cm1, cross_section_cm2(nwavl:1:-1,jt), &
+                 &           wavenumber_int_cm1, cross_section_int_cm2, 0.0_jprb)
+          else
+            call interpolate(wavenumber_cm1, cross_section_cm2(nwavl:1:-1,1), &
+                 &           wavenumber_int_cm1, cross_section_int_cm2, 0.0_jprb)
+          end if
+          if (is_quantum_yield_t_dependent) then
+            call interpolate(wavenumber_cm1, quantum_yield(nwavl:1:-1,jt), &
+                 &           wavenumber_int_cm1, quantum_yield_int, 0.0_jprb)
+          else
+            call interpolate(wavenumber_cm1, quantum_yield(nwavl:1:-1,1), &
+                 &           wavenumber_int_cm1, quantum_yield_int, 0.0_jprb)
+          end if
           ! 1e-4 converts cross section from cm2 to m2
-          photolysis_multiplier = 1.0e-4 * cross_section_int_cm2 * solar_photon_flux;
-          this%cross_section_lut(jgas,:,jt) &
+          photolysis_multiplier = 1.0e-4 * cross_section_int_cm2 * quantum_yield_int &
+               &                * solar_photon_flux;
+          this%cross_section_lut(jproc,:,jt) &
                &  = matmul(photolysis_multiplier, gpoint_fraction_renorm) &
                &  / ckd_model%spectral_def%solar_irradiance
         end do
       else
+        ! No temperature dependence in either absorption cross section
+        ! or quantum yield
         call interpolate(wavenumber_cm1, cross_section_cm2(nwavl:1:-1,1), &
              &           wavenumber_int_cm1, cross_section_int_cm2, 0.0_jprb)
-        photolysis_multiplier = 1.0e-4 * cross_section_int_cm2 * solar_photon_flux;
-        this%cross_section_lut(jgas,:,1) &
+        call interpolate(wavenumber_cm1, quantum_yield(nwavl:1:-1,1), &
+             &           wavenumber_int_cm1, quantum_yield_int, 0.0_jprb)
+        photolysis_multiplier = 1.0e-4 * cross_section_int_cm2 * quantum_yield_int &
+             &                * solar_photon_flux;
+        this%cross_section_lut(jproc,:,1) &
              &  = matmul(photolysis_multiplier, gpoint_fraction_renorm) &
              &  / ckd_model%spectral_def%solar_irradiance
-        this%cross_section_lut(jgas,:,2:this%ntemperature) &
-             &  = spread(this%cross_section_lut(jgas,:,1),2,this%ntemperature-1)
+        this%cross_section_lut(jproc,:,2:this%ntemperature) &
+             &  = spread(this%cross_section_lut(jproc,:,1),2,this%ntemperature-1)
       end if
       
       deallocate(wavelength_nm)
@@ -304,7 +338,7 @@ contains
     ! Structure containing spectral fluxes from ecRad
     type(flux_type),             intent(in)  :: flux
     ! Output photodissociation rates (s-1)
-    real(jprb),                  intent(out) :: rates(:,:) ! (ngas,nlay)
+    real(jprb),                  intent(out) :: rates(:,:) ! (nproc,nlay)
     ! Optional range of layers to process    
     integer, optional,           intent(in)  :: ilay1, ilay2
 
@@ -312,7 +346,7 @@ contains
     real(jprb) :: actinic_flux(this%ng)
 
     ! Local cross-sections
-    real(jprb) :: cross_section(this%ngas,this%ng)
+    real(jprb) :: cross_section(this%nproc,this%ng)
 
     ! Rates at half-levels
     real(jprb), allocatable :: rates_hl(:,:)
@@ -321,7 +355,7 @@ contains
 
     integer :: nlay
 
-    integer :: jlev, jlay, jgas
+    integer :: jlev, jlay, jproc
 
     ! Index
     integer :: itemp
@@ -358,7 +392,7 @@ contains
 
       nlay = il2-il1+1
 
-      allocate(rates_hl(this%ngas,nlay+1))
+      allocate(rates_hl(this%nproc,nlay+1))
       
       ! Loop over half-levels
       do jlev = il1,il2+1
@@ -390,21 +424,21 @@ contains
 
       ! Loop over full levels
       do jlay = il1,il2
-        ! Assume the photolysis rates for each gas vary exponentially within each layer
-        do jgas = 1,this%ngas
-          if (rates_hl(jgas,jlay+1) > 0.99_jprb * rates_hl(jgas,jlay)) then
+        ! Assume the photolysis rates for each process vary exponentially within each layer
+        do jproc = 1,this%nproc
+          if (rates_hl(jproc,jlay+1) > 0.99_jprb * rates_hl(jproc,jlay)) then
             ! Optically thin layer: very small vertical variation of
             ! rates so take average of values at top and bottom
             ! of layer
-            rates(jgas,jlay) = 0.5_jprb * (rates_hl(jgas,jlay) + rates_hl(jgas,jlay+1))
-          elseif (rates_hl(jgas,jlay) <= 0.0_jprb) then
+            rates(jproc,jlay) = 0.5_jprb * (rates_hl(jproc,jlay) + rates_hl(jproc,jlay+1))
+          elseif (rates_hl(jproc,jlay) <= 0.0_jprb) then
             ! No flux
-            rates(jgas,jlay) = 0.0_jprb
+            rates(jproc,jlay) = 0.0_jprb
           else
             ! Assume an exponential variation of actinic flux through
             ! the layer and calculate the layer-mean value
-            rates(jgas,jlay) = (rates_hl(jgas,jlay+1) - rates_hl(jgas,jlay)) &
-                 &      / log(max(rates_hl(jgas,jlay+1)/rates_hl(jgas,jlay),tiny(1.0_jprb)))
+            rates(jproc,jlay) = (rates_hl(jproc,jlay+1) - rates_hl(jproc,jlay)) &
+                 &      / log(max(rates_hl(jproc,jlay+1)/rates_hl(jproc,jlay),tiny(1.0_jprb)))
           end if
         end do
       end do
@@ -430,7 +464,7 @@ contains
     class(photolysis_type), intent(inout) :: this
     ! Name of file containing photolysis cross-sections
     character(len=*),            intent(in)    :: file_name
-    ! Photolysis rates (s-1) dimensioned (ngas,nlay,ncol)
+    ! Photolysis rates (s-1) dimensioned (nproc,nlay,ncol)
     real(kind=jprb), allocatable :: rates(:,:,:)
     ! Verbosity level from 1 (least) to 5 (most verbose)
     integer, optional,     intent(in)    :: iverbose
@@ -439,7 +473,7 @@ contains
     type(netcdf_file) :: out_file
 
     integer :: nlev, ncol
-    integer :: jgas
+    integer :: jproc
     integer :: i_local_verbose
 
     real(jphook) :: hook_handle
@@ -469,14 +503,14 @@ contains
          &   //"scheme for the ECMWF model. J. Adv. Modeling Earth Sys., 10, 1990–2008", &
          &   source_str="ecRad offline radiation model")
 
-    do jgas = 1,this%ngas
-      call out_file%define_variable(trim(this%gas_names(jgas)) // "_photolysis_rate", &
-           &  long_name=trim(this%gas_names(jgas)) // " photolysis rate", units_str="s-1", &
+    do jproc = 1,this%nproc
+      call out_file%define_variable(trim(this%process_names(jproc)) // "_photolysis_rate", &
+           &  long_name=trim(this%process_names(jproc)) // " photolysis rate", units_str="s-1", &
            &  dim2_name="column", dim1_name="level")
     end do
 
-    do jgas = 1,this%ngas
-      call out_file%put(trim(this%gas_names(jgas)) // "_photolysis_rate", rates(jgas,:,:))
+    do jproc = 1,this%nproc
+      call out_file%put(trim(this%process_names(jproc)) // "_photolysis_rate", rates(jproc,:,:))
     end do
 
     call out_file%close()
