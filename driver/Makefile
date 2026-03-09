@@ -37,7 +37,7 @@ $(IFS_BLOCKED_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_ifs_driver_blocked.o
 
 $(PHOTOLYSIS_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_photolysis_driver.o
 	$(FC) $(FCFLAGS) ecrad_photolysis_driver.o $(OBJECTS) \
-	-lphotolysis $(LIBS) -o $(PHOTOLYSIS_EXECUTABLE)
+	$(LIBS) -o $(PHOTOLYSIS_EXECUTABLE)
 
 test_%: test_%.F90 ../lib/*.a
 	$(FC) $(FCFLAGS) $< $(LIBS) -o $@
