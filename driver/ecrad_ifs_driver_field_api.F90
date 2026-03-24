@@ -1,4 +1,4 @@
-! ecrad_ifs_driver_blocked.F90 - Driver for offline ECRAD radiation scheme
+! ecrad_ifs_driver_field_api.F90 - Driver for offline ECRAD radiation scheme
 !
 ! (C) Copyright 2014- ECMWF.
 !
@@ -69,6 +69,7 @@ program ecrad_ifs_driver
   use ecrad_driver_read_input,  only : read_input
   use radintg_zrgp_mod,         only : radintg_zrgp_type
   use ifs_blocking,             only : ifs_copy_inputs_to_blocked, ifs_copy_fluxes_from_blocked
+  use radiation_scheme_layer_mod, only : radiation_scheme_layer
   use easy_netcdf
 
   implicit none
@@ -103,6 +104,7 @@ program ecrad_ifs_driver
 
   ! Bespoke data types to set-up the blocked memory layout
   type(radintg_zrgp_type)      :: zrgp_fields
+  ! type(ifs_config_type)        :: ifs_config
   real(kind=jprb), allocatable :: zrgp(:,:,:) ! monolithic IFS data structure
 #ifdef BITIDENTITY_TESTING
   integer, allocatable         :: iseed(:,:) ! Seed for random number generator
@@ -377,6 +379,14 @@ program ecrad_ifs_driver
 #endif
         & )
 
+  call zrgp_fields%setup_field(zrgp, nlev, &
+      & yradiation%yrerad%nlwemiss, yradiation%yrerad%nlwout, &
+      & yradiation%yrerad%nsw, 0, 0, 0, &
+      & yradiation%rad_config%n_aerosol_types, &
+      & driver_config%iverbose>4, .false., .false., &
+      & yradiation%yrerad%lapproxlwupdate, yradiation%yrerad%lapproxswupdate, &
+      & .false., yradiation%yrerad%ldiagforcing)
+
   ! --------------------------------------------------------
   ! Section 4b: Call radiation_scheme with blocked memory data
   ! --------------------------------------------------------
@@ -392,84 +402,14 @@ program ecrad_ifs_driver
 #endif
   do jrepeat = 1,driver_config%nrepeat
 
-!    if (driver_config%do_parallel) then
-      ! Run radiation scheme over blocks of columns in parallel
-
-      !$OMP PARALLEL DO SCHEDULE(DYNAMIC,1)&
-      !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
-      do jrl=1,ncol,nproma
-        ibeg=jrl
-        iend=min(ibeg+nproma-1,ncol)
-        il=iend-ibeg+1
-        ib=(jrl-1)/nproma+1
-
-        if (driver_config%iverbose >= 3) then
-#ifndef NO_OPENMP
-          write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
-               &  ' processing columns ', ibeg, '-', iend
-#else
-          write(nulout,'(a,i0,a,i0)')  'Processing columns ', ibeg, '-', iend
-#endif
-        end if
-
-        ! Call the ECRAD radiation scheme
-        call radiation_scheme &
-             & (yradiation, &
-             &  1, il, nproma, &                       ! startcol, endcol, ncol
-             &  nlev, yradiation%rad_config%n_aerosol_types, &    ! nlev, naerosols
-             &  single_level%solar_irradiance, &                               ! solar_irrad
-             ! array inputs
-             &  zrgp(1,zrgp_fields%iamu0,ib), zrgp(1,zrgp_fields%its,ib), &    ! mu0, skintemp
-             &  zrgp(1,zrgp_fields%iald,ib) , zrgp(1,zrgp_fields%ialp,ib), &    ! albedo_dif, albedo_dir
-             &  zrgp(1,zrgp_fields%iemiss,ib), &                   ! spectral emissivity
-             &  zrgp(1,zrgp_fields%iccnl,ib), zrgp(1,zrgp_fields%iccno,ib) ,&  ! CCN concentration, land and sea
-             &  zrgp(1,zrgp_fields%igelam,ib),zrgp(1,zrgp_fields%igemu,ib), &  ! longitude, sine of latitude
-             &  zrgp(1,zrgp_fields%islm,ib), &                     ! land sea mask
-             &  zrgp(1,zrgp_fields%ipr,ib),   zrgp(1,zrgp_fields%iti,ib),  &   ! full level pressure and temperature
-             &  zrgp(1,zrgp_fields%iaprs,ib), zrgp(1,zrgp_fields%ihti,ib), &   ! half-level pressure and temperature
-             &  zrgp(1,zrgp_fields%iwv,ib),   zrgp(1,zrgp_fields%iico2,ib), &
-             &  zrgp(1,zrgp_fields%iich4,ib), zrgp(1,zrgp_fields%iin2o,ib), &
-             &  zrgp(1,zrgp_fields%ino2,ib),  zrgp(1,zrgp_fields%ic11,ib), &
-             &  zrgp(1,zrgp_fields%ic12,ib),  zrgp(1,zrgp_fields%ic22,ib), &
-             &  zrgp(1,zrgp_fields%icl4,ib),  zrgp(1,zrgp_fields%ioz,ib), &
-             &  zrgp(1,zrgp_fields%iclc,ib),  zrgp(1,zrgp_fields%ilwa,ib), &
-             &  zrgp(1,zrgp_fields%iiwa,ib),  zrgp(1,zrgp_fields%irwa,ib), &
-             &  zrgp(1,zrgp_fields%iswa,ib), &
-             &  zrgp(1,zrgp_fields%iaer,ib),  zrgp(1,zrgp_fields%iaero,ib), &
-             ! flux outputs
-             &  zrgp(1,zrgp_fields%ifrso,ib), zrgp(1,zrgp_fields%ifrth,ib), &
-             &  zrgp(1,zrgp_fields%iswfc,ib), zrgp(1,zrgp_fields%ilwfc,ib),&
-             &  zrgp(1,zrgp_fields%ifrsod,ib),zrgp(1,zrgp_fields%ifrted,ib), &
-             &  zrgp(1,zrgp_fields%ifrsodc,ib),zrgp(1,zrgp_fields%ifrtedc,ib),&
-             &  zrgp(1,zrgp_fields%ifdir,ib), zrgp(1,zrgp_fields%icdir,ib), &
-             &  zrgp(1,zrgp_fields%isudu,ib), &
-             &  zrgp(1,zrgp_fields%iuvdf,ib), zrgp(1,zrgp_fields%iparf,ib), &
-             &  zrgp(1,zrgp_fields%iparcf,ib),zrgp(1,zrgp_fields%itincf,ib), &
-             &  zrgp(1,zrgp_fields%iemit,ib) ,zrgp(1,zrgp_fields%ilwderivative,ib), &
-             &  zrgp(1,zrgp_fields%iswdiffuseband,ib), zrgp(1,zrgp_fields%iswdirectband,ib)&
+    call radiation_scheme_layer(yradiation, zrgp_fields, &
+            & ncol, nproma, nlev, 0, &
+            & yradiation%rad_config%n_aerosol_types, &
+            & single_level%solar_irradiance &
 #ifdef BITIDENTITY_TESTING
-            ! To validate results against standalone ecrad, we overwrite effective
-            ! radii, cloud overlap and seed with input values
-             &  ,pre_liq=zrgp(1,zrgp_fields%ire_liq,ib), &
-             &  pre_ice=zrgp(1,zrgp_fields%ire_ice,ib), &
-             &  pcloud_overlap=zrgp(1,zrgp_fields%ioverlap,ib), &
-             &  iseed=iseed(:,ib) &
+            & , iseed=iseed &
 #endif
-             & )
-      end do
-      !$OMP END PARALLEL DO
-
-!    else
-      ! Run radiation scheme serially
-!      if (driver_config%iverbose >= 3) then
-!        write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
-!      end if
-
-      ! Call the ECRAD radiation scheme
-!      call radiation_scheme(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
-!           &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
-
-!    end if
+            & )
 
   end do
 
@@ -532,6 +472,12 @@ program ecrad_ifs_driver
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
+
+#ifndef __GFORTRAN__
+  ! FIXME: GFortran fails with a not understood double free error, which occurs
+  ! already when simply extracting fields and view pointers from the stack
+  call zrgp_fields%delete_field()
+#endif
 
   ! Finalise MPI if not done yet
 #ifdef HAVE_FIAT
