@@ -7,6 +7,8 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
+include( ecrad_source_file_compile_flags )
+
 set( radiation_SOURCES
         radiation_adding_ica_lw.F90
         radiation_adding_ica_sw.F90
@@ -103,9 +105,3 @@ install(
         "${CMAKE_Fortran_MODULE_DIRECTORY}/radiation_thermodynamics.mod"
     DESTINATION ${ecrad_${PREC}_INSTALL_INCLUDEDIR}
 )
-
-# Compile flag overwrites
-if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
-    set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
-    set_source_files_properties( radiation_cloud_generator.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
-endif()
