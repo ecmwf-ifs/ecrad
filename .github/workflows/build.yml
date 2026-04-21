@@ -174,6 +174,7 @@ jobs:
       id: build-test
       uses: ecmwf-actions/build-package@v2
       with:
+        save_cache: false
         self_coverage: false
         force_build: true
         cache_suffix: "${{ matrix.build_type }}-${{ env.CACHE_SUFFIX }}"
@@ -185,7 +186,17 @@ jobs:
         dependency_cmake_options: |
           ecmwf-ifs/fiat: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_TESTS=OFF"
         cmake_options:    "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_options }} -DENABLE_SINGLE_PRECISION=ON -DENABLE_BITIDENTITY_TESTING=ON"
-        ctest_options: "${{ matrix.ctest_options }}"
+        self_build: true
+        self_test: false
+
+    - name: Run Tests
+      shell: bash
+      run: |
+        if [[ "$(uname)" != "Darwin" ]]; then
+          ulimit -s unlimited
+        fi
+        ctest -VV  --output-on-failure ${{ matrix.ctest_options }}
+      working-directory: build
 
   make:
     name: Makefile build
