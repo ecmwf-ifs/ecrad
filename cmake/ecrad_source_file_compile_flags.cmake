@@ -9,11 +9,11 @@
 # Add here extra compile flags for specific files
 # This file gets included in the directory scope where targets are created
 
-# Compile flag overwrites
-# if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
-#     set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
-#     set_source_files_properties( radiation_cloud_generator.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
-# endif()
+# Compile flag additions to ensure reproducible results
+if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
+    set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
+    set_source_files_properties( radiation_cloud_generator.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
+endif()
 
 # For ecrad_ifs_driver_blocked we have to disable bounds checking
 # (which is enabled in Debug builds) because sequence association
