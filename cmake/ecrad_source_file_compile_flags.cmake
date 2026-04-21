@@ -23,7 +23,7 @@ if( CMAKE_BUILD_TYPE MATCHES "Debug" )
     if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
         set_source_files_properties(
             "ecrad_ifs_driver_blocked.F90"
-            PROPERTIES COMPILE_FLAGS "-fcheck=no-bounds"
+            PROPERTIES COMPILE_FLAGS "-fno-check=bounds"
         )
     elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
         set_source_files_properties(
