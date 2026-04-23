@@ -33,10 +33,6 @@ endif()
 # ... before doing a final find_package to make it available.
 find_package( ecbuild ${MINIMUM_ECBUILD_VERSION} REQUIRED )
 
-# We set the <PNAME>_ECBUILD_COMPILE_FLAGS variable to an empty file. This ensures that we can
-# specify a default set of compilation flags as well as per-file overwrites as part of the CMake config.
-set( ECRAD_ECBUILD_COMPILE_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ecrad_init_flags.cmake CACHE FILEPATH "")
-
 project( ecrad LANGUAGES Fortran )
 ecbuild_enable_fortran( REQUIRED )
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
