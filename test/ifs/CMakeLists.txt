@@ -14,12 +14,20 @@ set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1_ecckd.nam" )
 # Create symbolic link to test data
 file( CREATE_LINK "${PROJECT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data" SYMBOLIC )
 
+# Configurations that have static reference files for validation.
+# Internal nccmp tests for these configs will depend on the static-reference
+# validation passing first.
+set( CONFIGS_WITH_STATIC_REFERENCE
+    default noaer expexp tripleclouds cloudless
+    ecckd_mcica ecckd_tc ecckd_noaer
+)
+
 function( add_ecrad_nccmp_test )
     # Utility function to validate output from a test against a reference file
 
     set( options ENABLED XFAIL_VALIDATION )
     set( oneValueArgs NAME REFERENCE_NAME REFERENCE_FILE TEST_NAME LW_THRESHOLD SW_THRESHOLD )
-    set( multiValueArgs )
+    set( multiValueArgs VALIDATION_DEPENDS )
     cmake_parse_arguments( _P "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
     if( TARGET nccmp )
@@ -36,6 +44,9 @@ function( add_ecrad_nccmp_test )
         if( _P_REFERENCE_NAME )
             list( APPEND DEPS ${_P_REFERENCE_NAME} )
         endif()
+        if( _P_VALIDATION_DEPENDS )
+            list( APPEND DEPS ${_P_VALIDATION_DEPENDS} )
+        endif()
 
         ecbuild_add_test(
             TARGET nccmp_${_P_TEST_NAME}
@@ -48,7 +59,7 @@ function( add_ecrad_nccmp_test )
             TEST_DEPENDS ${DEPS}
         )
 
-        if( ${_P_XFAIL_VALIDATION} OR "${PREC}" STREQUAL "sp" )
+        if( ${_P_XFAIL_VALIDATION} )
             set_property( TEST nccmp_${_P_TEST_NAME} PROPERTY WILL_FAIL true )
         endif()
 
@@ -129,11 +140,17 @@ function( add_ecrad_ifs_test )
         # default standalone driver
         if( HAVE_BITIDENTITY_TESTING )
 
-            if( NOT _PAR_LW_THRESHOLD )
-                set( _PAR_LW_THRESHOLD 0.0 )
-            endif()
-            if( NOT _PAR_SW_THRESHOLD )
-                set( _PAR_SW_THRESHOLD 0.0 )
+            if( "${PREC}" STREQUAL "sp" )
+                # SP cannot match DP bitwise; use relaxed thresholds
+                set( _PAR_LW_THRESHOLD 0.001 )
+                set( _PAR_SW_THRESHOLD 0.1 )
+            else()
+                if( NOT _PAR_LW_THRESHOLD )
+                    set( _PAR_LW_THRESHOLD 0.0 )
+                endif()
+                if( NOT _PAR_SW_THRESHOLD )
+                    set( _PAR_SW_THRESHOLD 0.0 )
+                endif()
             endif()
 
             if( _PAR_XFAIL_VALIDATION )
@@ -145,12 +162,24 @@ function( add_ecrad_ifs_test )
             foreach( binary ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
 
                 if( TARGET ${binary} )
+                    set ( _valdep )
+
+                    if ( "${_PAR_NAME}" IN_LIST CONFIGS_WITH_STATIC_REFERENCE )
+                        # The "default" static-reference test omits the _net suffix
+                        if ( "${_PAR_NAME}" STREQUAL "default" )
+                            set ( _valdep nccmp_ecrad_${PREC}_default )
+                        else()
+                            set ( _valdep nccmp_ecrad_${PREC}_${_PAR_NAME}_net )
+                        endif()
+                    endif()
+
                     add_ecrad_nccmp_test(
                         REFERENCE_NAME ecrad_${PREC}_${_PAR_NAME}_net
                         TEST_NAME ${binary}_${_PAR_NAME}_net
                         LW_THRESHOLD ${_PAR_LW_THRESHOLD}
                         SW_THRESHOLD ${_PAR_SW_THRESHOLD}
                         ${NCCMP_OPTIONS}
+                        VALIDATION_DEPENDS ${_valdep}
                     )
                 endif()
 
@@ -187,11 +216,25 @@ add_ecrad_ifs_test(
     ENABLED ON
 )
 
+add_ecrad_nccmp_test(
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_noaer_out_REFERENCE.nc
+    TEST_NAME ecrad_${PREC}_noaer_net
+    LW_THRESHOLD 0.001
+    SW_THRESHOLD 0.1
+)
+
 # Older exponential-exponential overlap
 add_ecrad_ifs_test(
     NAME expexp
     NAMELIST_OPTIONS "overlap_scheme_name=\\\"Exp-Exp\\\""
     ENABLED ON
+)
+
+add_ecrad_nccmp_test(
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_expexp_out_REFERENCE.nc
+    TEST_NAME ecrad_${PREC}_expexp_net
+    LW_THRESHOLD 0.001
+    SW_THRESHOLD 0.1
 )
 
 # Tripleclouds solver with exponential-random overlap
@@ -203,6 +246,13 @@ add_ecrad_ifs_test(
     ENABLED ON
 )
 
+add_ecrad_nccmp_test(
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_tripleclouds_out_REFERENCE.nc
+    TEST_NAME ecrad_${PREC}_tripleclouds_net
+    LW_THRESHOLD 0.001
+    SW_THRESHOLD 0.1
+)
+
 # Longwave scattering; since 46R1 this is the default
 add_ecrad_ifs_test(
     NAME lwscat
@@ -210,7 +260,7 @@ add_ecrad_ifs_test(
     ENABLED ON
 )
 
-#  3D radiative transfer
+# 3D radiative transfer
 add_ecrad_ifs_test(
     NAME spartacus
     NAMELIST_OPTIONS
@@ -239,10 +289,17 @@ add_ecrad_ifs_test(
 add_ecrad_ifs_test(
     NAME cloudless
     NAMELIST_OPTIONS
-		"use_aerosols=false"
+	    "use_aerosols=false"
 		"sw_solver_name=\\\"Cloudless\\\""
         "lw_solver_name=\\\"Cloudless\\\""
     ENABLED ON
+)
+
+add_ecrad_nccmp_test(
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_cloudless_out_REFERENCE.nc
+    TEST_NAME ecrad_${PREC}_cloudless_net
+    LW_THRESHOLD 0.001
+    SW_THRESHOLD 0.1
 )
 
 # Exponential-random overlap with "vectorizable" cloud generator
@@ -267,6 +324,13 @@ add_ecrad_ifs_test(
     ENABLED ON
 )
 
+add_ecrad_nccmp_test(
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_ecckd_mcica_out_REFERENCE.nc
+    TEST_NAME ecrad_${PREC}_ecckd_mcica_net
+    LW_THRESHOLD 0.001
+    SW_THRESHOLD 0.1
+)
+
 # ecCKD with Tripleclouds solver (default)
 add_ecrad_ifs_test(
     NAME ecckd_tc
@@ -274,6 +338,13 @@ add_ecrad_ifs_test(
     SW_THRESHOLD 1e-10
     LW_THRESHOLD 1e-10
     ENABLED ON
+)
+
+add_ecrad_nccmp_test(
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_ecckd_tc_out_REFERENCE.nc
+    TEST_NAME ecrad_${PREC}_ecckd_tc_net
+    LW_THRESHOLD 0.001
+    SW_THRESHOLD 0.1
 )
 
 # ecCKD with no aerosols
