@@ -40,6 +40,10 @@ module radiation_photolysis
     ! Store the process names as an allocatable array of fixed-length strings
     character(len=NMaxProcessNameLen), allocatable :: process_names(:)
 
+    ! If you need to convert actinic flux in W m-2 to #photons s-1
+    ! m-2, multiply by this number in J^-1, dimensioned (ng)
+    real(jprb), allocatable :: photons_per_joule(:)
+    
     ! Number of temperatures in look-up table
     integer :: ntemperature = 0
 
@@ -111,7 +115,7 @@ contains
     real(jprb), allocatable :: wavenumber_int_cm1(:) ! cm-1
     real(jprb), allocatable :: cross_section_int_cm2(:)
     real(jprb), allocatable :: quantum_yield_int(:)
-    real(jprb), allocatable :: solar_photon_flux(:) ! s-1
+    real(jprb), allocatable :: solar_photon_flux(:) ! s-1 m-2
     real(jprb), allocatable :: photolysis_multiplier(:)
     
     ! Renormalized gpoint_fraction from ecCKD spectral definition
@@ -129,7 +133,7 @@ contains
     integer :: nwavl
 
     ! Loop indices for processes and temperatures
-    integer :: jproc, jt
+    integer :: jproc, jt, jg
 
     ! Is the absorption cross-section of the current process
     ! temperature dependent?
@@ -212,6 +216,17 @@ contains
          &           /sum(gpoint_fraction_renorm, 1), 1, nwavn)
     gpoint_fraction_renorm = gpoint_fraction_renorm &
          &  / spread(sum(gpoint_fraction_renorm, 2), 2, this%ng)
+
+    ! Calculate conversion from actinic flux to photons s-1 m-2, if required
+    allocate(this%photons_per_joule(this%ng))
+    this%photons_per_joule = matmul(solar_photon_flux, gpoint_fraction_renorm) &
+         &  / ckd_model%spectral_def%solar_irradiance
+    if (iverbose_local >= 2) then
+      write(nulout,*) '  Photons per joule in each g-point:'
+      do jg = 1,this%ng
+        write(nulout,'(a,i0,a,e14.8)') '    ', jg, ' ', this%photons_per_joule(jg)
+      end do
+    end if
     
     ! Loop over requested processes
     do jproc = 1,this%nproc
