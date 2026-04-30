@@ -131,7 +131,7 @@ contains
 #else
     use easy_netcdf,          only : netcdf_file
 #endif
-    !use radiation_io, only : nulerr, radiation_abort
+    use radiation_io,         only : nulout
     use yomhook,              only : lhook, dr_hook, jphook
 
     class(ckd_model_type), intent(inout) :: this
@@ -144,6 +144,8 @@ contains
     real(jprb), allocatable :: temperature_full(:,:)
     real(jprb), allocatable :: temperature_planck(:)
 
+    real(jprb) :: reference_total_solar_irradiance
+    
     character(len=512) :: constituent_id
 
     integer :: iverbose_local
@@ -182,8 +184,19 @@ contains
     if (file%exists('solar_irradiance')) then
       this%is_sw = .true.
       call file%get('solar_irradiance', this%norm_solar_irradiance)
+      if (file%exists('reference_total_solar_irradiance')) then
+        call file%get('reference_total_solar_irradiance', &
+             &  reference_total_solar_irradiance)
+      else
+        reference_total_solar_irradiance = sum(this%norm_solar_irradiance)
+        if (iverbose_local >= 1) then
+          write(nulout,'(a,f8.2,a)') &
+               &  'Warning: assuming CKD model covers entire solar spectrum with reference total solar irradiance of ', &
+               &  reference_total_solar_irradiance, ' W m-2'
+        end if
+      end if
       this%norm_solar_irradiance = this%norm_solar_irradiance &
-           &  / sum(this%norm_solar_irradiance)
+           &  / reference_total_solar_irradiance
       call file%get('rayleigh_molar_scattering_coeff', &
            &  this%rayleigh_molar_scat)
     else
@@ -291,7 +304,9 @@ contains
 
   !---------------------------------------------------------------------
   ! Read the amplitude of the spectral variations associated with the
-  ! solar cycle and map to g-points
+  ! solar cycle and map to g-points. This has not been tested for gas
+  ! optics models that only span part of the spectrum, such as those
+  ! used for photolysis.
   subroutine read_spectral_solar_cycle(this, filename, iverbose, use_updated_solar_spectrum)
 
 #ifdef EASY_NETCDF_READ_MPI

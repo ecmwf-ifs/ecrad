@@ -1,3 +1,8 @@
+version 1.7.2
+	- Optionally read reference_total_solar_irradiance from solar
+	  ecCKD gas optics files in case the file is not intended to span
+	  the entire solar spectrum
+
 version 1.7.1 (19 August 2025)
 	- radiation_ifs_rrtm: refactored loop and if structure
 	- radiation_ecckd: refactored the provisioning of optional concentration
