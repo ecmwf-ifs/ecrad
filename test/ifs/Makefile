@@ -118,7 +118,7 @@ test_ecckd_tc:
 test_photolysis:
 	$(CHANGENAM) $(CONFIG_ECCKD) config_photolysis.nam \
 		do_save_gpoint_flux=true do_lw=false \
-		gas_optics_sw_override_file_name='"ecckd-1.5_sw_global-nwp_photolysis-24_raw-ckd-definition.nc"'
+		gas_optics_sw_override_file_name='"ecckd-1.6_sw_global-nwp_photolysis-24_raw-ckd-definition.nc"'
 	$(PHOTOLYSIS_DRIVER) config_photolysis.nam $(INPUT).nc $(INPUT)_photolysis_out.nc \
 		$(INPUT)_photolysis_rates.nc
 

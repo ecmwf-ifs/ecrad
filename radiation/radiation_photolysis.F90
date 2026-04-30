@@ -221,7 +221,7 @@ contains
     allocate(this%photons_per_joule(this%ng))
     this%photons_per_joule = matmul(solar_photon_flux, gpoint_fraction_renorm) &
          &  / ckd_model%spectral_def%solar_irradiance
-    if (iverbose_local >= 2) then
+    if (iverbose_local >= 3) then
       write(nulout,*) '  Photons per joule in each g-point:'
       do jg = 1,this%ng
         write(nulout,'(a,i0,a,e14.8)') '    ', jg, ' ', this%photons_per_joule(jg)
