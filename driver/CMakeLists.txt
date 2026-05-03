@@ -14,12 +14,18 @@ ecbuild_add_library(
         ecrad_driver_read_input.F90
         ecrad_driver_config.F90
         print_matrix_mod.F90
+    PUBLIC_INCLUDES
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/module_driver_lib>"
     PUBLIC_DEFINITIONS
         $<$<NOT:${HAVE_OMP}>:NO_OPENMP>
     PUBLIC_LIBS
         ecrad.${PREC}
         ecrad_base.${PREC}
         $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+)
+set_target_properties( driver_lib.${PREC}
+    PROPERTIES
+        Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module_driver_lib"
 )
 
 ecbuild_add_executable(
@@ -45,7 +51,6 @@ ecbuild_add_executable(
     TARGET ecrad_ifs_blocked_${PREC}
     SOURCES
         ecrad_ifs_driver_blocked.F90
-        ifs_blocking.F90
     LIBS
         ifs.${PREC}
         driver_lib.${PREC}
@@ -75,24 +80,38 @@ if( CMAKE_BUILD_TYPE MATCHES "Debug" )
     endif()
 endif()
 
+if( HAVE_FIELD_API )
+    ecbuild_add_executable(
+        TARGET ecrad_ifs_field_api_${PREC}
+        SOURCES
+            ecrad_ifs_driver_field_api.F90
+        LIBS
+            ifs_field_api.${PREC}
+            driver_lib.${PREC}
+        LINKER_LANGUAGE Fortran
+    )
+endif()
+
 # Create a symlink for each driver without the precision suffix.
 # The default is to link to the double precision version if it is built,
 # and single precision otherwise.
 if ( "${PREC}" STREQUAL "dp" OR NOT HAVE_DOUBLE_PRECISION )
-    foreach( tgt ecrad ecrad_ifs ecrad_ifs_blocked )
-        add_custom_command(
-            TARGET ${tgt}_${PREC}
-            POST_BUILD
-            COMMAND
-                "${CMAKE_COMMAND}" -E create_symlink ${tgt}_${PREC} ${tgt}
-            BYPRODUCTS ${tgt}
-            WORKING_DIRECTORY
-                "${CMAKE_BINARY_DIR}/bin"
-            COMMENT "Creating symbolic link from ${tgt} to ${tgt}_${PREC}"
-        )
-        install(
-            FILES ${CMAKE_BINARY_DIR}/bin/${tgt}
-            DESTINATION bin
-        )
+    foreach( tgt ecrad ecrad_ifs ecrad_ifs_blocked ecrad_ifs_field_api )
+        if( TARGET ${tgt}_${PREC} )
+            add_custom_command(
+                TARGET ${tgt}_${PREC}
+                POST_BUILD
+                COMMAND
+                    "${CMAKE_COMMAND}" -E create_symlink ${tgt}_${PREC} ${tgt}
+                BYPRODUCTS ${tgt}
+                WORKING_DIRECTORY
+                    "${CMAKE_BINARY_DIR}/bin"
+                COMMENT "Creating symbolic link from ${tgt} to ${tgt}_${PREC}"
+            )
+            install(
+                FILES ${CMAKE_BINARY_DIR}/bin/${tgt}
+                DESTINATION bin
+            )
+        endif()
     endforeach()
 endif()
