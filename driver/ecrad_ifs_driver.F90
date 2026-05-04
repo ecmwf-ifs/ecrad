@@ -93,7 +93,8 @@ program ecrad_ifs_driver
 
   ! Additional arrays passed to radiation_scheme
   real(jprb), allocatable, dimension(:) :: ccn_land, ccn_sea, sin_latitude, longitude_rad, land_frac
-  real(jprb), allocatable, dimension(:,:) :: pressure_fl, temperature_fl, zeros
+  real(jprb), allocatable, dimension(:,:) :: pressure_fl, temperature_fl
+  real(jprb), allocatable, target, dimension(:,:) :: zeros
   real(jprb), allocatable, dimension(:,:,:) :: tegen_aerosol
   real(jprb), allocatable, dimension(:) :: flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
        &  flux_incoming, emissivity_out
@@ -378,6 +379,11 @@ program ecrad_ifs_driver
     cloud_fraction = 0.0_jprb
     cloud_q_liq = 0.0_jprb
     cloud_q_ice = 0.0_jprb
+#ifdef BITIDENTITY_TESTING
+    cloud_re_liq => zeros
+    cloud_re_ice => zeros
+    cloud_overlap_param => zeros
+#endif
   end if
 
   if (allocated(aerosol%mixing_ratio)) then
