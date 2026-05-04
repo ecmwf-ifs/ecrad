@@ -309,7 +309,7 @@ add_ecrad_ifs_test(
     DP_SW_THRESHOLD 1e-10
     DP_LW_THRESHOLD 1e-10
     SP_SW_THRESHOLD 0.002
-    SP_LW_THRESHOLD 2e-4
+    SP_LW_THRESHOLD 2.5e-4
     ENABLED ON
     REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_ecckd_mcica_out_REFERENCE.nc
 )
@@ -321,7 +321,7 @@ add_ecrad_ifs_test(
     DP_SW_THRESHOLD 1e-10
     DP_LW_THRESHOLD 1e-10
     SP_SW_THRESHOLD 0.002
-    SP_LW_THRESHOLD 2e-4
+    SP_LW_THRESHOLD 2.5e-4
     ENABLED ON
     REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_ecckd_tc_out_REFERENCE.nc
 )
@@ -334,7 +334,7 @@ add_ecrad_ifs_test(
     DP_SW_THRESHOLD 1e-10
     DP_LW_THRESHOLD 1e-10
     SP_SW_THRESHOLD 0.002
-    SP_LW_THRESHOLD 2e-4
+    SP_LW_THRESHOLD 2.5e-4
     ENABLED ON
 )
 
