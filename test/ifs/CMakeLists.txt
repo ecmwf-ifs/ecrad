@@ -11,6 +11,14 @@ set( TEST_IFS_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian.nc" )
 set( TEST_IFS_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1.nam" )
 set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1_ecckd.nam" )
 
+if( "${PREC}" STREQUAL "sp" )
+    set( TEST_IFS_REFERENCE_LW_THRESHOLD 0.5 )
+    set( TEST_IFS_REFERENCE_SW_THRESHOLD 0.5 )
+else()
+    set( TEST_IFS_REFERENCE_LW_THRESHOLD 0.001 )
+    set( TEST_IFS_REFERENCE_SW_THRESHOLD 0.1 )
+endif()
+
 # Create symbolic link to test data
 file( CREATE_LINK "${PROJECT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data" SYMBOLIC )
 
@@ -19,7 +27,7 @@ function( add_ecrad_nccmp_test )
 
     set( options ENABLED XFAIL_VALIDATION )
     set( oneValueArgs NAME REFERENCE_NAME REFERENCE_FILE TEST_NAME LW_THRESHOLD SW_THRESHOLD )
-    set( multiValueArgs )
+    set( multiValueArgs VALIDATION_DEPENDS )
     cmake_parse_arguments( _P "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
     if( TARGET nccmp )
@@ -36,6 +44,9 @@ function( add_ecrad_nccmp_test )
         if( _P_REFERENCE_NAME )
             list( APPEND DEPS ${_P_REFERENCE_NAME} )
         endif()
+        if( _P_VALIDATION_DEPENDS )
+            list( APPEND DEPS ${_P_VALIDATION_DEPENDS} )
+        endif()
 
         ecbuild_add_test(
             TARGET nccmp_${_P_TEST_NAME}
@@ -48,7 +59,7 @@ function( add_ecrad_nccmp_test )
             TEST_DEPENDS ${DEPS}
         )
 
-        if( ${_P_XFAIL_VALIDATION} OR "${PREC}" STREQUAL "sp" )
+        if( ${_P_XFAIL_VALIDATION} )
             set_property( TEST nccmp_${_P_TEST_NAME} PROPERTY WILL_FAIL true )
         endif()
 
@@ -70,7 +81,7 @@ function( add_ecrad_ifs_test )
     #  4. Using ecrad_ifs_blocked.${PREC} with net flux outputs
 
     set( options ENABLED XFAIL_VALIDATION )
-    set( oneValueArgs NAME CONFIG_FILE LW_THRESHOLD SW_THRESHOLD )
+    set( oneValueArgs NAME CONFIG_FILE REFERENCE_FILE DP_LW_THRESHOLD DP_SW_THRESHOLD SP_LW_THRESHOLD SP_SW_THRESHOLD )
     set( multiValueArgs NAMELIST_OPTIONS )
     cmake_parse_arguments( _PAR "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN} )
 
@@ -101,6 +112,7 @@ function( add_ecrad_ifs_test )
         )
         add_custom_target( config_${_PAR_NAME}_${PREC}_net DEPENDS ${CONFIG_NET_NAM} )
 
+        # Run default driver test
         ecbuild_add_test(
             TARGET ecrad_${PREC}_${_PAR_NAME}
             COMMAND ecrad_${PREC}
@@ -111,6 +123,17 @@ function( add_ecrad_ifs_test )
             DEPENDS config_${_PAR_NAME}_${PREC}
         )
 
+        # Validate default driver output against reference file, if provided
+        if( _PAR_REFERENCE_FILE )
+            add_ecrad_nccmp_test(
+                REFERENCE_FILE ${_PAR_REFERENCE_FILE}
+                TEST_NAME ecrad_${PREC}_${_PAR_NAME}
+                LW_THRESHOLD ${TEST_IFS_REFERENCE_LW_THRESHOLD}
+                SW_THRESHOLD ${TEST_IFS_REFERENCE_SW_THRESHOLD}
+            )
+        endif()
+
+        # Run all drivers with net flux outputs
         foreach( binary ecrad_${PREC} ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
 
             ecbuild_add_test(
@@ -126,20 +149,40 @@ function( add_ecrad_ifs_test )
         endforeach()
 
         # When bit-identity testing is enabled, we can check the output against the
-        # default standalone driver
+        # net flux output from the default standalone driver
         if( HAVE_BITIDENTITY_TESTING )
 
-            if( NOT _PAR_LW_THRESHOLD )
-                set( _PAR_LW_THRESHOLD 0.0 )
-            endif()
-            if( NOT _PAR_SW_THRESHOLD )
-                set( _PAR_SW_THRESHOLD 0.0 )
+            if( "${PREC}" STREQUAL "sp" )
+                if( _PAR_SP_LW_THRESHOLD )
+                    set( LW_THRESHOLD ${_PAR_SP_LW_THRESHOLD} )
+                else()
+                    set( LW_THRESHOLD 2e-4 )
+                endif()
+                if( _PAR_SP_SW_THRESHOLD )
+                    set( SW_THRESHOLD ${_PAR_SP_SW_THRESHOLD} )
+                else()
+                    set( SW_THRESHOLD 1e-6 )
+                endif()
+            else()
+                if( _PAR_DP_LW_THRESHOLD )
+                    set( LW_THRESHOLD ${_PAR_DP_LW_THRESHOLD} )
+                else()
+                    set( LW_THRESHOLD 0.0 )
+                endif()
+                if( _PAR_DP_SW_THRESHOLD )
+                    set( SW_THRESHOLD ${_PAR_DP_SW_THRESHOLD} )
+                else()
+                    set( SW_THRESHOLD 0.0 )
+                endif()
             endif()
 
+            set( NCCMP_OPTIONS )
             if( _PAR_XFAIL_VALIDATION )
-                set( NCCMP_OPTIONS XFAIL_VALIDATION )
-            else()
-                set( NCCMP_OPTIONS )
+                list( APPEND NCCMP_OPTIONS XFAIL_VALIDATION )
+            endif()
+
+            if( _PAR_REFERENCE_FILE )
+                list( APPEND NCCMP_OPTIONS VALIDATION_DEPENDS ecrad_${PREC}_${_PAR_NAME} )
             endif()
 
             foreach( binary ecrad_ifs_${PREC} ecrad_ifs_blocked_${PREC} )
@@ -148,8 +191,8 @@ function( add_ecrad_ifs_test )
                     add_ecrad_nccmp_test(
                         REFERENCE_NAME ecrad_${PREC}_${_PAR_NAME}_net
                         TEST_NAME ${binary}_${_PAR_NAME}_net
-                        LW_THRESHOLD ${_PAR_LW_THRESHOLD}
-                        SW_THRESHOLD ${_PAR_SW_THRESHOLD}
+                        LW_THRESHOLD ${LW_THRESHOLD}
+                        SW_THRESHOLD ${SW_THRESHOLD}
                         ${NCCMP_OPTIONS}
                     )
                 endif()
@@ -169,15 +212,7 @@ endfunction( add_ecrad_ifs_test )
 add_ecrad_ifs_test(
     NAME default
     ENABLED ON
-)
-
-# When the nccmp utility is available, we can check the output against the reference file
-# in the repository
-add_ecrad_nccmp_test(
     REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_default_out_REFERENCE.nc
-    TEST_NAME ecrad_${PREC}_default
-    LW_THRESHOLD 0.001
-    SW_THRESHOLD 0.1
 )
 
 # Turn off aerosols
@@ -185,13 +220,20 @@ add_ecrad_ifs_test(
     NAME noaer
     NAMELIST_OPTIONS "use_aerosols=false"
     ENABLED ON
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_noaer_out_REFERENCE.nc
 )
+
+# FIXME: Single-precision noaer test shows large result deviations
+if( "${PREC}" STREQUAL "sp" AND TEST nccmp_ecrad_sp_noaer )
+    set_property( TEST nccmp_ecrad_sp_noaer PROPERTY WILL_FAIL true )
+endif()
 
 # Older exponential-exponential overlap
 add_ecrad_ifs_test(
     NAME expexp
     NAMELIST_OPTIONS "overlap_scheme_name=\\\"Exp-Exp\\\""
     ENABLED ON
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_expexp_out_REFERENCE.nc
 )
 
 # Tripleclouds solver with exponential-random overlap
@@ -201,6 +243,7 @@ add_ecrad_ifs_test(
         "sw_solver_name=\\\"Tripleclouds\\\""
         "lw_solver_name=\\\"Tripleclouds\\\""
     ENABLED ON
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_tripleclouds_out_REFERENCE.nc
 )
 
 # Longwave scattering; since 46R1 this is the default
@@ -210,7 +253,7 @@ add_ecrad_ifs_test(
     ENABLED ON
 )
 
-#  3D radiative transfer
+# 3D radiative transfer
 add_ecrad_ifs_test(
     NAME spartacus
     NAMELIST_OPTIONS
@@ -239,10 +282,11 @@ add_ecrad_ifs_test(
 add_ecrad_ifs_test(
     NAME cloudless
     NAMELIST_OPTIONS
-		"use_aerosols=false"
+	    "use_aerosols=false"
 		"sw_solver_name=\\\"Cloudless\\\""
         "lw_solver_name=\\\"Cloudless\\\""
     ENABLED ON
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_cloudless_out_REFERENCE.nc
 )
 
 # Exponential-random overlap with "vectorizable" cloud generator
@@ -262,18 +306,24 @@ add_ecrad_ifs_test(
     NAMELIST_OPTIONS
         "sw_solver_name=\\\"McICA\\\""
         "lw_solver_name=\\\"McICA\\\""
-    SW_THRESHOLD 1e-10
-    LW_THRESHOLD 1e-10
+    DP_SW_THRESHOLD 1e-10
+    DP_LW_THRESHOLD 1e-10
+    SP_SW_THRESHOLD 0.002
+    SP_LW_THRESHOLD 2.5e-4
     ENABLED ON
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_ecckd_mcica_out_REFERENCE.nc
 )
 
 # ecCKD with Tripleclouds solver (default)
 add_ecrad_ifs_test(
     NAME ecckd_tc
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
-    SW_THRESHOLD 1e-10
-    LW_THRESHOLD 1e-10
+    DP_SW_THRESHOLD 1e-10
+    DP_LW_THRESHOLD 1e-10
+    SP_SW_THRESHOLD 0.002
+    SP_LW_THRESHOLD 2.5e-4
     ENABLED ON
+    REFERENCE_FILE ${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian_ecckd_tc_out_REFERENCE.nc
 )
 
 # ecCKD with no aerosols
@@ -281,8 +331,10 @@ add_ecrad_ifs_test(
     NAME ecckd_noaer
     CONFIG_FILE "${TEST_ECCKD_CONFIG}"
     NAMELIST_OPTIONS "use_aerosols=false"
-    SW_THRESHOLD 1e-10
-    LW_THRESHOLD 1e-10
+    DP_SW_THRESHOLD 1e-10
+    DP_LW_THRESHOLD 1e-10
+    SP_SW_THRESHOLD 0.002
+    SP_LW_THRESHOLD 2.5e-4
     ENABLED ON
 )
 
