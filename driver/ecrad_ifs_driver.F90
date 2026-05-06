@@ -104,6 +104,7 @@ program ecrad_ifs_driver
   ! Pointers to avoid segfaults when aerosols or clouds are not allocated
   real(jprb), pointer, dimension(:,:,:) :: aerosol_mixing_ratio => NULL()
 #ifdef BITIDENTITY_TESTING
+  integer,    pointer, dimension(:)     :: iseed => NULL()
   real(jprb), pointer, dimension(:,:)   :: cloud_re_liq => NULL(), cloud_re_ice => NULL()
   real(jprb), pointer, dimension(:,:)   :: cloud_overlap_param => NULL()
 #endif
@@ -388,7 +389,22 @@ program ecrad_ifs_driver
 
   if (associated(aerosol%mixing_ratio)) then
     aerosol_mixing_ratio => aerosol%mixing_ratio
+  else
+    ! To ensure we don't pass unallocated arrays to the radiation scheme, we allocate a dummy array here if aerosols are not used
+    allocate(aerosol_mixing_ratio(ncol,6,nlev))
+    aerosol_mixing_ratio = 0.0_jprb
   end if
+
+#ifdef BITIDENTITY_TESTING
+  if (associated(single_level%iseed)) then
+    iseed => single_level%iseed
+  else
+    ! To ensure we don't pass unallocated arrays to the radiation scheme, we allocate a dummy array here if iseed is not initialized
+    ! from an input file.
+    allocate(iseed(ncol))
+    iseed = 0
+  end if
+#endif
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -449,7 +465,7 @@ program ecrad_ifs_driver
             ! radii, cloud overlap and seed with input values
              &  ,pre_liq=cloud_re_liq, pre_ice=cloud_re_ice, &
              &  pcloud_overlap=cloud_overlap_param, &
-             &  iseed=single_level%iseed &
+             &  iseed=iseed &
 #endif
              & )
       end do
