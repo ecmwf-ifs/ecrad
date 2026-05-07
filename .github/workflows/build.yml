@@ -71,6 +71,17 @@ jobs:
             compiler_fc: ifx
             caching: true
 
+          # SPARTACUS solver tests are prohibitively slow with Intel Debug
+          # builds (-O0 -check all) due to expensive matrix exponentials,
+          # exceeding CI timeout limits. Correctness is covered by Release/BIT.
+          - name: linux intel-classic
+            build_type: Debug
+            ctest_options: "-E spartacus"
+
+          - name: linux intel-llvm
+            build_type: Debug
+            ctest_options: "-E spartacus"
+
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout Repository

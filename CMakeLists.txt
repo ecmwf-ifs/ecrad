@@ -15,7 +15,7 @@ cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
 # repository during the configure stage.
 
 # For that, we first try to find ecbuild (QUIETly) ...
-set( MINIMUM_ECBUILD_VERSION 3.8.5 )
+set( MINIMUM_ECBUILD_VERSION 3.14.0 )
 find_package( ecbuild ${MINIMUM_ECBUILD_VERSION} HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild QUIET )
 
 # ... or, if it cannot be found, download it via FetchContent ...
@@ -32,10 +32,6 @@ endif()
 
 # ... before doing a final find_package to make it available.
 find_package( ecbuild ${MINIMUM_ECBUILD_VERSION} REQUIRED )
-
-# We set the <PNAME>_ECBUILD_COMPILE_FLAGS variable to an empty file. This ensures that we can
-# specify a default set of compilation flags as well as per-file overwrites as part of the CMake config.
-set( ECRAD_ECBUILD_COMPILE_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ecrad_init_flags.cmake CACHE FILEPATH "")
 
 project( ecrad LANGUAGES Fortran )
 ecbuild_enable_fortran( REQUIRED )
@@ -103,7 +99,10 @@ if( HAVE_BITIDENTITY_TESTING )
 endif()
 
 
-include(ecrad_compile_flags)
+ecbuild_override_compiler_flags(
+    COMPILE_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ecrad_compile_flags.cmake
+    INHERIT_ECBUILD_FLAGS
+)
 
 # Dummy drhook module (precision-independent)
 if( NOT HAVE_FIAT )
