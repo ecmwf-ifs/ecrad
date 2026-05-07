@@ -15,7 +15,7 @@ cmake_minimum_required( VERSION 3.20 FATAL_ERROR )
 # repository during the configure stage.
 
 # For that, we first try to find ecbuild (QUIETly) ...
-set( MINIMUM_ECBUILD_VERSION 3.9.0 )
+set( MINIMUM_ECBUILD_VERSION 3.14.0 )
 find_package( ecbuild ${MINIMUM_ECBUILD_VERSION} HINTS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ecbuild QUIET )
 
 # ... or, if it cannot be found, download it via FetchContent ...
