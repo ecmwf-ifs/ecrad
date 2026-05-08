@@ -1,0 +1,116 @@
+This directory holds the python code needed for the pyecrad package.
+
+The class that allows you to run ecrad is Ecrad and can be used as
+shown in the following examples.
+
+Example 1: namelist file, input and output as netcdf files
+```
+import pyecrad
+
+ecrad = pyecrad.Ecrad('namelist.nam')
+ecrad.driver('input.nc', 'output.nc')
+```
+
+Example 2: equivalent to example 1 but using explicitely read and
+           write methods
+```
+import pyecrad
+
+ecrad = pyecrad.Ecrad('namelist.nam')
+input = ecrad.read('input.nc')
+result = ecrad.exec(**input)
+ecrad.write('output.nc', result)
+```
+
+Example 3: all in memory example
+```
+import matplotlib.pyplot as plt
+import numpy
+import pyecrad
+
+# Build namelist as a dict
+namelist = {'radiation': {
+    # GENERAL
+    #
+    'iverbose'            : 1, 
+    'iverbosesetup'       : 1,
+    'do_surface_sw_spectral_flux' : False,  # Save surface fluxes in each band?
+    #
+    # CLOUDS
+    #
+    'use_general_cloud_optics' : False,
+    'ice_model_name'      : "Fu-IFS",       # Can be "Fu-IFS" or "Yi"
+    'sw_solver_name'      : "Tripleclouds", # "Tripleclouds", "McICA" or "SPARTACUS"
+    'lw_solver_name'      : "Tripleclouds", # "Tripleclouds", "McICA" or "SPARTACUS"
+    'overlap_scheme_name' : "Exp-Ran",      # McICA also accepts Max-Ran or Exp-Exp
+    'do_lw_cloud_scattering' : True,        # Clouds scatter in the longwave?
+    'gas_model_name'      : "RRTMG-IFS",    # "RRTMG-IFS" or "ECCKD"
+    #
+    # AEROSOLS
+    #
+    'use_aerosols'             : True,      # Radiation sees aerosols?
+    'use_general_aerosol_optics':False,
+    'do_lw_aerosol_scattering' : False,     # Aerosols scatter in the longwave?
+    #
+    # 11 IFS aerosol mixing ratios are stored in the ecRad input file: 1-3
+    # Sea salt, 4-6 mineral dust, 7 hydrophilic organics, 8 hydrophobic
+    # organics, 9 hydrophilic black carbon, 10 hydrophobic black carbon, 11
+    # ammonium sulfate
+    'n_aerosol_types'  : 11,   # Number of aerosol types in input file
+    #
+    # The aerosol optical properties are in this file:
+    'aerosol_optics_override_file_name' : 'aerosol_ifs_rrtm_46R1_with_NI_AM.nc',
+    #
+    # For each of the 11 mixing ratios in the input file, we need to map to
+    # one of the optical properties, where negative numbers index
+    # hydrophilic aerosol types and positive numbers index hydrophobic
+    # aerosol types, e.g. 11=black carbon, -5=sulphate.
+    'i_aerosol_type_map' : [-1, -2, -3, 1, 2, 3, -4, 10, 11, 11, -5],
+}}
+
+# Dimensions
+nlev, ncol = 5, 1
+
+# Input profiles
+input = {
+    'pressure_hl': numpy.array([[10000., 20000., 30000., 50000., 70000., 100000.]]).T,  # nlev + 1
+    'temperature_hl': numpy.array([[215., 215., 230., 250., 270., 290.]]).T,  # nlev + 1
+    'solar_irradiance': 1366.0,
+    'spectral_solar_cycle_multiplier': 0.,
+    'cos_solar_zenith_angle': numpy.array([0.9]),
+    'cloud_fraction': numpy.array([[0., 0.5, 1., 0.5, 0.]]).T,
+    'fractional_std': numpy.array([[1., 1., 1., 1., 1.]]).T,
+    'q_liquid': numpy.array([[0., 2.E-4, 5.E-4, 2.E-4, 0.]]).T,
+    're_liquid': numpy.array([[0., 1.E-5, 1.E-5, 1.E-5, 0.]]).T,
+    'q_ice': numpy.array([[0., 0., 0., 0., 0.]]).T,
+    're_ice': numpy.array([[0., 0., 0., 0., 0.]]).T,
+    'overlap_param': numpy.array([[0.5, 0.5, 0.5, 0.5]]).T,  # nlev - 1
+    'skin_temperature': numpy.array([320.]),
+    'sw_albedo': numpy.array([[0.5]]),
+    'lw_emissivity': numpy.array([[0.9]]),
+    'q_unit': pyecrad.IMassMixingRatio,
+    'q': numpy.array([[8.E-5, 1.E-4, 5.E-4, 2.E-3, 6.E-3]]).T,
+    'aerosols': numpy.zeros((namelist['radiation']['n_aerosol_types'], nlev, ncol))
+}
+for gas in ('co2', 'o3', 'n2o', 'co', 'ch4', 'o2', 'cfc11',                                                                                                                                       
+            'cfc12', 'hcfc22', 'ccl4', 'no2'):
+    input[gas + '_unit'] = pyecrad.IVolumeMixingRatio
+    input[gas] = numpy.array([[0., 0., 0., 0., 0.]]).T
+
+# ecrad execution
+ecrad = pyecrad.Ecrad(namelist)
+result = ecrad.exec(**input)
+
+# Plot results
+print(f'cloud_cover_sw: {result['cloud_cover_sw']}')
+print(f'cloud_cover_lw: {result['cloud_cover_lw']}')
+fig, ax = plt.subplots()
+for k, v in result.items():
+    if k not in ('cloud_cover_sw', 'cloud_cover_lw', 'pressure_hl'):
+        ax.plot(v, result['pressure_hl'], label=k)
+
+ax.set_xlabel('Radiation fluxes (W)')
+ax.set_ylabel('Pressure (Pa)')
+ax.legend()
+plt.show()
+```

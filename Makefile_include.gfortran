@@ -8,7 +8,9 @@ CPPFLAGS = -cpp
 # flag "-fconvert=big-endian" here because the RRTM input files are
 # big endian Fortran unformatted files, but now the file ordering has
 # been specified at the OPEN command so no compiler flags are needed.
-BASICFLAGS = -J../mod -fno-range-check
+BASICFLAGS = -J../mod -fno-range-check -fPIC
+
+SHAREDLIBFLAGS = --shared
 
 # OpenMP flag; type "make OMPFLAG=-DNO_OPENMP" to compile with OpenMP
 # disabled

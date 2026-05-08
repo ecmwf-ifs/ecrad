@@ -16,7 +16,8 @@ optics, cloud optics and solver are completely separated (see
 `radiation/radiation_interface.F90` where they are called in sequence),
 thereby facilitating future changes where different gas models or
 solvers may be switched in and out independently. The offline code is
-parallelized using OpenMP.
+parallelized using OpenMP. In addition, the offline code can be called
+from the pyecrad python package.
 
 Five solvers are currently available:
 
@@ -94,6 +95,8 @@ The subdirectories are as follows:
 
 - `practical` - exercises to get started with ecRad
 
+- `pyecrad` - python source code for the pyecrad package
+
 
 ## Compilation
 
@@ -136,6 +139,15 @@ Fortran compiler.
    `FIATDIR=/path/to/fiat` to the `make` command line, such that the
    files `$FIATDIR/lib/libfiat.so` and
    `$FIATDIR/module/fiat/yomhook.mod` can be found at build time.
+
+
+## Python package
+
+The python package can be installed by entering the command `pip install .`
+in the root directory of ecrad.
+
+Wheels are built and/or pushed on pypi using the `pyecrad_wheel.sh` script.
+Help on this command can be obtained with `pyecrad_wheel.sh -h`.
 
 
 ## Testing
