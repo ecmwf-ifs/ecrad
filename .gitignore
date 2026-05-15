@@ -8,5 +8,3 @@ config_*.nam
 
 bin/*
 mod
-practical/data
-practical/ecrad

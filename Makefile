@@ -131,9 +131,6 @@ deps: clean-deps
 clean-deps:
 	rm -f include/*.intfb.h
 
-clean-mod:
-	rm -rf mod
-
 libifs: libradiation
 	cd ifs && $(MAKE)
 
@@ -185,7 +182,7 @@ test_ckdmip:
 test_disort:
 	cd test/disort && $(MAKE) test
 
-clean: clean-tests clean-toplevel clean-utilities clean-mod clean-symlinks
+clean: clean-tests clean-toplevel clean-utilities clean-mods clean-symlinks
 
 clean-tests:
 	cd test/ifs && $(MAKE) clean
