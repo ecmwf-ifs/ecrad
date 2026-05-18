@@ -198,7 +198,7 @@ contains
         end do
         flux%sw_up_clear(jcol,:) = sum_aux(:,1)
         flux%sw_dn_clear(jcol,:) = sum_aux(:,2) + sum_aux(:,3)
-        if (allocated(flux%sw_dn_direct_clear)) then
+        if (associated(flux%sw_dn_direct_clear)) then
           flux%sw_dn_direct_clear(jcol,:) = sum_aux(:,2)
         end if
 #else
@@ -215,7 +215,7 @@ contains
           end do
           flux%sw_up_clear(jcol,jlev) = sum_up
           flux%sw_dn_clear(jcol,jlev) = sum_dn_diff + sum_dn_dir
-          if (allocated(flux%sw_dn_direct_clear)) then
+          if (associated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,jlev) = sum_dn_dir
           end if
         end do
@@ -315,7 +315,7 @@ contains
           end do
           flux%sw_up(jcol,:) = sum_aux(:,1)
           flux%sw_dn(jcol,:) = sum_aux(:,2) + sum_aux(:,3)
-          if (allocated(flux%sw_dn_direct)) then
+          if (associated(flux%sw_dn_direct)) then
             flux%sw_dn_direct(jcol,:) = sum_aux(:,2)
           end if
 #else
@@ -331,7 +331,7 @@ contains
             end do
             flux%sw_up(jcol,jlev) = sum_up
             flux%sw_dn(jcol,jlev) = sum_dn_diff + sum_dn_dir
-            if (allocated(flux%sw_dn_direct)) then
+            if (associated(flux%sw_dn_direct)) then
               flux%sw_dn_direct(jcol,jlev) = sum_dn_dir
             end if
           end do
@@ -344,7 +344,7 @@ contains
                  &     + (1.0_jprb - total_cloud_cover)*flux%sw_up_clear(jcol,jlev)
             flux%sw_dn(jcol,jlev) =  total_cloud_cover *flux%sw_dn(jcol,jlev) &
                  &     + (1.0_jprb - total_cloud_cover)*flux%sw_dn_clear(jcol,jlev)
-            if (allocated(flux%sw_dn_direct)) then
+            if (associated(flux%sw_dn_direct)) then
               flux%sw_dn_direct(jcol,jlev) = total_cloud_cover *flux%sw_dn_direct(jcol,jlev) &
                    &  + (1.0_jprb - total_cloud_cover)*flux%sw_dn_direct_clear(jcol,jlev)
             end if
@@ -365,7 +365,7 @@ contains
           do jlev = 1, nlev+1
             flux%sw_up(jcol,jlev) = flux%sw_up_clear(jcol,jlev)
             flux%sw_dn(jcol,jlev) = flux%sw_dn_clear(jcol,jlev)
-            if (allocated(flux%sw_dn_direct)) then
+            if (associated(flux%sw_dn_direct)) then
               flux%sw_dn_direct(jcol,jlev) = flux%sw_dn_direct_clear(jcol,jlev)
             end if
           end do
@@ -382,12 +382,12 @@ contains
         do jlev = 1, nlev+1
           flux%sw_up(jcol,jlev) = 0.0_jprb
           flux%sw_dn(jcol,jlev) = 0.0_jprb
-          if (allocated(flux%sw_dn_direct)) then
+          if (associated(flux%sw_dn_direct)) then
             flux%sw_dn_direct(jcol,jlev) = 0.0_jprb
           end if
           flux%sw_up_clear(jcol,jlev) = 0.0_jprb
           flux%sw_dn_clear(jcol,jlev) = 0.0_jprb
-          if (allocated(flux%sw_dn_direct_clear)) then
+          if (associated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,jlev) = 0.0_jprb
           end if
         end do

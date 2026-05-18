@@ -212,13 +212,13 @@ contains
       if (mu0 < 1.0e-10_jprb) then
         flux%sw_dn(jcol,:) = 0.0_jprb
         flux%sw_up(jcol,:) = 0.0_jprb
-        if (allocated(flux%sw_dn_direct)) then
+        if (associated(flux%sw_dn_direct)) then
           flux%sw_dn_direct(jcol,:) = 0.0_jprb
         end if
         if (config%do_clear) then
           flux%sw_dn_clear(jcol,:) = 0.0_jprb
           flux%sw_up_clear(jcol,:) = 0.0_jprb
-          if (allocated(flux%sw_dn_direct_clear)) then
+          if (associated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,:) = 0.0_jprb
           end if
         end if
@@ -226,13 +226,13 @@ contains
         if (config%do_save_spectral_flux) then
           flux%sw_dn_band(:,jcol,:) = 0.0_jprb
           flux%sw_up_band(:,jcol,:) = 0.0_jprb
-          if (allocated(flux%sw_dn_direct_band)) then
+          if (associated(flux%sw_dn_direct_band)) then
             flux%sw_dn_direct_band(:,jcol,:) = 0.0_jprb
           end if
           if (config%do_clear) then
             flux%sw_dn_clear_band(:,jcol,:) = 0.0_jprb
             flux%sw_up_clear_band(:,jcol,:) = 0.0_jprb
-            if (allocated(flux%sw_dn_direct_clear_band)) then
+            if (associated(flux%sw_dn_direct_clear_band)) then
               flux%sw_dn_direct_clear_band(:,jcol,:) = 0.0_jprb
             end if
           end if
@@ -462,7 +462,7 @@ contains
       end do
       flux%sw_up(jcol,1) = sum_up
       flux%sw_dn(jcol,1) = mu0 * sum_dn_dir
-      if (allocated(flux%sw_dn_direct)) then
+      if (associated(flux%sw_dn_direct)) then
         flux%sw_dn_direct(jcol,1) = flux%sw_dn(jcol,1)
       end if
       if (config%do_clear) then
@@ -475,7 +475,7 @@ contains
         end do
         flux%sw_up_clear(jcol,1) = sum_up
         flux%sw_dn_clear(jcol,1) = mu0 * sum_dn_dir
-        if (allocated(flux%sw_dn_direct_clear)) then
+        if (associated(flux%sw_dn_direct_clear)) then
           flux%sw_dn_direct_clear(jcol,1) = flux%sw_dn_clear(jcol,1)
         end if
       end if
@@ -490,7 +490,7 @@ contains
              &           config%i_spec_from_reordered_g_sw, &
              &           flux%sw_dn_band(:,jcol,1))
         flux%sw_dn_band(:,jcol,1) = mu0 * flux%sw_dn_band(:,jcol,1)
-        if (allocated(flux%sw_dn_direct_band)) then
+        if (associated(flux%sw_dn_direct_band)) then
           flux%sw_dn_direct_band(:,jcol,1) = flux%sw_dn_band(:,jcol,1)
         end if
         call add_indexed_sum(sum(flux_dn,2), &
@@ -505,7 +505,7 @@ contains
                &           flux%sw_dn_clear_band(:,jcol,1))
           flux%sw_dn_clear_band(:,jcol,1) &
                &  = mu0 * flux%sw_dn_clear_band(:,jcol,1)
-          if (allocated(flux%sw_dn_direct_clear_band)) then
+          if (associated(flux%sw_dn_direct_clear_band)) then
             flux%sw_dn_direct_clear_band(:,jcol,1) &
                  &  = flux%sw_dn_clear_band(:,jcol,1)
           end if
@@ -587,7 +587,7 @@ contains
         end do
         flux%sw_up(jcol,jlev+1) = sum_up
         flux%sw_dn(jcol,jlev+1) = mu0 * sum_dn_dir + sum_dn_diff
-        if (allocated(flux%sw_dn_direct)) then
+        if (associated(flux%sw_dn_direct)) then
           flux%sw_dn_direct(jcol,jlev+1) = mu0 * sum_dn_dir
         end if
         if (config%do_clear) then
@@ -602,7 +602,7 @@ contains
           end do
           flux%sw_up_clear(jcol,jlev+1) = sum_up
           flux%sw_dn_clear(jcol,jlev+1) = mu0 * sum_dn_dir + sum_dn_diff
-          if (allocated(flux%sw_dn_direct_clear)) then
+          if (associated(flux%sw_dn_direct_clear)) then
             flux%sw_dn_direct_clear(jcol,jlev+1) = mu0 * sum_dn_dir
           end if
         end if
@@ -617,7 +617,7 @@ contains
                &           flux%sw_dn_band(:,jcol,jlev+1))
           flux%sw_dn_band(:,jcol,jlev+1) = &
                &  mu0 * flux%sw_dn_band(:,jcol,jlev+1)
-          if (allocated(flux%sw_dn_direct_band)) then
+          if (associated(flux%sw_dn_direct_band)) then
             flux%sw_dn_direct_band(:,jcol,jlev+1) &
                  &  = flux%sw_dn_band(:,jcol,jlev+1)
           end if
@@ -633,7 +633,7 @@ contains
                  &           flux%sw_dn_clear_band(:,jcol,jlev+1))
             flux%sw_dn_clear_band(:,jcol,jlev+1) = &
                  &  mu0 * flux%sw_dn_clear_band(:,jcol,jlev+1)
-            if (allocated(flux%sw_dn_direct_clear_band)) then
+            if (associated(flux%sw_dn_direct_clear_band)) then
               flux%sw_dn_direct_clear_band(:,jcol,jlev+1) &
                    &  = flux%sw_dn_clear_band(:,jcol,jlev+1)
             end if

@@ -104,6 +104,7 @@ program ecrad_ifs_driver
   ! Pointers to avoid segfaults when aerosols or clouds are not allocated
   real(jprb), pointer, dimension(:,:,:) :: aerosol_mixing_ratio => NULL()
 #ifdef BITIDENTITY_TESTING
+  integer,    pointer, dimension(:)     :: iseed => NULL()
   real(jprb), pointer, dimension(:,:)   :: cloud_re_liq => NULL(), cloud_re_ice => NULL()
   real(jprb), pointer, dimension(:,:)   :: cloud_overlap_param => NULL()
 #endif
@@ -323,21 +324,21 @@ program ecrad_ifs_driver
   call flux%allocate(yradiation%rad_config, 1, ncol, nlev)
 
   ! set relevant fluxes to zero
-  if(allocated(flux%lw_up)) flux%lw_up(:,:) = 0._jprb
-  if(allocated(flux%lw_dn)) flux%lw_dn(:,:) = 0._jprb
-  if(allocated(flux%sw_up)) flux%sw_up(:,:) = 0._jprb
-  if(allocated(flux%sw_dn)) flux%sw_dn(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_direct)) flux%sw_dn_direct(:,:) = 0._jprb
-  if(allocated(flux%lw_up_clear)) flux%lw_up_clear(:,:) = 0._jprb
-  if(allocated(flux%lw_dn_clear)) flux%lw_dn_clear(:,:) = 0._jprb
-  if(allocated(flux%sw_up_clear)) flux%sw_up_clear(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_clear)) flux%sw_dn_clear(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_direct_clear)) flux%sw_dn_direct_clear(:,:) = 0._jprb
+  if(associated(flux%lw_up)) flux%lw_up(:,:) = 0._jprb
+  if(associated(flux%lw_dn)) flux%lw_dn(:,:) = 0._jprb
+  if(associated(flux%sw_up)) flux%sw_up(:,:) = 0._jprb
+  if(associated(flux%sw_dn)) flux%sw_dn(:,:) = 0._jprb
+  if(associated(flux%sw_dn_direct)) flux%sw_dn_direct(:,:) = 0._jprb
+  if(associated(flux%lw_up_clear)) flux%lw_up_clear(:,:) = 0._jprb
+  if(associated(flux%lw_dn_clear)) flux%lw_dn_clear(:,:) = 0._jprb
+  if(associated(flux%sw_up_clear)) flux%sw_up_clear(:,:) = 0._jprb
+  if(associated(flux%sw_dn_clear)) flux%sw_dn_clear(:,:) = 0._jprb
+  if(associated(flux%sw_dn_direct_clear)) flux%sw_dn_direct_clear(:,:) = 0._jprb
 
-  if(allocated(flux%lw_dn_surf_canopy)) flux%lw_dn_surf_canopy(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_diffuse_surf_canopy)) flux%sw_dn_diffuse_surf_canopy(:,:) = 0._jprb
-  if(allocated(flux%sw_dn_direct_surf_canopy)) flux%sw_dn_direct_surf_canopy(:,:) = 0._jprb
-  if(allocated(flux%lw_derivatives)) flux%lw_derivatives(:,:) = 0._jprb
+  if(associated(flux%lw_dn_surf_canopy)) flux%lw_dn_surf_canopy(:,:) = 0._jprb
+  if(associated(flux%sw_dn_diffuse_surf_canopy)) flux%sw_dn_diffuse_surf_canopy(:,:) = 0._jprb
+  if(associated(flux%sw_dn_direct_surf_canopy)) flux%sw_dn_direct_surf_canopy(:,:) = 0._jprb
+  if(associated(flux%lw_derivatives)) flux%lw_derivatives(:,:) = 0._jprb
 
   ! Allocate memory for additional arrays
   allocate(ccn_land(ncol))
@@ -386,9 +387,24 @@ program ecrad_ifs_driver
 #endif
   end if
 
-  if (allocated(aerosol%mixing_ratio)) then
+  if (associated(aerosol%mixing_ratio)) then
     aerosol_mixing_ratio => aerosol%mixing_ratio
+  else
+    ! To ensure we don't pass unallocated arrays to the radiation scheme, we allocate a dummy array here if aerosols are not used
+    allocate(aerosol_mixing_ratio(ncol,6,nlev))
+    aerosol_mixing_ratio = 0.0_jprb
   end if
+
+#ifdef BITIDENTITY_TESTING
+  if (associated(single_level%iseed)) then
+    iseed => single_level%iseed
+  else
+    ! To ensure we don't pass unallocated arrays to the radiation scheme, we allocate a dummy array here if iseed is not initialized
+    ! from an input file.
+    allocate(iseed(ncol))
+    iseed = 0
+  end if
+#endif
 
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
@@ -449,7 +465,7 @@ program ecrad_ifs_driver
             ! radii, cloud overlap and seed with input values
              &  ,pre_liq=cloud_re_liq, pre_ice=cloud_re_ice, &
              &  pcloud_overlap=cloud_overlap_param, &
-             &  iseed=single_level%iseed &
+             &  iseed=iseed &
 #endif
              & )
       end do
@@ -498,6 +514,7 @@ program ecrad_ifs_driver
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  write(nulout, '(a,i0)') 'Columns/s : ', int((ncol*driver_config%nrepeat)/(tstop-tstart))
 #endif
 
   ! --------------------------------------------------------
