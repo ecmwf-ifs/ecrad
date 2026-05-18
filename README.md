@@ -246,9 +246,9 @@ the gas optics part of the Rapid Radiative Transfer Model for GCMS
 
 # Contributing
 
-Contributions to ECRAD are welcome.
+Contributions to ECRAD are welcome under the [contributor license agreement (CLA)](https://github.com/ecmwf/codex/blob/main/Legal/contributor_license_agreement.md).
 In order to do so, please open an issue where a feature request or bug can be discussed.
-Then create a pull request with your contribution and sign the [contributors license agreement (CLA)](https://bol-claassistant.ecmwf.int/ecmwf-ifs/ecrad).
+Then create a pull request with your contribution.
 
 
 ## Publications
@@ -289,4 +289,3 @@ The ecCKD gas optics scheme is described here:
  - Hogan, R. J., and M. Matricardi, 2022: a tool for generating fast
 k-distribution gas-optics models for weather and climate
 applications. J. Adv. Modeling Earth Sys., in review.
-
