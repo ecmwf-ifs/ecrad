@@ -1,3 +1,14 @@
+version 1.7.2 (19 May 2026)
+	- radiation_general_cloud_optics_data: fix non-automatic allocation on
+	  assignment
+	- ecrad_ifs/ecrad_ifs_blocked: fix use of unallocated arrays
+	- Add public specifiers in new radiation_liquid_optics_jahangir/nielsen
+	- Combined yomlun.F90 and yomlun_ifsaux.F90 into yomlun_ecrad.F90
+	- Renamed YOMCST to YOMCST_ECRAD
+	- Improved output validation tests for single-precision and additional
+	  reference output files
+	- Refactored compiler flag composition in CMake
+
 version 1.7.1 (19 August 2025)
 	- radiation_ifs_rrtm: refactored loop and if structure
 	- radiation_ecckd: refactored the provisioning of optional concentration
