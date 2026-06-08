@@ -49,6 +49,63 @@ ecbuild_add_executable(
         driver_lib.${PREC}
 )
 
+if( ENABLE_STATIC_LIBS )
+    set( CMAKE_Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/radiation.${PREC}/module_static" )
+    add_library(ecrad4py.${PREC} SHARED
+        ecrad4py.F90
+        $<TARGET_OBJECTS:driver_lib.${PREC}>
+        $<TARGET_OBJECTS:ifs.${PREC}>
+    )
+    target_compile_definitions(ecrad4py.${PREC} PRIVATE
+        NC_NETCDF4
+        ${ECRAD_COMPILE_DEFINITIONS}
+        $<$<STREQUAL:"${PREC}","sp">:PARKIND1_SINGLE>
+        $<${HAVE_FIAT}:HAVE_FIAT>
+    )
+    target_include_directories(ecrad4py.${PREC} PRIVATE
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+        "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/radiation.${PREC}/module_static>"
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/driver>"
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/ifs>"
+    )
+    target_link_libraries(ecrad4py.${PREC} PRIVATE
+        ecrad_static.${PREC}
+        $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+    )
+    if( NOT HAVE_FIAT )
+        target_include_directories(ecrad4py.${PREC} PRIVATE
+            "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/drhook/static_mod>"
+        )
+        target_link_libraries(ecrad4py.${PREC} PRIVATE drhook_dummy_static)
+    else()
+        target_link_libraries(ecrad4py.${PREC} PRIVATE ecrad_base.${PREC})
+    endif()
+else()
+    ecbuild_add_library(
+        TARGET ecrad4py.${PREC}
+        TYPE SHARED
+        SOURCES ecrad4py.F90
+        PRIVATE_LIBS
+            driver_lib.${PREC}
+            ifs.${PREC}
+    )
+endif()
+
+# Set output name and stage the .so into the pyecrad source tree
+if( "${PREC}" STREQUAL "dp" )
+    set( _ECRAD4PY_SO "libecrad4py${CMAKE_SHARED_LIBRARY_SUFFIX}" )
+    set_target_properties( ecrad4py.${PREC} PROPERTIES OUTPUT_NAME ecrad4py )
+else()
+    set( _ECRAD4PY_SO "libecrad4py_${PREC}${CMAKE_SHARED_LIBRARY_SUFFIX}" )
+    set_target_properties( ecrad4py.${PREC} PROPERTIES OUTPUT_NAME ecrad4py_${PREC} )
+endif()
+add_custom_command( TARGET ecrad4py.${PREC} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        $<TARGET_FILE:ecrad4py.${PREC}>
+        ${PROJECT_SOURCE_DIR}/pyecrad/${_ECRAD4PY_SO}
+    COMMENT "Staging ${_ECRAD4PY_SO} to pyecrad/"
+)
+
 # For ecrad_ifs_driver_blocked we have to disable bounds checking
 # (which is enabled in Debug builds) because sequence association
 # and values initialized to -9999 for unused arguments is used in

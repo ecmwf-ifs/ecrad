@@ -2,6 +2,7 @@
 Build extension for pyecrad
 """
 
+import os
 import subprocess
 from setuptools import setup
 from setuptools.command.build import build
@@ -15,7 +16,8 @@ class PyecradBuild(build):
         """
         Method actually doing the build
         """
-        subprocess.run(['make', 'python'], check=True)
+        if not os.environ.get('ECRAD_CMAKE_BUILD'):
+            subprocess.run(['make', 'python'], check=True)
 
 
 setup(cmdclass={"build": PyecradBuild})

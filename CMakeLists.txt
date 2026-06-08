@@ -102,6 +102,15 @@ if( HAVE_BITIDENTITY_TESTING )
     list( APPEND ECRAD_COMPILE_DEFINITIONS BITIDENTITY_TESTING )
 endif()
 
+ecbuild_add_option(
+    FEATURE PYECRAD
+    DEFAULT OFF
+    DESCRIPTION "Build and install the pyecrad Python wrapper in a virtual environment"
+)
+
+option( ENABLE_STATIC_LIBS
+    "Build static libraries for ecrad and drhook_dummy" OFF
+)
 
 include(ecrad_compile_flags)
 
@@ -142,6 +151,52 @@ foreach( PREC IN LISTS _PRECISIONS )
     add_subdirectory(ifs ifs.${PREC})
     add_subdirectory(driver driver.${PREC})
 endforeach()
+
+# ── pyecrad Python package ──────────────────────────────────────────────
+#
+# When enabled, sets up a Python virtual environment with pyecrad's
+# dependencies and installs pyecrad as an editable package.  The ecrad4py
+# shared library is staged into the source tree by a POST_BUILD command
+# in driver/CMakeLists.txt and is picked up by pip install.
+#
+if( HAVE_PYECRAD )
+    include( ecrad_python_macros )
+
+    ecrad_setup_python_venv( VENV_NAME pyecrad_env )
+
+    # Install pure-Python dependencies (the Fortran .so is already staged)
+    # setuptools/wheel are needed for --no-build-isolation in the pip install step
+    ecrad_install_python_package(
+        REQUIREMENT_SPEC
+            setuptools wheel
+            "ctypesForFortran>=1.3.0, !=2.0.*, !=2.1.*"
+            numpy f90nml netCDF4
+    )
+
+    # Collect the ecrad4py shared-library targets that were built
+    set( _PYECRAD_DEPS "" )
+    foreach( PREC IN LISTS _PRECISIONS )
+        if( TARGET ecrad4py.${PREC} )
+            list( APPEND _PYECRAD_DEPS ecrad4py.${PREC} )
+        endif()
+    endforeach()
+
+    # Build-time: pip install pyecrad from the project root.
+    # --no-build-isolation ensures pip uses the venv's build tools and
+    # does not try to rebuild the .so (which CMake already handled).
+    add_custom_target( pyecrad ALL
+        COMMAND ${CMAKE_COMMAND} -E env
+            "VIRTUAL_ENV=${CMAKE_CURRENT_BINARY_DIR}/pyecrad_env"
+            "ECRAD_CMAKE_BUILD=1"
+            "${Python3_VENV_BIN}/python" -m pip install
+                --no-build-isolation -e "${CMAKE_SOURCE_DIR}"
+        DEPENDS ${_PYECRAD_DEPS}
+        COMMENT "Installing pyecrad in virtual environment"
+    )
+
+    # Export the Python executable for downstream targets (e.g. tests)
+    set( PYECRAD_PYTHON "${Python3_EXECUTABLE}" CACHE INTERNAL "" )
+endif()
 
 # Include test directories only if tests are enabled (which is the default
 # and can be disabled by setting ENABLE_TESTS=OFF)

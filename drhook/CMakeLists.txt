@@ -14,3 +14,14 @@ ecbuild_add_library(
     SOURCES yomhook_dummy.F90
     PUBLIC_INCLUDES "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
 )
+
+if( ENABLE_STATIC_LIBS )
+    set( CMAKE_Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/static_mod" )
+    ecbuild_add_library(
+        TARGET drhook_dummy_static
+        TYPE STATIC
+        SOURCES yomhook_dummy.F90
+        PUBLIC_INCLUDES "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/static_mod>"
+        NOINSTALL
+    )
+endif()

@@ -104,6 +104,26 @@ install(
     DESTINATION ${ecrad_${PREC}_INSTALL_INCLUDEDIR}
 )
 
+if( ENABLE_STATIC_LIBS )
+    set( CMAKE_Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/radiation.${PREC}/module_static" )
+    ecbuild_add_library(
+        TARGET ecrad_static.${PREC}
+        TYPE STATIC
+        SOURCES ${radiation_SOURCES}
+        PUBLIC_INCLUDES
+            "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+            "$<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>"
+            "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/radiation.${PREC}/module>"
+        PRIVATE_LIBS
+            ecrad_base.${PREC}
+            ecrad_ifsaux.${PREC}
+            ecrad_utilities.${PREC}
+            ifsrrtm.${PREC}
+            $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+        NOINSTALL
+    )
+endif()
+
 # Compile flag overwrites
 if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
     set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
