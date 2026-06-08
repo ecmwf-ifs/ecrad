@@ -170,7 +170,7 @@ if( HAVE_PYECRAD )
         REQUIREMENT_SPEC
             setuptools wheel
             "ctypesForFortran>=1.3.0, !=2.0.*, !=2.1.*"
-            numpy f90nml netCDF4
+            numpy f90nml netCDF4 xarray pytest
     )
 
     # Collect the ecrad4py shared-library targets that were built
