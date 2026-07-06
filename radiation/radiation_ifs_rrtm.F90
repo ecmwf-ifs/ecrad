@@ -270,9 +270,9 @@ contains
     ! equivalent routine in the IFS
 
     real(jprb) :: ZOD_LW(JPGPT_LW,nlev,istartcol:iendcol) ! Note ordering of dimensions
-    real(jprb) :: ZOD_SW(istartcol:iendcol,nlev,JPGPT_SW)
-    real(jprb) :: ZSSA_SW(istartcol:iendcol,nlev,JPGPT_SW)
-    real(jprb) :: ZINCSOL(istartcol:iendcol,JPGPT_SW)
+    real(jprb) :: ZOD_SW(JPGPT_SW,nlev,istartcol:iendcol)
+    real(jprb) :: ZSSA_SW(JPGPT_SW,nlev,istartcol:iendcol)
+    real(jprb) :: ZINCSOL(JPGPT_SW,istartcol:iendcol)
 
     real(jprb) :: ZCOLMOL(istartcol:iendcol,nlev)
     real(jprb) :: ZCOLDRY(istartcol:iendcol,nlev)
@@ -344,7 +344,7 @@ contains
     integer :: INDSELF(istartcol:iendcol,nlev)
 
     !- from SP             
-    real(jprb) :: ZPFRAC(istartcol:iendcol,JPGPT_LW,nlev)
+    real(jprb) :: ZPFRAC(JPGPT_LW,istartcol:iendcol,nlev)
     
     !- from SURFACE             
     integer :: IREFLECT(istartcol:iendcol)
@@ -528,9 +528,9 @@ contains
     
       ! SRTM_GAS_OPTICAL_DEPTH will not initialize profiles when the sun
       ! is below the horizon, so we do it here
-      ZOD_SW(istartcol:iendcol,:,:)  = 0.0_jprb
-      ZSSA_SW(istartcol:iendcol,:,:) = 0.0_jprb
-      ZINCSOL(istartcol:iendcol,:)   = 0.0_jprb
+      ZOD_SW(:,:,istartcol:iendcol)  = 0.0_jprb
+      ZSSA_SW(:,:,istartcol:iendcol) = 0.0_jprb
+      ZINCSOL(:,istartcol:iendcol)   = 0.0_jprb
 
       CALL SRTM_GAS_OPTICAL_DEPTH &
            &( istartcol, iendcol , nlev  , ZONEMINUS_ARRAY,&
@@ -545,7 +545,7 @@ contains
       if (config%use_spectral_solar_scaling) then
         do jg = 1,JPGPT_SW
           do jcol = istartcol,iendcol 
-            ZINCSOL(jcol,jg) = ZINCSOL(jcol,jg) * &
+            ZINCSOL(jg,jcol) = ZINCSOL(jg,jcol) * &
                  &   single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw(jg))
           end do
         end do
@@ -559,7 +559,7 @@ contains
           if (single_level%cos_sza(jcol) > 0.0_jprb) then
 ! Added for DWD (2020)
 !NEC$ nounroll
-            incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(jcol,:))
+            incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(:,jcol))
           else
             incoming_sw_scale(jcol) = 1.0_jprb
           end if
@@ -575,13 +575,13 @@ contains
             do jcol = istartcol,iendcol
               ! Check for negative optical depth
               od_sw (jgreorder,nlev+1-jlev,jcol) &
-                   &  = max(config%min_gas_od_sw, ZOD_SW (jcol,jlev,ig))
-              ssa_sw(jgreorder,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,ig)
+                   &  = max(config%min_gas_od_sw, ZOD_SW (ig,jlev,jcol))
+              ssa_sw(jgreorder,nlev+1-jlev,jcol) = ZSSA_SW(ig,jlev,jcol)
             end do
           end do
           if (present(incoming_sw)) then
             incoming_sw(jgreorder,:) &
-                 &  = incoming_sw_scale(:) * ZINCSOL(:,ig)
+                 &  = incoming_sw_scale(:) * ZINCSOL(ig,:)
           end if
         end do
       else
@@ -590,8 +590,8 @@ contains
           do jlev = 1,nlev
             do jg = 1,config%n_g_sw
               ! Check for negative optical depth
-              od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
-              ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
+              od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jg,jlev,jcol))
+              ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jg,jlev,jcol)
             end do
           end do
         end do
@@ -599,7 +599,7 @@ contains
         if (present(incoming_sw)) then
           do jcol = istartcol,iendcol
             do jg = 1,config%n_g_sw
-              incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
+              incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jg,jcol)
             end do
           end do
         end if
@@ -634,7 +634,7 @@ contains
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
     type(config_type), intent(in) :: config
     type(thermodynamics_type),intent(in) :: thermodynamics
-    real(jprb), intent(in) :: PFRAC(istartcol:iendcol,JPGPT_LW,nlev)
+    real(jprb), intent(in) :: PFRAC(JPGPT_LW,istartcol:iendcol,nlev)
 
     ! The Planck function (emitted flux from a black body) at half
     ! levels at each longwave g-point
@@ -713,7 +713,7 @@ contains
             iband = config%i_band_from_reordered_g_lw(jgreorder)
             ig = config%i_g_from_reordered_g_lw(jgreorder)
             planck_hl(jgreorder,1,:) = planck_store(:,iband) &
-                 &   * PFRAC(:,ig,nlev)
+                 &   * PFRAC(ig,:,nlev)
           end do
         else
           do jgreorder = 1,config%n_g_lw
@@ -721,7 +721,7 @@ contains
             ig = config%i_g_from_reordered_g_lw(jgreorder)
             planck_hl(jgreorder,jlev,:) &
                    &   = planck_store(:,iband) &
-                   &   * PFRAC(:,ig,nlev+2-jlev)
+                   &   * PFRAC(ig,:,nlev+2-jlev)
           end do
         end if
       else
@@ -731,12 +731,12 @@ contains
           ! levels not half levels
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_hl(jg,1,:) = planck_store(:,iband) * PFRAC(:,jg,nlev)
+            planck_hl(jg,1,:) = planck_store(:,iband) * PFRAC(jg,:,nlev)
           end do
         else
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            planck_tmp(:,jg) = planck_store(:,iband) * PFRAC(:,jg,nlev+2-jlev)
+            planck_tmp(:,jg) = planck_store(:,iband) * PFRAC(jg,:,nlev+2-jlev)
           end do
           do jcol = istartcol,iendcol
             planck_hl(:,jlev,jcol) = planck_tmp(jcol,:)
@@ -769,7 +769,7 @@ contains
     type(config_type), intent(in) :: config
     real(jprb), intent(in) :: temperature(:)
 
-    real(jprb), intent(in) :: PFRAC(istartcol:iendcol,JPGPT_LW)
+    real(jprb), intent(in) :: PFRAC(JPGPT_LW,istartcol:iendcol)
 
     ! Planck function of the surface (W m-2)
     real(jprb), dimension(config%n_g_lw,istartcol:iendcol), &
@@ -835,13 +835,13 @@ contains
       do jgreorder = 1,config%n_g_lw
         iband = config%i_band_from_reordered_g_lw(jgreorder)
         ig = config%i_g_from_reordered_g_lw(jgreorder)
-        planck_surf(jgreorder,:) = planck_store(:,iband) * PFRAC(:,ig)
+        planck_surf(jgreorder,:) = planck_store(:,iband) * PFRAC(ig,:)
       end do
     else
       ! G points have not been reordered 
       do jg = 1,config%n_g_lw
         iband = config%i_band_from_g_lw(jg)
-        planck_surf(jg,:) = planck_store(:,iband) * PFRAC(:,jg)
+        planck_surf(jg,:) = planck_store(:,iband) * PFRAC(jg,:)
       end do
     end if
 
