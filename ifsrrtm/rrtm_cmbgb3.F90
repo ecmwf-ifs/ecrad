@@ -36,10 +36,10 @@ DO JN = 1,9
         DO IPR = 1, NGN(NGS(2)+IGC)
           IPRSM = IPRSM + 1
 
-          Z_SUMK = Z_SUMK + KAO(JN,JT,JP,IPRSM)*RWGT(IPRSM+32)
+          Z_SUMK = Z_SUMK + KAO(IPRSM,JN,JT,JP)*RWGT(IPRSM+32)
         ENDDO
 
-        KA(JN,JT,JP,IGC) = Z_SUMK
+        KA(IGC,JN,JT,JP) = Z_SUMK
       ENDDO
     ENDDO
   ENDDO
@@ -53,10 +53,10 @@ DO JN = 1,5
         DO IPR = 1, NGN(NGS(2)+IGC)
           IPRSM = IPRSM + 1
 
-          Z_SUMK = Z_SUMK + KBO(JN,JT,JP,IPRSM)*RWGT(IPRSM+32)
+          Z_SUMK = Z_SUMK + KBO(IPRSM,JN,JT,JP)*RWGT(IPRSM+32)
         ENDDO
 
-        KB(JN,JT,JP,IGC) = Z_SUMK
+        KB(IGC,JN,JT,JP) = Z_SUMK
       ENDDO
     ENDDO
   ENDDO
@@ -69,9 +69,9 @@ ENDDO
               Z_SUMK = 0.
                DO IPR = 1, NGN(NGS(2)+IGC)
                   IPRSM = IPRSM + 1
-                  Z_SUMK = Z_SUMK + KAO_MN2O(JN,JT,IPRSM)*RWGT(IPRSM+32)
+                   Z_SUMK = Z_SUMK + KAO_MN2O(IPRSM,JN,JT)*RWGT(IPRSM+32)
                ENDDO
-               KA_MN2O(JN,JT,IGC) = Z_SUMK
+               KA_MN2O(IGC,JN,JT) = Z_SUMK
             ENDDO
          ENDDO
       ENDDO
@@ -83,9 +83,9 @@ ENDDO
               Z_SUMK = 0.
                DO IPR = 1, NGN(NGS(2)+IGC)
                   IPRSM = IPRSM + 1
-                  Z_SUMK = Z_SUMK + KBO_MN2O(JN,JT,IPRSM)*RWGT(IPRSM+32)
+                   Z_SUMK = Z_SUMK + KBO_MN2O(IPRSM,JN,JT)*RWGT(IPRSM+32)
                ENDDO
-               KB_MN2O(JN,JT,IGC) = Z_SUMK
+               KB_MN2O(IGC,JN,JT) = Z_SUMK
             ENDDO
          ENDDO
       ENDDO
@@ -98,9 +98,9 @@ DO JT = 1,10
     Z_SUMK = 0.0_JPRB
     DO IPR = 1, NGN(NGS(2)+IGC)
       IPRSM = IPRSM + 1
-      Z_SUMK = Z_SUMK + SELFREFO(JT,IPRSM)*RWGT(IPRSM+32)
+      Z_SUMK = Z_SUMK + SELFREFO(IPRSM,JT)*RWGT(IPRSM+32)
     ENDDO
-    SELFREF(JT,IGC) = Z_SUMK
+    SELFREF(IGC,JT) = Z_SUMK
   ENDDO
 ENDDO
 
@@ -110,9 +110,9 @@ ENDDO
             Z_SUMK = 0.
             DO IPR = 1, NGN(NGS(2)+IGC)
                IPRSM = IPRSM + 1
-               Z_SUMK = Z_SUMK + FORREFO(JT,IPRSM)*RWGT(IPRSM+32)
+               Z_SUMK = Z_SUMK + FORREFO(IPRSM,JT)*RWGT(IPRSM+32)
             ENDDO
-            FORREF(JT,IGC) = Z_SUMK
+            FORREF(IGC,JT) = Z_SUMK
          ENDDO
       ENDDO
 
