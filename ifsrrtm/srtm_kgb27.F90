@@ -9,7 +9,7 @@ SUBROUTINE SRTM_KGB27
 !      F. Vana  05-Mar-2015  Support for single precision
 !     ------------------------------------------------------------------
 
-USE PARKIND1  , ONLY : JPRB
+USE PARKIND1  , ONLY : JPRB, JPRD
 USE YOMHOOK   , ONLY : LHOOK, DR_HOOK, JPHOOK
 USE YOMLUN    , ONLY : NULRAD
 USE YOMMP0_IFSAUX    , ONLY : NPROC, MYPROC
@@ -23,6 +23,9 @@ USE YOESRTA27 , ONLY : KA, KB, SFLUXREF, RAYL, SCALEKUR, LAYREFFR, &
 IMPLICIT NONE
 
 ! KURUCZ
+INTEGER :: IG
+REAL(KIND=JPRD) :: ZTMP_KA_D(5,13,16)
+REAL(KIND=JPRD) :: ZTMP_KB_D(5,13:59,16)
 !     The following values were obtained using the "low resolution"
 !     version of the Kurucz solar source function.  For unknown reasons,
 !     the total irradiance in this band differs from the corresponding
@@ -35,7 +38,11 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 IF (LHOOK) CALL DR_HOOK('SRTM_KGB27',0,ZHOOK_HANDLE)
 
 IF( MYPROC==1 )THEN
-  READ(NULRAD,ERR=1001) KA_D,KB_D
+  READ(NULRAD,ERR=1001) ZTMP_KA_D,ZTMP_KB_D
+  DO IG = 1, 16
+    KA_D(IG,:,:) = ZTMP_KA_D(:,:,IG)
+    KB_D(IG,:,:) = ZTMP_KB_D(:,:,IG)
+  ENDDO
   KA = REAL(KA_D,JPRB)
   KB = REAL(KB_D,JPRB)
 ENDIF
