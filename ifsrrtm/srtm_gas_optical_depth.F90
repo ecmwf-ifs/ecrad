@@ -91,22 +91,20 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KJP(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)    :: KJT(KIDIA:KFDIA,KLEV)
 INTEGER(KIND=JPIM),INTENT(IN)    :: KJT1(KIDIA:KFDIA,KLEV)
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: POD(KIDIA:KFDIA,KLEV,JPGPT) ! Optical depth
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSSA(KIDIA:KFDIA,KLEV,JPGPT) ! Single scattering albedo
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PINCSOL(KIDIA:KFDIA,JPGPT) ! Incoming solar flux
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: POD(JPGPT,KLEV,KIDIA:KFDIA) ! Optical depth
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PSSA(JPGPT,KLEV,KIDIA:KFDIA) ! Single scattering albedo
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PINCSOL(JPGPT,KIDIA:KFDIA) ! Incoming solar flux
 
 
 !     ------------------------------------------------------------------
 
-INTEGER(KIND=JPIM) :: IB1, IB2, IBM, IGT, IW(KIDIA:KFDIA), JB, JG, JK, JL, IC, ICOUNT
-
-INTEGER(KIND=JPIM) :: IND(KFDIA-KIDIA+1)
+INTEGER(KIND=JPIM) :: IB1, IB2, IBM, IGT, JB, JG, JK, JL, IC, ICOUNT, IWW, IOFFSET
 
 
 !-- Output of SRTM_TAUMOLn routines
-REAL(KIND=JPRB) :: ZTAUG(KIDIA:KFDIA,KLEV,16) ! Absorption optical depth
-REAL(KIND=JPRB) :: ZTAUR(KIDIA:KFDIA,KLEV,16) ! Rayleigh optical depth
-REAL(KIND=JPRB) :: ZSFLXZEN(KIDIA:KFDIA,16) ! Incoming solar flux
+REAL(KIND=JPRB) :: ZTAUG(16,KIDIA:KFDIA,KLEV) ! Absorption optical depth
+REAL(KIND=JPRB) :: ZTAUR(16,KIDIA:KFDIA,KLEV) ! Rayleigh optical depth
+REAL(KIND=JPRB) :: ZSFLXZEN(16,KIDIA:KFDIA) ! Incoming solar flux
 
 REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 
@@ -137,8 +135,6 @@ IC=0
 DO JL = KIDIA, KFDIA
   IF (PRMU0(JL) > 0.0_JPRB) THEN
     IC=IC+1
-    IND(IC)=JL
-    IW(JL)=0
   ENDIF
 ENDDO
 ICOUNT=IC
@@ -147,13 +143,11 @@ IF(ICOUNT==0)THEN
   RETURN
 ENDIF
 
+IOFFSET=0
 JB=IB1-1
 DO JB = IB1, IB2
-  DO IC=1,ICOUNT
-    JL=IND(IC)
-    IBM = JB-15
-    IGT = NGC(IBM)
-  ENDDO
+  IBM = JB-15
+  IGT = NGC(IBM)
 
   !-- for each band, computes the gaseous and Rayleigh optical thickness 
   !  for all g-points within the band
@@ -301,26 +295,29 @@ DO JB = IB1, IB2
 
   ENDIF
    
-  DO JG=1,IGT
-! Added for DWD (2020)
-!NEC$ ivdep
-    DO IC=1,ICOUNT
-      JL=IND(IC)
-      IW(JL)=IW(JL)+1
-
-      ! Incoming solar flux into plane perp to incoming radiation
-      PINCSOL(JL,IW(JL)) = ZSFLXZEN(JL,JG)
-    ENDDO
-
-    DO JK=1,KLEV
-      DO IC=1,ICOUNT
-        JL=IND(IC)
-        POD (JL,JK,IW(JL)) = ZTAUR(JL,JK,JG) + ZTAUG(JL,JK,JG)
-        PSSA(JL,JK,IW(JL)) = ZTAUR(JL,JK,JG) / POD(JL,JK,IW(JL))
+  DO JL=KIDIA,KFDIA
+    IF (PRMU0(JL) > 0.0_JPRB) THEN
+      DO JG=1,IGT
+        IWW = JG + IOFFSET
+        ! Incoming solar flux into plane perp to incoming radiation
+        PINCSOL(IWW,JL) = ZSFLXZEN(JG,JL)
       ENDDO
-    ENDDO
+    ENDIF
+  ENDDO
 
-  ENDDO   !-- end loop on JG (g point)
+  DO JK=1,KLEV
+    DO JL=KIDIA,KFDIA
+      IF (PRMU0(JL) > 0.0_JPRB) THEN
+        DO JG=1,IGT
+          IWW = JG + IOFFSET
+          POD (IWW,JK,JL) = ZTAUR(JG,JL,JK) + ZTAUG(JG,JL,JK)
+          PSSA(IWW,JK,JL) = ZTAUR(JG,JL,JK) / POD(IWW,JK,JL)
+        ENDDO
+      ENDIF
+    ENDDO
+  ENDDO
+
+  IOFFSET = IOFFSET + NGC(JB-15)
 
 ENDDO     !-- end loop on JB (band)
 
