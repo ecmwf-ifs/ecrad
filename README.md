@@ -246,7 +246,7 @@ the gas optics part of the Rapid Radiative Transfer Model for GCMS
 
 # Contributing
 
-Contributions to ECRAD are welcome under the [contributor license agreement (CLA)](https://github.com/ecmwf/codex/blob/main/Legal/contributor_license_agreement.md).
+Contributions to ECRAD are welcome.
 In order to do so, please open an issue where a feature request or bug can be discussed.
 Then create a pull request with your contribution.
 
