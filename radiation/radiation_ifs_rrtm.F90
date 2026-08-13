@@ -349,7 +349,7 @@ contains
     !- from SURFACE             
     integer :: IREFLECT(istartcol:iendcol)
 
-    real(jprb) :: pressure_fl(ncol, nlev), temperature_fl(ncol, nlev)
+    real(jprb), pointer :: pressure_fl(:,:), temperature_fl(:,:)
 
     ! If nlev is less than the number of heights at which gas mixing
     ! ratios are stored, then we assume that the lower part of the
@@ -385,16 +385,31 @@ contains
     ZONEMINUS = 1.0_jprb - 1.0e-6_jprb
     ZONEMINUS_ARRAY = ZONEMINUS
 
-    do jlev=1,nlev
-      do jcol= istartcol,iendcol
-        pressure_fl(jcol,jlev) &
-            &  = 0.5_jprb * (thermodynamics%pressure_hl(jcol,jlev+istartlev-1) &
-            &               +thermodynamics%pressure_hl(jcol,jlev+istartlev))
-        temperature_fl(jcol,jlev) &
-            &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev+istartlev-1) &
-            &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
+    if(associated(thermodynamics%pressure_fl)) then
+      pressure_fl => thermodynamics%pressure_fl
+    else
+      allocate(pressure_fl(ncol, nlev))
+      do jlev=1,nlev
+        do jcol= istartcol,iendcol
+          pressure_fl(jcol,jlev) &
+              &  = 0.5_jprb * (thermodynamics%pressure_hl(jcol,jlev+istartlev-1) &
+              &               +thermodynamics%pressure_hl(jcol,jlev+istartlev))
+        end do
       end do
-    end do
+    end if
+
+    if(associated(thermodynamics%temperature_fl)) then
+      temperature_fl => thermodynamics%temperature_fl
+    else
+      allocate(temperature_fl(ncol, nlev))
+      do jlev=1,nlev
+        do jcol= istartcol,iendcol
+          temperature_fl(jcol,jlev) &
+              &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev+istartlev-1) &
+              &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
+        end do
+      end do
+    end if
     
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
@@ -607,9 +622,19 @@ contains
       end if
 
     end if
-    
+
+    if (associated(thermodynamics%pressure_fl)) then
+      deallocate(pressure_fl)
+      nullify(pressure_fl)
+    end if
+
+    if (associated(thermodynamics%temperature_fl)) then
+      deallocate(temperature_fl)
+      nullify(temperature_fl)
+    end if
+
     if (lhook) call dr_hook('radiation_ifs_rrtm:gas_optics',1,hook_handle)
-    
+
   end subroutine gas_optics
   
 

@@ -220,7 +220,7 @@ contains
          &   intent(out), optional :: incoming_sw
 
     ! Temperature at full levels (K)
-    real(jprb) :: temperature_fl(istartcol:iendcol,nlev)
+    real(jprb), pointer :: temperature_fl(:,:)
 
     real(jprb) :: concentration_scaling(NMaxGases)
     
@@ -235,14 +235,22 @@ contains
     !temperature_fl(istartcol:iendcol,:) &
     !     &  = 0.5_jprb * (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
     !     &               +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1))
- 
-    temperature_fl(istartcol:iendcol,:) &
-         &  = (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
-         &     *thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
-         &    +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1) &
-         &     *thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1)) &
-         &  / (thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
-         &    +thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1))
+    if(associated(thermodynamics%temperature_fl)) then
+      temperature_fl => thermodynamics%temperature_fl
+    else
+      allocate(temperature_fl(istartcol:iendcol, nlev))
+      do jlev=1,nlev
+        do jcol= istartcol,iendcol
+          temperature_fl(istartcol:iendcol,:) &
+               &  = (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
+               &     *thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
+               &    +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1) &
+               &     *thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1)) &
+               &  / (thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
+               &    +thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1))
+        end do
+      end do
+    end if
 
     ! Check that the gas concentrations are stored in volume mixing
     ! ratio with no scaling; if not, return a vector of scalings
@@ -317,6 +325,11 @@ contains
 !NEC$ forced_collapse
       lw_emission = lw_emission * (1.0_jprb - lw_albedo)
 
+    end if
+
+    if (associated(thermodynamics%temperature_fl)) then
+      deallocate(temperature_fl)
+      nullify(temperature_fl)
     end if
 
     if (lhook) call dr_hook('radiation_ecckd_interface:gas_optics',1,hook_handle)
