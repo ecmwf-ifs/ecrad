@@ -239,17 +239,13 @@ contains
       temperature_fl => thermodynamics%temperature_fl
     else
       allocate(temperature_fl(istartcol:iendcol, nlev))
-      do jlev=1,nlev
-        do jcol= istartcol,iendcol
-          temperature_fl(istartcol:iendcol,:) &
-               &  = (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
-               &     *thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
-               &    +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1) &
-               &     *thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1)) &
-               &  / (thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
-               &    +thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1))
-        end do
-      end do
+      temperature_fl(istartcol:iendcol,:) &
+           &  = (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
+           &     *thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
+           &    +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1) &
+           &     *thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1)) &
+           &  / (thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
+           &    +thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1))
     end if
 
     ! Check that the gas concentrations are stored in volume mixing
