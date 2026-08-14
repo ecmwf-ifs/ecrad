@@ -27,6 +27,10 @@ module radiation_thermodynamics
   !---------------------------------------------------------------------
   ! Derived type for storing pressure and temperature at full & half levels
   type thermodynamics_type
+     ! Note that half-level pressure and temperature are required inputs,
+     ! whereas full-level versions are optional.
+     ! If the full-level fields are unassociated, then the full-level pressure and
+     ! temperature will be computed from the half-level values when required.
      real(jprb), pointer, dimension(:,:) :: &
           &  pressure_fl=>null(), &   ! (ncol,nlev) pressure (Pa)
           &  temperature_fl=>null(), &! (ncol,nlev) temperature (K)
