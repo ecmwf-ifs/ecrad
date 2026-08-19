@@ -324,6 +324,8 @@ contains
     end if
 
     if (associated(thermodynamics%temperature_fl)) then
+      nullify(temperature_fl)
+    else
       deallocate(temperature_fl)
       nullify(temperature_fl)
     end if
