@@ -32,9 +32,9 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KLON! Number of atmospheres (longitudes)
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV! Number of atmospheric layers 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA, KFDIA 
 
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPH(KLON,KLEV+1)! Interface pressures (Pa)
+REAL(KIND=JPRB), POINTER ,INTENT(IN) :: PAPH(:,:)   ! Interface pressures (Pa)
 REAL(KIND=JPRB), POINTER ,INTENT(IN) :: PAP(:,:)    ! Layer pressures (Pa)
-REAL(KIND=JPRB)   ,INTENT(IN)    :: PTH(KLON,KLEV+1)! Interface temperatures (K)
+REAL(KIND=JPRB), POINTER ,INTENT(IN) :: PTH(:,:)    ! Interface temperatures (K)
 REAL(KIND=JPRB), POINTER ,INTENT(IN) :: PT(:,:)     ! Layer temperature (K)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PQ(KLON,KLEV)   ! H2O specific humidity (mmr)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PCO2(KLON,KLEV) ! CO2 mass mixing ratio

@@ -419,9 +419,9 @@ contains
     ! the longwave and shortwave
     CALL RRTM_PREPARE_GASES &
          & ( istartcol, iendcol, ncol, nlev, &
-         &   thermodynamics%pressure_hl(:,istartlev:iendlev+1), &
+         &   thermodynamics%pressure_hl, &
          &   pressure_fl, &
-         &   thermodynamics%temperature_hl(:,istartlev:iendlev+1), &
+         &   thermodynamics%temperature_hl, &
          &   temperature_fl, &
          &   gas%mixing_ratio(:,istartlev:iendlev,IH2O), &
          &   gas%mixing_ratio(:,istartlev:iendlev,ICO2), &
