@@ -469,7 +469,7 @@ contains
     ! Pressure at half levels (Pa), dimensioned (ncol,nlev+1)
     real(jprb),            intent(in)  :: pressure_hl(ncol,nlev+1)
     ! Temperature at full levels (K), dimensioned (ncol,nlev)
-    real(jprb),            intent(in)  :: temperature_fl(istartcol:iendcol,nlev)
+    real(jprb), pointer,   intent(in)  :: temperature_fl(:,:)
     ! Gas mole fractions at full levels (mol mol-1), dimensioned (ncol,nlev,nmaxgas)
     real(jprb),            intent(in)  :: mole_fraction_fl(ncol,nlev,nmaxgas)
     ! Optional concentration scaling of each gas
@@ -671,7 +671,7 @@ contains
     ! Pressure at half levels (Pa), dimensioned (ncol,nlev+1)
     real(jprb),            intent(in)  :: pressure_hl(ncol,nlev+1)
     ! Temperature at full levels (K), dimensioned (ncol,nlev)
-    real(jprb),            intent(in)  :: temperature_fl(istartcol:iendcol,nlev)
+    real(jprb), pointer,   intent(in)  :: temperature_fl(:,:)
     ! Gas mole fractions at full levels (mol mol-1), dimensioned (ncol,nlev,nmaxgas)
     real(jprb),            intent(in)  :: mole_fraction_fl(ncol,nlev,nmaxgas)
     ! Optional concentration scaling of each gas

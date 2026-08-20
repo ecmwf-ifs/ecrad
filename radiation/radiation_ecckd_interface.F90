@@ -238,7 +238,7 @@ contains
     if(associated(thermodynamics%temperature_fl)) then
       temperature_fl => thermodynamics%temperature_fl
     else
-      allocate(temperature_fl(istartcol:iendcol, nlev))
+      allocate(temperature_fl(ncol, nlev))
       temperature_fl(istartcol:iendcol,:) &
            &  = (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
            &     *thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
