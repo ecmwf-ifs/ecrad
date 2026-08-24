@@ -25,7 +25,7 @@ USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE PARRRTM  , ONLY : JPBAND
 USE YOERRTM  , ONLY : JPGPT  ,NG9   ,NGS8
 USE YOERRTWN , ONLY :      NSPA   ,NSPB
-USE YOERRTA9 , ONLY : ABSA   ,ABSB   ,FRACREFA, FRACREFB,SELFREF,FORREF,KA_MN2O, KB_MN2O
+USE YOERRTA9 , ONLY : ABSA   ,ABSB   ,FRACREFA, FRACREFB,SELFREF,FORREF,KA_MN2O, KB_MN2O, TAU_MAJOR, TAU_MAJOR1
 USE YOERRTRF, ONLY : CHI_MLS
 
 IMPLICIT NONE
@@ -86,7 +86,7 @@ REAL(KIND=JPRB) ::  fac000, fac100, fac200,&
  & fac001, fac101, fac201, &
  & fac011, fac111, fac211
 REAL(KIND=JPRB) :: p, p4, fk0, fk1, fk2
-REAL(KIND=JPRB) :: taufor,tauself,n2om1,n2om2,absn2o,tau_major(ng9),tau_major1(ng9)
+REAL(KIND=JPRB) :: taufor,tauself,n2om1,n2om2,absn2o
 
     !     local integer arrays
     integer(KIND=JPIM) :: ixc(KLEV), ixlow(KFDIA,KLEV), ixhigh(KFDIA,KLEV)

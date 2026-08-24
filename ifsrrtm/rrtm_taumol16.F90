@@ -24,7 +24,7 @@ USE PARKIND1  ,ONLY : JPIM     ,JPRB
 USE PARRRTM  , ONLY : JPBAND
 USE YOERRTM  , ONLY : JPGPT  ,NGS15  ,NG16
 USE YOERRTWN , ONLY : NSPA,NSPB
-USE YOERRTA16, ONLY : ABSA,ABSB,FRACREFA,FRACREFB,SELFREF,FORREF
+USE YOERRTA16, ONLY : ABSA,ABSB,FRACREFA,FRACREFB,SELFREF,FORREF, TAU_MAJOR, TAU_MAJOR1
 USE YOERRTRF, ONLY : CHI_MLS
 
 IMPLICIT NONE
@@ -68,7 +68,7 @@ REAL(KIND=JPRB) ::  fac000, fac100, fac200,&
 REAL(KIND=JPRB) :: p, p4, fk0, fk1, fk2
 
 REAL(KIND=JPRB) :: refrat_planck_a
-REAL(KIND=JPRB) :: taufor,tauself,tau_major(ng16),tau_major1(ng16)
+REAL(KIND=JPRB) :: taufor,tauself
 REAL(KIND=JPRB) :: fs, specmult, specparm,speccomb,  &
 & fs1, specmult1, specparm1,speccomb1, &
 & fpl, specmult_planck, specparm_planck,speccomb_planck

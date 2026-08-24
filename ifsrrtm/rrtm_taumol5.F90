@@ -26,7 +26,7 @@ USE PARRRTM  , ONLY : JPBAND ,JPXSEC
 USE YOERRTM  , ONLY : JPGPT  ,NG5    ,NGS4
 USE YOERRTWN , ONLY : NSPA   ,NSPB
 USE YOERRTA5 , ONLY : ABSA   ,ABSB   ,CCL4   , FRACREFA, FRACREFB,SELFREF,FORREF, &
- & KA_MO3
+ & KA_MO3, TAU_MAJOR, TAU_MAJOR1
 USE YOERRTRF, ONLY : CHI_MLS
 
 IMPLICIT NONE
@@ -79,7 +79,7 @@ REAL(KIND=JPRB) ::  fac000, fac100, fac200,&
  & fac001, fac101, fac201, &
  & fac011, fac111, fac211
 REAL(KIND=JPRB) :: p, p4, fk0, fk1, fk2
-REAL(KIND=JPRB) :: taufor,tauself,tau_major(ng5),tau_major1(ng5), o3m1, o3m2, abso3
+REAL(KIND=JPRB) :: taufor,tauself, o3m1, o3m2, abso3
 
 REAL(KIND=JPRB) :: fs, specmult, specparm, &
 & fs1, specmult1, specparm1, &
