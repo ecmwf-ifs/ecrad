@@ -484,13 +484,19 @@ program ecrad_ifs_driver
 
 #else  /* COPY_ASYNC */
 
+        ! Pad unused column rows with zero on host so full nproma-sized
+        ! OMPGPU transfers are safe when il < nproma (partial last block).
 #if defined(OMPGPU)
+        if (il < nproma) then
+          zrgp(il+1:nproma, ifs_config%iinbeg:ifs_config%iinend, ib) = 0._jprb
+          zrgp(il+1:nproma, ifs_config%ioutend+1:ifs_config%ifldstot, ib) = 0._jprb
+        endif
         !$OMP TARGET ENTER DATA MAP(ALLOC:zrgp(:,:,ib))
 #ifdef BITIDENTITY_TESTING
         !$OMP TARGET UPDATE TO(iseed(:,ib))
 #endif
-        !$OMP TARGET UPDATE TO(zrgp(1:il,ifs_config%iinbeg:ifs_config%iinend,ib), &
-        !$OMP&                 zrgp(1:il,ifs_config%ioutend+1:ifs_config%ifldstot,ib))
+        !$OMP TARGET UPDATE TO(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,ib), &
+        !$OMP&                 zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,ib))
 #endif
 #if defined(_OPENACC)
         !$acc data create(zrgp(:,:,ib)) &
@@ -557,7 +563,10 @@ program ecrad_ifs_driver
 #if defined(OMPGPU)
 #ifdef COPY_ASYNC
 #else
-        !$OMP TARGET UPDATE FROM(zrgp(1:il,ifs_config%ioutbeg:ifs_config%ioutend,ib))
+        ! Flang omptarget mishandles partial row slices (1:il,:); use the
+        ! same full nproma output-field transfer as full blocks. Only
+        ! rows 1:il are read when scattering fluxes back to global arrays.
+        !$OMP TARGET UPDATE FROM(zrgp(:,ifs_config%ioutbeg:ifs_config%ioutend,ib))
         !$OMP TARGET EXIT DATA MAP(DELETE:zrgp(:,:,ib))
 #endif
 #endif
