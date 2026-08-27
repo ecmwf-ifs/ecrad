@@ -54,10 +54,10 @@ module radiation_aerosol
       procedure :: allocate_direct => allocate_aerosol_arrays_direct
       procedure :: deallocate      => deallocate_aerosol_arrays
       procedure :: out_of_physical_bounds
-      procedure, nopass :: create_device => create_device_aerosol
-      procedure, nopass :: update_host   => update_host_aerosol
-      procedure, nopass :: update_device => update_device_aerosol
-      procedure, nopass :: delete_device => delete_device_aerosol
+      procedure :: create_device => create_device_aerosol
+      procedure :: update_host   => update_host_aerosol
+      procedure :: update_device => update_device_aerosol
+      procedure :: delete_device => delete_device_aerosol
   end type aerosol_type
 
 contains
@@ -223,12 +223,14 @@ contains
   ! Creates fields on device
   subroutine create_device_aerosol(this)
 
-    type(aerosol_type), intent(inout) :: this
+    class(aerosol_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
 #if defined(OMPGPU)
     integer :: i,j,k
 #endif
+    select type (this)
+    type is (aerosol_type)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%od_sw) IF(allocated(this%od_sw))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%ssa_sw) IF(allocated(this%ssa_sw))
@@ -271,6 +273,7 @@ contains
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
     endif
+    end select
 #endif
   end subroutine create_device_aerosol
 
@@ -278,9 +281,11 @@ contains
   ! updates fields on host
   subroutine update_host_aerosol(this)
 
-    type(aerosol_type), intent(inout) :: this
+    class(aerosol_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (aerosol_type)
     !$OMP TARGET UPDATE FROM(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET UPDATE FROM(this%od_sw) IF(allocated(this%od_sw))
     !$OMP TARGET UPDATE FROM(this%ssa_sw) IF(allocated(this%ssa_sw))
@@ -296,6 +301,7 @@ contains
     !$ACC UPDATE HOST(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC UPDATE HOST(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
+    end select
 #endif
   end subroutine update_host_aerosol
 
@@ -303,9 +309,11 @@ contains
   ! updates fields on device
   subroutine update_device_aerosol(this)
 
-    type(aerosol_type), intent(inout) :: this
+    class(aerosol_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (aerosol_type)
     !$OMP TARGET UPDATE TO(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET UPDATE TO(this%od_sw) IF(allocated(this%od_sw))
     !$OMP TARGET UPDATE TO(this%ssa_sw) IF(allocated(this%ssa_sw))
@@ -321,6 +329,7 @@ contains
     !$ACC UPDATE DEVICE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
+    end select
 #endif
   end subroutine update_device_aerosol
 
@@ -328,9 +337,11 @@ contains
   ! Deletes fields on device
   subroutine delete_device_aerosol(this)
 
-    type(aerosol_type), intent(inout) :: this
+    class(aerosol_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (aerosol_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%od_sw) IF(allocated(this%od_sw))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%ssa_sw) IF(allocated(this%ssa_sw))
@@ -346,6 +357,7 @@ contains
     !$ACC EXIT DATA DELETE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
+    end select
 #endif
   end subroutine delete_device_aerosol
 

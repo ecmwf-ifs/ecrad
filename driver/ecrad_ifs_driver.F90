@@ -277,7 +277,7 @@ program ecrad_ifs_driver
   call file%close()
 
   ! Convert gas units to mass-mixing ratio
-  call gas%set_units(gas, IMassMixingRatio, lacc=.false.)
+  call gas%set_units(IMassMixingRatio, lacc=.false.)
 
   ! Compute seed from skin temperature residual
   !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
@@ -302,7 +302,7 @@ program ecrad_ifs_driver
 
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call
-  call thermodynamics%calc_saturation_wrt_liquid(thermodynamics, driver_config%istartcol,driver_config%iendcol)
+  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
@@ -409,20 +409,20 @@ program ecrad_ifs_driver
   !$OMP&                flux_diffuse_band, flux_direct_band)
 #endif
 
-  call yradiation%rad_config%create_device(yradiation%rad_config)
-  call single_level%create_device(single_level)
-  call thermodynamics%create_device(thermodynamics)
-  call gas%create_device(gas)
-  call aerosol%create_device(aerosol)
-  call cloud%create_device(cloud)
-  call flux%create_device(flux)
+  call yradiation%rad_config%create_device()
+  call single_level%create_device()
+  call thermodynamics%create_device()
+  call gas%create_device()
+  call aerosol%create_device()
+  call cloud%create_device()
+  call flux%create_device()
 
-  call single_level%update_device(single_level)
-  call thermodynamics%update_device(thermodynamics)
-  call gas%update_device(gas)
-  call aerosol%update_device(aerosol)
-  call cloud%update_device(cloud)
-  call flux%update_device(flux)
+  call single_level%update_device()
+  call thermodynamics%update_device()
+  call gas%update_device()
+  call aerosol%update_device()
+  call cloud%update_device()
+  call flux%update_device()
 
 #ifdef HAVE_NVTX
      call nvtxEndRange
@@ -532,16 +532,16 @@ program ecrad_ifs_driver
      call nvtxStartRange("ecrad_pullback")
 #endif
 
-  call cloud%update_host(cloud)
-  call flux%update_host(flux)
+  call cloud%update_host()
+  call flux%update_host()
 
-  call yradiation%rad_config%delete_device(yradiation%rad_config)
-  call single_level%delete_device(single_level)
-  call thermodynamics%delete_device(thermodynamics)
-  call gas%delete_device(gas)
-  call aerosol%delete_device(aerosol)
-  call cloud%delete_device(cloud)
-  call flux%delete_device(flux)
+  call yradiation%rad_config%delete_device()
+  call single_level%delete_device()
+  call thermodynamics%delete_device()
+  call gas%delete_device()
+  call aerosol%delete_device()
+  call cloud%delete_device()
+  call flux%delete_device()
 
 #if defined(_OPENACC)
   !$ACC WAIT(1)

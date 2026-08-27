@@ -65,21 +65,21 @@ module radiation_gas
    contains
      procedure :: allocate   => allocate_gas
      procedure :: deallocate => deallocate_gas
-     procedure, nopass :: put_gas_jprd
-     procedure, nopass :: put_gas_jprm
+     procedure :: put_gas_jprd
+     procedure :: put_gas_jprm
      generic   :: put => put_gas_jprd, put_gas_jprm
-     procedure, nopass :: put_well_mixed => put_well_mixed_gas
+     procedure :: put_well_mixed => put_well_mixed_gas
      procedure :: scale      => scale_gas
-     procedure, nopass :: set_units  => set_units_gas
+     procedure :: set_units  => set_units_gas
      procedure :: assert_units => assert_units_gas
-     procedure, nopass :: get        => get_gas
+     procedure :: get        => get_gas
      procedure :: get_scaling
      procedure :: reverse    => reverse_gas
      procedure :: out_of_physical_bounds
-     procedure, nopass :: create_device
-     procedure, nopass :: update_host
-     procedure, nopass :: update_device
-     procedure, nopass :: delete_device
+     procedure :: create_device
+     procedure :: update_host
+     procedure :: update_device
+     procedure :: delete_device
 
   end type gas_type
 
@@ -262,7 +262,7 @@ contains
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
-    type(gas_type),       intent(inout) :: this
+    class(gas_type),       intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
     real(jprd),           intent(in)    :: mixing_ratio(:,:)
@@ -275,6 +275,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (gas_type)
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
     llacc = .false.
@@ -295,6 +297,7 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
+    end select
 
   end subroutine put_gas_jprd
 
@@ -307,7 +310,7 @@ contains
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
-    type(gas_type),       intent(inout) :: this
+    class(gas_type),       intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
     real(jprm),           intent(in)    :: mixing_ratio(:,:)
@@ -320,6 +323,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (gas_type)
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
     llacc = .false.
@@ -338,6 +343,7 @@ contains
     !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
+    end select
 
   end subroutine put_gas_jprm
 
@@ -350,7 +356,7 @@ contains
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
-    type(gas_type),       intent(inout) :: this
+    class(gas_type),       intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
     real(jprb),           intent(in)    :: mixing_ratio
@@ -363,6 +369,8 @@ contains
     logical :: llacc
     integer :: i1, i2, jc, jk
 
+    select type (this)
+    type is (gas_type)
     if (present(lacc)) then
       llacc = lacc
     else
@@ -449,6 +457,7 @@ contains
     !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(LLACC)
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',1,hook_handle)
+    end select
 
   end subroutine put_well_mixed_gas
 
@@ -494,7 +503,7 @@ contains
   ! dimensionless volume mixing ratios, then the values would be
   ! internally divided by 1.0e-6.
   recursive subroutine set_units_gas(this, iunits, igas, scale_factor, lacc)
-    type(gas_type),       intent(inout) :: this
+    class(gas_type),       intent(inout) :: this
     integer,              intent(in)    :: iunits
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor
@@ -509,6 +518,8 @@ contains
     real(jprb) :: new_sf
     logical :: llacc
 
+    select type (this)
+    type is (gas_type)
     if (present(lacc)) then
       llacc = lacc
     else
@@ -564,9 +575,10 @@ contains
       end if
     else
       do jg = 1,this%ntype
-        call this%set_units(this, iunits, igas=this%icode(jg), scale_factor=new_sf, lacc=llacc)
+        call this%set_units(iunits, igas=this%icode(jg), scale_factor=new_sf, lacc=llacc)
       end do
     end if
+    end select
 
   end subroutine set_units_gas
 
@@ -665,7 +677,7 @@ contains
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
-    type(gas_type),       intent(in)  :: this
+    class(gas_type),       intent(in)  :: this
     integer,              intent(in)  :: igas
     integer,              intent(in)  :: iunits
     real(jprb),           intent(out) :: mixing_ratio(:,:)
@@ -686,7 +698,8 @@ contains
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
 #endif
 
-
+    select type (this)
+    type is (gas_type)
     if (present(lacc)) then
       llacc = lacc
     else
@@ -779,6 +792,7 @@ contains
     end if
     !$ACC END PARALLEL
 
+    end select
 #if defined(_OPENACC) || defined(OMPGPU)
 #else
     if (lhook) call dr_hook('radiation_gas:get',1,hook_handle)
@@ -851,12 +865,14 @@ contains
   ! creates fields on device
   subroutine create_device(this)
 
-    type(gas_type), intent(inout) :: this
+    class(gas_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
 #if defined(OMPGPU)
     integer :: i,j,k
 #endif
+    select type (this)
+    type is (gas_type)
 
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
@@ -878,6 +894,7 @@ contains
     end do
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
+    end select
 #endif
   end subroutine create_device
 
@@ -885,12 +902,15 @@ contains
   ! updates fields on host
   subroutine update_host(this)
 
-    type(gas_type), intent(inout) :: this
+    class(gas_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (gas_type)
     !$OMP TARGET UPDATE FROM(this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC UPDATE HOST(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    end select
 #endif
   end subroutine update_host
 
@@ -898,12 +918,15 @@ contains
   ! updates fields on device
   subroutine update_device(this)
 
-    type(gas_type), intent(inout) :: this
+    class(gas_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (gas_type)
     !$OMP TARGET UPDATE TO(this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC UPDATE DEVICE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    end select
 #endif
   end subroutine update_device
 
@@ -911,12 +934,15 @@ contains
   ! deletes fields on device
   subroutine delete_device(this)
 
-    type(gas_type), intent(inout) :: this
+    class(gas_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (gas_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    end select
 #endif
   end subroutine delete_device
 

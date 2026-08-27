@@ -147,10 +147,10 @@ module radiation_aerosol_optics_data
      procedure :: calc_rh_index
      procedure :: print_description
 
-     procedure, nopass :: create_device
-     procedure, nopass :: update_host
-     procedure, nopass :: update_device
-     procedure, nopass :: delete_device
+     procedure :: create_device
+     procedure :: update_host
+     procedure :: update_device
+     procedure :: delete_device
 
   end type aerosol_optics_type
 
@@ -759,9 +759,11 @@ contains
   ! creates fields on device
   subroutine create_device(this)
 
-    type(aerosol_optics_type), intent(inout) :: this
+    class(aerosol_optics_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (aerosol_optics_type)
     !$OMP TARGET ENTER DATA MAP(TO:this%iclass) IF(allocated(this%iclass))
     !$OMP TARGET ENTER DATA MAP(TO:this%itype) IF(allocated(this%itype))
     !$OMP TARGET ENTER DATA MAP(TO:this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
@@ -819,6 +821,7 @@ contains
     !$ACC ENTER DATA COPYIN(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+    end select
 #endif
   end subroutine create_device
 
@@ -826,9 +829,11 @@ contains
   ! updates fields on host
   subroutine update_host(this)
 
-    type(aerosol_optics_type), intent(inout) :: this
+    class(aerosol_optics_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (aerosol_optics_type)
     !$OMP TARGET UPDATE FROM(this%iclass) IF(allocated(this%iclass))
     !$OMP TARGET UPDATE FROM(this%itype) IF(allocated(this%itype))
     !$OMP TARGET UPDATE FROM(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
@@ -886,6 +891,7 @@ contains
     !$ACC UPDATE HOST(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+    end select
 #endif
   end subroutine update_host
 
@@ -893,9 +899,11 @@ contains
   ! updates fields on device
   subroutine update_device(this)
 
-    type(aerosol_optics_type), intent(inout) :: this
+    class(aerosol_optics_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (aerosol_optics_type)
     !$OMP TARGET UPDATE TO(this%iclass) IF(allocated(this%iclass))
     !$OMP TARGET UPDATE TO(this%itype) IF(allocated(this%itype))
     !$OMP TARGET UPDATE TO(this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
@@ -953,6 +961,7 @@ contains
     !$ACC UPDATE DEVICE(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+    end select
 #endif
   end subroutine update_device
 
@@ -960,9 +969,11 @@ contains
   ! deletes fields on device
   subroutine delete_device(this)
 
-    type(aerosol_optics_type), intent(inout) :: this
+    class(aerosol_optics_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (aerosol_optics_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%iclass) IF(allocated(this%iclass))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%itype) IF(allocated(this%itype))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%wavenumber1_sw) IF(allocated(this%wavenumber1_sw))
@@ -1020,6 +1031,7 @@ contains
     !$ACC EXIT DATA DELETE(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+    end select
 #endif
   end subroutine delete_device
 

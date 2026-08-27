@@ -353,7 +353,7 @@ contains
 #endif
 
       ! Extract surface albedos at each gridpoint
-      call single_level%get_albedos(single_level, &
+      call single_level%get_albedos(&
            &                        istartcol, iendcol, config, &
            &                        sw_albedo_direct, sw_albedo_diffuse, &
            &                        lw_albedo)
@@ -410,7 +410,7 @@ contains
         ! a fraction or water content; after this, we can safely
         ! assume that a cloud is present if cloud%fraction > 0.0.
         ! WARNING: not 100% tested on GPU as it has no effect on result
-        call cloud%crop_cloud_fraction(cloud, istartcol, iendcol, &
+        call cloud%crop_cloud_fraction(istartcol, iendcol, &
              &            config%cloud_fraction_threshold, &
              &            config%cloud_mixing_ratio_threshold)
 
@@ -500,8 +500,8 @@ contains
           !$ACC UPDATE HOST(od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, &
           !$ACC             planck_hl, lw_emission, lw_albedo, sw_albedo_direct, sw_albedo_diffuse, &
           !$ACC             incoming_sw, od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud)
-          call cloud%update_host(cloud)
-          call flux%update_host(flux)
+          call cloud%update_host()
+          call flux%update_host()
 #endif
           call save_radiative_properties(trim(rad_prop_file_name), &
              &  nlev, istartcol, iendcol, &
@@ -525,8 +525,8 @@ contains
           !$OMP& lw_emission, lw_albedo)
           !$ACC UPDATE HOST(od_lw, ssa_lw, g_lw, od_lw_cloud, ssa_lw_cloud, g_lw_cloud, planck_hl, lw_emission, lw_albedo)
           !$ACC WAIT(1)
-          call cloud%update_host(cloud)
-          call flux%update_host(flux)
+          call cloud%update_host()
+          call flux%update_host()
           !$ACC WAIT(1)
 #endif
           ! Compute fluxes using the McICA longwave solver
@@ -536,7 +536,7 @@ contains
                &  g_lw_cloud, planck_hl, lw_emission, lw_albedo, flux)
 #if defined(_OPENACC) || defined(OMPGPU)
           !$ACC WAIT(1)
-          call flux%update_device(flux)
+          call flux%update_device()
           !$ACC WAIT(1)
 #endif
         else if (config%i_solver_lw == ISolverMcICAACC) then
@@ -590,8 +590,8 @@ contains
           !$OMP& sw_albedo_direct, sw_albedo_diffuse, incoming_sw)
           !$ACC UPDATE HOST(od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, sw_albedo_direct, sw_albedo_diffuse, incoming_sw)
           !$ACC WAIT(1)
-          call cloud%update_host(cloud)
-          call flux%update_host(flux)
+          call cloud%update_host()
+          call flux%update_host()
           !$ACC WAIT(1)
 #endif
           ! Compute fluxes using the McICA shortwave solver
@@ -602,7 +602,7 @@ contains
                &  incoming_sw, flux)
 #if defined(_OPENACC) || defined(OMPGPU)
           !$ACC WAIT(1)
-          call flux%update_device(flux)
+          call flux%update_device()
           !$ACC WAIT(1)
 #endif
         else if (config%i_solver_sw == ISolverMcICAACC) then
@@ -652,7 +652,7 @@ contains
 
       ! Store surface downwelling, and TOA, fluxes in bands from
       ! fluxes in g points
-      call flux%calc_surface_spectral(flux, config, istartcol, iendcol)
+      call flux%calc_surface_spectral(config, istartcol, iendcol)
       call flux%calc_toa_spectral    (config, istartcol, iendcol)
 
     end if
