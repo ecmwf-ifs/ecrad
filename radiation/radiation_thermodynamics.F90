@@ -53,14 +53,14 @@ module radiation_thermodynamics
    contains
      procedure :: allocate   => allocate_thermodynamics_arrays
      procedure :: deallocate => deallocate_thermodynamics_arrays
-     procedure, nopass :: get_layer_mass
+     procedure :: get_layer_mass
      procedure :: get_layer_mass_column
      procedure :: out_of_physical_bounds
-     procedure, nopass :: calc_saturation_wrt_liquid
-     procedure, nopass :: create_device
-     procedure, nopass :: update_host
-     procedure, nopass :: update_device
-     procedure, nopass :: delete_device
+     procedure :: calc_saturation_wrt_liquid
+     procedure :: create_device
+     procedure :: update_host
+     procedure :: update_device
+     procedure :: delete_device
   end type thermodynamics_type
 
 contains
@@ -152,7 +152,7 @@ contains
 
     use yomhook,  only : lhook, dr_hook, jphook
 
-    type(thermodynamics_type), intent(inout)  :: this
+    class(thermodynamics_type), intent(inout)  :: this
     integer, intent(in)                       :: istartcol, iendcol
     logical, optional, intent(in)             :: lacc
 
@@ -169,6 +169,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (thermodynamics_type)
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',0,hook_handle)
 
     if (present(lacc)) then
@@ -202,6 +204,7 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',1,hook_handle)
+    end select
 
   end subroutine calc_saturation_wrt_liquid
 
@@ -214,7 +217,7 @@ contains
     use yomhook,              only : lhook, dr_hook, jphook
     use radiation_constants,  only : AccelDueToGravity
 
-    type(thermodynamics_type),  intent(in)  :: this
+    class(thermodynamics_type),  intent(in)  :: this
     integer,                    intent(in)  :: istartcol, iendcol
     ! pressure_hl is (ncol,nlev+1), so ubound(...,2) here would declare one
     ! level more than the caller's actual argument, which has nlev. Only
@@ -231,6 +234,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (thermodynamics_type)
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',0,hook_handle)
 
     if (present(lacc)) then
@@ -257,6 +262,7 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',1,hook_handle)
+    end select
 
   end subroutine get_layer_mass
 
@@ -402,9 +408,11 @@ contains
   ! Creates fields on device
   subroutine create_device(this)
 
-    type(thermodynamics_type), intent(inout) :: this
+    class(thermodynamics_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (thermodynamics_type)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%pressure_hl) IF(allocated(this%pressure_hl))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%temperature_hl) IF(allocated(this%temperature_hl))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%pressure_fl) IF(allocated(this%pressure_fl))
@@ -416,6 +424,7 @@ contains
     !$ACC ENTER DATA CREATE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
+    end select
 #endif
   end subroutine create_device
 
@@ -423,9 +432,11 @@ contains
   ! updates fields on host
   subroutine update_host(this)
 
-    type(thermodynamics_type), intent(inout) :: this
+    class(thermodynamics_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (thermodynamics_type)
     !$OMP TARGET UPDATE FROM(this%pressure_hl) IF(allocated(this%pressure_hl))
     !$OMP TARGET UPDATE FROM(this%temperature_hl) IF(allocated(this%temperature_hl))
     !$OMP TARGET UPDATE FROM(this%pressure_fl) IF(allocated(this%pressure_fl))
@@ -437,6 +448,7 @@ contains
     !$ACC UPDATE HOST(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC UPDATE HOST(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC UPDATE HOST(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
+    end select
 #endif
   end subroutine update_host
 
@@ -444,9 +456,11 @@ contains
   ! updates fields on device
   subroutine update_device(this)
 
-    type(thermodynamics_type), intent(inout) :: this
+    class(thermodynamics_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (thermodynamics_type)
     !$OMP TARGET UPDATE TO(this%pressure_hl) IF(allocated(this%pressure_hl))
     !$OMP TARGET UPDATE TO(this%temperature_hl) IF(allocated(this%temperature_hl))
     !$OMP TARGET UPDATE TO(this%pressure_fl) IF(allocated(this%pressure_fl))
@@ -458,6 +472,7 @@ contains
     !$ACC UPDATE DEVICE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
+    end select
 #endif
   end subroutine update_device
 
@@ -465,9 +480,11 @@ contains
   ! Deletes fields on device
   subroutine delete_device(this)
 
-    type(thermodynamics_type), intent(inout) :: this
+    class(thermodynamics_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (thermodynamics_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pressure_hl) IF(allocated(this%pressure_hl))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%temperature_hl) IF(allocated(this%temperature_hl))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pressure_fl) IF(allocated(this%pressure_fl))
@@ -479,6 +496,7 @@ contains
     !$ACC EXIT DATA DELETE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
+    end select
 #endif
   end subroutine delete_device
 

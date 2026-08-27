@@ -448,14 +448,14 @@ subroutine ifs_copy_inputs_to_blocked ( &
       enddo
 
       ! -- by default, globally averaged concentrations (mmr)
-      call gas%get(gas, ICO2, IMassMixingRatio, zrgp(1:il,ifs_config%iico2:ifs_config%iico2+nlev-1,ib), istartcol=ibeg)
-      call gas%get(gas, ICH4, IMassMixingRatio, zrgp(1:il,ifs_config%iich4:ifs_config%iich4+nlev-1,ib), istartcol=ibeg)
-      call gas%get(gas, IN2O, IMassMixingRatio, zrgp(1:il,ifs_config%iin2o:ifs_config%iin2o+nlev-1,ib), istartcol=ibeg)
-      call gas%get(gas, ICFC11, IMassMixingRatio, zrgp(1:il,ifs_config%ic11:ifs_config%ic11+nlev-1,ib), istartcol=ibeg)
-      call gas%get(gas, ICFC12, IMassMixingRatio, zrgp(1:il,ifs_config%ic12:ifs_config%ic12+nlev-1,ib), istartcol=ibeg)
-      call gas%get(gas, IHCFC22,IMassMixingRatio, zrgp(1:il,ifs_config%ic22:ifs_config%ic22+nlev-1,ib), istartcol=ibeg)
-      call gas%get(gas, ICCL4,  IMassMixingRatio, zrgp(1:il,ifs_config%icl4:ifs_config%icl4+nlev-1,ib), istartcol=ibeg)
-      call gas%get(gas, IO3, IMassMixingRatio, zrgp(1:il,ifs_config%ioz:ifs_config%ioz+nlev-1,ib), istartcol=ibeg)
+      call gas%get(ICO2, IMassMixingRatio, zrgp(1:il,ifs_config%iico2:ifs_config%iico2+nlev-1,ib), istartcol=ibeg)
+      call gas%get(ICH4, IMassMixingRatio, zrgp(1:il,ifs_config%iich4:ifs_config%iich4+nlev-1,ib), istartcol=ibeg)
+      call gas%get(IN2O, IMassMixingRatio, zrgp(1:il,ifs_config%iin2o:ifs_config%iin2o+nlev-1,ib), istartcol=ibeg)
+      call gas%get(ICFC11, IMassMixingRatio, zrgp(1:il,ifs_config%ic11:ifs_config%ic11+nlev-1,ib), istartcol=ibeg)
+      call gas%get(ICFC12, IMassMixingRatio, zrgp(1:il,ifs_config%ic12:ifs_config%ic12+nlev-1,ib), istartcol=ibeg)
+      call gas%get(IHCFC22,IMassMixingRatio, zrgp(1:il,ifs_config%ic22:ifs_config%ic22+nlev-1,ib), istartcol=ibeg)
+      call gas%get(ICCL4,  IMassMixingRatio, zrgp(1:il,ifs_config%icl4:ifs_config%icl4+nlev-1,ib), istartcol=ibeg)
+      call gas%get(IO3, IMassMixingRatio, zrgp(1:il,ifs_config%ioz:ifs_config%ioz+nlev-1,ib), istartcol=ibeg)
       ! convert ozone kg/kg to Pa*kg/kg
       ! do jlev=1,nlev
       !   zrgp(1:il,ifs_config%ioz+jlev-1,ib)  = zrgp(1:il,ifs_config%ioz+jlev-1,ib) &

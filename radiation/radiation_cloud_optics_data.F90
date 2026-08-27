@@ -40,10 +40,10 @@ module radiation_cloud_optics_data
 
    contains
      procedure :: setup => setup_cloud_optics
-     procedure, nopass :: create_device
-     procedure, nopass :: update_host
-     procedure, nopass :: update_device
-     procedure, nopass :: delete_device
+     procedure :: create_device
+     procedure :: update_host
+     procedure :: update_device
+     procedure :: delete_device
 
   end type cloud_optics_type
 
@@ -119,9 +119,11 @@ contains
   ! creates fields on device
   subroutine create_device(this)
 
-    type(cloud_optics_type), intent(inout) :: this
+    class(cloud_optics_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (cloud_optics_type)
     !$OMP TARGET ENTER DATA MAP(TO:this%liq_coeff_lw) IF(allocated(this%liq_coeff_lw))
     !$OMP TARGET ENTER DATA MAP(TO:this%liq_coeff_sw) IF(allocated(this%liq_coeff_sw))
     !$OMP TARGET ENTER DATA MAP(TO:this%ice_coeff_lw) IF(allocated(this%ice_coeff_lw))
@@ -135,6 +137,7 @@ contains
     !$ACC ENTER DATA COPYIN(this%ice_coeff_sw) IF(allocated(this%ice_coeff_sw)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%liq_coeff_gen) IF(allocated(this%liq_coeff_gen)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%ice_coeff_gen) IF(allocated(this%ice_coeff_gen)) ASYNC(1)
+    end select
 #endif
   end subroutine create_device
 
@@ -142,9 +145,11 @@ contains
   ! updates fields on host
   subroutine update_host(this)
 
-    type(cloud_optics_type), intent(inout) :: this
+    class(cloud_optics_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (cloud_optics_type)
     !$OMP TARGET UPDATE FROM(this%liq_coeff_lw) IF(allocated(this%liq_coeff_lw))
     !$OMP TARGET UPDATE FROM(this%liq_coeff_sw) IF(allocated(this%liq_coeff_sw))
     !$OMP TARGET UPDATE FROM(this%ice_coeff_lw) IF(allocated(this%ice_coeff_lw))
@@ -158,6 +163,7 @@ contains
     !$ACC UPDATE HOST(this%ice_coeff_sw) IF(allocated(this%ice_coeff_sw)) ASYNC(1)
     !$ACC UPDATE HOST(this%liq_coeff_gen) IF(allocated(this%liq_coeff_gen)) ASYNC(1)
     !$ACC UPDATE HOST(this%ice_coeff_gen) IF(allocated(this%ice_coeff_gen)) ASYNC(1)
+    end select
 #endif
   end subroutine update_host
 
@@ -165,9 +171,11 @@ contains
   ! updates fields on device
   subroutine update_device(this)
 
-    type(cloud_optics_type), intent(inout) :: this
+    class(cloud_optics_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (cloud_optics_type)
     !$OMP TARGET UPDATE TO(this%liq_coeff_lw) IF(allocated(this%liq_coeff_lw))
     !$OMP TARGET UPDATE TO(this%liq_coeff_sw) IF(allocated(this%liq_coeff_sw))
     !$OMP TARGET UPDATE TO(this%ice_coeff_lw) IF(allocated(this%ice_coeff_lw))
@@ -181,6 +189,7 @@ contains
     !$ACC UPDATE DEVICE(this%ice_coeff_sw) IF(allocated(this%ice_coeff_sw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%liq_coeff_gen) IF(allocated(this%liq_coeff_gen)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ice_coeff_gen) IF(allocated(this%ice_coeff_gen)) ASYNC(1)
+    end select
 #endif
   end subroutine update_device
 
@@ -188,9 +197,11 @@ contains
   ! deletes fields on device
   subroutine delete_device(this)
 
-    type(cloud_optics_type), intent(inout) :: this
+    class(cloud_optics_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (cloud_optics_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%liq_coeff_lw) IF(allocated(this%liq_coeff_lw))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%liq_coeff_sw) IF(allocated(this%liq_coeff_sw))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%ice_coeff_lw) IF(allocated(this%ice_coeff_lw))
@@ -204,6 +215,7 @@ contains
     !$ACC EXIT DATA DELETE(this%ice_coeff_sw) IF(allocated(this%ice_coeff_sw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%liq_coeff_gen) IF(allocated(this%liq_coeff_gen)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ice_coeff_gen) IF(allocated(this%ice_coeff_gen)) ASYNC(1)
+    end select
 #endif
   end subroutine delete_device
 

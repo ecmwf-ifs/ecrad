@@ -111,14 +111,14 @@ module radiation_flux
    contains
     procedure :: allocate   => allocate_flux_type
     procedure :: deallocate => deallocate_flux_type
-    procedure, nopass :: calc_surface_spectral
+    procedure :: calc_surface_spectral
     procedure :: calc_toa_spectral
     procedure :: out_of_physical_bounds
     procedure :: heating_rate_out_of_physical_bounds
-    procedure, nopass :: create_device => create_device_flux
-    procedure, nopass :: update_host   => update_host_flux
-    procedure, nopass :: update_device => update_device_flux
-    procedure, nopass :: delete_device => delete_device_flux
+    procedure :: create_device => create_device_flux
+    procedure :: update_host   => update_host_flux
+    procedure :: update_device => update_device_flux
+    procedure :: delete_device => delete_device_flux
   end type flux_type
 
 ! Added for DWD (2020)
@@ -417,7 +417,7 @@ contains
 #endif
     use radiation_config, only : config_type
 
-    type(flux_type),  intent(inout) :: this
+    class(flux_type),  intent(inout) :: this
     type(config_type), intent(in)    :: config
     integer,           intent(in)    :: istartcol, iendcol
 
@@ -437,6 +437,8 @@ contains
     integer :: istart, iend, ig
     real(jprb) :: s1, s2
 #endif
+    select type (this)
+    type is (flux_type)
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',0,hook_handle)
 
 #if defined(_OPENACC) || defined(OMPGPU)
@@ -790,6 +792,7 @@ contains
     end if
 
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',1,hook_handle)
+    end select
 
   end subroutine calc_surface_spectral
 
@@ -1111,9 +1114,11 @@ contains
   ! Creates fields on device
   subroutine create_device_flux(this)
 
-    type(flux_type), intent(inout) :: this
+    class(flux_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (flux_type)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up) IF(allocated(this%lw_up))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_dn) IF(allocated(this%lw_dn))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%lw_up_clear) IF(allocated(this%lw_up_clear))
@@ -1207,6 +1212,7 @@ contains
     !$ACC ENTER DATA CREATE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
+    end select
 #endif
   end subroutine create_device_flux
 
@@ -1214,9 +1220,11 @@ contains
   ! updates fields on host
   subroutine update_host_flux(this)
 
-    type(flux_type), intent(inout) :: this
+    class(flux_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (flux_type)
     !$OMP TARGET UPDATE FROM(this%lw_up) IF(allocated(this%lw_up))
     !$OMP TARGET UPDATE FROM(this%lw_dn) IF(allocated(this%lw_dn))
     !$OMP TARGET UPDATE FROM(this%lw_up_clear) IF(allocated(this%lw_up_clear))
@@ -1310,6 +1318,7 @@ contains
     !$ACC UPDATE HOST(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC UPDATE HOST(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE HOST(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
+    end select
 #endif
   end subroutine update_host_flux
 
@@ -1317,9 +1326,11 @@ contains
   ! updates fields on device
   subroutine update_device_flux(this)
 
-    type(flux_type), intent(inout) :: this
+    class(flux_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (flux_type)
     !$OMP TARGET UPDATE TO(this%lw_up) IF(allocated(this%lw_up))
     !$OMP TARGET UPDATE TO(this%lw_dn) IF(allocated(this%lw_dn))
     !$OMP TARGET UPDATE TO(this%lw_up_clear) IF(allocated(this%lw_up_clear))
@@ -1413,6 +1424,7 @@ contains
     !$ACC UPDATE DEVICE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
+    end select
 #endif
   end subroutine update_device_flux
 
@@ -1420,9 +1432,11 @@ contains
   ! Deletes fields on device
   subroutine delete_device_flux(this)
 
-    type(flux_type), intent(inout) :: this
+    class(flux_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (flux_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up) IF(allocated(this%lw_up))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_dn) IF(allocated(this%lw_dn))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%lw_up_clear) IF(allocated(this%lw_up_clear))
@@ -1516,6 +1530,7 @@ contains
     !$ACC EXIT DATA DELETE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
+    end select
 #endif
   end subroutine delete_device_flux
 

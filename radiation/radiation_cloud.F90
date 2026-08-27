@@ -81,20 +81,20 @@ module radiation_cloud
   contains
     procedure :: allocate   => allocate_cloud_arrays
     procedure :: deallocate => deallocate_cloud_arrays
-    procedure, nopass :: set_overlap_param_fix
-    procedure, nopass :: set_overlap_param_var
+    procedure :: set_overlap_param_fix
+    procedure :: set_overlap_param_var
     generic   :: set_overlap_param => set_overlap_param_fix, set_overlap_param_var
     procedure :: set_overlap_param_approx
-    procedure, nopass :: create_fractional_std
+    procedure :: create_fractional_std
     procedure :: create_inv_cloud_effective_size
     procedure :: create_inv_cloud_effective_size_eta
-    procedure, nopass :: param_cloud_effective_separation_eta
-    procedure, nopass :: crop_cloud_fraction
+    procedure :: param_cloud_effective_separation_eta
+    procedure :: crop_cloud_fraction
     procedure :: out_of_physical_bounds
-    procedure, nopass :: create_device => create_device_cloud
-    procedure, nopass :: update_host   => update_host_cloud
-    procedure, nopass :: update_device => update_device_cloud
-    procedure, nopass :: delete_device => delete_device_cloud
+    procedure :: create_device => create_device_cloud
+    procedure :: update_host   => update_host_cloud
+    procedure :: update_device => update_device_cloud
+    procedure :: delete_device => delete_device_cloud
 
   end type cloud_type
 
@@ -207,7 +207,7 @@ contains
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_constants,      only : GasConstantDryAir, AccelDueToGravity
 
-    type(cloud_type),          intent(inout) :: this
+    class(cloud_type),          intent(inout) :: this
     type(thermodynamics_type), intent(in)    :: thermodynamics
     real(jprb),                intent(in)    :: decorrelation_length ! m
     integer,         optional, intent(in)    :: istartcol, iendcol
@@ -228,6 +228,8 @@ contains
 
     logical :: llacc
 
+    select type (this)
+    type is (cloud_type)
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_fix',0,hook_handle)
 
     ! Pressure at half-levels, pressure_hl, is defined at nlev+1
@@ -332,6 +334,7 @@ contains
     !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_fix',1,hook_handle)
+    end select
 
   end subroutine set_overlap_param_fix
 
@@ -353,7 +356,7 @@ contains
     use radiation_io,             only : nulerr, radiation_abort
 #endif
 
-    type(cloud_type),          intent(inout) :: this
+    class(cloud_type),          intent(inout) :: this
     type(thermodynamics_type), intent(in)    :: thermodynamics
     integer,                   intent(in)    :: istartcol, iendcol
     real(jprb),                intent(in)    :: decorrelation_length(istartcol:iendcol) ! m
@@ -370,6 +373,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (cloud_type)
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',0,hook_handle)
 
     if (present(lacc)) then
@@ -456,6 +461,7 @@ contains
     end if
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
+    end select
 
   end subroutine set_overlap_param_var
 
@@ -551,7 +557,7 @@ contains
 
     use yomhook,                  only : lhook, dr_hook, jphook
 
-    type(cloud_type),  intent(inout) :: this
+    class(cloud_type),  intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     real(jprb),        intent(in)    :: frac_std
     logical, optional, intent(in) :: lacc
@@ -561,6 +567,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (cloud_type)
     if (present(lacc)) then
         llacc = lacc
     else
@@ -589,6 +597,7 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',1,hook_handle)
+    end select
 
   end subroutine create_fractional_std
 
@@ -707,7 +716,7 @@ contains
 
     use yomhook,                  only : lhook, dr_hook, jphook
 
-    type(cloud_type), intent(inout) :: this
+    class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: ncol, nlev
     ! Pressure on half levels (Pa)
     real(jprb),        intent(in)    :: pressure_hl(:,:)
@@ -736,6 +745,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (cloud_type)
     if (lhook) call dr_hook('radiation_cloud:param_cloud_effective_separation_eta',0,hook_handle)
 
     if (present(inhom_separation_factor)) then
@@ -788,6 +799,7 @@ contains
     end do
 
     if (lhook) call dr_hook('radiation_cloud:param_cloud_effective_separation_eta',1,hook_handle)
+    end select
 
   end subroutine param_cloud_effective_separation_eta
 
@@ -804,7 +816,7 @@ contains
 
     use yomhook, only : lhook, dr_hook, jphook
 
-    type(cloud_type), intent(inout) :: this
+    class(cloud_type), intent(inout) :: this
     integer,           intent(in)    :: istartcol, iendcol
 
     integer :: nlev
@@ -815,6 +827,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (cloud_type)
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',0,hook_handle)
 
     nlev = size(this%fraction,2)
@@ -863,6 +877,7 @@ contains
 #endif
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',1,hook_handle)
+    end select
 
   end subroutine crop_cloud_fraction
 
@@ -915,9 +930,11 @@ contains
   ! creates fields on device
   subroutine create_device_cloud(this)
 
-    type(cloud_type), intent(inout) :: this
+    class(cloud_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (cloud_type)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%effective_radius) IF(allocated(this%effective_radius))
     !$OMP TARGET ENTER DATA MAP(TO:this%q_liq) IF(associated(this%q_liq))
@@ -941,6 +958,7 @@ contains
     !$ACC ENTER DATA CREATE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+    end select
 #endif
   end subroutine create_device_cloud
 
@@ -948,9 +966,11 @@ contains
   ! updates fields on host
   subroutine update_host_cloud(this)
 
-    type(cloud_type), intent(inout) :: this
+    class(cloud_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (cloud_type)
     !$OMP TARGET UPDATE FROM(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET UPDATE FROM(this%effective_radius) IF(allocated(this%effective_radius))
     !$OMP TARGET UPDATE FROM(this%fraction) IF(allocated(this%fraction))
@@ -966,6 +986,7 @@ contains
     !$ACC UPDATE HOST(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC UPDATE HOST(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC UPDATE HOST(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+    end select
 #endif
   end subroutine update_host_cloud
 
@@ -976,9 +997,11 @@ contains
 #if defined(_OPENACC)
     use openacc,       only : acc_attach
 #endif
-    type(cloud_type), intent(inout) :: this
+    class(cloud_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (cloud_type)
     !$OMP TARGET UPDATE TO(this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET UPDATE TO(this%effective_radius) IF(allocated(this%effective_radius))
 #if defined(OMPGPU)
@@ -1010,6 +1033,7 @@ contains
     !$ACC UPDATE DEVICE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+    end select
 #endif
   end subroutine update_device_cloud
 
@@ -1017,9 +1041,11 @@ contains
   ! deletes fields on device
   subroutine delete_device_cloud(this)
 
-    type(cloud_type), intent(inout) :: this
+    class(cloud_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (cloud_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%effective_radius) IF(allocated(this%effective_radius))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%q_liq) IF(associated(this%q_liq))
@@ -1043,6 +1069,7 @@ contains
     !$ACC EXIT DATA DELETE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+    end select
 #endif
   end subroutine delete_device_cloud
 
