@@ -69,6 +69,7 @@ program ecrad_ifs_driver
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
   use ifs_blocking
+  use iso_fortran_env,          only : int64
 #ifdef HAVE_NVTX
   use nvtx
 #endif
@@ -142,6 +143,9 @@ program ecrad_ifs_driver
   ! Loop index for repeats (for benchmarking)
   integer :: jrepeat
 
+  integer(kind=int64) :: count_rate, t(4)
+  real(kind=jprd) :: total_dt, kernel_dt
+
   ! Loop index
   integer :: jrl, ibeg, iend, il, ib
 
@@ -167,6 +171,7 @@ program ecrad_ifs_driver
 #endif
 
   call dr_hook_init()
+  call system_clock(count_rate=count_rate)
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -401,6 +406,9 @@ program ecrad_ifs_driver
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
   do jrepeat = 1,driver_config%nrepeat
+     total_dt = 0.0_jprd
+     kernel_dt = 0.0_jprd
+
 #ifdef HAVE_NVTX
      call nvtxStartRange("ecrad_it")
 #endif
@@ -435,10 +443,11 @@ program ecrad_ifs_driver
       ! Run radiation scheme over blocks of columns in parallel
 
 #ifndef OMPGPU
-      !$OMP PARALLEL DO SCHEDULE(DYNAMIC,1)&
-      !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB)
+      !$OMP PARALLEL DO SCHEDULE(DYNAMIC,1) REDUCTION(+:total_dt,kernel_dt)&
+      !$OMP&PRIVATE(JRL,IBEG,IEND,IL,IB,t)
 #endif
       do jrl=1,ncol,nproma
+        call system_clock(count=t(1))
         ibeg=jrl
         iend=min(ibeg+nproma-1,ncol)
         il=iend-ibeg+1
@@ -496,6 +505,8 @@ program ecrad_ifs_driver
 #endif
 #endif /* COPY_ASYNC */
 
+        call system_clock(count=t(3))
+
         ! Call the ECRAD radiation scheme
         call radiation_scheme &
              & (yradiation, &
@@ -541,6 +552,8 @@ program ecrad_ifs_driver
 #endif
              & )
 
+        call system_clock(count=t(4))
+
 #if defined(OMPGPU)
 #ifdef COPY_ASYNC
 #else
@@ -557,6 +570,9 @@ program ecrad_ifs_driver
           !$acc end data
 #endif
 #endif
+        call system_clock(count=t(2))
+        total_dt = total_dt + (t(2)-t(1))/dble(count_rate)
+        kernel_dt = kernel_dt + (t(4)-t(3))/dble(count_rate)
       end do
 #ifndef OMPGPU
       !$OMP END PARALLEL DO
@@ -579,22 +595,19 @@ program ecrad_ifs_driver
      call roctxEndRange
 #endif
 
+     write(nulout, '(a,g12.5,a)') 'time elapsed in radiative transfer: ', &
+          &                         total_dt, ' seconds'
+     write(nulout, '(a,g12.5,a)') 'time elapsed in radiative transfer kernel: ', &
+          &                         kernel_dt, ' seconds'
+     write(nulout, '(a,i0)') 'Columns/s : ', int((ncol)/total_dt)
+     write(nulout, '(a,i0)') 'Columns/s : ', int((ncol)/kernel_dt)
+
   end do
 
 #if defined(OMPGPU)
 #endif
 #if defined(_OPENACC)
 !$acc wait
-#endif
-
-#ifndef NO_OPENMP
-  if (driver_config%nrepeat > driver_config%nwarmup) then
-    tstop = omp_get_wtime()
-    write(nulout, '(a,g12.5,a)') 'Total time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
-    write(nulout, '(a,g12.5,a)') 'Average time elapsed in radiative transfer: ', &
-      &                         (tstop-tstart)/(driver_config%nrepeat-driver_config%nwarmup), ' seconds'
-    write(nulout, '(a,i0)') 'Columns/s : ', int((ncol*(driver_config%nrepeat-driver_config%nwarmup))/(tstop-tstart))
-  end if
 #endif
 
   ! --------------------------------------------------------
