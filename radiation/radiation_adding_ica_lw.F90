@@ -54,17 +54,19 @@ contains
     ! Resulting fluxes (W m-2) at half-levels: diffuse upwelling and
     ! downwelling
     real(jprb), intent(out), dimension(ncol, nlev+1) :: flux_up, flux_dn
-    
+
     ! Albedo of the entire earth/atmosphere system below each half
     ! level
-    real(jprb), dimension(ncol, nlev+1) :: albedo
+    ! To save stack space, we use flux_up to store the albedo
+    ! real(jprb), dimension(ncol, nlev+1) :: albedo
 
     ! Upwelling radiation at each half-level due to emission below
     ! that half-level (W m-2)
     real(jprb), dimension(ncol, nlev+1) :: source
 
     ! Equal to 1/(1-albedo*reflectance)
-    real(jprb), dimension(ncol, nlev)   :: inv_denominator
+    ! To save stack space, we use flux_dn to store the inverse denominator
+    ! real(jprb), dimension(ncol, nlev)   :: inv_denominator
 
     ! Loop index for model level and column
     integer :: jlev, jcol
@@ -73,7 +75,7 @@ contains
 
     if (lhook) call dr_hook('radiation_adding_ica_lw:adding_ica_lw',0,hook_handle)
 
-    albedo(:,nlev+1) = albedo_surf
+    flux_up(:,nlev+1) = albedo_surf  ! albedo(:,nlev+1)
 
     ! At the surface, the source is thermal emission
     source(:,nlev+1) = emission_surf
@@ -82,6 +84,9 @@ contains
     ! the entire earth/atmosphere system below that half-level, and
     ! also the "source", which is the upwelling flux due to emission
     ! below that level
+    !
+    ! To reduce stack arrays, use flux_up and flux_dn as temporary arrays to
+    ! store albedo and inv_denominator, respectively.
     do jlev = nlev,1,-1
       ! Next loop over columns. We could do this by indexing the
       ! entire inner dimension as follows, e.g. for the first line:
@@ -91,16 +96,18 @@ contains
       ! loop.
       do jcol = 1,ncol
         ! Lacis and Hansen (1974) Eq 33, Shonk & Hogan (2008) Eq 10:
-        inv_denominator(jcol,jlev) = 1.0_jprb &
-             &  / (1.0_jprb-albedo(jcol,jlev+1)*reflectance(jcol,jlev))
+        flux_dn(jcol,jlev+1) = &  ! inv_denominator(jcol,jlev)
+             &  1.0_jprb / (1.0_jprb - flux_up(jcol,jlev+1) & ! albedo(jcol,jlev+1)
+             &                        * reflectance(jcol,jlev))
         ! Shonk & Hogan (2008) Eq 9, Petty (2006) Eq 13.81:
-        albedo(jcol,jlev) = reflectance(jcol,jlev) + transmittance(jcol,jlev)*transmittance(jcol,jlev) &
-             &  * albedo(jcol,jlev+1) * inv_denominator(jcol,jlev)
+        flux_up(jcol,jlev) = & ! albedo(jcol,jlev)
+             & reflectance(jcol,jlev) + transmittance(jcol,jlev)*transmittance(jcol,jlev) &
+             &  * flux_up(jcol,jlev+1) * flux_dn(jcol,jlev+1) ! albedo(jcol,jlev+1) * inv_denominator(jcol,jlev)
         ! Shonk & Hogan (2008) Eq 11:
         source(jcol,jlev) = source_up(jcol,jlev) &
              &  + transmittance(jcol,jlev) * (source(jcol,jlev+1) &
-             &                    + albedo(jcol,jlev+1)*source_dn(jcol,jlev)) &
-             &                   * inv_denominator(jcol,jlev)
+             &                    + flux_up(jcol,jlev+1)*source_dn(jcol,jlev)) & ! albedo(jcol,jlev+1) * source_dn(jcol,jlev)
+             &                   * flux_dn(jcol,jlev+1) ! inv_denominator(jcol,jlev)
       end do
     end do
 
@@ -119,9 +126,9 @@ contains
         flux_dn(jcol,jlev+1) &
              &  = (transmittance(jcol,jlev)*flux_dn(jcol,jlev) &
              &     + reflectance(jcol,jlev)*source(jcol,jlev+1) &
-             &     + source_dn(jcol,jlev)) * inv_denominator(jcol,jlev)
+             &     + source_dn(jcol,jlev)) * flux_dn(jcol,jlev+1) ! inv_denominator(jcol,jlev)
         ! Shonk & Hogan (2008) Eq 12:
-        flux_up(jcol,jlev+1) = albedo(jcol,jlev+1)*flux_dn(jcol,jlev+1) &
+        flux_up(jcol,jlev+1) = flux_up(jcol,jlev+1)*flux_dn(jcol,jlev+1) & ! albedo(jcol,jlev+1)*flux_dn
              &            + source(jcol,jlev+1)
       end do
     end do
@@ -169,17 +176,19 @@ contains
     ! Resulting fluxes (W m-2) at half-levels: diffuse upwelling and
     ! downwelling
     real(jprb), intent(out), dimension(ncol, nlev+1) :: flux_up, flux_dn
-    
+
     ! Albedo of the entire earth/atmosphere system below each half
     ! level
-    real(jprb), dimension(ncol, nlev+1) :: albedo
+    ! To save stack space, we use flux_up to store the albedo
+    ! real(jprb), dimension(ncol, nlev+1) :: albedo
 
     ! Upwelling radiation at each half-level due to emission below
     ! that half-level (W m-2)
     real(jprb), dimension(ncol, nlev+1) :: source
 
     ! Equal to 1/(1-albedo*reflectance)
-    real(jprb), dimension(ncol, nlev)   :: inv_denominator
+    ! To save stack space, we use flux_dn to store the inverse denominator
+    ! real(jprb), dimension(ncol, nlev)   :: inv_denominator
 
     ! Loop index for model level and column
     integer :: jlev, jcol
@@ -191,8 +200,8 @@ contains
     ! Copy over downwelling fluxes above cloud from clear sky
     flux_dn(:,1:i_cloud_top) = flux_dn_clear(:,1:i_cloud_top)
 
-    albedo(:,nlev+1) = albedo_surf
-    
+    flux_up(:,nlev+1) = albedo_surf  ! albedo(:,nlev+1)
+
     ! At the surface, the source is thermal emission
     source(:,nlev+1) = emission_surf
 
@@ -200,36 +209,42 @@ contains
     ! the entire earth/atmosphere system below that half-level, and
     ! also the "source", which is the upwelling flux due to emission
     ! below that level
+    !
+    ! To reduce stack arrays, use flux_up and flux_dn as temporary arrays to
+    ! store albedo and inv_denominator, respectively.
     do jlev = nlev,i_cloud_top,-1
       if (is_clear_sky_layer(jlev)) then
         ! Reflectance of this layer is zero, simplifying the expression
         do jcol = 1,ncol
-          albedo(jcol,jlev) = transmittance(jcol,jlev)*transmittance(jcol,jlev)*albedo(jcol,jlev+1)
+          flux_up(jcol,jlev) = & ! albedo(jcol,jlev)
+               & transmittance(jcol,jlev)*transmittance(jcol,jlev)*flux_up(jcol,jlev+1) ! albedo(jcol,jlev+1)
           source(jcol,jlev) = source_up(jcol,jlev) &
                &  + transmittance(jcol,jlev) * (source(jcol,jlev+1) &
-               &                    + albedo(jcol,jlev+1)*source_dn(jcol,jlev))
+               &                    + flux_up(jcol,jlev+1)*source_dn(jcol,jlev)) ! albedo(jcol,jlev+1)*source_dn(jcol,jlev)
         end do
       else
         ! Loop over columns; explicit loop seems to be faster
         do jcol = 1,ncol
           ! Lacis and Hansen (1974) Eq 33, Shonk & Hogan (2008) Eq 10:
-          inv_denominator(jcol,jlev) = 1.0_jprb &
-               &  / (1.0_jprb-albedo(jcol,jlev+1)*reflectance(jcol,jlev))
+          flux_dn(jcol,jlev+1) = &  ! inv_denominator(jcol,jlev)
+               &  1.0_jprb / (1.0_jprb - flux_up(jcol,jlev+1) & ! albedo(jcol,jlev+1)
+               &                        * reflectance(jcol,jlev))
           ! Shonk & Hogan (2008) Eq 9, Petty (2006) Eq 13.81:
-          albedo(jcol,jlev) = reflectance(jcol,jlev) + transmittance(jcol,jlev)*transmittance(jcol,jlev) &
-               &  * albedo(jcol,jlev+1) * inv_denominator(jcol,jlev)
+          flux_up(jcol,jlev) = & ! albedo(jcol,jlev)
+               &  reflectance(jcol,jlev) + transmittance(jcol,jlev)*transmittance(jcol,jlev) &
+               &  * flux_up(jcol,jlev+1) * flux_dn(jcol,jlev+1) ! albedo(jcol,jlev+1) * inv_denominator(jcol,jlev)
           ! Shonk & Hogan (2008) Eq 11:
           source(jcol,jlev) = source_up(jcol,jlev) &
                &  + transmittance(jcol,jlev) * (source(jcol,jlev+1) &
-               &                    + albedo(jcol,jlev+1)*source_dn(jcol,jlev)) &
-               &                   * inv_denominator(jcol,jlev)
+               &                    + flux_up(jcol,jlev+1)*source_dn(jcol,jlev)) & ! albedo(jcol,jlev+1)*source_dn(jcol,jlev)
+               &                   * flux_dn(jcol,jlev+1) ! inv_denominator(jcol,jlev)
         end do
       end if
     end do
 
     ! Compute the fluxes above the highest cloud
     flux_up(:,i_cloud_top) = source(:,i_cloud_top) &
-         &                 + albedo(:,i_cloud_top)*flux_dn(:,i_cloud_top)
+         &                 + flux_up(:,i_cloud_top)*flux_dn(:,i_cloud_top) ! albedo(:,i_cloud_top)*flux_dn_clear(:,i_cloud_top)
     do jlev = i_cloud_top-1,1,-1
       flux_up(:,jlev) = transmittance(:,jlev)*flux_up(:,jlev+1) + source_up(:,jlev)
     end do
@@ -241,7 +256,7 @@ contains
         do jcol = 1,ncol
           flux_dn(jcol,jlev+1) = transmittance(jcol,jlev)*flux_dn(jcol,jlev) &
                &               + source_dn(jcol,jlev)
-          flux_up(jcol,jlev+1) = albedo(jcol,jlev+1)*flux_dn(jcol,jlev+1) &
+          flux_up(jcol,jlev+1) = flux_up(jcol,jlev+1)*flux_dn(jcol,jlev+1) & ! albedo(jcol,jlev+1)*flux_dn
                &               + source(jcol,jlev+1)
         end do
       else
@@ -250,9 +265,9 @@ contains
           flux_dn(jcol,jlev+1) &
                &  = (transmittance(jcol,jlev)*flux_dn(jcol,jlev) &
                &     + reflectance(jcol,jlev)*source(jcol,jlev+1) &
-               &     + source_dn(jcol,jlev)) * inv_denominator(jcol,jlev)
+               &     + source_dn(jcol,jlev)) * flux_dn(jcol,jlev+1) ! inv_denominator(jcol,jlev)
           ! Shonk & Hogan (2008) Eq 12:
-          flux_up(jcol,jlev+1) = albedo(jcol,jlev+1)*flux_dn(jcol,jlev+1) &
+          flux_up(jcol,jlev+1) = flux_up(jcol,jlev+1)*flux_dn(jcol,jlev+1) & ! albedo(jcol,jlev+1)*flux_dn
                &               + source(jcol,jlev+1)
         end do
       end if
@@ -293,7 +308,7 @@ contains
     ! Resulting fluxes (W m-2) at half-levels: diffuse upwelling and
     ! downwelling
     real(jprb), intent(out), dimension(ncol, nlev+1) :: flux_up, flux_dn
-    
+
     ! Loop index for model level
     integer :: jlev, jcol
 
@@ -326,7 +341,7 @@ contains
         flux_up(jcol,jlev) = transmittance(jcol,jlev)*flux_up(jcol,jlev+1) + source_up(jcol,jlev)
       end do
     end do
-    
+
     if (lhook) call dr_hook('radiation_adding_ica_lw:calc_fluxes_no_scattering_lw',1,hook_handle)
 
   end subroutine calc_fluxes_no_scattering_lw

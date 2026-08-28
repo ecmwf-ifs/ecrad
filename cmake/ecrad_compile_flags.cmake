@@ -35,7 +35,7 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(initsnan_flags      "-init=snan")
   set(inline_flags        "-finline-functions -finline-limit=1500 -Winline")
   set(vectorization_flags "-assume byterecl,realloc_lhs -march=core-avx2 -no-fma")
-  set(fpmodel_flags       "-fpe0 -fp-model precise -fp-speculation=safe -ftz -fast-transcendentals")
+  set(fpmodel_flags       "-fpe3 -fp-model precise -fp-speculation=safe -ftz -fast-transcendentals")
 
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "PGI|NVHPC")
   set(fpe_flags           "-Ktrap=fp")

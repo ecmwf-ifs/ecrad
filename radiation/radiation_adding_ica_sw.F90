@@ -61,17 +61,19 @@ contains
     ! diffuse downwelling and direct downwelling
     real(jprb), intent(out), dimension(ncol, nlev+1) :: flux_up, flux_dn_diffuse, &
          &                                              flux_dn_direct
-    
+
     ! Albedo of the entire earth/atmosphere system below each half
     ! level
-    real(jprb), dimension(ncol, nlev+1) :: albedo
+    ! To save stack space, we use flux_up to store the albedo
+    ! real(jprb), dimension(ncol, nlev+1) :: albedo
 
     ! Upwelling radiation at each half-level due to scattering of the
     ! direct beam below that half-level (W m-2)
     real(jprb), dimension(ncol, nlev+1) :: source
 
     ! Equal to 1/(1-albedo*reflectance)
-    real(jprb), dimension(ncol, nlev)   :: inv_denominator
+    ! To save stack space, we use flux_dn_diffuse to store the inverse denominator
+    ! real(jprb), dimension(ncol, nlev)   :: inv_denominator
 
     ! Loop index for model level and column
     integer :: jlev, jcol
@@ -87,7 +89,7 @@ contains
       flux_dn_direct(:,jlev+1) = flux_dn_direct(:,jlev)*trans_dir_dir(:,jlev)
     end do
 
-    albedo(:,nlev+1) = albedo_surf_diffuse
+    flux_up(:,nlev+1) = albedo_surf_diffuse  ! albedo(:,nlev+1)
 
     ! At the surface, the direct solar beam is reflected back into the
     ! diffuse stream
@@ -97,6 +99,9 @@ contains
     ! the entire earth/atmosphere system below that half-level, and
     ! also the "source", which is the upwelling flux due to direct
     ! radiation that is scattered below that level
+    !
+    ! To reduce stack arrays, use flux_up and flux_dn_diffuse as temporary arrays to
+    ! store albedo and inv_denominator, respectively.
 ! Added for DWD (2020)
 !NEC$ outerloop_unroll(8)
     do jlev = nlev,1,-1
@@ -108,15 +113,18 @@ contains
       ! loop.
       do jcol = 1,ncol
         ! Lacis and Hansen (1974) Eq 33, Shonk & Hogan (2008) Eq 10:
-        inv_denominator(jcol,jlev) = 1.0_jprb / (1.0_jprb-albedo(jcol,jlev+1)*reflectance(jcol,jlev))
+        flux_dn_diffuse(jcol,jlev+1) = &  ! inv_denominator(jcol,jlev)
+             &  1.0_jprb / (1.0_jprb - flux_up(jcol,jlev+1) & ! albedo(jcol,jlev+1)
+             &                        * reflectance(jcol,jlev))
         ! Shonk & Hogan (2008) Eq 9, Petty (2006) Eq 13.81:
-        albedo(jcol,jlev) = reflectance(jcol,jlev) + transmittance(jcol,jlev) * transmittance(jcol,jlev) &
-             &                                     * albedo(jcol,jlev+1) * inv_denominator(jcol,jlev)
+        flux_up(jcol,jlev) = & ! albedo(jcol,jlev)
+             &  reflectance(jcol,jlev) + transmittance(jcol,jlev) * transmittance(jcol,jlev) &
+             &  * flux_up(jcol,jlev+1) * flux_dn_diffuse(jcol,jlev+1) ! albedo(jcol,jlev+1) * inv_denominator(jcol,jlev)
         ! Shonk & Hogan (2008) Eq 11:
         source(jcol,jlev) = ref_dir(jcol,jlev)*flux_dn_direct(jcol,jlev) &
              &  + transmittance(jcol,jlev)*(source(jcol,jlev+1) &
-             &        + albedo(jcol,jlev+1)*trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) &
-             &  * inv_denominator(jcol,jlev)
+             &        + flux_up(jcol,jlev+1)*trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) & ! albedo(jcol,jlev+1)*...
+             &  * flux_dn_diffuse(jcol,jlev+1) ! inv_denominator(jcol,jlev)
       end do
     end do
 
@@ -137,9 +145,9 @@ contains
         flux_dn_diffuse(jcol,jlev+1) &
              &  = (transmittance(jcol,jlev)*flux_dn_diffuse(jcol,jlev) &
              &     + reflectance(jcol,jlev)*source(jcol,jlev+1) &
-             &     + trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) * inv_denominator(jcol,jlev)
+             &     + trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) * flux_dn_diffuse(jcol,jlev+1) ! inv_denominator(jcol,jlev)
         ! Shonk & Hogan (2008) Eq 12:
-        flux_up(jcol,jlev+1) = albedo(jcol,jlev+1)*flux_dn_diffuse(jcol,jlev+1) &
+        flux_up(jcol,jlev+1) = flux_up(jcol,jlev+1)*flux_dn_diffuse(jcol,jlev+1) & ! albedo(jcol,jlev+1)*flux_dn_diffuse
              &            + source(jcol,jlev+1)
         flux_dn_direct(jcol,jlev) = flux_dn_direct(jcol,jlev)*cos_sza(jcol)
       end do
