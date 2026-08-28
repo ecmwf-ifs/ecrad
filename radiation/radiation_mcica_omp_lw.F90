@@ -24,6 +24,7 @@ module radiation_mcica_omp_lw
 
   use radiation_io, only : nulout
   public
+  private :: solver_mcica_omp_lw_impl
 
 contains
 
@@ -56,7 +57,6 @@ contains
          &                               calc_no_scattering_transmittance_lw_single_cell_omp
     use radiation_adding_ica_lw, only  : fast_adding_ica_lw_omp, calc_fluxes_no_scattering_lw_omp
     
-    use radiation_lw_derivatives, only : calc_lw_derivatives_ica_omp, modify_lw_derivatives_ica_omp
     use radiation_cloud_generator_acc, only: cloud_generator_omp
     use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
 
@@ -99,19 +99,119 @@ contains
     ! Output
     type(flux_type), intent(inout):: flux
 
+    real(jphook) :: hook_handle
+
+#ifdef HAVE_ROCTX
+    call roctxStartRange("radiation::mcica_omp_lw"//c_null_char)
+#endif
+
+    if (lhook) call dr_hook('radiation_mcica_omp_lw:solver_mcica_omp_lw',0,hook_handle)
+
+    if (.not. config%do_clear) then
+      write(nulerr,'(a)') '*** Error: longwave McICA OMP requires clear-sky calculation to be performed'
+      call radiation_abort()
+    end if
+
+    if (config%do_lw_derivatives) then
+      call solver_mcica_omp_lw_impl(nlev, size(cloud%fraction,1), istartcol, iendcol, config%n_g_lw, &
+           & config%pdf_sampler%ncdf, config%pdf_sampler%nfsd, &
+           & config%n_g_lw_if_scattering, config%n_bands_lw, config%n_bands_lw_if_scattering, &
+           & config%use_beta_overlap, &
+           & config%do_lw_cloud_scattering, config%do_lw_derivatives, &
+           & config%cloud_fraction_threshold, config%cloud_inhom_decorr_scaling, &
+           & config%pdf_sampler%fsd1, config%pdf_sampler%inv_fsd_interval, &
+           & config%i_band_from_reordered_g_lw, config%pdf_sampler%val, single_level%iseed, &
+           & cloud%fraction, cloud%fractional_std, cloud%overlap_param, &
+           & od, ssa, g, od_cloud, ssa_cloud, g_cloud, planck_hl, emission, albedo, &
+           & flux%cloud_cover_lw, flux%lw_dn_surf_clear_g, flux%lw_dn_surf_g, &
+           & flux%lw_up_clear, flux%lw_dn_clear, flux%lw_up, flux%lw_dn, flux%lw_derivatives)
+    else
+      call solver_mcica_omp_lw_impl(nlev, size(cloud%fraction,1), istartcol, iendcol, config%n_g_lw, &
+           & config%pdf_sampler%ncdf, config%pdf_sampler%nfsd, &
+           & config%n_g_lw_if_scattering, config%n_bands_lw, config%n_bands_lw_if_scattering, &
+           & config%use_beta_overlap, &
+           & config%do_lw_cloud_scattering, config%do_lw_derivatives, &
+           & config%cloud_fraction_threshold, config%cloud_inhom_decorr_scaling, &
+           & config%pdf_sampler%fsd1, config%pdf_sampler%inv_fsd_interval, &
+           & config%i_band_from_reordered_g_lw, config%pdf_sampler%val, single_level%iseed, &
+           & cloud%fraction, cloud%fractional_std, cloud%overlap_param, &
+           & od, ssa, g, od_cloud, ssa_cloud, g_cloud, planck_hl, emission, albedo, &
+           & flux%cloud_cover_lw, flux%lw_dn_surf_clear_g, flux%lw_dn_surf_g, &
+           & flux%lw_up_clear, flux%lw_dn_clear, flux%lw_up, flux%lw_dn)
+    end if
+
+#ifdef HAVE_ROCTX
+    call roctxEndRange
+#endif
+    if (lhook) call dr_hook('radiation_mcica_omp_lw:solver_mcica_omp_lw',1,hook_handle)
+
+  end subroutine solver_mcica_omp_lw
+
+  !---------------------------------------------------------------------
+  ! Implementation taking only intrinsic scalars and explicit-shape
+  ! arrays.  Explicit shape matters: an assumed-shape dummy still carries
+  ! a Fortran descriptor that the runtime remaps at every target region,
+  ! whereas an explicit-shape dummy is just a base address.
+  subroutine solver_mcica_omp_lw_impl(nlev, ncol, istartcol, iendcol, ng, ncdf, nfsd, &
+       & ng_if_scattering, n_bands, n_bands_if_scattering, &
+       & use_beta_overlap, do_lw_cloud_scattering, do_lw_derivatives, &
+       & cloud_fraction_threshold, cloud_inhom_decorr_scaling, fsd1, inv_fsd_interval, &
+       & i_band_from_reordered_g_lw, pdf_val, iseed, cloud_fraction, cloud_fractional_std, &
+       & cloud_overlap_param, od, ssa, g, od_cloud, ssa_cloud, g_cloud, planck_hl, &
+       & emission, albedo, cloud_cover_lw, lw_dn_surf_clear_g, lw_dn_surf_g, &
+       & lw_up_clear, lw_dn_clear, lw_up, lw_dn, lw_derivatives)
+
+    use parkind1, only           : jprb
+    use radiation_two_stream, only     : calc_ref_trans_lw_single_level_omp, &
+         &                               calc_no_scattering_transmittance_lw_omp, &
+         &                               calc_no_scattering_transmittance_lw_single_cell_omp
+    use radiation_adding_ica_lw, only  : fast_adding_ica_lw_omp, calc_fluxes_no_scattering_lw_omp
+    use radiation_cloud_generator_acc, only: cloud_generator_omp
+    use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
+
+    implicit none
+
+    integer, intent(in) :: nlev, ncol, istartcol, iendcol, ng, ncdf, nfsd
+    integer, intent(in) :: ng_if_scattering, n_bands, n_bands_if_scattering
+    logical, intent(in) :: use_beta_overlap, do_lw_cloud_scattering, do_lw_derivatives
+    real(jprb), intent(in) :: cloud_fraction_threshold, cloud_inhom_decorr_scaling
+    real(jprb), intent(in) :: fsd1, inv_fsd_interval
+    integer, intent(in) :: i_band_from_reordered_g_lw(ng)
+    real(jprb), intent(in) :: pdf_val(ncdf,nfsd)
+    integer, intent(in) :: iseed(ncol)
+    real(jprb), intent(in) :: cloud_fraction(ncol,nlev)
+    real(jprb), intent(in) :: cloud_fractional_std(ncol,nlev)
+    real(jprb), intent(in) :: cloud_overlap_param(ncol,nlev-1)
+    real(jprb), intent(in) :: od(ng,nlev,istartcol:iendcol)
+    real(jprb), intent(in) :: ssa(ng_if_scattering,nlev,istartcol:iendcol)
+    real(jprb), intent(in) :: g(ng_if_scattering,nlev,istartcol:iendcol)
+    real(jprb), intent(in) :: od_cloud(n_bands,nlev,istartcol:iendcol)
+    real(jprb), intent(in) :: ssa_cloud(n_bands_if_scattering,nlev,istartcol:iendcol)
+    real(jprb), intent(in) :: g_cloud(n_bands_if_scattering,nlev,istartcol:iendcol)
+    real(jprb), intent(in) :: planck_hl(ng,nlev+1,istartcol:iendcol)
+    real(jprb), intent(in) :: emission(ng,istartcol:iendcol), albedo(ng,istartcol:iendcol)
+    real(jprb), intent(inout) :: cloud_cover_lw(ncol)
+    real(jprb), intent(inout) :: lw_dn_surf_clear_g(ng,ncol)
+    real(jprb), intent(inout) :: lw_dn_surf_g(ng,ncol)
+    real(jprb), intent(inout) :: lw_up_clear(ncol,nlev+1)
+    real(jprb), intent(inout) :: lw_dn_clear(ncol,nlev+1)
+    real(jprb), intent(inout) :: lw_up(ncol,nlev+1)
+    real(jprb), intent(inout) :: lw_dn(ncol,nlev+1)
+    real(jprb), intent(inout), optional :: lw_derivatives(ncol,nlev+1)
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Local variables : Mapped into Global Memory
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     ! Fluxes per g point
-    real(jprb), dimension(config%n_g_lw, nlev+1, istartcol:iendcol) :: flux_up, flux_dn
-    real(jprb), dimension(config%n_g_lw, nlev+1, istartcol:iendcol) :: flux_up_clear, flux_dn_clear
+    real(jprb), dimension(ng, nlev+1, istartcol:iendcol) :: flux_up, flux_dn
+    real(jprb), dimension(ng, nlev+1, istartcol:iendcol) :: flux_up_clear, flux_dn_clear
 
     ! Identify clear-sky layers
     logical :: is_clear_sky_layer(nlev, istartcol:iendcol)
 
     ! workaround that allows inling of cloud generator
-    real(jprb), dimension(config%pdf_sampler%ncdf, config%pdf_sampler%nfsd)  :: sample_val
+    real(jprb), dimension(ncdf, nfsd)  :: sample_val
 
     ! temporary arrays to increase performance
     real(jprb), dimension(nlev, istartcol:iendcol) :: frac, frac_std
@@ -133,19 +233,18 @@ contains
 
     ! Diffuse reflectance and transmittance for each layer in clear
     ! and all skies
-    real(jprb), dimension(config%n_g_lw, nlev, istartcol:iendcol) :: trans_clear, reflectance, transmittance
+    real(jprb), dimension(ng, nlev, istartcol:iendcol) :: trans_clear, reflectance, transmittance
 
     ! Emission by a layer into the upwelling or downwelling diffuse
     ! streams, in clear and all skies
-    real(jprb), dimension(config%n_g_lw, nlev, istartcol:iendcol) :: source_up, source_dn
+    real(jprb), dimension(ng, nlev, istartcol:iendcol) :: source_up, source_dn
 
     ! Optical depth scaling from the cloud generator, zero indicating
     ! clear skies
-    real(jprb), dimension(config%n_g_lw,nlev, istartcol:iendcol) :: od_scaling
+    real(jprb), dimension(ng,nlev, istartcol:iendcol) :: od_scaling
     
         ! Temporary working array
-    real(jprb), dimension(config%n_g_lw,nlev+1, istartcol:iendcol) :: tmp_work_source
-    real(jprb), dimension(config%n_g_lw, istartcol:iendcol) :: tmp_derivatives
+    real(jprb), dimension(ng,nlev+1, istartcol:iendcol) :: tmp_work_source
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Local variables : Stack
@@ -160,7 +259,7 @@ contains
     real(jprb) :: od_total, ssa_total, g_total
 
     ! Combined scattering optical depth
-    real(jprb) :: scat_od, scat_od_total(config%n_g_lw)
+    real(jprb) :: scat_od, scat_od_total(ng)
 
     ! Total cloud cover output from the cloud generator
     real(jprb) :: total_cloud_cover
@@ -169,33 +268,16 @@ contains
     real(jprb) :: overlap_alpha
 
     ! Temporary storage for more efficient summation
-    real(jprb) :: sum_up, sum_dn, sum_up_clr, sum_dn_clr
+    real(jprb) :: sum_up, sum_dn, sum_up_clr, sum_dn_clr, weight
 
     ! Index of the highest cloudy layer
     integer :: i_cloud_top
 
-    ! Number of g points
-    integer :: ng
-
     ! Loop indices for level, column and g point
     integer :: jlev, jcol, jg
 
-    real(jphook) :: hook_handle
     !real(jprb)  totalMem
     integer :: file_idx, fidx1, fidx2, fidx3
-
-#ifdef HAVE_ROCTX
-    call roctxStartRange("radiation::mcica_omp_lw"//c_null_char)
-#endif
-
-    if (lhook) call dr_hook('radiation_mcica_omp_lw:solver_mcica_omp_lw',0,hook_handle)
-
-    if (.not. config%do_clear) then
-      write(nulerr,'(a)') '*** Error: longwave McICA OMP requires clear-sky calculation to be performed'
-      call radiation_abort()
-    end if
-
-    ng = config%n_g_lw
 
     !totalMem = 6*ng * nlev
     !totalMem = totalMem+5*(ng)*(nlev+1) !flux_up,dn,up_clear,dn_clear,source
@@ -207,8 +289,10 @@ contains
     !$OMP             sample_val, frac, frac_std, overlap_param, cum_cloud_cover, &
     !$OMP             pair_cloud_cover, cum_product, ibegin, iend)
 #if defined(__amdflang__)
-    !$OMP TARGET DATA MAP(PRESENT, ALLOC: config, single_level, cloud, od, ssa, g, od_cloud, ssa_cloud, &
-    !$OMP             g_cloud, planck_hl, emission, albedo, flux)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: i_band_from_reordered_g_lw, pdf_val, iseed, &
+    !$OMP             cloud_fraction, cloud_fractional_std, cloud_overlap_param, od, ssa, g, &
+    !$OMP             od_cloud, ssa_cloud, g_cloud, planck_hl, emission, albedo, cloud_cover_lw, &
+    !$OMP             lw_dn_surf_clear_g, lw_dn_surf_g, lw_up_clear, lw_dn_clear, lw_up, lw_dn)
 #endif
 
     !
@@ -216,13 +300,12 @@ contains
     !
 
     !$OMP TARGET ENTER DATA MAP(ALLOC: trans_clear, od_scaling, &
-    !$OMP   reflectance, transmittance, source_up, source_dn, tmp_work_source, &
-    !$OMP   tmp_derivatives)
+    !$OMP   reflectance, transmittance, source_up, source_dn, tmp_work_source)
 
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
-    do jlev = 1,config%pdf_sampler%nfsd
-      do jcol = 1,config%pdf_sampler%ncdf
-        sample_val(jcol,jlev) = config%pdf_sampler%val(jcol,jlev)
+    do jlev = 1,nfsd
+      do jcol = 1,ncdf
+        sample_val(jcol,jlev) = pdf_val(jcol,jlev)
       end do
     end do
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
@@ -230,8 +313,8 @@ contains
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
     do jcol = istartcol,iendcol
       do jlev = 1, nlev
-        frac(jlev, jcol) = cloud%fraction(jcol,jlev)
-        frac_std(jlev, jcol) = cloud%fractional_std(jcol,jlev)
+        frac(jlev, jcol) = cloud_fraction(jcol,jlev)
+        frac_std(jlev, jcol) = cloud_fractional_std(jcol,jlev)
         is_clear_sky_layer(jlev,jcol) = .true.
       end do
     end do
@@ -240,7 +323,7 @@ contains
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
     do jcol = istartcol,iendcol
       do jlev = 1, nlev-1
-        overlap_param(jlev, jcol) = cloud%overlap_param(jcol,jlev)
+        overlap_param(jlev, jcol) = cloud_overlap_param(jcol,jlev)
       end do
     end do
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
@@ -253,7 +336,7 @@ contains
       ! down to the base of each layer
       do jlev = 1,nlev-1
         ! Convert to "alpha" overlap parameter if necessary
-        if (config%use_beta_overlap) then
+        if (use_beta_overlap) then
           overlap_alpha = beta2alpha(overlap_param(jlev,jcol), &
                 &                     frac(jlev,jcol), frac(jlev+1,jcol))
         else
@@ -274,7 +357,6 @@ contains
       cum_product(jcol) = 1.0_jprb - frac(1,jcol)
       do jlev = 1,nlev-1
         if (frac(jlev,jcol) >= MaxCloudFrac) then
-          ! Cloud cover has reached one
           cum_product(jcol) = 0.0_jprb
         else
           cum_product(jcol) = cum_product(jcol) * (1.0_jprb - pair_cloud_cover(jlev, jcol)) &
@@ -282,18 +364,16 @@ contains
         end if
         cum_cloud_cover(jlev+1, jcol) = 1.0_jprb - cum_product(jcol)
       end do
-      flux%cloud_cover_lw(jcol) = cum_cloud_cover(nlev,jcol);
-      if (flux%cloud_cover_lw(jcol) < config%cloud_fraction_threshold) then
-        ! Treat column as clear sky: calling function therefore will not
-        ! use od_scaling so we don't need to calculate it
-        flux%cloud_cover_lw(jcol) = 0.0_jprb
+      cloud_cover_lw(jcol) = cum_cloud_cover(nlev,jcol)
+      if (cloud_cover_lw(jcol) < cloud_fraction_threshold) then
+        cloud_cover_lw(jcol) = 0.0_jprb
       end if
     end do
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
     do jcol = istartcol,iendcol
-      if (flux%cloud_cover_lw(jcol) >= config%cloud_fraction_threshold) then
+      if (cloud_cover_lw(jcol) >= cloud_fraction_threshold) then
         ! Cloud is present: need to calculate od_scaling
         ! Find range of cloudy layers
         ibegin(jcol) = nlev
@@ -334,22 +414,25 @@ contains
     do jcol = istartcol,iendcol
        do jg = 1, ng
           call cloud_generator_omp(jg, ng, nlev, &
-               &  single_level%iseed(jcol) + 997, &
-               &  config%cloud_fraction_threshold, &
+               &  iseed(jcol) + 997, &
+               &  cloud_fraction_threshold, &
                &  frac(:,jcol), overlap_param(:,jcol), &
-               &  config%cloud_inhom_decorr_scaling, frac_std(:,jcol), &
-               &  config%pdf_sampler%ncdf, config%pdf_sampler%nfsd, &
-               &  config%pdf_sampler%fsd1, config%pdf_sampler%inv_fsd_interval, &
+               &  cloud_inhom_decorr_scaling, frac_std(:,jcol), &
+               &  ncdf, nfsd, &
+               &  fsd1, inv_fsd_interval, &
                &  sample_val, &
-               &  od_scaling(:,:,jcol), flux%cloud_cover_lw(jcol)+0.0_jprb, & ! Workaround for nvhpc-24.1
+               &  od_scaling(:,:,jcol), cloud_cover_lw(jcol)+0.0_jprb, & ! Workaround for nvhpc-24.1
                &  ibegin(jcol), iend(jcol), &
                &  cum_cloud_cover=cum_cloud_cover(:,jcol), &
                &  pair_cloud_cover=pair_cloud_cover(:,jcol))
        enddo
     enddo
 
-    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(od_cloud_new, od_total, ssa_total, g_total, scat_od, &
-    !$OMP& jcol, jg, jlev, i_cloud_top) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+    ! Split the former combined kernel so the always-on clear-sky path is not
+    ! compiled together with cloudy two-stream/adding (high VGPR/scratch).
+    ! Revert: restore radiation_mcica_omp_lw.F90.pre_split_l435
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(jcol, jg) &
+    !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
     do jcol = istartcol,iendcol
        do jg = 1, ng
           ! Clear-sky calculation
@@ -366,17 +449,24 @@ contains
                &  flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
 
           ! Store surface spectral downwelling fluxes
-          flux%lw_dn_surf_clear_g(jg,jcol) = flux_dn_clear(jg,nlev+1,jcol)
+          lw_dn_surf_clear_g(jg,jcol) = flux_dn_clear(jg,nlev+1,jcol)
+       end do
+    end do
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(od_cloud_new, od_total, ssa_total, g_total, scat_od, &
+    !$OMP& jcol, jg, jlev, i_cloud_top) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+    do jcol = istartcol,iendcol
+       do jg = 1, ng
           ! Do cloudy-sky calculation; add a prime number to the seed in
           ! the longwave
-
-          if (flux%cloud_cover_lw(jcol) >= config%cloud_fraction_threshold) then
+          if (cloud_cover_lw(jcol) >= cloud_fraction_threshold) then
              ! Total-sky calculation
              i_cloud_top = nlev+1
 
              do jlev = 1,nlev
                 ! Compute combined gas+aerosol+cloud optical properties
-                if (frac(jlev,jcol) >= config%cloud_fraction_threshold) then
+                if (frac(jlev,jcol) >= cloud_fraction_threshold) then
                    is_clear_sky_layer(jlev,jcol) = .false.
                    ! Get index to the first cloudy layer from the top
                    if (i_cloud_top > jlev) then
@@ -384,21 +474,21 @@ contains
                    end if
                    
                    od_cloud_new = od_scaling(jg,jlev,jcol) &
-                        &  * od_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol)
+                        &  * od_cloud(i_band_from_reordered_g_lw(jg),jlev,jcol)
                    od_total  = od(jg,jlev,jcol) + od_cloud_new
                    ssa_total = 0.0_jprb
                    g_total   = 0.0_jprb
 
-                   if (config%do_lw_cloud_scattering) then
+                   if (do_lw_cloud_scattering) then
                       ! Scattering case: calculate reflectance and
                       ! transmittance at each model level
                       if (od_total > 0.0_jprb) then
-                         scat_od = ssa_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
+                         scat_od = ssa_cloud(i_band_from_reordered_g_lw(jg),jlev,jcol) &
                               &     * od_cloud_new
                          ssa_total = scat_od / od_total
                          if (scat_od > 0.0_jprb) then
-                            g_total = g_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
-                                 &     * ssa_cloud(config%i_band_from_reordered_g_lw(jg),jlev,jcol) &
+                            g_total = g_cloud(i_band_from_reordered_g_lw(jg),jlev,jcol) &
+                                 &     * ssa_cloud(i_band_from_reordered_g_lw(jg),jlev,jcol) &
                                  &     *  od_cloud_new / scat_od
                          end if
                       end if
@@ -425,7 +515,7 @@ contains
                 end if
              end do
 
-             if(config%do_lw_cloud_scattering) then
+             if(do_lw_cloud_scattering) then
                 ! Use adding method to compute fluxes but optimize for the
                 ! presence of clear-sky layers
                 call fast_adding_ica_lw_omp(jg, ng, nlev, reflectance(:,:,jcol), transmittance(:,:,jcol), &
@@ -446,44 +536,134 @@ contains
              ! Cloudy flux profiles currently assume completely overcast
              ! skies; perform weighted average with clear-sky profile
              ! Store surface spectral downwelling fluxes
-             flux%lw_dn_surf_g(jg,jcol) = flux%cloud_cover_lw(jcol)*flux_dn(jg,nlev+1,jcol) &
-                  &  + (1.0_jprb - flux%cloud_cover_lw(jcol))*flux%lw_dn_surf_clear_g(jg,jcol)
+             lw_dn_surf_g(jg,jcol) = cloud_cover_lw(jcol)*flux_dn(jg,nlev+1,jcol) &
+                  &  + (1.0_jprb - cloud_cover_lw(jcol))*lw_dn_surf_clear_g(jg,jcol)
           else
              ! No cloud in profile and clear-sky fluxes already
              ! calculated: copy them over
-             flux%lw_dn_surf_g(jg,jcol) = flux%lw_dn_surf_clear_g(jg,jcol)
+             lw_dn_surf_g(jg,jcol) = lw_dn_surf_clear_g(jg,jcol)
           end if
        end do
     end do
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !
-    ! Separate out the derivative computation, which has reductions across spectral bands
+    ! LW derivatives: two-pass so the vertical product is (jcol,jg) like the
+    ! flux kernels, then a cheap sum over g-points. Spectral products go into
+    ! tmp_work_source (scratch after adding). Arithmetic matches the old
+    ! calc/modify_lw_derivatives_ica_omp loops (same jg order).
+    ! Revert: restore radiation_mcica_omp_lw.F90.pre_deriv_twopass
     !
-    if (config%do_lw_derivatives) then
-      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO THREAD_LIMIT(64)
+    if (do_lw_derivatives) then
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(jcol, jg, sum_up, sum_up_clr) &
+      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(16)
       do jcol = istartcol,iendcol
-        if (flux%cloud_cover_lw(jcol) >= config%cloud_fraction_threshold) then
-          call calc_lw_derivatives_ica_omp(ng, nlev, jcol, transmittance(:,:,jcol), flux_up(:,nlev+1,jcol), &
-               &                       flux%lw_derivatives, tmp_derivatives(:,jcol))
-          if (flux%cloud_cover_lw(jcol) < 1.0_jprb - config%cloud_fraction_threshold) then
-            ! Modify the existing derivative with the contribution from the clear sky
-            call modify_lw_derivatives_ica_omp(ng, nlev, jcol, trans_clear(:,:,jcol), flux_up_clear(:,nlev+1,jcol), &
-                 &                             1.0_jprb-flux%cloud_cover_lw(jcol), flux%lw_derivatives, tmp_derivatives(:,jcol))
-          end if
+        if (cloud_cover_lw(jcol) >= cloud_fraction_threshold) then
+          sum_up = 0.0_jprb
+          do jg = 1, ng
+            sum_up = sum_up + flux_up(jg,nlev+1,jcol)
+          end do
+          cum_product(jcol) = sum_up
         else
-          call calc_lw_derivatives_ica_omp(ng, nlev, jcol, trans_clear(:,:,jcol), flux_up_clear(:,nlev+1,jcol), &
-               &                       flux%lw_derivatives, tmp_derivatives(:,jcol))
-        endif
-      enddo
+          sum_up_clr = 0.0_jprb
+          do jg = 1, ng
+            sum_up_clr = sum_up_clr + flux_up_clear(jg,nlev+1,jcol)
+          end do
+          cum_product(jcol) = sum_up_clr
+        end if
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(jcol, jg, jlev, sum_up) &
+      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+      do jcol = istartcol,iendcol
+        do jg = 1, ng
+          if (cloud_cover_lw(jcol) >= cloud_fraction_threshold) then
+            sum_up = flux_up(jg,nlev+1,jcol) / cum_product(jcol)
+            do jlev = nlev,1,-1
+              sum_up = sum_up * transmittance(jg,jlev,jcol)
+              tmp_work_source(jg,jlev,jcol) = sum_up
+            end do
+          else
+            sum_up = flux_up_clear(jg,nlev+1,jcol) / cum_product(jcol)
+            do jlev = nlev,1,-1
+              sum_up = sum_up * trans_clear(jg,jlev,jcol)
+              tmp_work_source(jg,jlev,jcol) = sum_up
+            end do
+          end if
+        end do
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(jcol, jlev, jg, sum_up) &
+      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(32)
+      do jcol = istartcol,iendcol
+        do jlev = 1, nlev+1
+          if (jlev == nlev+1) then
+            lw_derivatives(jcol,jlev) = 1.0_jprb
+          else
+            sum_up = 0.0_jprb
+            do jg = 1, ng
+              sum_up = sum_up + tmp_work_source(jg,jlev,jcol)
+            end do
+            lw_derivatives(jcol,jlev) = sum_up
+          end if
+        end do
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO PRIVATE(jcol, jg, sum_up_clr) &
+      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(16)
+      do jcol = istartcol,iendcol
+        if (cloud_cover_lw(jcol) >= cloud_fraction_threshold .and. &
+             &  cloud_cover_lw(jcol) < 1.0_jprb - cloud_fraction_threshold) then
+          sum_up_clr = 0.0_jprb
+          do jg = 1, ng
+            sum_up_clr = sum_up_clr + flux_up_clear(jg,nlev+1,jcol)
+          end do
+          cum_product(jcol) = sum_up_clr
+        end if
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(jcol, jg, jlev, sum_up) &
+      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+      do jcol = istartcol,iendcol
+        do jg = 1, ng
+          if (cloud_cover_lw(jcol) >= cloud_fraction_threshold .and. &
+               &  cloud_cover_lw(jcol) < 1.0_jprb - cloud_fraction_threshold) then
+            sum_up = flux_up_clear(jg,nlev+1,jcol) / cum_product(jcol)
+            do jlev = nlev,1,-1
+              sum_up = sum_up * trans_clear(jg,jlev,jcol)
+              tmp_work_source(jg,jlev,jcol) = sum_up
+            end do
+          end if
+        end do
+      end do
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(jcol, jlev, jg, sum_up, weight) &
+      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(32)
+      do jcol = istartcol,iendcol
+        do jlev = 1, nlev
+          if (cloud_cover_lw(jcol) >= cloud_fraction_threshold .and. &
+               &  cloud_cover_lw(jcol) < 1.0_jprb - cloud_fraction_threshold) then
+            weight = 1.0_jprb - cloud_cover_lw(jcol)
+            sum_up = 0.0_jprb
+            do jg = 1, ng
+              sum_up = sum_up + tmp_work_source(jg,jlev,jcol)
+            end do
+            lw_derivatives(jcol,jlev) = (1.0_jprb - weight) * lw_derivatives(jcol,jlev) &
+                 &                    + weight * sum_up
+          end if
+        end do
+      end do
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     endif
 
     ! Loop through columns
-    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(total_cloud_cover, sum_up, sum_dn, sum_up_clr, sum_dn_clr)
-#if defined(__amdflang__)
-    !$OMP TILE SIZES(64,1)
-#endif
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) &
+    !$OMP& PRIVATE(total_cloud_cover, sum_up, sum_dn, sum_up_clr, sum_dn_clr) THREAD_LIMIT(32)
     do jcol = istartcol,iendcol
        do jlev = 1,nlev+1
 
@@ -493,11 +673,11 @@ contains
           sum_up_clr = sum_up_clr + flux_up_clear(jg,jlev,jcol)
           sum_dn_clr = sum_dn_clr + flux_dn_clear(jg,jlev,jcol)
         end do
-        flux%lw_up_clear(jcol,jlev) = sum_up_clr
-        flux%lw_dn_clear(jcol,jlev) = sum_dn_clr
+        lw_up_clear(jcol,jlev) = sum_up_clr
+        lw_dn_clear(jcol,jlev) = sum_dn_clr
 
-        total_cloud_cover = flux%cloud_cover_lw(jcol)
-        if (total_cloud_cover >= config%cloud_fraction_threshold) then
+        total_cloud_cover = cloud_cover_lw(jcol)
+        if (total_cloud_cover >= cloud_fraction_threshold) then
 
           ! Store overcast broadband fluxes
           sum_up = 0._jprb
@@ -506,25 +686,21 @@ contains
             sum_up = sum_up + flux_up(jg,jlev,jcol)
             sum_dn = sum_dn + flux_dn(jg,jlev,jcol)
           end do
-          flux%lw_up(jcol,jlev) = total_cloud_cover*sum_up + (1.0_jprb - total_cloud_cover)*sum_up_clr
-          flux%lw_dn(jcol,jlev) = total_cloud_cover*sum_dn + (1.0_jprb - total_cloud_cover)*sum_dn_clr
+          lw_up(jcol,jlev) = total_cloud_cover*sum_up + (1.0_jprb - total_cloud_cover)*sum_up_clr
+          lw_dn(jcol,jlev) = total_cloud_cover*sum_dn + (1.0_jprb - total_cloud_cover)*sum_dn_clr
 
         else
 
-          flux%lw_up(jcol,jlev) = sum_up_clr
-          flux%lw_dn(jcol,jlev) = sum_dn_clr
+          lw_up(jcol,jlev) = sum_up_clr
+          lw_dn(jcol,jlev) = sum_dn_clr
 
         end if
       end do
     end do
-#if defined(__amdflang__)
-    !$OMP END TILE
-#endif
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$OMP TARGET EXIT DATA MAP(DELETE: trans_clear, od_scaling, &
-    !$OMP   reflectance, transmittance, source_up, source_dn, tmp_work_source, &
-    !$OMP   tmp_derivatives)
+    !$OMP   reflectance, transmittance, source_up, source_dn, tmp_work_source)
 
     !$OMP TARGET EXIT DATA MAP(DELETE: flux_up, flux_dn, flux_up_clear, flux_dn_clear, &
     !$OMP             is_clear_sky_layer, &
@@ -535,11 +711,6 @@ contains
     !$OMP END TARGET DATA
 #endif
 
-#ifdef HAVE_ROCTX
-    call roctxEndRange
-#endif
-    if (lhook) call dr_hook('radiation_mcica_omp_lw:solver_mcica_omp_lw',1,hook_handle)
-
-  end subroutine solver_mcica_omp_lw
+  end subroutine solver_mcica_omp_lw_impl
 
 end module radiation_mcica_omp_lw
