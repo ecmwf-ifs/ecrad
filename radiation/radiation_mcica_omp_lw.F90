@@ -57,7 +57,6 @@ contains
          &                               calc_no_scattering_transmittance_lw_single_cell_omp
     use radiation_adding_ica_lw, only  : fast_adding_ica_lw_omp, calc_fluxes_no_scattering_lw_omp
     
-    use radiation_lw_derivatives, only : calc_lw_derivatives_ica_omp, modify_lw_derivatives_ica_omp
     use radiation_cloud_generator_acc, only: cloud_generator_omp
     use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
 
@@ -167,7 +166,6 @@ contains
          &                               calc_no_scattering_transmittance_lw_omp, &
          &                               calc_no_scattering_transmittance_lw_single_cell_omp
     use radiation_adding_ica_lw, only  : fast_adding_ica_lw_omp, calc_fluxes_no_scattering_lw_omp
-    use radiation_lw_derivatives, only : calc_lw_derivatives_ica_omp, modify_lw_derivatives_ica_omp
     use radiation_cloud_generator_acc, only: cloud_generator_omp
     use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
 
@@ -247,7 +245,6 @@ contains
     
         ! Temporary working array
     real(jprb), dimension(ng,nlev+1, istartcol:iendcol) :: tmp_work_source
-    real(jprb), dimension(ng, istartcol:iendcol) :: tmp_derivatives
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Local variables : Stack
@@ -303,8 +300,7 @@ contains
     !
 
     !$OMP TARGET ENTER DATA MAP(ALLOC: trans_clear, od_scaling, &
-    !$OMP   reflectance, transmittance, source_up, source_dn, tmp_work_source, &
-    !$OMP   tmp_derivatives)
+    !$OMP   reflectance, transmittance, source_up, source_dn, tmp_work_source)
 
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
     do jlev = 1,nfsd
@@ -704,8 +700,7 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     !$OMP TARGET EXIT DATA MAP(DELETE: trans_clear, od_scaling, &
-    !$OMP   reflectance, transmittance, source_up, source_dn, tmp_work_source, &
-    !$OMP   tmp_derivatives)
+    !$OMP   reflectance, transmittance, source_up, source_dn, tmp_work_source)
 
     !$OMP TARGET EXIT DATA MAP(DELETE: flux_up, flux_dn, flux_up_clear, flux_dn_clear, &
     !$OMP             is_clear_sky_layer, &
