@@ -10,8 +10,7 @@ checks:
   ensure-assignee: {}
   validate-target-branch:
     allowed-branches:
-      - master
-      - develop
+      - main
   assign-reviewers:
     exclude-author: true
     exclude-existing: true
