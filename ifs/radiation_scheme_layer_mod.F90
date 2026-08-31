@@ -255,8 +255,7 @@ LEPO3RA=.FALSE.
 !$OMP&    F_ilwfc,F_iaer,F_iico2,F_iich4,F_iin2o, &
 !$OMP&    F_ino2,F_ic11,F_ic12,F_ic22,F_icl4, &
 !$OMP&    F_igix &
-!$OMP&  ) &
-!$OMP&  PRIVATE(&
+!$OMP&  , &
 !$OMP&    P_igi,P_imu0,P_iamu0,P_iemiss,P_its, &
 !$OMP&    P_islm,P_iccnl,P_iccno,P_ibas,P_itop, &
 !$OMP&    P_igelam,P_igemu,P_iclon,P_islon,P_iald, &

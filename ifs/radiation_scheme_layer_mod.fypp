@@ -163,8 +163,7 @@ LEPO3RA=.FALSE.
 !$OMP PARALLEL &
 !$OMP&  PRIVATE(KIDIA,KFDIA,IBL,&
 !$OMP&    ${chunked_join([f'F_{v_name}' for v_name in variable_names], ', &\n!$OMP&    ')}$ &
-!$OMP&  ) &
-!$OMP&  PRIVATE(&
+!$OMP&  , &
 !$OMP&    ${chunked_join([f'P_{v_name}' for v_name in variable_names], ', &\n!$OMP&    ')}$ &
 !$OMP&  )
 #endif
