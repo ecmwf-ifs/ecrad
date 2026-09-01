@@ -232,7 +232,8 @@ contains
       ! Section 3: Clear-sky calculation
       ! --------------------------------------------------------
 
-      if (.not. config%do_lw_aerosol_scattering) then
+      if (.not. config%use_aerosols &
+           .or. .not. config%do_lw_aerosol_scattering) then
         ! No scattering in clear-sky flux calculation; note that here
         ! the first two dimensions of the input arrays are unpacked
         ! into vectors inside the routine        
