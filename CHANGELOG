@@ -1,4 +1,12 @@
 version 1.7.2 (19 May 2026)
+	- Renamed the default Git branch from "master" to "main". Update an
+	  existing clone by running:
+	    git branch -m master main
+	    git fetch origin
+	    git branch -u origin/main main
+	    git remote set-head origin -a
+	  See https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/changing-the-default-branch
+	  for further information.
 	- radiation_general_cloud_optics_data: fix non-automatic allocation on
 	  assignment
 	- ecrad_ifs/ecrad_ifs_blocked: fix use of unallocated arrays
