@@ -89,7 +89,9 @@ contains
       flux_dn_direct(:,jlev+1) = flux_dn_direct(:,jlev)*trans_dir_dir(:,jlev)
     end do
 
-    flux_up(:,nlev+1) = albedo_surf_diffuse  ! albedo(:,nlev+1)
+    ! Original version without reusing variables to save memory:
+    ! albedo(:,nlev+1) = albedo_surf_diffuse
+    flux_up(:,nlev+1) = albedo_surf_diffuse
 
     ! At the surface, the direct solar beam is reflected back into the
     ! diffuse stream
@@ -113,18 +115,28 @@ contains
       ! loop.
       do jcol = 1,ncol
         ! Lacis and Hansen (1974) Eq 33, Shonk & Hogan (2008) Eq 10:
-        flux_dn_diffuse(jcol,jlev+1) = &  ! inv_denominator(jcol,jlev)
-             &  1.0_jprb / (1.0_jprb - flux_up(jcol,jlev+1) & ! albedo(jcol,jlev+1)
+        ! Original version without reusing variables to save memory:
+        ! inv_denominator(jcol,jlev) = 1.0_jprb / (1.0_jprb-albedo(jcol,jlev+1)*reflectance(jcol,jlev))
+        flux_dn_diffuse(jcol,jlev+1) = &
+             &  1.0_jprb / (1.0_jprb - flux_up(jcol,jlev+1) &
              &                        * reflectance(jcol,jlev))
         ! Shonk & Hogan (2008) Eq 9, Petty (2006) Eq 13.81:
-        flux_up(jcol,jlev) = & ! albedo(jcol,jlev)
+        ! Original version without reusing variables to save memory:
+        ! albedo(jcol,jlev) = reflectance(jcol,jlev) + transmittance(jcol,jlev) * transmittance(jcol,jlev) &
+        !      &                                     * albedo(jcol,jlev+1) * inv_denominator(jcol,jlev)
+        flux_up(jcol,jlev) = &
              &  reflectance(jcol,jlev) + transmittance(jcol,jlev) * transmittance(jcol,jlev) &
-             &  * flux_up(jcol,jlev+1) * flux_dn_diffuse(jcol,jlev+1) ! albedo(jcol,jlev+1) * inv_denominator(jcol,jlev)
+             &  * flux_up(jcol,jlev+1) * flux_dn_diffuse(jcol,jlev+1)
         ! Shonk & Hogan (2008) Eq 11:
+        ! Original version without reusing variables to save memory:
+        ! source(jcol,jlev) = ref_dir(jcol,jlev)*flux_dn_direct(jcol,jlev) &
+        !      &  + transmittance(jcol,jlev)*(source(jcol,jlev+1) &
+        !      &        + albedo(jcol,jlev+1)*trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) &
+        !      &  * inv_denominator(jcol,jlev)
         source(jcol,jlev) = ref_dir(jcol,jlev)*flux_dn_direct(jcol,jlev) &
              &  + transmittance(jcol,jlev)*(source(jcol,jlev+1) &
-             &        + flux_up(jcol,jlev+1)*trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) & ! albedo(jcol,jlev+1)*...
-             &  * flux_dn_diffuse(jcol,jlev+1) ! inv_denominator(jcol,jlev)
+             &        + flux_up(jcol,jlev+1)*trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) &
+             &  * flux_dn_diffuse(jcol,jlev+1)
       end do
     end do
 
@@ -142,12 +154,20 @@ contains
     do jlev = 1,nlev
       do jcol = 1,ncol
         ! Shonk & Hogan (2008) Eq 14 (after simplification):
+        ! Original version without reusing variables to save memory:
+        ! flux_dn_diffuse(jcol,jlev+1) &
+        !      &  = (transmittance(jcol,jlev)*flux_dn_diffuse(jcol,jlev) &
+        !      &     + reflectance(jcol,jlev)*source(jcol,jlev+1) &
+        !      &     + trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) * inv_denominator(jcol,jlev)
         flux_dn_diffuse(jcol,jlev+1) &
              &  = (transmittance(jcol,jlev)*flux_dn_diffuse(jcol,jlev) &
              &     + reflectance(jcol,jlev)*source(jcol,jlev+1) &
-             &     + trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) * flux_dn_diffuse(jcol,jlev+1) ! inv_denominator(jcol,jlev)
+             &     + trans_dir_diff(jcol,jlev)*flux_dn_direct(jcol,jlev)) * flux_dn_diffuse(jcol,jlev+1)
         ! Shonk & Hogan (2008) Eq 12:
-        flux_up(jcol,jlev+1) = flux_up(jcol,jlev+1)*flux_dn_diffuse(jcol,jlev+1) & ! albedo(jcol,jlev+1)*flux_dn_diffuse
+        ! Original version without reusing variables to save memory:
+        ! flux_up(jcol,jlev+1) = albedo(jcol,jlev+1)*flux_dn_diffuse(jcol,jlev+1) &
+        !      &            + source(jcol,jlev+1)
+        flux_up(jcol,jlev+1) = flux_up(jcol,jlev+1)*flux_dn_diffuse(jcol,jlev+1) &
              &            + source(jcol,jlev+1)
         flux_dn_direct(jcol,jlev) = flux_dn_direct(jcol,jlev)*cos_sza(jcol)
       end do
