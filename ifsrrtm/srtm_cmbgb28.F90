@@ -30,9 +30,9 @@ DO JN = 1,9
         ZSUMK = 0.
         DO IPR = 1, NGN(NGS(12)+IGC)
           IPRSM = IPRSM + 1
-          ZSUMK = ZSUMK + KA(JN,JT,JP,IPRSM)*RWGT(IPRSM+192)
+          ZSUMK = ZSUMK + KA(IPRSM,JN,JT,JP)*RWGT(IPRSM+192)
         ENDDO
-        KAC(JN,JT,JP,IGC) = ZSUMK
+        KAC(IGC,JN,JT,JP) = ZSUMK
       ENDDO
     ENDDO
   ENDDO
@@ -46,9 +46,9 @@ DO JN = 1,5
         ZSUMK = 0.
         DO IPR = 1, NGN(NGS(12)+IGC)
           IPRSM = IPRSM + 1
-          ZSUMK = ZSUMK + KB(JN,JT,JP,IPRSM)*RWGT(IPRSM+192)
+          ZSUMK = ZSUMK + KB(IPRSM,JN,JT,JP)*RWGT(IPRSM+192)
         ENDDO
-        KBC(JN,JT,JP,IGC) = ZSUMK
+        KBC(IGC,JN,JT,JP) = ZSUMK
       ENDDO
     ENDDO
   ENDDO

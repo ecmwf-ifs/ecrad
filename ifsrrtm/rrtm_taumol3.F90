@@ -35,7 +35,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(JPGPT,KIDIA:KFDIA,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
@@ -54,7 +54,7 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(JPGPT,KIDIA:KFDIA,KLEV) 
 
 REAL(KIND=JPRB)   ,INTENT(IN)   :: PRAT_H2OCO2(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: PRAT_H2OCO2_1(KIDIA:KFDIA,KLEV)
@@ -236,73 +236,73 @@ DO JLAY = 1, KLEV
 !CDIR UNROLL=NG3
       DO IG = 1, NG3
 !-- DS_000515
-         ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(INDS(JLAY),IG) + P_SELFFRAC(JLON,JLAY) * &
-            &    (SELFREF(INDS(JLAY)+1,IG) - SELFREF(INDS(JLAY),IG)))
-         ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + P_FORFRAC(JLON,JLAY) * &
-            &    (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
-         ZN2OM1 = KA_MN2O(JMN2O,INDM(JLAY),IG) + Z_FMN2O * &
-            &    (KA_MN2O(JMN2O+1,INDM(JLAY),IG) - KA_MN2O(JMN2O,INDM(JLAY),IG))
-         ZN2OM2 = KA_MN2O(JMN2O,INDM(JLAY)+1,IG) + Z_FMN2O * &
-            &    (KA_MN2O(JMN2O+1,INDM(JLAY)+1,IG) - KA_MN2O(JMN2O,INDM(JLAY)+1,IG))
+         ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(IG,INDS(JLAY)) + P_SELFFRAC(JLON,JLAY) * &
+            &    (SELFREF(IG,INDS(JLAY)+1) - SELFREF(IG,INDS(JLAY))))
+         ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(IG,INDF(JLAY)) + P_FORFRAC(JLON,JLAY) * &
+            &    (FORREF(IG,INDF(JLAY)+1) - FORREF(IG,INDF(JLAY)))) 
+         ZN2OM1 = KA_MN2O(IG,JMN2O,INDM(JLAY)) + Z_FMN2O * &
+            &    (KA_MN2O(IG,JMN2O+1,INDM(JLAY)) - KA_MN2O(IG,JMN2O,INDM(JLAY)))
+         ZN2OM2 = KA_MN2O(IG,JMN2O,INDM(JLAY)+1) + Z_FMN2O * &
+            &    (KA_MN2O(IG,JMN2O+1,INDM(JLAY)+1) - KA_MN2O(IG,JMN2O,INDM(JLAY)+1))
          ZABSN2O = ZN2OM1 + PMINORFRAC(JLON,JLAY) * (ZN2OM2 - ZN2OM1)
 
             IF (Z_SPECPARM < 0.125_JPRB) THEN
                ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &  (Z_FAC000 * ABSA(IND0(JLAY),IG) + &
-                 &  Z_FAC100 * ABSA(IND0(JLAY)+1,IG) + &
-                 &  Z_FAC200 * ABSA(IND0(JLAY)+2,IG) + &
-                 &  Z_FAC010 * ABSA(IND0(JLAY)+9,IG) + &
-                 &  Z_FAC110 * ABSA(IND0(JLAY)+10,IG) + &
-                 &  Z_FAC210 * ABSA(IND0(JLAY)+11,IG))
+                 &  (Z_FAC000 * ABSA(IG,IND0(JLAY)) + &
+                 &  Z_FAC100 * ABSA(IG,IND0(JLAY)+1) + &
+                 &  Z_FAC200 * ABSA(IG,IND0(JLAY)+2) + &
+                 &  Z_FAC010 * ABSA(IG,IND0(JLAY)+9) + &
+                 &  Z_FAC110 * ABSA(IG,IND0(JLAY)+10) + &
+                 &  Z_FAC210 * ABSA(IG,IND0(JLAY)+11))
             ELSEIF (Z_SPECPARM > 0.875_JPRB) THEN
                ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &  (Z_FAC200 * ABSA(IND0(JLAY)-1,IG) + &
-                 &  Z_FAC100 * ABSA(IND0(JLAY),IG) + &
-                 &  Z_FAC000 * ABSA(IND0(JLAY)+1,IG) + &
-                 &  Z_FAC210 * ABSA(IND0(JLAY)+8,IG) + &
-                 &  Z_FAC110 * ABSA(IND0(JLAY)+9,IG) + &
-                 &  Z_FAC010 * ABSA(IND0(JLAY)+10,IG))
+                 &  (Z_FAC200 * ABSA(IG,IND0(JLAY)-1) + &
+                 &  Z_FAC100 * ABSA(IG,IND0(JLAY)) + &
+                 &  Z_FAC000 * ABSA(IG,IND0(JLAY)+1) + &
+                 &  Z_FAC210 * ABSA(IG,IND0(JLAY)+8) + &
+                 &  Z_FAC110 * ABSA(IG,IND0(JLAY)+9) + &
+                 &  Z_FAC010 * ABSA(IG,IND0(JLAY)+10))
             ELSE
                ZTAU_MAJOR = Z_SPECCOMB(JLAY) * &
-                 &  (Z_FAC000 * ABSA(IND0(JLAY),IG) + &
-                 &  Z_FAC100 * ABSA(IND0(JLAY)+1,IG) + &
-                 &  Z_FAC010 * ABSA(IND0(JLAY)+9,IG) + &
-                 &  Z_FAC110 * ABSA(IND0(JLAY)+10,IG))
+                 &  (Z_FAC000 * ABSA(IG,IND0(JLAY)) + &
+                 &  Z_FAC100 * ABSA(IG,IND0(JLAY)+1) + &
+                 &  Z_FAC010 * ABSA(IG,IND0(JLAY)+9) + &
+                 &  Z_FAC110 * ABSA(IG,IND0(JLAY)+10))
             ENDIF
 
             IF (Z_SPECPARM1 < 0.125_JPRB) THEN
                ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                 &  (Z_FAC001 * ABSA(IND1(JLAY),IG) + &
-                 &  Z_FAC101 * ABSA(IND1(JLAY)+1,IG) + &
-                 &  Z_FAC201 * ABSA(IND1(JLAY)+2,IG) + &
-                 &  Z_FAC011 * ABSA(IND1(JLAY)+9,IG) + &
-                 &  Z_FAC111 * ABSA(IND1(JLAY)+10,IG) + &
-                 &  Z_FAC211 * ABSA(IND1(JLAY)+11,IG))
+                 &  (Z_FAC001 * ABSA(IG,IND1(JLAY)) + &
+                 &  Z_FAC101 * ABSA(IG,IND1(JLAY)+1) + &
+                 &  Z_FAC201 * ABSA(IG,IND1(JLAY)+2) + &
+                 &  Z_FAC011 * ABSA(IG,IND1(JLAY)+9) + &
+                 &  Z_FAC111 * ABSA(IG,IND1(JLAY)+10) + &
+                 &  Z_FAC211 * ABSA(IG,IND1(JLAY)+11))
             ELSEIF (Z_SPECPARM1 > 0.875_JPRB) THEN
                ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                 &  (Z_FAC201 * ABSA(IND1(JLAY)-1,IG) + &
-                 &  Z_FAC101 * ABSA(IND1(JLAY),IG) + &
-                 &  Z_FAC001 * ABSA(IND1(JLAY)+1,IG) + &
-                 &  Z_FAC211 * ABSA(IND1(JLAY)+8,IG) + &
-                 &  Z_FAC111 * ABSA(IND1(JLAY)+9,IG) + &
-                 &  Z_FAC011 * ABSA(IND1(JLAY)+10,IG))
+                 &  (Z_FAC201 * ABSA(IG,IND1(JLAY)-1) + &
+                 &  Z_FAC101 * ABSA(IG,IND1(JLAY)) + &
+                 &  Z_FAC001 * ABSA(IG,IND1(JLAY)+1) + &
+                 &  Z_FAC211 * ABSA(IG,IND1(JLAY)+8) + &
+                 &  Z_FAC111 * ABSA(IG,IND1(JLAY)+9) + &
+                 &  Z_FAC011 * ABSA(IG,IND1(JLAY)+10))
             ELSE
                ZTAU_MAJOR1 = Z_SPECCOMB1(JLAY) * &
-                 &  (Z_FAC001 * ABSA(IND1(JLAY),IG) +  &
-                 &  Z_FAC101 * ABSA(IND1(JLAY)+1,IG) + &
-                 &  Z_FAC011 * ABSA(IND1(JLAY)+9,IG) + &
-                 &  Z_FAC111 * ABSA(IND1(JLAY)+10,IG))
+                 &  (Z_FAC001 * ABSA(IG,IND1(JLAY)) +  &
+                 &  Z_FAC101 * ABSA(IG,IND1(JLAY)+1) + &
+                 &  Z_FAC011 * ABSA(IG,IND1(JLAY)+9) + &
+                 &  Z_FAC111 * ABSA(IG,IND1(JLAY)+10))
             ENDIF
  
 
-        P_TAU(JLON,NGS2+IG,JLAY) = ZTAU_MAJOR + ZTAU_MAJOR1 &
+        P_TAU(NGS2+IG,JLON,JLAY) = ZTAU_MAJOR + ZTAU_MAJOR1 &
                & + ZTAUSELF + ZTAUFOR &
                & + ZADJCOLN2O(JLON,JLAY)*ZABSN2O &
                & + P_TAUAERL(JLON,JLAY,3)  
 
         !if (JPL < 1) call abort
 
-        PFRAC(JLON,NGS2+IG,JLAY) = FRACREFA(IG,JPL) + Z_FPL *&
+        PFRAC(NGS2+IG,JLON,JLAY) = FRACREFA(IG,JPL) + Z_FPL *&
          & (FRACREFA(IG,JPL+1) - FRACREFA(IG,JPL))  
       ENDDO
     ENDIF
@@ -366,30 +366,30 @@ DO JLAY = 1, KLEV
 
 !CDIR UNROLL=NG3
       DO IG = 1, NG3
-         ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF(JLAY),IG) + P_FORFRAC(JLON,JLAY) * &
-               & (FORREF(INDF(JLAY)+1,IG) - FORREF(INDF(JLAY),IG))) 
-         ZN2OM1 = KB_MN2O(JMN2O,INDM(JLAY),IG) + Z_FMN2O * &
-               & (KB_MN2O(JMN2O+1,INDM(JLAY),IG) - KB_MN2O(JMN2O,INDM(JLAY),IG))
-         ZN2OM2 = KB_MN2O(JMN2O,INDM(JLAY)+1,IG) + Z_FMN2O * &
-               & (KB_MN2O(JMN2O+1,INDM(JLAY)+1,IG) - KB_MN2O(JMN2O,INDM(JLAY)+1,IG))
+         ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(IG,INDF(JLAY)) + P_FORFRAC(JLON,JLAY) * &
+               & (FORREF(IG,INDF(JLAY)+1) - FORREF(IG,INDF(JLAY)))) 
+         ZN2OM1 = KB_MN2O(IG,JMN2O,INDM(JLAY)) + Z_FMN2O * &
+               & (KB_MN2O(IG,JMN2O+1,INDM(JLAY)) - KB_MN2O(IG,JMN2O,INDM(JLAY)))
+         ZN2OM2 = KB_MN2O(IG,JMN2O,INDM(JLAY)+1) + Z_FMN2O * &
+               & (KB_MN2O(IG,JMN2O+1,INDM(JLAY)+1) - KB_MN2O(IG,JMN2O,INDM(JLAY)+1))
          ZABSN2O = ZN2OM1 + PMINORFRAC(JLON,JLAY) * (ZN2OM2 - ZN2OM1)
 
 
-        P_TAU(JLON,NGS2+IG,JLAY) = Z_SPECCOMB(JLAY) *   &
-          &(Z_FAC000 * ABSB(IND0(JLAY)  ,IG) +&
-          & Z_FAC100 * ABSB(IND0(JLAY)+1,IG) +&
-          & Z_FAC010 * ABSB(IND0(JLAY)+5,IG) +&
-          & Z_FAC110 * ABSB(IND0(JLAY)+6,IG)) +&
+        P_TAU(NGS2+IG,JLON,JLAY) = Z_SPECCOMB(JLAY) *   &
+          &(Z_FAC000 * ABSB(IG,IND0(JLAY)  ) +&
+          & Z_FAC100 * ABSB(IG,IND0(JLAY)+1) +&
+          & Z_FAC010 * ABSB(IG,IND0(JLAY)+5) +&
+          & Z_FAC110 * ABSB(IG,IND0(JLAY)+6)) +&
           & Z_SPECCOMB1(JLAY) * &
-          & (Z_FAC001 * ABSB(IND1(JLAY)  ,IG) +&
-          & Z_FAC101 * ABSB(IND1(JLAY)+1,IG) +&
-          & Z_FAC011 * ABSB(IND1(JLAY)+5,IG) +&
-          & Z_FAC111 * ABSB(IND1(JLAY)+6,IG))+&
+          & (Z_FAC001 * ABSB(IG,IND1(JLAY)  ) +&
+          & Z_FAC101 * ABSB(IG,IND1(JLAY)+1) +&
+          & Z_FAC011 * ABSB(IG,IND1(JLAY)+5) +&
+          & Z_FAC111 * ABSB(IG,IND1(JLAY)+6))+&
           & ZTAUFOR + ZADJCOLN2O(JLON,JLAY)*ZABSN2O &
           & + P_TAUAERL(JLON,JLAY,3)  
 
 
-        PFRAC(JLON,NGS2+IG,JLAY) = FRACREFB(IG,JPL) + Z_FPL *&
+        PFRAC(NGS2+IG,JLON,JLAY) = FRACREFB(IG,JPL) + Z_FPL *&
          & (FRACREFB(IG,JPL+1) - FRACREFB(IG,JPL))  
       ENDDO
     ENDIF
