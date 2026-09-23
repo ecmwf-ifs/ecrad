@@ -281,9 +281,10 @@ contains
     if (lhook) call dr_hook('radiation_single_level:get_albedos',0,hook_handle)
 
     !$ACC DATA CREATE(sw_albedo_band, lw_albedo_band) ASYNC(1)
-#if defined(OMPGPU)
-    !$OMP TARGET ENTER DATA MAP(ALLOC: sw_albedo_band, lw_albedo_band)
-#endif
+    ! Under OMPGPU neither band array is touched from a target region:
+    ! get_albedo_bands_omp accumulates in a scalar instead, the longwave
+    ! equivalent is get_lw_albedo_omp, and the branches that do use them are
+    ! host-only or compiled out. So they need no device allocation here.
 
     if (config%do_sw) then
       ! Albedos/emissivities are stored in single_level in their own
@@ -308,6 +309,27 @@ contains
           call radiation_abort()
         end if
 
+#if defined(OMPGPU)
+        call get_albedo_bands_omp(istartcol, iendcol, config%n_g_sw, &
+             &  config%n_bands_sw, nalbedoband, size(this%sw_albedo,1), &
+             &  config%sw_albedo_weights, config%i_band_from_reordered_g_sw, &
+             &  this%sw_albedo, sw_albedo_diffuse)
+
+        if (allocated(this%sw_albedo_direct)) then
+          call get_albedo_bands_omp(istartcol, iendcol, config%n_g_sw, &
+               &  config%n_bands_sw, nalbedoband, size(this%sw_albedo_direct,1), &
+               &  config%sw_albedo_weights, config%i_band_from_reordered_g_sw, &
+               &  this%sw_albedo_direct, sw_albedo_direct)
+        else
+          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+          do jcol = istartcol,iendcol
+            do jg = 1,config%n_g_sw
+              sw_albedo_direct(jg,jcol) = sw_albedo_diffuse(jg,jcol)
+            end do
+          end do
+          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+        end if
+#else
 #if defined(OMPGPU)
         !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
 #endif
@@ -462,6 +484,7 @@ contains
 #endif
         end if
         !$ACC END PARALLEL
+#endif !OMPGPU
       else
         ! Albedos mapped less accurately to ecRad spectral bands
         if (maxval(config%i_albedo_from_band_sw) > size(this%sw_albedo,2)) then
@@ -527,6 +550,11 @@ contains
 #if !defined(_OPENACC) && !defined(OMPGPU)
         lw_albedo = 1.0_jprb - transpose(this%lw_emissivity(istartcol:iendcol, &
              &  config%i_emiss_from_band_lw(config%i_band_from_reordered_g_lw)))
+#elif defined(OMPGPU)
+        call get_lw_albedo_omp(istartcol, iendcol, config%n_g_lw, &
+             &  config%n_bands_lw, size(this%lw_emissivity,1), &
+             &  size(this%lw_emissivity,2), config%i_emiss_from_band_lw, &
+             &  config%i_band_from_reordered_g_lw, this%lw_emissivity, lw_albedo)
 #else
         !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
         !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
@@ -545,9 +573,6 @@ contains
 
     !$ACC WAIT
     !$ACC END DATA
-#if defined(OMPGPU)
-    !$OMP TARGET EXIT DATA MAP(DELETE: sw_albedo_band, lw_albedo_band)
-#endif
 
     if (lhook) call dr_hook('radiation_single_level:get_albedos',1,hook_handle)
     class default
@@ -555,6 +580,99 @@ contains
     end select
 
   end subroutine get_albedos
+
+
+  !---------------------------------------------------------------------
+  ! Average a native-band albedo on to the reordered g-points on the
+  ! device. Every array is an explicit-shape dummy rather than a
+  ! derived-type component, so a single PRESENT region covers the whole
+  ! body and nothing is implicitly mapped per kernel launch; see
+  ! solver_mcica_omp_sw_impl for the same pattern.
+  subroutine get_albedo_bands_omp(istartcol, iendcol, ng, nband, nalbedoband, ncol, &
+       &  albedo_weights, i_band_from_reordered_g, albedo_in, albedo_out)
+
+    use parkind1, only : jprb
+
+    implicit none
+
+    integer,    intent(in)    :: istartcol, iendcol, ng, nband, nalbedoband, ncol
+    real(jprb), intent(in)    :: albedo_weights(nalbedoband, nband)
+    integer,    intent(in)    :: i_band_from_reordered_g(ng)
+    real(jprb), intent(in)    :: albedo_in(ncol, nalbedoband)
+    real(jprb), intent(out)   :: albedo_out(ng, istartcol:iendcol)
+
+    integer :: jband, jalbedoband, jg, jcol
+    real(jprb) :: albedo
+
+#if defined(__amdflang__)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: albedo_weights, i_band_from_reordered_g, &
+    !$OMP             albedo_in, albedo_out)
+#endif
+
+    ! The band-averaged albedo is accumulated in a scalar rather than in a
+    ! scratch array. The array had to be mapped to the device on every call,
+    ! and passing the partial sum between kernels cost two launches plus one
+    ! per albedo band. The sum over jalbedoband still runs in the same order
+    ! from the same zero, so the result is unchanged bit for bit; the only
+    ! extra work is repeating a sum of nalbedoband terms per g-point rather
+    ! than per band.
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(jband, jalbedoband, albedo)
+    do jcol = istartcol,iendcol
+      do jg = 1,ng
+        jband = i_band_from_reordered_g(jg)
+        albedo = 0.0_jprb
+        do jalbedoband = 1,nalbedoband
+          albedo = albedo + albedo_weights(jalbedoband,jband) * albedo_in(jcol,jalbedoband)
+        end do
+        albedo_out(jg,jcol) = albedo
+      end do
+    end do
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+#if defined(__amdflang__)
+    !$OMP END TARGET DATA
+#endif
+
+  end subroutine get_albedo_bands_omp
+
+
+  !---------------------------------------------------------------------
+  ! Longwave albedo from emissivity via the nearest spectral band, on the
+  ! device. Explicit-shape dummies for the same reason as above.
+  subroutine get_lw_albedo_omp(istartcol, iendcol, ng, nband, ncol, nemiss, &
+       &  i_emiss_from_band, i_band_from_reordered_g, lw_emissivity, lw_albedo)
+
+    use parkind1, only : jprb
+
+    implicit none
+
+    integer,    intent(in)  :: istartcol, iendcol, ng, nband, ncol, nemiss
+    integer,    intent(in)  :: i_emiss_from_band(nband)
+    integer,    intent(in)  :: i_band_from_reordered_g(ng)
+    real(jprb), intent(in)  :: lw_emissivity(ncol, nemiss)
+    real(jprb), intent(out) :: lw_albedo(ng, istartcol:iendcol)
+
+    integer :: jg, jcol
+
+#if defined(__amdflang__)
+    !$OMP TARGET DATA MAP(PRESENT, ALLOC: i_emiss_from_band, &
+    !$OMP             i_band_from_reordered_g, lw_emissivity, lw_albedo)
+#endif
+
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+    do jcol = istartcol,iendcol
+      do jg = 1,ng
+        lw_albedo(jg,jcol) = 1.0_jprb - lw_emissivity(jcol, &
+             &  i_emiss_from_band(i_band_from_reordered_g(jg)))
+      end do
+    end do
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+#if defined(__amdflang__)
+    !$OMP END TARGET DATA
+#endif
+
+  end subroutine get_lw_albedo_omp
 
 
   !---------------------------------------------------------------------
