@@ -293,9 +293,26 @@ contains
 
     integer    :: jcol, jlev, jb
 
+    ! Host copies of config scalars used inside target constructs. Naming any
+    ! component of config inside a target construct makes the compiler map
+    ! config itself, which deep-copies its allocatable components on every
+    ! kernel launch.
+    integer    :: nband_sw, nband_lw, nband_lw_if_scattering, i_liq_model
+    logical    :: is_homogeneous, do_lw_cloud_scattering
+    logical    :: do_fu_lw_ice_optics_bug, do_sw_delta_scaling_with_gases
+
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_cloud_optics:cloud_optics',0,hook_handle)
+
+    nband_sw               = config%n_bands_sw
+    nband_lw               = config%n_bands_lw
+    nband_lw_if_scattering = config%n_bands_lw_if_scattering
+    is_homogeneous         = config%is_homogeneous
+    i_liq_model            = config%i_liq_model
+    do_lw_cloud_scattering = config%do_lw_cloud_scattering
+    do_fu_lw_ice_optics_bug = config%do_fu_lw_ice_optics_bug
+    do_sw_delta_scaling_with_gases = config%do_sw_delta_scaling_with_gases
 
     if (config%iverbose >= 2) then
       write(nulout,'(a)') 'Computing cloud absorption/scattering properties'
@@ -308,7 +325,7 @@ contains
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       do jcol=istartcol, iendcol
         do jlev=1, nlev
-          do jb=1, config%n_bands_sw
+          do jb=1, nband_sw
             od_sw_cloud(jb,jlev,jcol) = 0.0_jprb
             ssa_sw_cloud(jb,jlev,jcol) = 0.0_jprb
             g_sw_cloud(jb,jlev,jcol) = 0.0_jprb
@@ -320,7 +337,7 @@ contains
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       do jcol=istartcol, iendcol
         do jlev=1, nlev
-          do jb=1, config%n_bands_lw
+          do jb=1, nband_lw
             od_lw_cloud(jb,jlev,jcol) = 0.0_jprb
           end do
         end do
@@ -330,7 +347,7 @@ contains
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       do jcol=istartcol, iendcol
         do jlev=1, nlev
-          do jb=1, config%n_bands_lw_if_scattering
+          do jb=1, nband_lw_if_scattering
             ssa_lw_cloud(jb,jlev,jcol) = 0.0_jprb
             g_lw_cloud(jb,jlev,jcol) = 0.0_jprb
           end do
@@ -344,13 +361,13 @@ contains
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       do jlev = 1,nlev
          do jcol = istartcol,iendcol
-            do jb = 1, config%n_bands_lw
+            do jb = 1, nband_lw
                ! Only do anything if cloud is present (assume that
                ! cloud%crop_cloud_fraction has already been called)
                if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
 
                   ! Compute in-cloud liquid and ice water path
-                  if (config%is_homogeneous) then
+                  if (is_homogeneous) then
                      ! Homogeneous solvers assume cloud fills the box
                      ! horizontally, so we don't divide by cloud fraction
                      factor = ( thermodynamics%pressure_hl(jcol,jlev+1)    &
@@ -375,14 +392,14 @@ contains
 
                   ! Only compute liquid properties if liquid cloud is present
                   if (lwp_in_cloud > 0.0_jprb) then
-                     if (config%i_liq_model == ILiquidModelSOCRATES) then
+                     if (i_liq_model == ILiquidModelSOCRATES) then
                         call calc_liq_optics_socrates_single_band(jb, &
-                             &  config%cloud_optics%liq_coeff_lw, &
+                             &  ho%liq_coeff_lw, &
                              &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
                              &  od_lw_liq, scat_od_lw_liq, g_lw_liq)
-                     else if (config%i_liq_model == ILiquidModelSlingo) then
+                     else if (i_liq_model == ILiquidModelSlingo) then
                         call calc_liq_optics_lindner_li_single_band(jb, &
-                             &  config%cloud_optics%liq_coeff_lw, &
+                             &  ho%liq_coeff_lw, &
                              &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
                              &  od_lw_liq, scat_od_lw_liq, g_lw_liq)
                      end if
@@ -393,10 +410,10 @@ contains
                   ! Only compute ice properties if ice cloud is present
                   if (iwp_in_cloud > 0.0_jprb) then
                      call calc_ice_optics_fu_lw_single_band(jb, &
-                          &  config%cloud_optics%ice_coeff_lw, &
+                          &  ho%ice_coeff_lw, &
                           &  iwp_in_cloud, cloud%re_ice(jcol,jlev), &
                           &  od_lw_ice, scat_od_lw_ice, g_lw_ice)
-                     if (config%do_fu_lw_ice_optics_bug) then
+                     if (do_fu_lw_ice_optics_bug) then
                         ! Reproduce bug in old IFS scheme
                         scat_od_lw_ice = od_lw_ice - scat_od_lw_ice
                      end if
@@ -404,7 +421,7 @@ contains
                   end if ! Ice present
 
                   ! Combine liquid and ice
-                  if (config%do_lw_cloud_scattering) then
+                  if (do_lw_cloud_scattering) then
                      od_lw_cloud(jb,jlev,jcol) = od_lw_liq + od_lw_ice
                      if (scat_od_lw_liq+scat_od_lw_ice > 0.0_jprb) then
                         g_lw_cloud(jb,jlev,jcol) = (g_lw_liq * scat_od_lw_liq  + g_lw_ice * scat_od_lw_ice) &
@@ -435,13 +452,13 @@ contains
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
       do jlev = 1,nlev
          do jcol = istartcol,iendcol
-            do jb = 1, config%n_bands_sw
+            do jb = 1, nband_sw
                ! Only do anything if cloud is present (assume that
                ! cloud%crop_cloud_fraction has already been called)
                if (cloud%fraction(jcol,jlev) > 0.0_jprb) then
 
                   ! Compute in-cloud liquid and ice water path
-                  if (config%is_homogeneous) then
+                  if (is_homogeneous) then
                      ! Homogeneous solvers assume cloud fills the box
                      ! horizontally, so we don't divide by cloud fraction
                      factor = ( thermodynamics%pressure_hl(jcol,jlev+1)    &
@@ -466,19 +483,19 @@ contains
 
                   ! Only compute liquid properties if liquid cloud is present
                   if (lwp_in_cloud > 0.0_jprb) then
-                     if (config%i_liq_model == ILiquidModelSOCRATES) then
+                     if (i_liq_model == ILiquidModelSOCRATES) then
                         call calc_liq_optics_socrates_single_band(jb, &
-                             &  config%cloud_optics%liq_coeff_sw, &
+                             &  ho%liq_coeff_sw, &
                              &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
                              &  od_sw_liq, scat_od_sw_liq, g_sw_liq)
-                     else if (config%i_liq_model == ILiquidModelSlingo) then
+                     else if (i_liq_model == ILiquidModelSlingo) then
                         call calc_liq_optics_slingo_single_band(jb, &
-                             &  config%cloud_optics%liq_coeff_sw, &
+                             &  ho%liq_coeff_sw, &
                              &  lwp_in_cloud, cloud%re_liq(jcol,jlev), &
                              &  od_sw_liq, scat_od_sw_liq, g_sw_liq)
                      end if
                      ! Delta-Eddington scaling in the shortwave only
-                     if (.not. config%do_sw_delta_scaling_with_gases) then
+                     if (.not. do_sw_delta_scaling_with_gases) then
                         call delta_eddington_scat_od(od_sw_liq, scat_od_sw_liq, g_sw_liq)
                      end if
 
@@ -490,14 +507,14 @@ contains
                   if (iwp_in_cloud > 0.0_jprb) then
                      ! Compute shortwave properties
                      call calc_ice_optics_fu_sw_single_band(jb, &
-                          &  config%cloud_optics%ice_coeff_sw, &
+                          &  ho%ice_coeff_sw, &
                           &  iwp_in_cloud, cloud%re_ice(jcol,jlev), &
                           &  od_sw_ice, scat_od_sw_ice, g_sw_ice)
 
                      ! Delta-Eddington scaling in both longwave and shortwave
                      ! (assume that particles are larger than wavelength even
                      ! in longwave)
-                     if (.not. config%do_sw_delta_scaling_with_gases) then
+                     if (.not. do_sw_delta_scaling_with_gases) then
                         call delta_eddington_scat_od(od_sw_ice, scat_od_sw_ice, g_sw_ice)
                      end if
                   end if ! Ice present

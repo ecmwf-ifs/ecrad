@@ -373,6 +373,10 @@ contains
 
     integer :: jlev, jgreorder, jg, ig, iband, jcol
 
+    ! Host copies of config scalars used inside target constructs
+    integer :: ng_lw, ng_sw
+    real(jprb) :: min_gas_od_lw, min_gas_od_sw
+
     real(jphook) :: hook_handle
 
 #include "rrtm_prepare_gases.intfb.h"
@@ -392,6 +396,15 @@ contains
 
     do_sw = (config%do_sw .and. config%i_gas_model_sw == IGasModelIFSRRTMG)
     do_lw = (config%do_lw .and. config%i_gas_model_lw == IGasModelIFSRRTMG)
+
+    ! Naming any component of config inside a target construct makes the
+    ! compiler map config itself, which deep-copies its allocatable
+    ! components on every kernel launch. Take host copies of the scalars
+    ! needed below so the constructs reference only locals.
+    ng_lw = config%n_g_lw
+    ng_sw = config%n_g_sw
+    min_gas_od_lw = config%min_gas_od_lw
+    min_gas_od_sw = config%min_gas_od_sw
 
 #if defined(_OPENACC) || defined(OMPGPU)
     if (.not. single_level%is_simple_surface) then
@@ -611,12 +624,13 @@ contains
       if (present(lw_albedo)) then
 
         call planck_function_atmos(nlev, istartcol, iendcol, config, &
-             &                     thermodynamics, ZPFRAC, planck_hl)
+             &                     thermodynamics, ZPFRAC, config%i_band_from_g_lw, &
+             &                     planck_hl)
 
         if (single_level%is_simple_surface) then
           call planck_function_surf(istartcol, iendcol, config, &
                &                    single_level%skin_temperature, ZPFRAC(:,:,1), &
-               &                    lw_emission)
+               &                    config%i_band_from_g_lw, lw_emission)
 
           ! The following can be used to extract the parameters defined at
           ! the top of the planck_function routine below:
@@ -629,7 +643,7 @@ contains
           !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jcol = istartcol,iendcol
-            do jg= 1,config%n_g_lw
+            do jg= 1,ng_lw
               lw_emission(jg,jcol) = lw_emission(jg,jcol) * (1.0_jprb - lw_albedo(jg,jcol))
             end do
           end do
@@ -679,9 +693,9 @@ contains
         !$ACC LOOP GANG COLLAPSE(3)
         do jcol = istartcol,iendcol
           do jlev = 1,nlev
-            do jg= 1,config%n_g_lw
+            do jg= 1,ng_lw
               ! Check for negative optical depth
-              od_lw(jg,jlev,jcol) = max(config%min_gas_od_lw, ZOD_LW(jg,nlev+1-jlev,jcol))
+              od_lw(jg,jlev,jcol) = max(min_gas_od_lw, ZOD_LW(jg,nlev+1-jlev,jcol))
             end do
           end do
         end do
@@ -826,9 +840,9 @@ contains
 #endif
         do jlev = 1,nlev
           do jcol = istartcol,iendcol
-            do jg = 1,config%n_g_sw
+            do jg = 1,ng_sw
               ! Check for negative optical depth
-              od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
+              od_sw (jg,nlev+1-jlev,jcol) = max(min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
               ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
             end do
           end do
@@ -861,7 +875,7 @@ contains
           !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jcol = istartcol,iendcol
-            do jg = 1,config%n_g_sw
+            do jg = 1,ng_sw
               incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
             end do
           end do
@@ -918,7 +932,7 @@ contains
   !---------------------------------------------------------------------
   ! Compute Planck function of the atmosphere
   subroutine planck_function_atmos(nlev,istartcol,iendcol, &
-       config, thermodynamics, PFRAC, &
+       config, thermodynamics, PFRAC, i_band_from_g_lw, &
        planck_hl)
 
     use parkind1,                 only : jprb, jpim
@@ -937,6 +951,12 @@ contains
     type(config_type), intent(in) :: config
     type(thermodynamics_type),intent(in) :: thermodynamics
     real(jprb), intent(in) :: PFRAC(istartcol:iendcol,JPGPT_LW,nlev)
+
+    ! Passed explicitly, rather than reached through config, so that the
+    ! target constructs below name no component of config: doing so makes
+    ! the compiler deep-copy every allocatable component of config on each
+    ! kernel launch.
+    integer, intent(in) :: i_band_from_g_lw(config%n_g_lw)
 
     ! The Planck function (emitted flux from a black body) at half
     ! levels at each longwave g-point
@@ -968,11 +988,17 @@ contains
 
     integer :: jlev, jgreorder, jg, ig, iband, jband, jcol, ilevoffset
 
+    ! Host copies of config scalars used inside target constructs
+    integer :: ng_lw, nband_lw
+
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_atmos',0,hook_handle)
 
     ZFLUXFAC = 2.0_jprb*ASIN(1.0_jprb) * 1.0e4_jprb
+
+    ng_lw    = config%n_g_lw
+    nband_lw = config%n_bands_lw
 
     ! nlev may be less than the number of original levels, in which
     ! case we assume that the user wants the lower part of the
@@ -1009,7 +1035,7 @@ contains
     ! Calculate Planck functions per band
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3) PRIVATE(factor)
     do jlev = 1,nlev+1
-      do jband = 1,config%n_bands_lw
+      do jband = 1,nband_lw
         do jcol = istartcol,iendcol
           factor = zfluxfac * delwave(jband)
           planck_store(jcol,jband,jlev) = factor &
@@ -1024,9 +1050,9 @@ contains
      ! Top-of-atmosphere half level - note that PFRAC is on model
      ! levels not half levels
      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(iband)
-     do jg = 1,config%n_g_lw
+     do jg = 1,ng_lw
         do jcol = istartcol,iendcol
-           iband = config%i_band_from_g_lw(jg)
+           iband = i_band_from_g_lw(jg)
            planck_hl(jg,1,jcol) = planck_store(jcol,iband,1) * PFRAC(jcol,jg,nlev)
         end do
      end do
@@ -1037,8 +1063,8 @@ contains
      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3) PRIVATE(iband)
      do jlev = 2,nlev+1
         do jcol = istartcol,iendcol
-           do jg = 1,config%n_g_lw
-              iband = config%i_band_from_g_lw(jg)
+           do jg = 1,ng_lw
+              iband = i_band_from_g_lw(jg)
               planck_hl(jg,jlev,jcol) = planck_store(jcol,iband,jlev) * PFRAC(jcol,jg,nlev+2-jlev)
            end do
         end do
@@ -1149,7 +1175,7 @@ contains
   !---------------------------------------------------------------------
   ! Compute Planck function of the surface
   subroutine planck_function_surf(istartcol, iendcol, config, temperature, PFRAC, &
-       &  planck_surf)
+       &  i_band_from_g_lw, planck_surf)
 
     use parkind1,                 only : jprb, jpim
 
@@ -1166,6 +1192,10 @@ contains
     real(jprb), intent(in) :: temperature(:)
 
     real(jprb), intent(in) :: PFRAC(istartcol:iendcol,JPGPT_LW)
+
+    ! Passed explicitly rather than reached through config; see the note in
+    ! planck_function_atmos.
+    integer, intent(in) :: i_band_from_g_lw(config%n_g_lw)
 
     ! Planck function of the surface (W m-2)
     real(jprb), dimension(config%n_g_lw,istartcol:iendcol), &
@@ -1186,11 +1216,17 @@ contains
 
     integer :: jgreorder, jg, ig, iband, jband, jcol
 
+    ! Host copies of config scalars used inside target constructs
+    integer :: ng_lw, nband_lw
+
     real(jphook) :: hook_handle
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_surf',0,hook_handle)
 
     ZFLUXFAC = 2.0_jprb*ASIN(1.0_jprb) * 1.0e4_jprb
+
+    ng_lw    = config%n_g_lw
+    nband_lw = config%n_bands_lw
     !$OMP TARGET ENTER DATA MAP(ALLOC:planck_store, frac, ind)
 
     ! Work out surface interpolations
@@ -1220,7 +1256,7 @@ contains
 #if defined(OMPGPU)
     ! Calculate Planck functions per band
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(factor)    
-    do jband = 1,config%n_bands_lw
+    do jband = 1,nband_lw
       do jcol = istartcol,iendcol
         factor = zfluxfac * delwave(jband)
         planck_store(jcol,jband) = factor &
@@ -1275,9 +1311,9 @@ contains
       ! G points have not been reordered
 #if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(iband)
-      do jg = 1,config%n_g_lw
+      do jg = 1,ng_lw
         do jcol = istartcol,iendcol
-          iband = config%i_band_from_g_lw(jg)
+          iband = i_band_from_g_lw(jg)
           planck_surf(jg,jcol) = planck_store(jcol,iband) * PFRAC(jcol,jg)
         end do
       end do
@@ -1348,7 +1384,7 @@ contains
          &    0.90984E-02, 0.95202E+00, 0.47978E-01, 0.91716E+00, 0.82857E-01, 0.77464E+00, 0.22536E+00 /), (/ 1,140 /) )
 
     call planck_function_surf(1, 1, config, spread(temperature,1,1), &
-         &                    frac, planck_surf)
+         &                    frac, config%i_band_from_g_lw, planck_surf)
 
   end subroutine planck_function
 
