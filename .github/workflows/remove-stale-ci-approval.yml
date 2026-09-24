@@ -1,0 +1,29 @@
+name: remove stale CI approval
+
+on:
+  pull_request_target:
+    branches:
+      - master-acc
+      - master-omp
+    types: [synchronize]
+
+permissions:
+  issues: write
+
+jobs:
+  remove-approval:
+    if: >-
+      github.event.pull_request.head.repo.fork &&
+      contains(github.event.pull_request.labels.*.name, 'approved-for-ci')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove stale approval
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              name: 'approved-for-ci',
+            });
