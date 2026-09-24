@@ -6,7 +6,7 @@ on:
   # Trigger the workflow on all pushes to the named branches and all tags
   push:
     branches:
-    - 'master'
+    - 'main'
     tags:
     - '**'
 
