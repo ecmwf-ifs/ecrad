@@ -46,6 +46,7 @@ module radiation_config
   use radiation_cloud_cover,         only : OverlapName, &
        & IOverlapMaximumRandom, IOverlapExponentialRandom, IOverlapExponential
   use radiation_ecckd,               only : ckd_model_type
+  use radiation_io,                  only : nulerr, radiation_abort
 
   implicit none
   public
@@ -2273,6 +2274,8 @@ contains
     !$OMP TARGET ENTER DATA MAP(TO:this%pdf_sampler)
     !$ACC ENTER DATA COPYIN(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%create_device()
+    class default
+      call radiation_abort('*** Error: radiation_config:create_device: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device
@@ -2327,6 +2330,8 @@ contains
     !$OMP TARGET UPDATE FROM(this%pdf_sampler)
     !$ACC UPDATE HOST(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%update_host()
+    class default
+      call radiation_abort('*** Error: radiation_config:update_host: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host
@@ -2381,6 +2386,8 @@ contains
     !$OMP TARGET UPDATE TO(this%pdf_sampler)
     !$ACC UPDATE DEVICE(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%update_device()
+    class default
+      call radiation_abort('*** Error: radiation_config:update_device: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device
@@ -2435,6 +2442,8 @@ contains
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pdf_sampler)
     !$ACC EXIT DATA DELETE(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%delete_device()
+    class default
+      call radiation_abort('*** Error: radiation_config:delete_device: unexpected dynamic type')
     end select
 #endif
 

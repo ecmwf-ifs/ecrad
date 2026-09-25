@@ -20,6 +20,7 @@
 module radiation_cloud
 
   use parkind1, only : jprb
+  use radiation_io, only : radiation_abort
 
   implicit none
   public
@@ -334,6 +335,8 @@ contains
     !$ACC END DATA
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_fix',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:set_overlap_param_fix: unexpected dynamic type')
     end select
 
   end subroutine set_overlap_param_fix
@@ -353,7 +356,7 @@ contains
     use radiation_thermodynamics, only : thermodynamics_type
     use radiation_constants,      only : GasConstantDryAir, AccelDueToGravity
 #ifdef _OPENACC
-    use radiation_io,             only : nulerr, radiation_abort
+    use radiation_io,             only : radiation_abort
 #endif
 
     class(cloud_type),          intent(inout) :: this
@@ -461,6 +464,8 @@ contains
     end if
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:set_overlap_param_var: unexpected dynamic type')
     end select
 
   end subroutine set_overlap_param_var
@@ -597,6 +602,8 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:create_fractional_std: unexpected dynamic type')
     end select
 
   end subroutine create_fractional_std
@@ -799,6 +806,8 @@ contains
     end do
 
     if (lhook) call dr_hook('radiation_cloud:param_cloud_effective_separation_eta',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:param_cloud_effective_separation_eta: unexpected dynamic type')
     end select
 
   end subroutine param_cloud_effective_separation_eta
@@ -877,6 +886,8 @@ contains
 #endif
 
     if (lhook) call dr_hook('radiation_cloud:crop_cloud_fraction',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:crop_cloud_fraction: unexpected dynamic type')
     end select
 
   end subroutine crop_cloud_fraction
@@ -958,6 +969,8 @@ contains
     !$ACC ENTER DATA CREATE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:create_device_cloud: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device_cloud
@@ -986,6 +999,8 @@ contains
     !$ACC UPDATE HOST(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC UPDATE HOST(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC UPDATE HOST(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:update_host_cloud: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host_cloud
@@ -1033,6 +1048,8 @@ contains
     !$ACC UPDATE DEVICE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:update_device_cloud: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device_cloud
@@ -1069,6 +1086,8 @@ contains
     !$ACC EXIT DATA DELETE(this%fractional_std) IF(allocated(this%fractional_std)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%inv_cloud_effective_size) IF(allocated(this%inv_cloud_effective_size)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%inv_inhom_effective_size) IF(allocated(this%inv_inhom_effective_size)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:delete_device_cloud: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device_cloud

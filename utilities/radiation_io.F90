@@ -45,9 +45,13 @@ contains
   subroutine radiation_abort(text)
     character(len=*), intent(in), optional :: text
 
+    ! nulout is buffered but nulerr is not, so the abort message is
+    ! reordered relative to the progress output already queued on
+    ! nulout unless the log is flushed first.
 #ifdef HAVE_FIAT
 #include "abor1.intfb.h"
 
+    flush(nulout)
     if (present(text)) then
       call abor1(text)
     else
@@ -55,6 +59,7 @@ contains
     end if
 #else
 
+    flush(nulout)
     if (present(text)) then
       write(nulerr,'(a)') text
 #ifdef __PGI

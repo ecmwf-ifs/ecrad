@@ -20,6 +20,7 @@
 module radiation_thermodynamics
 
   use parkind1, only : jprb
+  use radiation_io, only : radiation_abort
 
   implicit none
   public
@@ -204,6 +205,8 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_thermodynamics:calc_saturation_wrt_liquid: unexpected dynamic type')
     end select
 
   end subroutine calc_saturation_wrt_liquid
@@ -262,6 +265,8 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_thermodynamics:get_layer_mass: unexpected dynamic type')
     end select
 
   end subroutine get_layer_mass
@@ -424,6 +429,8 @@ contains
     !$ACC ENTER DATA CREATE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_thermodynamics:create_device: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device
@@ -448,6 +455,8 @@ contains
     !$ACC UPDATE HOST(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC UPDATE HOST(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC UPDATE HOST(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_thermodynamics:update_host: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host
@@ -472,6 +481,8 @@ contains
     !$ACC UPDATE DEVICE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_thermodynamics:update_device: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device
@@ -496,6 +507,8 @@ contains
     !$ACC EXIT DATA DELETE(this%pressure_fl) IF(allocated(this%pressure_fl)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%temperature_fl) IF(allocated(this%temperature_fl)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%h2o_sat_liq) IF(allocated(this%h2o_sat_liq)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_thermodynamics:delete_device: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device

@@ -25,6 +25,7 @@
 module radiation_flux
 
   use parkind1, only : jprb
+  use radiation_io, only : nulerr, radiation_abort
 
   implicit none
   public
@@ -792,6 +793,8 @@ contains
     end if
 
     if (lhook) call dr_hook('radiation_flux:calc_surface_spectral',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_flux:calc_surface_spectral: unexpected dynamic type')
     end select
 
   end subroutine calc_surface_spectral
@@ -1212,6 +1215,8 @@ contains
     !$ACC ENTER DATA CREATE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_flux:create_device_flux: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device_flux
@@ -1318,6 +1323,8 @@ contains
     !$ACC UPDATE HOST(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC UPDATE HOST(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE HOST(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_flux:update_host_flux: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host_flux
@@ -1424,6 +1431,8 @@ contains
     !$ACC UPDATE DEVICE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_flux:update_device_flux: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device_flux
@@ -1530,6 +1539,8 @@ contains
     !$ACC EXIT DATA DELETE(this%sw_dn_toa_band) IF(allocated(this%sw_dn_toa_band)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%sw_up_toa_band) IF(allocated(this%sw_up_toa_band)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%sw_up_toa_clear_band) IF(allocated(this%sw_up_toa_clear_band)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_flux:delete_device_flux: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device_flux

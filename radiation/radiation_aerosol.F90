@@ -19,7 +19,7 @@
 module radiation_aerosol
 
   use parkind1, only : jprb
-  use radiation_io, only : nulerr, radiation_abort
+  use radiation_io, only : radiation_abort
 
   implicit none
   public
@@ -273,6 +273,8 @@ contains
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
     endif
+    class default
+      call radiation_abort('*** Error: radiation_aerosol:create_device_aerosol: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device_aerosol
@@ -301,6 +303,8 @@ contains
     !$ACC UPDATE HOST(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC UPDATE HOST(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC UPDATE HOST(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_aerosol:update_host_aerosol: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host_aerosol
@@ -329,6 +333,8 @@ contains
     !$ACC UPDATE DEVICE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_aerosol:update_device_aerosol: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device_aerosol
@@ -357,6 +363,8 @@ contains
     !$ACC EXIT DATA DELETE(this%od_lw) IF(allocated(this%od_lw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ssa_lw) IF(allocated(this%ssa_lw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_aerosol:delete_device_aerosol: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device_aerosol
