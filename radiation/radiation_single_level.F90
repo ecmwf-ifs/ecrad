@@ -96,13 +96,13 @@ module radiation_single_level
   contains
     procedure :: allocate   => allocate_single_level
     procedure :: deallocate => deallocate_single_level
-    procedure, nopass :: init_seed_simple
-    procedure, nopass :: get_albedos
+    procedure :: init_seed_simple
+    procedure :: get_albedos
     procedure :: out_of_physical_bounds
-    procedure, nopass :: create_device => create_device_single_level
-    procedure, nopass :: update_host   => update_host_single_level
-    procedure, nopass :: update_device => update_device_single_level
-    procedure, nopass :: delete_device => delete_device_single_level
+    procedure :: create_device => create_device_single_level
+    procedure :: update_host   => update_host_single_level
+    procedure :: update_device => update_device_single_level
+    procedure :: delete_device => delete_device_single_level
 
   end type single_level_type
 
@@ -201,13 +201,15 @@ contains
   !---------------------------------------------------------------------
   ! Unimaginative initialization of random-number seeds
   subroutine init_seed_simple(this, istartcol, iendcol, lacc)
-    type(single_level_type), intent(inout)  :: this
+    class(single_level_type), intent(inout)  :: this
     integer, intent(in)                     :: istartcol, iendcol
     logical, optional, intent(in)           :: lacc
 
     integer :: jcol
     logical :: llacc
 
+    select type (this)
+    type is (single_level_type)
     if (present(lacc)) then
         llacc = lacc
     else
@@ -218,14 +220,21 @@ contains
       allocate(this%iseed(istartcol:iendcol))
     end if
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO IF (llacc)
+#endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(llacc)
     !$ACC LOOP GANG VECTOR
     do jcol = istartcol,iendcol
       this%iseed(jcol) = jcol
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
+    class default
+      call radiation_abort('*** Error: radiation_single_level:init_seed_simple: unexpected dynamic type')
+    end select
 
   end subroutine init_seed_simple
 
@@ -239,7 +248,7 @@ contains
     use radiation_io,     only : nulerr, radiation_abort
     use yomhook,          only : lhook, dr_hook, jphook
 
-    type(single_level_type),  intent(in) :: this
+    class(single_level_type),  intent(in) :: this
     type(config_type),        intent(in) :: config
     integer,                  intent(in) :: istartcol, iendcol
 
@@ -267,10 +276,14 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (single_level_type)
     if (lhook) call dr_hook('radiation_single_level:get_albedos',0,hook_handle)
 
     !$ACC DATA CREATE(sw_albedo_band, lw_albedo_band) ASYNC(1)
+#if defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(ALLOC: sw_albedo_band, lw_albedo_band)
+#endif
 
     if (config%do_sw) then
       ! Albedos/emissivities are stored in single_level in their own
@@ -295,7 +308,9 @@ contains
           call radiation_abort()
         end if
 
+#if defined(OMPGPU)
         !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
         !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP SEQ
         do jband = 1,config%n_bands_sw
@@ -304,7 +319,9 @@ contains
             sw_albedo_band(jcol,jband) = 0.0_jprb
           end do
         end do
+#if defined(OMPGPU)
         !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
 #if defined(OMPGPU)
         !!$OMP TARGET DATA MAP(PRESENT, ALLOC: config, sw_albedo_band, this%sw_albedo, config%sw_albedo_weights)
@@ -363,7 +380,9 @@ contains
 #endif
 
         if (allocated(this%sw_albedo_direct)) then
+#if defined(OMPGPU)
           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
           !$ACC LOOP SEQ
           do jband = 1,config%n_bands_sw
             !$ACC LOOP GANG(STATIC:1) VECTOR
@@ -371,7 +390,9 @@ contains
               sw_albedo_band(jcol,jband) = 0.0_jprb
             end do
           end do
+#if defined(OMPGPU)
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
 #if defined(OMPGPU)
           do jalbedoband = 1,nalbedoband
@@ -426,7 +447,9 @@ contains
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
         else
+#if defined(OMPGPU)
           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
           !$ACC LOOP GANG(STATIC:1) VECTOR
           do jcol = istartcol,iendcol
             !$ACC LOOP SEQ
@@ -434,7 +457,9 @@ contains
               sw_albedo_direct(jg,jcol) = sw_albedo_diffuse(jg,jcol)
             end do
           end do
+#if defined(OMPGPU)
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
         end if
         !$ACC END PARALLEL
       else
@@ -520,9 +545,14 @@ contains
 
     !$ACC WAIT
     !$ACC END DATA
+#if defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE: sw_albedo_band, lw_albedo_band)
+#endif
 
     if (lhook) call dr_hook('radiation_single_level:get_albedos',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:get_albedos: unexpected dynamic type')
+    end select
 
   end subroutine get_albedos
 
@@ -572,9 +602,11 @@ contains
   ! creates fields on device
   subroutine create_device_single_level(this)
 
-    type(single_level_type), intent(inout) :: this
+    class(single_level_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (single_level_type)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%cos_sza) IF(allocated(this%cos_sza))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%skin_temperature) IF(allocated(this%skin_temperature))
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%sw_albedo) IF(allocated(this%sw_albedo))
@@ -592,6 +624,9 @@ contains
     !$ACC ENTER DATA CREATE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:create_device_single_level: unexpected dynamic type')
+    end select
 #endif
   end subroutine create_device_single_level
 
@@ -599,9 +634,11 @@ contains
   ! updates fields on host
   subroutine update_host_single_level(this)
 
-    type(single_level_type), intent(inout) :: this
+    class(single_level_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (single_level_type)
     !$OMP TARGET UPDATE FROM(this%cos_sza) IF(allocated(this%cos_sza))
     !$OMP TARGET UPDATE FROM(this%skin_temperature) IF(allocated(this%skin_temperature))
     !$OMP TARGET UPDATE FROM(this%sw_albedo) IF(allocated(this%sw_albedo))
@@ -619,6 +656,9 @@ contains
     !$ACC UPDATE HOST(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
     !$ACC UPDATE HOST(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC UPDATE HOST(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:update_host_single_level: unexpected dynamic type')
+    end select
 #endif
   end subroutine update_host_single_level
 
@@ -626,9 +666,11 @@ contains
   ! updates fields on device
   subroutine update_device_single_level(this)
 
-    type(single_level_type), intent(inout) :: this
+    class(single_level_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (single_level_type)
     !$OMP TARGET UPDATE TO(this%cos_sza) IF(allocated(this%cos_sza))
     !$OMP TARGET UPDATE TO(this%skin_temperature) IF(allocated(this%skin_temperature))
     !$OMP TARGET UPDATE TO(this%sw_albedo) IF(allocated(this%sw_albedo))
@@ -646,6 +688,9 @@ contains
     !$ACC UPDATE DEVICE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%spectral_solar_scaling) IF( allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:update_device_single_level: unexpected dynamic type')
+    end select
 #endif
   end subroutine update_device_single_level
 
@@ -653,9 +698,11 @@ contains
   ! deletes fields on device
   subroutine delete_device_single_level(this)
 
-    type(single_level_type), intent(inout) :: this
+    class(single_level_type), intent(inout) :: this
 
 #if defined(_OPENACC)  || defined(OMPGPU)
+    select type (this)
+    type is (single_level_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%cos_sza) IF(allocated(this%cos_sza))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%skin_temperature) IF(allocated(this%skin_temperature))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%sw_albedo) IF(allocated(this%sw_albedo))
@@ -673,6 +720,9 @@ contains
     !$ACC EXIT DATA DELETE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:delete_device_single_level: unexpected dynamic type')
+    end select
 #endif
   end subroutine delete_device_single_level
 

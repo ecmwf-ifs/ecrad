@@ -19,6 +19,7 @@ module radiation_gas
 
   use parkind1, only : jprb, jprd, jprm
   use radiation_gas_constants
+  use radiation_io, only : nulerr, radiation_abort
 
   implicit none
   public
@@ -65,21 +66,21 @@ module radiation_gas
    contains
      procedure :: allocate   => allocate_gas
      procedure :: deallocate => deallocate_gas
-     procedure, nopass :: put_gas_jprd
-     procedure, nopass :: put_gas_jprm
+     procedure :: put_gas_jprd
+     procedure :: put_gas_jprm
      generic   :: put => put_gas_jprd, put_gas_jprm
-     procedure, nopass :: put_well_mixed => put_well_mixed_gas
+     procedure :: put_well_mixed => put_well_mixed_gas
      procedure :: scale      => scale_gas
-     procedure, nopass :: set_units  => set_units_gas
+     procedure :: set_units  => set_units_gas
      procedure :: assert_units => assert_units_gas
-     procedure, nopass :: get        => get_gas
+     procedure :: get        => get_gas
      procedure :: get_scaling
      procedure :: reverse    => reverse_gas
      procedure :: out_of_physical_bounds
-     procedure, nopass :: create_device
-     procedure, nopass :: update_host
-     procedure, nopass :: update_device
-     procedure, nopass :: delete_device
+     procedure :: create_device
+     procedure :: update_host
+     procedure :: update_device
+     procedure :: delete_device
 
   end type gas_type
 
@@ -229,7 +230,7 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
-#if defined(OMPGU)
+#if defined(OMPGPU)
       !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLACC)
 #endif
       !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
@@ -237,7 +238,7 @@ contains
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
-#if defined(OMPGU)
+#if defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llacc)
 #endif
     !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) IF(llacc)
@@ -262,7 +263,7 @@ contains
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
-    type(gas_type),       intent(inout) :: this
+    class(gas_type),       intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
     real(jprd),           intent(in)    :: mixing_ratio(:,:)
@@ -275,6 +276,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (gas_type)
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
     llacc = .false.
@@ -283,7 +286,9 @@ contains
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
           size(mixing_ratio, 2), scale_factor, istartcol, i1, i2, lacc=llacc)
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
@@ -292,9 +297,14 @@ contains
       end do
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_gas:put_gas_jprd: unexpected dynamic type')
+    end select
 
   end subroutine put_gas_jprd
 
@@ -307,7 +317,7 @@ contains
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
-    type(gas_type),       intent(inout) :: this
+    class(gas_type),       intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
     real(jprm),           intent(in)    :: mixing_ratio(:,:)
@@ -320,6 +330,8 @@ contains
 
     real(jphook) :: hook_handle
 
+    select type (this)
+    type is (gas_type)
     if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
 
     llacc = .false.
@@ -338,6 +350,9 @@ contains
     !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_gas:put_gas_jprm: unexpected dynamic type')
+    end select
 
   end subroutine put_gas_jprm
 
@@ -350,7 +365,7 @@ contains
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
-    type(gas_type),       intent(inout) :: this
+    class(gas_type),       intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
     real(jprb),           intent(in)    :: mixing_ratio
@@ -363,6 +378,8 @@ contains
     logical :: llacc
     integer :: i1, i2, jc, jk
 
+    select type (this)
+    type is (gas_type)
     if (present(lacc)) then
       llacc = lacc
     else
@@ -412,7 +429,7 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
-#if defined(OMPGU)
+#if defined(OMPGPU)
       !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLACC)
 #endif
       !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
@@ -422,12 +439,14 @@ contains
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
-#if defined(OMPGU)
+#if defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(LLACC)
 #endif
     !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) if(LLACC)
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
     !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
@@ -436,19 +455,24 @@ contains
       end do
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
-#if defined(OMPGU)
+#if defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%scale_factor(igas:igas)) IF(LLACC)
 #endif
     !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(LLACC)
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_gas:put_well_mixed_gas: unexpected dynamic type')
+    end select
 
   end subroutine put_well_mixed_gas
 
@@ -494,7 +518,7 @@ contains
   ! dimensionless volume mixing ratios, then the values would be
   ! internally divided by 1.0e-6.
   recursive subroutine set_units_gas(this, iunits, igas, scale_factor, lacc)
-    type(gas_type),       intent(inout) :: this
+    class(gas_type),       intent(inout) :: this
     integer,              intent(in)    :: iunits
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor
@@ -509,6 +533,8 @@ contains
     real(jprb) :: new_sf
     logical :: llacc
 
+    select type (this)
+    type is (gas_type)
     if (present(lacc)) then
       llacc = lacc
     else
@@ -540,7 +566,9 @@ contains
         sf = sf * this%scale_factor(igas)
 
         if (sf /= 1.0_jprb) then
+#if defined(OMPGPU)
           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
           !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jlev = 1,this%nlev
@@ -549,14 +577,16 @@ contains
             enddo
           enddo
           !$ACC END PARALLEL
+#if defined(OMPGPU)
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
         if (iunits /= this%iunits(igas) .or. new_sf /= this%scale_factor(igas)) then
           this%iunits(igas) = iunits
           this%scale_factor(igas) = new_sf
-#if defined(OMPGU)
+#if defined(OMPGPU)
           !$OMP TARGET UPDATE TO(this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llacc)
 #endif
           !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
@@ -564,9 +594,12 @@ contains
       end if
     else
       do jg = 1,this%ntype
-        call this%set_units(this, iunits, igas=this%icode(jg), scale_factor=new_sf, lacc=llacc)
+        call this%set_units(iunits, igas=this%icode(jg), scale_factor=new_sf, lacc=llacc)
       end do
     end if
+    class default
+      call radiation_abort('*** Error: radiation_gas:set_units_gas: unexpected dynamic type')
+    end select
 
   end subroutine set_units_gas
 
@@ -665,7 +698,7 @@ contains
     use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
-    type(gas_type),       intent(in)  :: this
+    class(gas_type),       intent(in)  :: this
     integer,              intent(in)  :: igas
     integer,              intent(in)  :: iunits
     real(jprb),           intent(out) :: mixing_ratio(:,:)
@@ -686,7 +719,8 @@ contains
     if (lhook) call dr_hook('radiation_gas:get',0,hook_handle)
 #endif
 
-
+    select type (this)
+    type is (gas_type)
     if (present(lacc)) then
       llacc = lacc
     else
@@ -767,18 +801,25 @@ contains
           end do
           !!$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
        else
+#if defined(OMPGPU)
           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jcol = i1,i2
              do jlev = 1,nlev
                 mixing_ratio(jcol-i1+1,jlev) = this%mixing_ratio(jcol,jlev,igas)
              end do
           end do
+#if defined(OMPGPU)
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
        end if
     end if
     !$ACC END PARALLEL
 
+    class default
+      call radiation_abort('*** Error: radiation_gas:get_gas: unexpected dynamic type')
+    end select
 #if defined(_OPENACC) || defined(OMPGPU)
 #else
     if (lhook) call dr_hook('radiation_gas:get',1,hook_handle)
@@ -851,12 +892,14 @@ contains
   ! creates fields on device
   subroutine create_device(this)
 
-    type(gas_type), intent(inout) :: this
+    class(gas_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
 #if defined(OMPGPU)
     integer :: i,j,k
 #endif
+    select type (this)
+    type is (gas_type)
 
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
@@ -878,6 +921,9 @@ contains
     end do
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
+    class default
+      call radiation_abort('*** Error: radiation_gas:create_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine create_device
 
@@ -885,12 +931,17 @@ contains
   ! updates fields on host
   subroutine update_host(this)
 
-    type(gas_type), intent(inout) :: this
+    class(gas_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (gas_type)
     !$OMP TARGET UPDATE FROM(this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC UPDATE HOST(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_gas:update_host: unexpected dynamic type')
+    end select
 #endif
   end subroutine update_host
 
@@ -898,12 +949,17 @@ contains
   ! updates fields on device
   subroutine update_device(this)
 
-    type(gas_type), intent(inout) :: this
+    class(gas_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (gas_type)
     !$OMP TARGET UPDATE TO(this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC UPDATE DEVICE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_gas:update_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine update_device
 
@@ -911,12 +967,17 @@ contains
   ! deletes fields on device
   subroutine delete_device(this)
 
-    type(gas_type), intent(inout) :: this
+    class(gas_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (gas_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_gas:delete_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine delete_device
 

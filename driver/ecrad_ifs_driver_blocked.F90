@@ -301,7 +301,7 @@ program ecrad_ifs_driver
   call file%close()
 
   ! Convert gas units to mass-mixing ratio
-  call gas%set_units(gas, IMassMixingRatio, lacc=.false.)
+  call gas%set_units(IMassMixingRatio, lacc=.false.)
 
   ! Compute seed from skin temperature residual
   !  single_level%iseed = int(1.0e9*(single_level%skin_temperature &
@@ -326,7 +326,7 @@ program ecrad_ifs_driver
 
   ! Compute saturation with respect to liquid (needed for aerosol
   ! hydration) call
-  call thermodynamics%calc_saturation_wrt_liquid(thermodynamics, driver_config%istartcol,driver_config%iendcol)
+  call thermodynamics%calc_saturation_wrt_liquid(driver_config%istartcol,driver_config%iendcol)
 
   ! Check inputs are within physical bounds, printing message if not
   is_out_of_bounds =     gas%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &

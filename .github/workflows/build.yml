@@ -32,7 +32,7 @@ jobs:
         build_type: [Release,Bit,Debug]
         name:
           - linux gnu-12
-          - linux nvhpc-24.3
+          - linux nvhpc-25.9
           - linux intel-classic
           - linux intel-llvm
 
@@ -46,9 +46,9 @@ jobs:
             compiler_fc: gfortran-12
             caching: true
 
-          - name: linux nvhpc-24.3
-            os: ubuntu-22.04
-            compiler: nvhpc-24.3
+          - name: linux nvhpc-25.9
+            os: ubuntu-24.04
+            compiler: nvhpc
             compiler_cc: nvc
             compiler_cxx: nvc++
             compiler_fc: nvfortran
@@ -122,7 +122,7 @@ jobs:
       if: contains( matrix.compiler, 'nvhpc' )
       shell: bash -eux {0}
       run: |
-        ${ECRAD_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 24.3
+        ${ECRAD_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 25.9
         source /opt/nvhpc/env.sh
         echo "${NVHPC_DIR}/compilers/bin" >> $GITHUB_PATH
         echo "NVHPC_ROOT=${NVHPC_DIR}" >> $GITHUB_ENV
@@ -184,7 +184,20 @@ jobs:
         dependency_cmake_options: |
           ecmwf-ifs/fiat: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_TESTS=OFF"
         cmake_options:    "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_options }} -DENABLE_SINGLE_PRECISION=ON -DENABLE_BITIDENTITY_TESTING=ON -DENABLE_ACC=OFF"
-        ctest_options: "--output-on-failure ${{ matrix.ctest_options }}"
+        self_build: true
+        self_test: false
+
+    # Tests are run here rather than by build-package so that the stack limit
+    # can be raised first: ecRad puts large temporaries on the stack and the
+    # runner default is 8 MB.
+    - name: Run Tests
+      shell: bash
+      run: |
+        if [[ "$(uname)" != "Darwin" ]]; then
+          ulimit -s unlimited
+        fi
+        ctest --output-on-failure ${{ matrix.ctest_options }}
+      working-directory: build
 
 #    - name: Codecov Upload
 #      if: steps.build-test.outputs.coverage_file
