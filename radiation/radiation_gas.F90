@@ -19,6 +19,7 @@ module radiation_gas
 
   use parkind1, only : jprb, jprd, jprm
   use radiation_gas_constants
+  use radiation_io, only : nulerr, radiation_abort
 
   implicit none
   public
@@ -297,6 +298,8 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_gas:put_gas_jprd: unexpected dynamic type')
     end select
 
   end subroutine put_gas_jprd
@@ -343,6 +346,8 @@ contains
     !$ACC END PARALLEL
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_gas:put_gas_jprm: unexpected dynamic type')
     end select
 
   end subroutine put_gas_jprm
@@ -457,6 +462,8 @@ contains
     !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(LLACC)
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_gas:put_well_mixed_gas: unexpected dynamic type')
     end select
 
   end subroutine put_well_mixed_gas
@@ -578,6 +585,8 @@ contains
         call this%set_units(iunits, igas=this%icode(jg), scale_factor=new_sf, lacc=llacc)
       end do
     end if
+    class default
+      call radiation_abort('*** Error: radiation_gas:set_units_gas: unexpected dynamic type')
     end select
 
   end subroutine set_units_gas
@@ -792,6 +801,8 @@ contains
     end if
     !$ACC END PARALLEL
 
+    class default
+      call radiation_abort('*** Error: radiation_gas:get_gas: unexpected dynamic type')
     end select
 #if defined(_OPENACC) || defined(OMPGPU)
 #else
@@ -894,6 +905,8 @@ contains
     end do
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
+    class default
+      call radiation_abort('*** Error: radiation_gas:create_device: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device
@@ -910,6 +923,8 @@ contains
     !$OMP TARGET UPDATE FROM(this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC UPDATE HOST(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_gas:update_host: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host
@@ -926,6 +941,8 @@ contains
     !$OMP TARGET UPDATE TO(this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC UPDATE DEVICE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_gas:update_device: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device
@@ -942,6 +959,8 @@ contains
     !$OMP TARGET EXIT DATA MAP(DELETE:this%mixing_ratio) IF(allocated(this%mixing_ratio))
 
     !$ACC EXIT DATA DELETE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_gas:delete_device: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device

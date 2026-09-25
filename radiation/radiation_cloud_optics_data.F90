@@ -18,6 +18,7 @@
 module radiation_cloud_optics_data
 
   use parkind1, only : jprb
+  use radiation_io, only : radiation_abort
 
   implicit none
   public
@@ -137,6 +138,8 @@ contains
     !$ACC ENTER DATA COPYIN(this%ice_coeff_sw) IF(allocated(this%ice_coeff_sw)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%liq_coeff_gen) IF(allocated(this%liq_coeff_gen)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%ice_coeff_gen) IF(allocated(this%ice_coeff_gen)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_cloud_optics_data:create_device: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device
@@ -163,6 +166,8 @@ contains
     !$ACC UPDATE HOST(this%ice_coeff_sw) IF(allocated(this%ice_coeff_sw)) ASYNC(1)
     !$ACC UPDATE HOST(this%liq_coeff_gen) IF(allocated(this%liq_coeff_gen)) ASYNC(1)
     !$ACC UPDATE HOST(this%ice_coeff_gen) IF(allocated(this%ice_coeff_gen)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_cloud_optics_data:update_host: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host
@@ -189,6 +194,8 @@ contains
     !$ACC UPDATE DEVICE(this%ice_coeff_sw) IF(allocated(this%ice_coeff_sw)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%liq_coeff_gen) IF(allocated(this%liq_coeff_gen)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%ice_coeff_gen) IF(allocated(this%ice_coeff_gen)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_cloud_optics_data:update_device: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device
@@ -215,6 +222,8 @@ contains
     !$ACC EXIT DATA DELETE(this%ice_coeff_sw) IF(allocated(this%ice_coeff_sw)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%liq_coeff_gen) IF(allocated(this%liq_coeff_gen)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%ice_coeff_gen) IF(allocated(this%ice_coeff_gen)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_cloud_optics_data:delete_device: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device

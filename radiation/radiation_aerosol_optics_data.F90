@@ -821,6 +821,8 @@ contains
     !$ACC ENTER DATA COPYIN(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC ENTER DATA COPYIN(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_aerosol_optics_data:create_device: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device
@@ -891,6 +893,8 @@ contains
     !$ACC UPDATE HOST(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC UPDATE HOST(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_aerosol_optics_data:update_host: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host
@@ -961,6 +965,8 @@ contains
     !$ACC UPDATE DEVICE(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_aerosol_optics_data:update_device: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device
@@ -1031,6 +1037,8 @@ contains
     !$ACC EXIT DATA DELETE(this%g_mono_philic) IF(allocated(this%g_mono_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%lidar_ratio_mono_philic) IF(allocated(this%lidar_ratio_mono_philic)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%rh_lower) IF(allocated(this%rh_lower)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_aerosol_optics_data:delete_device: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device

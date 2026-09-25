@@ -228,6 +228,8 @@ contains
     end do
     !$ACC END PARALLEL
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+    class default
+      call radiation_abort('*** Error: radiation_single_level:init_seed_simple: unexpected dynamic type')
     end select
 
   end subroutine init_seed_simple
@@ -528,6 +530,8 @@ contains
     !$OMP TARGET EXIT DATA MAP(DELETE: sw_albedo_band, lw_albedo_band)
 
     if (lhook) call dr_hook('radiation_single_level:get_albedos',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:get_albedos: unexpected dynamic type')
     end select
 
   end subroutine get_albedos
@@ -600,6 +604,8 @@ contains
     !$ACC ENTER DATA CREATE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC ENTER DATA CREATE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:create_device_single_level: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device_single_level
@@ -630,6 +636,8 @@ contains
     !$ACC UPDATE HOST(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
     !$ACC UPDATE HOST(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC UPDATE HOST(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:update_host_single_level: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host_single_level
@@ -660,6 +668,8 @@ contains
     !$ACC UPDATE DEVICE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%spectral_solar_scaling) IF( allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC UPDATE DEVICE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:update_device_single_level: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device_single_level
@@ -690,6 +700,8 @@ contains
     !$ACC EXIT DATA DELETE(this%lw_emission) IF(allocated(this%lw_emission)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%spectral_solar_scaling) IF(allocated(this%spectral_solar_scaling)) ASYNC(1)
     !$ACC EXIT DATA DELETE(this%iseed) IF(allocated(this%iseed)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_single_level:delete_device_single_level: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device_single_level

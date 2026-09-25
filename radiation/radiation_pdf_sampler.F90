@@ -16,6 +16,7 @@
 module radiation_pdf_sampler
 
   use parkind1, only : jprb
+  use radiation_io, only : radiation_abort
 
   implicit none
   public
@@ -337,6 +338,8 @@ contains
       !$OMP TARGET ENTER DATA MAP(TO:this%val) IF(allocated(this%val))
 
       !$ACC ENTER DATA COPYIN(this%val) IF(allocated(this%val)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_pdf_sampler:create_device: unexpected dynamic type')
     end select
 #endif
   end subroutine create_device
@@ -353,6 +356,8 @@ contains
       !$OMP TARGET UPDATE FROM(this%val) IF(allocated(this%val))
 
       !$ACC UPDATE HOST(this%val) IF(allocated(this%val)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_pdf_sampler:update_host: unexpected dynamic type')
     end select
 #endif
   end subroutine update_host
@@ -369,6 +374,8 @@ contains
       !$OMP TARGET UPDATE TO(this%val) IF(allocated(this%val))
 
       !$ACC UPDATE DEVICE(this%val) IF(allocated(this%val)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_pdf_sampler:update_device: unexpected dynamic type')
     end select
 #endif
   end subroutine update_device
@@ -385,6 +392,8 @@ contains
       !$OMP TARGET EXIT DATA MAP(DELETE:this%val) IF(allocated(this%val))
 
       !$ACC EXIT DATA DELETE(this%val) IF(allocated(this%val)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_pdf_sampler:delete_device: unexpected dynamic type')
     end select
 #endif
   end subroutine delete_device
