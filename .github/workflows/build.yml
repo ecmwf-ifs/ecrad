@@ -32,7 +32,7 @@ jobs:
         build_type: [Release,Bit,Debug]
         name:
           - linux gnu-12
-          - linux nvhpc-24.3
+          - linux nvhpc-25.9
           - linux intel-classic
           - linux intel-llvm
 
@@ -46,9 +46,9 @@ jobs:
             compiler_fc: gfortran-12
             caching: true
 
-          - name: linux nvhpc-24.3
-            os: ubuntu-22.04
-            compiler: nvhpc-24.3
+          - name: linux nvhpc-25.9
+            os: ubuntu-24.04
+            compiler: nvhpc
             compiler_cc: nvc
             compiler_cxx: nvc++
             compiler_fc: nvfortran
@@ -122,7 +122,7 @@ jobs:
       if: contains( matrix.compiler, 'nvhpc' )
       shell: bash -eux {0}
       run: |
-        ${ECRAD_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 24.3
+        ${ECRAD_TOOLS}/install-nvhpc.sh --prefix /opt/nvhpc --version 25.9
         source /opt/nvhpc/env.sh
         echo "${NVHPC_DIR}/compilers/bin" >> $GITHUB_PATH
         echo "NVHPC_ROOT=${NVHPC_DIR}" >> $GITHUB_ENV
