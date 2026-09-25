@@ -216,7 +216,13 @@ contains
 
     type(thermodynamics_type),  intent(in)  :: this
     integer,                    intent(in)  :: istartcol, iendcol
-    real(jprb),                 intent(out) :: layer_mass(istartcol:iendcol,ubound(this%pressure_hl,2))
+    ! pressure_hl is (ncol,nlev+1), so ubound(...,2) here would declare one
+    ! level more than the caller's actual argument, which has nlev. Only
+    ! 1:nlev is ever written, so this was harmless on the host, but OpenMP
+    ! implicitly maps the dummy's declared extent and so mapped a level past
+    ! the end of the caller's array. The resulting entry outlived the caller's
+    ! matching exit data and later overlapped a freshly allocated h2o_sat_liq.
+    real(jprb),                 intent(out) :: layer_mass(istartcol:iendcol,ubound(this%pressure_hl,2)-1)
     logical, optional,          intent(in)  :: lacc
 
     integer    :: nlev, jl, jk

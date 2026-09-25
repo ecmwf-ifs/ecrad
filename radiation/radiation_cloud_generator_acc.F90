@@ -489,4 +489,156 @@ contains
 
   end subroutine cloud_generator_omp
 
+
+#ifdef __NVCOMPILER
+  !---------------------------------------------------------------------
+  ! As cloud_generator_omp, but the column and g-point loops and the
+  ! target region live here rather than in the caller, so the arrays are
+  ! passed whole and indexed by jcol internally.
+  !
+  ! This exists only because nvfortran mis-computes the device base address
+  ! of a per-column slice passed to cloud_generator_omp from inside a target
+  ! region; see the call sites in the McICA solvers.
+  subroutine cloud_generator_block_omp(ncol, istartcol, iendcol, ng, nlev, &
+       &  iseed, iseed_offset, frac_threshold, frac, overlap_param, &
+       &  decorrelation_scaling, &
+       &  fractional_std, sample_ncdf, sample_nfsd, sample_fsd1, &
+       &  sample_inv_fsd_interval, sample_val, od_scaling, total_cloud_cover, &
+       &  ibegin, iend, cum_cloud_cover, pair_cloud_cover, thread_limit)
+
+    use parkind1,                 only : jprb, jpib
+    use radiation_random_numbers, only : IMinstdA0, IMinstdA, IMinstdM, &
+         &                               uniform_distribution_omp
+
+    implicit none
+
+    integer,    intent(in) :: ncol, istartcol, iendcol, ng, nlev
+    integer,    intent(in) :: iseed(ncol)
+    ! Added to iseed so the longwave and shortwave draw different samples
+    integer,    intent(in) :: iseed_offset
+    real(jprb), intent(in) :: frac_threshold, decorrelation_scaling
+    real(jprb), intent(in) :: frac(nlev, istartcol:iendcol)
+    real(jprb), intent(in) :: overlap_param(nlev-1, istartcol:iendcol)
+    real(jprb), intent(in) :: fractional_std(nlev, istartcol:iendcol)
+    integer,    intent(in) :: sample_ncdf, sample_nfsd
+    real(jprb), intent(in) :: sample_fsd1, sample_inv_fsd_interval
+    real(jprb), intent(in) :: sample_val(sample_ncdf, sample_nfsd)
+    real(jprb), intent(inout) :: od_scaling(ng, nlev, istartcol:iendcol)
+    real(jprb), intent(in) :: total_cloud_cover(ncol)
+    integer,    intent(in) :: ibegin(istartcol:iendcol), iend(istartcol:iendcol)
+    real(jprb), intent(in) :: cum_cloud_cover(nlev, istartcol:iendcol)
+    real(jprb), intent(in) :: pair_cloud_cover(nlev-1, istartcol:iendcol)
+    integer,    intent(in) :: thread_limit
+
+    real(jprb) :: trigger, rand_top, rand_cloud, rand_inhom1, rand_inhom2
+    real(jprb) :: overlap_param_inhom, overhang, wfsd, wcdf, cover
+    integer    :: jcol, jg, jlev, jcloud, itrigger, n_layers_to_scale
+    integer    :: ifsd, icdf, icol_begin, icol_end
+    logical    :: do_fill_od_scaling
+    integer(kind=jpib) :: istate
+
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) &
+    !$OMP& PRIVATE(jcol, jg, jlev, trigger, rand_top, rand_cloud, &
+    !$OMP&         rand_inhom1, rand_inhom2, overlap_param_inhom, overhang, &
+    !$OMP&         wfsd, wcdf, cover, itrigger, jcloud, n_layers_to_scale, &
+    !$OMP&         ifsd, icdf, icol_begin, icol_end, do_fill_od_scaling, istate) &
+    !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev, iseed_offset) &
+    !$OMP& NUM_TEAMS(((iendcol-istartcol+1)*ng + 127) / 128) &
+    !$OMP& THREAD_LIMIT(thread_limit)
+    do jcol = istartcol,iendcol
+       do jg = 1, ng
+          cover      = total_cloud_cover(jcol)
+          icol_begin = ibegin(jcol)
+          icol_end   = iend(jcol)
+
+          if (cover >= frac_threshold) then
+             do jlev = 1, nlev
+                od_scaling(jg,jlev,jcol) = 0.0_jprb
+             end do
+
+             istate = REAL(ABS(iseed(jcol) + iseed_offset),jprb)
+             istate = nint(mod( istate*jg &
+                  &  *(1._jprb-0.05_jprb*jg+0.005_jprb*jg**2)*IMinstdA0, IMinstdM))
+             istate = mod(IMinstdA * istate, IMinstdM)
+             call uniform_distribution_omp(istate, rand_top)
+
+             trigger  = rand_top * cover
+             itrigger = icol_end
+             do jlev = icol_begin, icol_end
+                if (trigger <= cum_cloud_cover(jlev,jcol)) then
+                   itrigger = min(jlev, itrigger)
+                end if
+             end do
+
+             n_layers_to_scale = 1
+             do jlev = itrigger+1, icol_end+1
+                do_fill_od_scaling = .false.
+                if (jlev <= icol_end) then
+                   call uniform_distribution_omp(istate, rand_cloud)
+                   if (n_layers_to_scale > 0) then
+                      if (rand_cloud*frac(jlev-1,jcol) &
+                           &  < frac(jlev,jcol) + frac(jlev-1,jcol) &
+                           &    - pair_cloud_cover(jlev-1,jcol)) then
+                         n_layers_to_scale = n_layers_to_scale + 1
+                      else
+                         do_fill_od_scaling = .true.
+                      end if
+                   else
+                      overhang = cum_cloud_cover(jlev,jcol) &
+                           &   - cum_cloud_cover(jlev-1,jcol)
+                      if (rand_cloud*(cum_cloud_cover(jlev-1,jcol) &
+                           &          - frac(jlev-1,jcol)) &
+                           &  < pair_cloud_cover(jlev-1,jcol) - overhang &
+                           &    - frac(jlev-1,jcol)) then
+                         n_layers_to_scale = 1
+                      end if
+                   end if
+                else
+                   do_fill_od_scaling = .true.
+                end if
+
+                if (do_fill_od_scaling) then
+                   call uniform_distribution_omp(istate, rand_inhom1)
+                   do jcloud = max(2,jlev-n_layers_to_scale), jlev-1
+                      call uniform_distribution_omp(istate, rand_inhom2)
+
+                      overlap_param_inhom = overlap_param(jcloud-1,jcol)
+                      if ( icol_begin <= jcloud-1 .and. &
+                           & jcloud-1 < icol_end .and. &
+                           & overlap_param(jcloud-1,jcol) > 0.0_jprb) then
+                         overlap_param_inhom = overlap_param(jcloud-1,jcol) &
+                              &  **(1.0_jprb/decorrelation_scaling)
+                      end if
+
+                      if ( jcloud > jlev-n_layers_to_scale .and. &
+                           & rand_inhom2 >= overlap_param_inhom) then
+                         call uniform_distribution_omp(istate, rand_inhom1)
+                      end if
+
+                      wcdf = rand_inhom1 * (sample_ncdf-1) + 1.0_jprb
+                      icdf = max(1, min(int(wcdf), sample_ncdf-1))
+                      wcdf = max(0.0_jprb, min(wcdf - icdf, 1.0_jprb))
+
+                      wfsd = (fractional_std(jcloud,jcol)-sample_fsd1) &
+                           &   * sample_inv_fsd_interval + 1.0_jprb
+                      ifsd = max(1, min(int(wfsd), sample_nfsd-1))
+                      wfsd = max(0.0_jprb, min(wfsd - ifsd, 1.0_jprb))
+
+                      od_scaling(jg,jcloud,jcol) = &
+                           &    (1.0_jprb-wcdf)*(1.0_jprb-wfsd) * sample_val(icdf  ,ifsd)   &
+                           &  + (1.0_jprb-wcdf)*          wfsd  * sample_val(icdf  ,ifsd+1) &
+                           &  +           wcdf *(1.0_jprb-wfsd) * sample_val(icdf+1,ifsd)   &
+                           &  +           wcdf *          wfsd  * sample_val(icdf+1,ifsd+1)
+                   end do
+                   n_layers_to_scale = 0
+                end if
+             end do
+          end if
+       end do
+    end do
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+  end subroutine cloud_generator_block_omp
+#endif
+
 end module radiation_cloud_generator_acc

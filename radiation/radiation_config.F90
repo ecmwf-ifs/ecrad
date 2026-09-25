@@ -2216,6 +2216,19 @@ contains
 
     type(config_type), intent(inout) :: this
 
+#if defined(OMPGPU)
+    ! cloud_optics, aerosol_optics and pdf_sampler are non-allocatable
+    ! components, so they live inside this struct's own storage and mapping
+    ! them below marks part of that storage present. Any later target region
+    ! that names config then implicitly maps a struct that is only partially
+    ! present, which NVHPC rejects outright. Mapping the whole struct up front
+    ! makes those later maps find it fully present and merely bump the
+    ! reference count. It has to come first: doing it after the components
+    ! hits the same partial-present error. OpenACC does not need this because
+    ! its compute regions use DEFAULT(PRESENT) and never map config at all.
+    !$OMP TARGET ENTER DATA MAP(TO:this)
+#endif
+
 #if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_lw) IF(allocated(this%g_frac_lw))
@@ -2411,6 +2424,11 @@ contains
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pdf_sampler)
     !$ACC EXIT DATA DELETE(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%delete_device(this%pdf_sampler)
+#endif
+
+#if defined(OMPGPU)
+    ! Matches the whole-struct map in create_device, and must come last.
+    !$OMP TARGET EXIT DATA MAP(DELETE:this)
 #endif
   end subroutine delete_device
 
