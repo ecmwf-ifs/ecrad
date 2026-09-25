@@ -63,8 +63,8 @@ SAVE
 ! mixing ratio via the relevant mass-extinction coefficient. The
 ! following are the indices to the aerosol types used to describe
 ! tropospheric and stratospheric background aerosol.
-INTEGER(KIND=JPIM), PARAMETER :: ITYPE_TROP_BG_AER = 8 ! hydrophobic organic
-INTEGER(KIND=JPIM), PARAMETER :: ITYPE_STRAT_BG_AER=12 ! non-absorbing sulphate
+INTEGER(KIND=JPIM), PARAMETER :: ITYPE_TROP_BG_AER = 12 ! tropospheric background organic (OPAC)
+INTEGER(KIND=JPIM), PARAMETER :: ITYPE_STRAT_BG_AER=13 ! stratospheric background sulphate (PW1975_LM2003)
 
 ! This derived type contains configuration information for the
 ! radiation scheme plus a few additional variables and parameters
@@ -276,18 +276,18 @@ CONTAINS
       ! Using MACC climatology or prognostic aerosol variables - in
       ! this case the aerosol optics file will be chosen automatically
 
-      ! 12 IFS aerosol classes: 1-3 Sea salt, 4-6 Boucher desert dust,
+      ! 13 IFS aerosol classes: 1-3 Sea salt, 4-6 Boucher desert dust,
       ! 7 hydrophilic organics, 8 hydrophobic organics, 9&10
-      ! hydrophobic black carbon, 11 ammonium sulphate, 12 inactive
-      ! SO2
-      RAD_CONFIG%N_AEROSOL_TYPES = 12
+      ! hydrophobic black carbon, 11 ammonium sulphate, 12 tropospheric
+      ! background organic, 13 stratospheric background sulphate
+      RAD_CONFIG%N_AEROSOL_TYPES = 13
 
       ! Indices to the aerosol optical properties in
       ! aerosol_ifs_rrtm_*.nc, for each class, where negative numbers
       ! index hydrophilic aerosol types and positive numbers index
       ! hydrophobic aerosol types
       RAD_CONFIG%I_AEROSOL_TYPE_MAP = 0 ! There can be up to 256 types
-      RAD_CONFIG%I_AEROSOL_TYPE_MAP(1:12) = (/&
+      RAD_CONFIG%I_AEROSOL_TYPE_MAP(1:13) = (/&
            &  -1,&! Sea salt, size bin 1 (OPAC)
            &  -2,&! Sea salt, size bin 2 (OPAC)
            &  -3,&! Sea salt, size bin 3 (OPAC)
@@ -299,7 +299,8 @@ CONTAINS
            &  11,&! Black carbon (Hess, OPAC)
            &  11,&! Black carbon (Hess, OPAC)
            &  -5,&! Ammonium sulphate (GACP)
-           &  14 /)  ! Stratospheric sulphate (GACP) [ climatology only ]
+           &  10,&! Tropospheric background organic (OPAC)
+           &  20 /)  ! Stratospheric background sulphate (PW1975_LM2003)
 
       ! Background aerosol mass-extinction coefficients are obtained
       ! after the configuration files have been read - see later in
@@ -308,7 +309,7 @@ CONTAINS
       ! The default aerosol optics file is the following - please
       ! update here, not in radiation/module/radiation_config.F90
       IF (RAD_CONFIG%USE_GENERAL_AEROSOL_OPTICS) THEN
-        RAD_CONFIG%AEROSOL_OPTICS_OVERRIDE_FILE_NAME = 'aerosol_ifs_49R1_20230119.nc'
+        RAD_CONFIG%AEROSOL_OPTICS_OVERRIDE_FILE_NAME = 'aerosol_ifs_50R1.nc'
       ELSE
         RAD_CONFIG%AEROSOL_OPTICS_OVERRIDE_FILE_NAME = 'aerosol_ifs_rrtm_46R1_with_NI_AM.nc'
       END IF
@@ -477,7 +478,7 @@ CONTAINS
     ! channels, so this should be close to the 0.7 microns intended by
     ! the MODIS dataset, not shifted to the nearest RRTM band boundary
     ! at 0.625 microns.
-    LL_DO_NEAREST_SW_ALBEDO = .FALSE.
+    LL_DO_NEAREST_SW_ALBEDO = .TRUE.
     CALL RAD_CONFIG%DEFINE_SW_ALBEDO_INTERVALS(YDERAD%NSW, ZWAVBOUND, IBAND, &
          &  DO_NEAREST=LL_DO_NEAREST_SW_ALBEDO)
 
@@ -515,6 +516,19 @@ CONTAINS
       CALL RAD_CONFIG%PRINT(IVERBOSE=IVERBOSESETUP)
     ENDIF
 
+    ! Pre-allocate monochromatic wavelengths required for background
+    ! aerosol mass-extinction computation (550 nm) and other diagnostics.
+    ! This must be called before SETUP_RADIATION so that the monochromatic
+    ! data is interpolated when the aerosol optics file is read.
+    IF (YDERAD%NAERMACC == 1 .AND. RAD_CONFIG%USE_GENERAL_AEROSOL_OPTICS) THEN
+      CALL RAD_CONFIG%SET_AEROSOL_WAVELENGTH_MONO( &
+           &  [3.4e-07_JPRB, 3.55e-07_JPRB, 3.8e-07_JPRB, 4.0e-07_JPRB, 4.4e-07_JPRB, &
+           &   4.69e-07_JPRB, 5.0e-07_JPRB, 5.32e-07_JPRB, 5.5e-07_JPRB, 6.45e-07_JPRB, &
+           &   6.7e-07_JPRB, 8.0e-07_JPRB, 8.58e-07_JPRB, 8.65e-07_JPRB, 1.02e-06_JPRB, &
+           &   1.064e-06_JPRB, 1.24e-06_JPRB, 1.64e-06_JPRB, 2.13e-06_JPRB, 1.0e-05_JPRB, &
+           &   9.1e-07_JPRB])
+    ENDIF
+
     ! Use configuration data to set-up radiation scheme, including
     ! reading scattering datafiles
     CALL SETUP_RADIATION(RAD_CONFIG)
@@ -541,32 +555,32 @@ CONTAINS
 
     PRADIATION%TROP_BG_AER_MASS_EXT  = 0.0_JPRB
     PRADIATION%STRAT_BG_AER_MASS_EXT = 0.0_JPRB
-    ! IF (YDERAD%NAERMACC > 0) THEN
-    !   ! With the MACC aerosol climatology we need to add in the
-    !   ! background aerosol afterwards using the Tegen arrays.  In this
-    !   ! case we first configure the background aerosol mass-extinction
-    !   ! coefficient at 550 nm, which corresponds to the 10th RRTMG
-    !   ! shortwave band.
-    !   IF (ITYPE_TROP_BG_AER > 0) THEN
-    !     PRADIATION%TROP_BG_AER_MASS_EXT  = DRY_AEROSOL_MASS_EXTINCTION(RAD_CONFIG,&
-    !         &                                   ITYPE_TROP_BG_AER, 550.0e-9_JPRB)
-    !     WRITE(NULOUT,'(a,i2,a,e12.4,a)') 'Tropospheric background:  aerosol type ',&
-    !         &  ITYPE_TROP_BG_AER, ', 550-nm mass-extinction coefficient ', &
-    !         &  PRADIATION%TROP_BG_AER_MASS_EXT, ' m2 kg-1'
-    !   ELSE
-    !     WRITE(NULOUT,'(a)') 'No tropospheric background aerosol'
-    !   ENDIF
+    IF (YDERAD%NAERMACC > 0) THEN
+      ! With the MACC aerosol climatology we need to add in the
+      ! background aerosol afterwards using the Tegen arrays.  In this
+      ! case we first configure the background aerosol mass-extinction
+      ! coefficient at 550 nm, which corresponds to the 10th RRTMG
+      ! shortwave band.
+      IF (ITYPE_TROP_BG_AER > 0) THEN
+        PRADIATION%TROP_BG_AER_MASS_EXT  = DRY_AEROSOL_MASS_EXTINCTION(RAD_CONFIG,&
+            &                                   ITYPE_TROP_BG_AER, 550.0e-9_JPRB)
+        WRITE(NULOUT,'(a,i2,a,e12.4,a)') 'Tropospheric background:  aerosol type ',&
+            &  ITYPE_TROP_BG_AER, ', 550-nm mass-extinction coefficient ', &
+            &  PRADIATION%TROP_BG_AER_MASS_EXT, ' m2 kg-1'
+      ELSE
+        WRITE(NULOUT,'(a)') 'No tropospheric background aerosol'
+      ENDIF
 
-    !   IF (ITYPE_STRAT_BG_AER > 0) THEN
-    !     PRADIATION%STRAT_BG_AER_MASS_EXT = DRY_AEROSOL_MASS_EXTINCTION(RAD_CONFIG,&
-    !         &                                   ITYPE_STRAT_BG_AER, 550.0e-9_JPRB)
-    !     WRITE(NULOUT,'(a,i2,a,e12.4,a)') 'Stratospheric background: aerosol type ',&
-    !         &  ITYPE_STRAT_BG_AER, ', 550-nm mass-extinction coefficient ', &
-    !         &  PRADIATION%STRAT_BG_AER_MASS_EXT, ' m2 kg-1'
-    !   ELSE
-    !     WRITE(NULOUT,'(a)') 'No stratospheric background aerosol'
-    !   ENDIF
-    ! ENDIF
+      IF (ITYPE_STRAT_BG_AER > 0) THEN
+        PRADIATION%STRAT_BG_AER_MASS_EXT = DRY_AEROSOL_MASS_EXTINCTION(RAD_CONFIG,&
+            &                                   ITYPE_STRAT_BG_AER, 550.0e-9_JPRB)
+        WRITE(NULOUT,'(a,i2,a,e12.4,a)') 'Stratospheric background: aerosol type ',&
+            &  ITYPE_STRAT_BG_AER, ', 550-nm mass-extinction coefficient ', &
+            &  PRADIATION%STRAT_BG_AER_MASS_EXT, ' m2 kg-1'
+      ELSE
+        WRITE(NULOUT,'(a)') 'No stratospheric background aerosol'
+      ENDIF
+    ENDIF
 
     IF (IVERBOSESETUP > 1) THEN
       WRITE(NULOUT,'(a)') '-------------------------------------------------------------------------------'
