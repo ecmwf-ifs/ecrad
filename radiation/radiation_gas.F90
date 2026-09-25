@@ -230,7 +230,7 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
-#if defined(OMPGU)
+#if defined(OMPGPU)
       !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLACC)
 #endif
       !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
@@ -238,7 +238,7 @@ contains
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
-#if defined(OMPGU)
+#if defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llacc)
 #endif
     !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) IF(llacc)
@@ -286,7 +286,9 @@ contains
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
           size(mixing_ratio, 2), scale_factor, istartcol, i1, i2, lacc=llacc)
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
@@ -295,7 +297,9 @@ contains
       end do
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
     class default
@@ -425,7 +429,7 @@ contains
       ! Gas not present until now
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
-#if defined(OMPGU)
+#if defined(OMPGPU)
       !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLACC)
 #endif
       !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
@@ -435,12 +439,14 @@ contains
     this%is_present(igas)              = .true.
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
-#if defined(OMPGU)
+#if defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(LLACC)
 #endif
     !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) if(LLACC)
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
     !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
@@ -449,14 +455,16 @@ contains
       end do
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
-#if defined(OMPGU)
+#if defined(OMPGPU)
     !$OMP TARGET UPDATE TO(this%scale_factor(igas:igas)) IF(LLACC)
 #endif
     !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(LLACC)
@@ -558,7 +566,9 @@ contains
         sf = sf * this%scale_factor(igas)
 
         if (sf /= 1.0_jprb) then
+#if defined(OMPGPU)
           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
           !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jlev = 1,this%nlev
@@ -567,14 +577,16 @@ contains
             enddo
           enddo
           !$ACC END PARALLEL
+#if defined(OMPGPU)
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
         if (iunits /= this%iunits(igas) .or. new_sf /= this%scale_factor(igas)) then
           this%iunits(igas) = iunits
           this%scale_factor(igas) = new_sf
-#if defined(OMPGU)
+#if defined(OMPGPU)
           !$OMP TARGET UPDATE TO(this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llacc)
 #endif
           !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
@@ -789,14 +801,18 @@ contains
           end do
           !!$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
        else
+#if defined(OMPGPU)
           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
           !$ACC LOOP GANG VECTOR COLLAPSE(2)
           do jcol = i1,i2
              do jlev = 1,nlev
                 mixing_ratio(jcol-i1+1,jlev) = this%mixing_ratio(jcol,jlev,igas)
              end do
           end do
+#if defined(OMPGPU)
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
        end if
     end if
     !$ACC END PARALLEL

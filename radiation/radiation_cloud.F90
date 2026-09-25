@@ -277,7 +277,9 @@ contains
       ! Pressure is increasing with index (order of layers is
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
       ! don't take the logarithm of the first pressure in each column.
+#if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO IF(LLACC)
+#endif
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1) IF(LLACC)
       !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = i1,i2
@@ -286,9 +288,13 @@ contains
              &                            *log(thermodynamics%pressure_hl(jcol,3) &
              &                                /thermodynamics%pressure_hl(jcol,2)))
       end do
+#if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
+#if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
       !$ACC LOOP SEQ
       do jlev = 2,nlev-1
         !$ACC LOOP GANG(STATIC:1) VECTOR
@@ -300,13 +306,17 @@ contains
         end do
       end do
       !$ACC END PARALLEL
+#if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     else
        ! Pressure is decreasing with index (order of layers is surface
        ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
        ! don't take the logarithm of the last pressure in each column.
+#if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
       !$ACC PARALLEL DEFAULT(NONE) ASYNC(1) IF(LLACC)
       !$ACC LOOP SEQ
       do jlev = 1,nlev-2
@@ -318,9 +328,13 @@ contains
               &                                /thermodynamics%pressure_hl(jcol,jlev+2)))
         end do
       end do
+#if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
+#if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO IF(LLACC)
+#endif
       !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = i1,i2
         this%overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length) &
@@ -329,7 +343,9 @@ contains
             &                                /thermodynamics%pressure_hl(jcol,nlev)))
       end do
       !$ACC END PARALLEL
+#if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
     end if
 
     !$ACC END DATA
@@ -408,7 +424,9 @@ contains
       ! Pressure is increasing with index (order of layers is
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
       ! don't take the logarithm of the first pressure in each column.
+#if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
       !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
       !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
@@ -417,9 +435,13 @@ contains
              &                            *log(thermodynamics%pressure_hl(jcol,3) &
              &                                /thermodynamics%pressure_hl(jcol,2)))
       end do
+#if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
+#if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
       !$ACC LOOP SEQ
       do jlev = 2,nlev-1
         !$ACC LOOP GANG(STATIC:1) VECTOR
@@ -431,13 +453,17 @@ contains
         end do
       end do
       !$ACC END PARALLEL
+#if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     else
        ! Pressure is decreasing with index (order of layers is surface
        ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
        ! don't take the logarithm of the last pressure in each column.
+#if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
       !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
       !$ACC LOOP SEQ
       do jlev = 1,nlev-2
@@ -449,9 +475,13 @@ contains
               &                                /thermodynamics%pressure_hl(jcol,jlev+2)))
         end do
       end do
+#if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
+#if defined(OMPGPU)
       !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
       !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
         this%overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length(jcol)) &
@@ -460,7 +490,9 @@ contains
             &                                /thermodynamics%pressure_hl(jcol,nlev)))
       end do
       !$ACC END PARALLEL
+#if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
     end if
 
     if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
@@ -590,7 +622,9 @@ contains
     ! allocate(this%fractional_std(ncol, nlev))
     ! !$ACC ENTER DATA CREATE(this%fractional_std) ASYNC(1) IF(LLACC)
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jlev = 1, nlev
@@ -599,7 +633,9 @@ contains
       end do
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',1,hook_handle)
     class default
