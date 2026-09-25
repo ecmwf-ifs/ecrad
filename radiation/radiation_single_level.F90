@@ -220,14 +220,18 @@ contains
       allocate(this%iseed(istartcol:iendcol))
     end if
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO IF (llacc)
+#endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(llacc)
     !$ACC LOOP GANG VECTOR
     do jcol = istartcol,iendcol
       this%iseed(jcol) = jcol
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
     class default
       call radiation_abort('*** Error: radiation_single_level:init_seed_simple: unexpected dynamic type')
     end select
@@ -277,7 +281,9 @@ contains
     if (lhook) call dr_hook('radiation_single_level:get_albedos',0,hook_handle)
 
     !$ACC DATA CREATE(sw_albedo_band, lw_albedo_band) ASYNC(1)
+#if defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(ALLOC: sw_albedo_band, lw_albedo_band)
+#endif
 
     if (config%do_sw) then
       ! Albedos/emissivities are stored in single_level in their own
@@ -302,7 +308,9 @@ contains
           call radiation_abort()
         end if
 
+#if defined(OMPGPU)
         !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
         !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1)
         !$ACC LOOP SEQ
         do jband = 1,config%n_bands_sw
@@ -311,7 +319,9 @@ contains
             sw_albedo_band(jcol,jband) = 0.0_jprb
           end do
         end do
+#if defined(OMPGPU)
         !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
 #if defined(OMPGPU)
         !!$OMP TARGET DATA MAP(PRESENT, ALLOC: config, sw_albedo_band, this%sw_albedo, config%sw_albedo_weights)
@@ -370,7 +380,9 @@ contains
 #endif
 
         if (allocated(this%sw_albedo_direct)) then
+#if defined(OMPGPU)
           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
           !$ACC LOOP SEQ
           do jband = 1,config%n_bands_sw
             !$ACC LOOP GANG(STATIC:1) VECTOR
@@ -378,7 +390,9 @@ contains
               sw_albedo_band(jcol,jband) = 0.0_jprb
             end do
           end do
+#if defined(OMPGPU)
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
 #if defined(OMPGPU)
           do jalbedoband = 1,nalbedoband
@@ -433,7 +447,9 @@ contains
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
         else
+#if defined(OMPGPU)
           !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
           !$ACC LOOP GANG(STATIC:1) VECTOR
           do jcol = istartcol,iendcol
             !$ACC LOOP SEQ
@@ -441,7 +457,9 @@ contains
               sw_albedo_direct(jg,jcol) = sw_albedo_diffuse(jg,jcol)
             end do
           end do
+#if defined(OMPGPU)
           !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
         end if
         !$ACC END PARALLEL
       else
@@ -527,7 +545,9 @@ contains
 
     !$ACC WAIT
     !$ACC END DATA
+#if defined(OMPGPU)
     !$OMP TARGET EXIT DATA MAP(DELETE: sw_albedo_band, lw_albedo_band)
+#endif
 
     if (lhook) call dr_hook('radiation_single_level:get_albedos',1,hook_handle)
     class default

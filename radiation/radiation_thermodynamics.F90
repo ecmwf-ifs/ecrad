@@ -188,7 +188,9 @@ contains
       allocate(this%h2o_sat_liq(ncol,nlev))
     endif
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(pressure, temperature, e_sat) IF(llacc)
+#endif
     !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1) IF(llacc)
     !$ACC LOOP GANG VECTOR COLLAPSE(2) PRIVATE(pressure, temperature, e_sat)
     do jlev = 1,nlev
@@ -202,7 +204,9 @@ contains
        end do
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     if (lhook) call dr_hook('radiation_thermodynamics:calc_saturation_wrt_liquid',1,hook_handle)
     class default
@@ -250,7 +254,9 @@ contains
     nlev  = ubound(this%pressure_hl,2) - 1
     inv_g = 1.0_jprb / AccelDueToGravity
 
+#if defined(OMPGPU)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     DO jl=istartcol, iendcol
@@ -262,7 +268,9 @@ contains
       END DO
     END DO
     !$ACC END PARALLEL
+#if defined(OMPGPU)
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     if (lhook) call dr_hook('radiation_thermodynamics:get_layer_mass',1,hook_handle)
     class default
