@@ -333,6 +333,13 @@ contains
     !$OMP                       od_sw, ssa_sw, g_sw, od_sw_cloud, ssa_sw_cloud, g_sw_cloud, &
     !$OMP                       planck_hl, lw_emission, lw_albedo, sw_albedo_direct, &
     !$OMP                       sw_albedo_diffuse, incoming_sw)
+    ! ifs/radiation_scheme.F90 fills pressure_hl inside a target region, so on
+    ! GPU builds the host copy is whatever the allocation happened to contain
+    ! and the ordering test below cannot be trusted without this update. Only
+    ! the first two levels are needed, and being the leading 2*ncol elements
+    ! of a column-major array they are contiguous.
+    !$ACC UPDATE HOST(thermodynamics%pressure_hl(:,1:2))
+    !$OMP TARGET UPDATE FROM(thermodynamics%pressure_hl(:,1:2))
     if (thermodynamics%pressure_hl(istartcol,2) &
          &  < thermodynamics%pressure_hl(istartcol,1)) then
       ! Input arrays are arranged in order of decreasing pressure /
