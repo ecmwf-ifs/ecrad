@@ -822,7 +822,7 @@ contains
 #if defined(OMPGPU)
         !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
 #if defined(__amdflang__)
-        !$OMP TILE SIZES(1,256,1)
+        !$OMP TILE SIZES(1,1,64)
 #endif
         do jlev = 1,nlev
           do jcol = istartcol,iendcol
@@ -950,8 +950,6 @@ contains
     ! Look-up table variables for Planck function
     real(jprb), dimension(istartcol:iendcol,nlev+1) :: frac
     integer,    dimension(istartcol:iendcol,nlev+1) :: ind
-
-    real(jprb) ::  planck_tmp(istartcol:iendcol,config%n_g_lw,nlev+1)
 #else
     ! Planck function values per band
     real(jprb), dimension(istartcol:iendcol,nlev+1, config%n_bands_lw) :: planck_store
@@ -985,7 +983,7 @@ contains
     ! lowest interpolation bound, and the fraction into interpolation
     ! interval
 #if defined(OMPGPU)
-    !$OMP TARGET ENTER DATA MAP(ALLOC:planck_store, frac, ind, planck_tmp)
+    !$OMP TARGET ENTER DATA MAP(ALLOC:planck_store, frac, ind)
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(temperature)
     do jlev = 1,nlev+1
       do jcol = istartcol,iendcol
@@ -1034,27 +1032,19 @@ contains
      end do
      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
+     ! Write planck_hl directly (solver layout). Previously this went
+     ! through planck_tmp(jcol,jg,jlev) then a 7 ms transpose.
      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3) PRIVATE(iband)
      do jlev = 2,nlev+1
-        do jg = 1,config%n_g_lw
-           do jcol = istartcol,iendcol
+        do jcol = istartcol,iendcol
+           do jg = 1,config%n_g_lw
               iband = config%i_band_from_g_lw(jg)
-              planck_tmp(jcol,jg,jlev) = planck_store(jcol,iband,jlev) * PFRAC(jcol,jg,nlev+2-jlev)
+              planck_hl(jg,jlev,jcol) = planck_store(jcol,iband,jlev) * PFRAC(jcol,jg,nlev+2-jlev)
            end do
         end do
      end do
      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
-
-     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
-     do jlev = 2,nlev+1
-        do jcol = istartcol,iendcol
-           do jg = 1,config%n_g_lw
-              planck_hl(jg,jlev,jcol) = planck_tmp(jcol,jg,jlev)
-           end do
-        end do
-    end do
-    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
-    !$OMP TARGET EXIT DATA MAP(DELETE:planck_store, frac, ind, planck_tmp)
+    !$OMP TARGET EXIT DATA MAP(DELETE:planck_store, frac, ind)
 
 #else
     !$ACC PARALLEL DEFAULT(NONE) CREATE(planck_store, frac, ind) PRESENT(config, thermodynamics, PFRAC, &

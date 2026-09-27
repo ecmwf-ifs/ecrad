@@ -31,7 +31,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV)
@@ -375,7 +375,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
             taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
                  (forref(indf+1,ig) - forref(indf,ig)))
 
-            taug(jl,ngs3+ig,lay) = tau_major(ig) + tau_major1(ig) &
+            taug(ngs3+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                  + tauself + taufor
             fracs(jl,ngs3+ig,lay) = fracrefa(ig,jpl) + fpl * &
                  (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
@@ -429,7 +429,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           !$ACC LOOP SEQ
 !$NEC unroll(NG4)
           do ig = 1, ng4
-            taug(jl,ngs3+ig,lay) =  speccomb * &
+            taug(ngs3+ig,lay,jl) =  speccomb * &
                  (fac000 * absb(ind0,ig) + &
                  fac100 * absb(ind0+1,ig) + &
                  fac010 * absb(ind0+5,ig) + &
@@ -455,13 +455,13 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do lay = llaytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
-          taug(jl,ngs3+8,lay)=taug(jl,ngs3+8,lay)*0.92_JPRB
-          taug(jl,ngs3+9,lay)=taug(jl,ngs3+9,lay)*0.88_JPRB
-          taug(jl,ngs3+10,lay)=taug(jl,ngs3+10,lay)*1.07_JPRB
-          taug(jl,ngs3+11,lay)=taug(jl,ngs3+11,lay)*1.1_JPRB
-          taug(jl,ngs3+12,lay)=taug(jl,ngs3+12,lay)*0.99_JPRB
-          taug(jl,ngs3+13,lay)=taug(jl,ngs3+13,lay)*0.88_JPRB
-          taug(jl,ngs3+14,lay)=taug(jl,ngs3+14,lay)*0.943_JPRB
+          taug(ngs3+8,lay,jl)=taug(ngs3+8,lay,jl)*0.92_JPRB
+          taug(ngs3+9,lay,jl)=taug(ngs3+9,lay,jl)*0.88_JPRB
+          taug(ngs3+10,lay,jl)=taug(ngs3+10,lay,jl)*1.07_JPRB
+          taug(ngs3+11,lay,jl)=taug(ngs3+11,lay,jl)*1.1_JPRB
+          taug(ngs3+12,lay,jl)=taug(ngs3+12,lay,jl)*0.99_JPRB
+          taug(ngs3+13,lay,jl)=taug(ngs3+13,lay,jl)*0.88_JPRB
+          taug(ngs3+14,lay,jl)=taug(ngs3+14,lay,jl)*0.943_JPRB
         enddo
       enddo
       !$ACC END PARALLEL
@@ -711,7 +711,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
                   (forref(indf+1,ig) - forref(indf,ig)))
 
-              taug(jl,ngs3+ig,lay) = tau_major(ig) + tau_major1(ig) &
+              taug(ngs3+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                   + tauself + taufor
               fracs(jl,ngs3+ig,lay) = fracrefa(ig,jpl) + fpl * &
                   (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
@@ -760,7 +760,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 !$NEC unroll(NG4)
             !$ACC LOOP SEQ
             do ig = 1, ng4
-              taug(jl,ngs3+ig,lay) =  speccomb * &
+              taug(ngs3+ig,lay,jl) =  speccomb * &
                   (fac000 * absb(ind0,ig) + &
                   fac100 * absb(ind0+1,ig) + &
                   fac010 * absb(ind0+5,ig) + &
@@ -783,13 +783,13 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           do ixp = 1, ixc0
             jl = ixhigh(ixp,lay)
 #endif
-            taug(jl,ngs3+8,lay)=taug(jl,ngs3+8,lay)*0.92_JPRB
-            taug(jl,ngs3+9,lay)=taug(jl,ngs3+9,lay)*0.88_JPRB
-            taug(jl,ngs3+10,lay)=taug(jl,ngs3+10,lay)*1.07_JPRB
-            taug(jl,ngs3+11,lay)=taug(jl,ngs3+11,lay)*1.1_JPRB
-            taug(jl,ngs3+12,lay)=taug(jl,ngs3+12,lay)*0.99_JPRB
-            taug(jl,ngs3+13,lay)=taug(jl,ngs3+13,lay)*0.88_JPRB
-            taug(jl,ngs3+14,lay)=taug(jl,ngs3+14,lay)*0.943_JPRB
+            taug(ngs3+8,lay,jl)=taug(ngs3+8,lay,jl)*0.92_JPRB
+            taug(ngs3+9,lay,jl)=taug(ngs3+9,lay,jl)*0.88_JPRB
+            taug(ngs3+10,lay,jl)=taug(ngs3+10,lay,jl)*1.07_JPRB
+            taug(ngs3+11,lay,jl)=taug(ngs3+11,lay,jl)*1.1_JPRB
+            taug(ngs3+12,lay,jl)=taug(ngs3+12,lay,jl)*0.99_JPRB
+            taug(ngs3+13,lay,jl)=taug(ngs3+13,lay,jl)*0.88_JPRB
+            taug(ngs3+14,lay,jl)=taug(ngs3+14,lay,jl)*0.943_JPRB
 #if defined(_OPENACC) || defined(OMPGPU)
            endif
 #endif

@@ -34,7 +34,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: wx(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
@@ -169,7 +169,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (ka_mo3(indm+1,ig) - ka_mo3(indm,ig)))
             absn2o =  (ka_mn2o(indm,ig) + minorfrac(jl,lay) * &
                  (ka_mn2o(indm+1,ig) - ka_mn2o(indm,ig)))
-            taug(jl,ngs7+ig,lay) = colh2o(jl,lay) * &
+            taug(ngs7+ig,lay,jl) = colh2o(jl,lay) * &
                  (fac00(jl,lay) * absa(ind0,ig) + &
                  fac10(jl,lay) * absa(ind0+1,ig) + &
                  fac01(jl,lay) * absa(ind1,ig) +  &
@@ -217,7 +217,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (kb_mco2(indm+1,ig) - kb_mco2(indm,ig)))
             absn2o =  (kb_mn2o(indm,ig) + minorfrac(jl,lay) * &
                  (kb_mn2o(indm+1,ig) - kb_mn2o(indm,ig)))
-            taug(jl,ngs7+ig,lay) = colo3(jl,lay) * &
+            taug(ngs7+ig,lay,jl) = colo3(jl,lay) * &
                  (fac00(jl,lay) * absb(ind0,ig) + &
                  fac10(jl,lay) * absb(ind0+1,ig) + &
                  fac01(jl,lay) * absb(ind1,ig) + &
@@ -282,7 +282,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (ka_mo3(indm+1,ig) - ka_mo3(indm,ig)))
               absn2o =  (ka_mn2o(indm,ig) + minorfrac(jl,lay) * &
                   (ka_mn2o(indm+1,ig) - ka_mn2o(indm,ig)))
-              taug(jl,ngs7+ig,lay) = colh2o(jl,lay) * &
+              taug(ngs7+ig,lay,jl) = colh2o(jl,lay) * &
                   (fac00(jl,lay) * absa(ind0,ig) + &
                   fac10(jl,lay) * absa(ind0+1,ig) + &
                   fac01(jl,lay) * absa(ind1,ig) +  &
@@ -329,7 +329,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (kb_mco2(indm+1,ig) - kb_mco2(indm,ig)))
               absn2o =  (kb_mn2o(indm,ig) + minorfrac(jl,lay) * &
                   (kb_mn2o(indm+1,ig) - kb_mn2o(indm,ig)))
-              taug(jl,ngs7+ig,lay) = colo3(jl,lay) * &
+              taug(ngs7+ig,lay,jl) = colo3(jl,lay) * &
                   (fac00(jl,lay) * absb(ind0,ig) + &
                   fac10(jl,lay) * absb(ind0+1,ig) + &
                   fac01(jl,lay) * absb(ind1,ig) + &

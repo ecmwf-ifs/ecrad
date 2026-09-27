@@ -29,7 +29,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV)
@@ -121,7 +121,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (selfref(inds+1,ig) - selfref(inds,ig)))
             taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
                  (forref(indf+1,ig) - forref(indf,ig)))
-            taug(jl,ngs13+ig,lay) = colco2(jl,lay) * &
+            taug(ngs13+ig,lay,jl) = colco2(jl,lay) * &
                  (fac00(jl,lay) * absa(ind0,ig) + &
                  fac10(jl,lay) * absa(ind0+1,ig) + &
                  fac01(jl,lay) * absa(ind1,ig) + &
@@ -147,7 +147,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           !$ACC LOOP SEQ
 !$NEC unroll(NG14)
           do ig = 1, ng14
-            taug(jl,ngs13+ig,lay) = colco2(jl,lay) * &
+            taug(ngs13+ig,lay,jl) = colco2(jl,lay) * &
                  (fac00(jl,lay) * absb(ind0,ig) + &
                  fac10(jl,lay) * absb(ind0+1,ig) + &
                  fac01(jl,lay) * absb(ind1,ig) + &
@@ -188,7 +188,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (selfref(inds+1,ig) - selfref(inds,ig)))
               taufor =  forfac(jl,lay) * (forref(indf,ig) + forfrac(jl,lay) * &
                   (forref(indf+1,ig) - forref(indf,ig)))
-              taug(jl,ngs13+ig,lay) = colco2(jl,lay) * &
+              taug(ngs13+ig,lay,jl) = colco2(jl,lay) * &
                   (fac00(jl,lay) * absa(ind0,ig) + &
                   fac10(jl,lay) * absa(ind0+1,ig) + &
                   fac01(jl,lay) * absa(ind1,ig) + &
@@ -213,7 +213,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 !$NEC unroll(NG14)
             !$ACC LOOP SEQ
             do ig = 1, ng14
-              taug(jl,ngs13+ig,lay) = colco2(jl,lay) * &
+              taug(ngs13+ig,lay,jl) = colco2(jl,lay) * &
                   (fac00(jl,lay) * absb(ind0,ig) + &
                   fac10(jl,lay) * absb(ind0+1,ig) + &
                   fac01(jl,lay) * absb(ind1,ig) + &

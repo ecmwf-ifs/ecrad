@@ -152,7 +152,7 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAVEL(KIDIA:KFDIA,KLEV) ! Layer pressures (hPa)
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: FAC00(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: FAC01(KIDIA:KFDIA,KLEV)
@@ -268,7 +268,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (forref(indf+1,ig) -  forref(indf,ig)))
             taun2 = scalen2*(ka_mn2(indm,ig) + &
                  minorfrac(jl,lay) * (ka_mn2(indm+1,ig) - ka_mn2(indm,ig)))
-            taug(jl,ig,lay) = corradj * (colh2o(jl,lay) * &
+            taug(ig,lay,jl) = corradj * (colh2o(jl,lay) * &
                  (fac00(jl,lay) * absa(ind0,ig) + &
                  fac10(jl,lay) * absa(ind0+1,ig) + &
                  fac01(jl,lay) * absa(ind1,ig) + &
@@ -303,7 +303,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  forfrac(jl,lay) * (forref(indf+1,ig) - forref(indf,ig)))
             taun2 = scalen2*(kb_mn2(indm,ig) + &
                  minorfrac(jl,lay) * (kb_mn2(indm+1,ig) - kb_mn2(indm,ig)))
-            taug(jl,ig,lay) = corradj * (colh2o(jl,lay) * &
+            taug(ig,lay,jl) = corradj * (colh2o(jl,lay) * &
                  (fac00(jl,lay) * absb(ind0,ig) + &
                  fac10(jl,lay) * absb(ind0+1,ig) + &
                  fac01(jl,lay) * absb(ind1,ig) + &
@@ -354,7 +354,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (forref(indf+1,ig) -  forref(indf,ig)))
               taun2 = scalen2*(ka_mn2(indm,ig) + &
                   minorfrac(jl,lay) * (ka_mn2(indm+1,ig) - ka_mn2(indm,ig)))
-              taug(jl,ig,lay) = corradj * (colh2o(jl,lay) * &
+              taug(ig,lay,jl) = corradj * (colh2o(jl,lay) * &
                   (fac00(jl,lay) * absa(ind0,ig) + &
                   fac10(jl,lay) * absa(ind0+1,ig) + &
                   fac01(jl,lay) * absa(ind1,ig) + &
@@ -391,7 +391,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   forfrac(jl,lay) * (forref(indf+1,ig) - forref(indf,ig)))
               taun2 = scalen2*(kb_mn2(indm,ig) + &
                   minorfrac(jl,lay) * (kb_mn2(indm+1,ig) - kb_mn2(indm,ig)))
-              taug(jl,ig,lay) = corradj * (colh2o(jl,lay) * &
+              taug(ig,lay,jl) = corradj * (colh2o(jl,lay) * &
                   (fac00(jl,lay) * absb(ind0,ig) + &
                   fac10(jl,lay) * absb(ind0+1,ig) + &
                   fac01(jl,lay) * absb(ind1,ig) + &
