@@ -46,9 +46,11 @@ module radiation_two_stream
   !$omp declare target(calc_two_stream_gammas_sw_single_band_omp)
   !$omp declare target(calc_reflectance_transmittance_sw_single_band_omp)
   !$omp declare target(calc_ref_trans_sw_omp)
+  !$omp declare target(calc_ref_trans_sw_scalar_omp)
   !$omp declare target(calc_ref_trans_sw_single_level_omp)
 
   !$omp declare target(calc_ref_trans_lw_single_level_omp)
+  !$omp declare target(calc_ref_trans_lw_scalar_omp)
   !$omp declare target(calc_no_scattering_transmittance_lw_omp)
   !$omp declare target(calc_no_scattering_transmittance_lw_single_cell_omp)
 
@@ -1205,6 +1207,79 @@ contains
   end subroutine calc_ref_trans_lw_single_level_omp
 
   !---------------------------------------------------------------------
+  ! As calc_ref_trans_lw_single_level_omp but operating on scalars and
+  ! keeping its results in registers, for callers that recompute layer
+  ! properties on the fly rather than staging them in memory. Every
+  ! expression is written exactly as in that routine so the results are
+  ! bit-identical to it.
+  subroutine calc_ref_trans_lw_scalar_omp(od, ssa, asymmetry, &
+       &    planck_top, planck_bot, reflectance, transmittance, source_up, source_dn)
+
+    ! Optical depth, single scattering albedo and asymmetry factor
+    real(jprb), intent(in) :: od, ssa, asymmetry
+
+    ! The Planck terms at the top and bottom of the layer
+    real(jprb), intent(in) :: planck_top, planck_bot
+
+    ! The diffuse reflectance and transmittance of the layer
+    real(jprb), intent(out) :: reflectance, transmittance
+
+    ! The upward emission at the top of the layer and the downward
+    ! emission at its base, due to emission from within the layer
+    real(jprb), intent(out) :: source_up, source_dn
+
+    real(jprb) :: gamma1, gamma2
+    real(jprb) :: k_exponent, exponential, exponential2
+    real(jprb) :: reftrans_factor
+    real(jprb) :: coeff, coeff_up_top, coeff_up_bot, coeff_dn_top, coeff_dn_bot, factor
+
+    factor = (LwDiffusivityWP * 0.5_jprb) * ssa
+    gamma1 = LwDiffusivityWP - factor*(1.0_jprb + asymmetry)
+    gamma2 = factor * (1.0_jprb - asymmetry)
+    k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), &
+         1.0e-12_jprb)) ! Eq 18 of Meador & Weaver (1980)
+
+    exponential = exp(-k_exponent*od)
+
+    if (od > 1.0e-3_jprb) then
+       exponential2 = exponential*exponential
+       reftrans_factor = 1.0 / (k_exponent + gamma1 + (k_exponent - gamma1)*exponential2)
+       ! Meador & Weaver (1980) Eq. 25
+       reflectance = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
+       ! Meador & Weaver (1980) Eq. 26
+       transmittance = 2.0_jprb * k_exponent * exponential * reftrans_factor
+       ! Compute upward and downward emission assuming the Planck
+       ! function to vary linearly with optical depth within the layer
+       ! (e.g. Wiscombe , JQSRT 1976).
+
+       ! Stackhouse and Stephens (JAS 1991) Eqs 5 & 12
+       coeff = (planck_bot-planck_top) / (od*(gamma1+gamma2))
+       coeff_up_top  =  coeff + planck_top
+       coeff_up_bot  =  coeff + planck_bot
+       coeff_dn_top  = -coeff + planck_top
+       coeff_dn_bot  = -coeff + planck_bot
+       source_up =  coeff_up_top - reflectance * coeff_dn_top - transmittance * coeff_up_bot
+       source_dn =  coeff_dn_bot - reflectance * coeff_up_bot - transmittance * coeff_dn_top
+    else if (od < 1.0e-8_jprb) then
+       ! The array version of this routine leaves reflectance untouched
+       ! here, so it retains whatever the caller's scratch array held.
+       ! With the properties in registers there is nothing to retain, and
+       ! zero is the physically correct value at negligible optical depth.
+       reflectance = 0.0_jprb
+       transmittance = exponential
+       source_up = 0.0_jprb
+       source_dn = 0.0_jprb
+    else
+       reflectance = gamma2 * od
+       transmittance = (1.0_jprb - k_exponent*od) / (1.0_jprb + od*(gamma1-k_exponent))
+       source_up = (1.0_jprb - reflectance - transmittance) &
+            &       * 0.5 * (planck_top + planck_bot)
+       source_dn = source_up
+    end if
+
+  end subroutine calc_ref_trans_lw_scalar_omp
+
+  !---------------------------------------------------------------------
   ! Compute the longwave transmittance to diffuse radiation in the
   ! no-scattering case, as well as the upward flux at the top and the
   ! downward flux at the base of the layer due to emission from within
@@ -1571,6 +1646,100 @@ contains
     end do
 
   end subroutine calc_ref_trans_sw_omp
+
+  !---------------------------------------------------------------------
+  ! As calc_ref_trans_sw_omp but for a single level with scalar results,
+  ! so a caller can evaluate a layer's two-stream properties into
+  ! registers instead of reading them back from a full spectral profile
+  ! held in memory. The expressions are transcribed unchanged from
+  ! calc_ref_trans_sw_omp so the values are bit-identical.
+  subroutine calc_ref_trans_sw_scalar_omp(mu0, od, ssa, asymmetry, &
+    &      ref_diff, trans_diff, ref_dir, trans_dir_diff, trans_dir_dir)
+
+    implicit none
+
+    ! Cosine of solar zenith angle
+    real(jprb), intent(in) :: mu0
+
+    ! Optical depth, single scattering albedo and asymmetry factor
+    real(jprb), intent(in) :: od, ssa, asymmetry
+
+    real(jprb), intent(out) :: ref_diff, trans_diff
+    real(jprb), intent(out) :: ref_dir, trans_dir_diff
+    real(jprb), intent(out) :: trans_dir_dir
+
+    real(jprb) :: gamma1, gamma2, gamma3, gamma4
+    real(jprb) :: alpha1, alpha2, k_exponent
+    real(jprb) :: exponential ! = exp(-k_exponent*od)
+
+    real(jprb) :: reftrans_factor, factor
+    real(jprb) :: exponential2 ! = exp(-2*k_exponent*od)
+    real(jprb) :: k_mu0, k_gamma3, k_gamma4
+    real(jprb) :: k_2_exponential, one_minus_kmu0_sqr
+
+    trans_dir_dir = max(-max(od * (1.0_jprb/mu0),0.0_jprb),-1000.0_jprb)
+    trans_dir_dir = exp(trans_dir_dir)
+
+    ! Zdunkowski "PIFM" (Zdunkowski et al., 1980; Contributions to
+    ! Atmospheric Physics 53, 147-66)
+    factor = 0.75_jprb*asymmetry
+
+    gamma1 = 2.0_jprb  - ssa * (1.25_jprb + factor)
+    gamma2 = ssa * (0.75_jprb - factor)
+    gamma3 = 0.5_jprb  - mu0*factor
+    gamma4 = 1.0_jprb - gamma3
+
+    alpha1 = gamma1*gamma4 + gamma2*gamma3 ! Eq. 16
+    alpha2 = gamma1*gamma3 + gamma2*gamma4 ! Eq. 17
+#ifdef PARKIND1_SINGLE
+    k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-6_jprb))  ! Eq 18
+#else
+    k_exponent = sqrt(max((gamma1 - gamma2) * (gamma1 + gamma2), 1.0e-12_jprb)) ! Eq 18
+#endif
+
+    exponential = exp(-k_exponent*od)
+
+    k_mu0 = k_exponent*mu0
+    one_minus_kmu0_sqr = 1.0_jprb - k_mu0*k_mu0
+    k_gamma3 = k_exponent*gamma3
+    k_gamma4 = k_exponent*gamma4
+    exponential2 = exponential*exponential
+    k_2_exponential = 2.0_jprb * k_exponent * exponential
+    reftrans_factor = 1.0_jprb / (k_exponent + gamma1 + (k_exponent - gamma1)*exponential2)
+
+    ! Meador & Weaver (1980) Eq. 25
+    ref_diff = gamma2 * (1.0_jprb - exponential2) * reftrans_factor
+
+    ! Meador & Weaver (1980) Eq. 26
+    trans_diff = k_2_exponential * reftrans_factor
+
+    ! Here we need mu0 even though it wasn't in Meador and Weaver
+    ! because we are assuming the incoming direct flux is defined to
+    ! be the flux into a plane perpendicular to the direction of the
+    ! sun, not into a horizontal plane
+    reftrans_factor = mu0 * ssa * reftrans_factor &
+         &  / merge(one_minus_kmu0_sqr, epsilon(1.0_jprb), abs(one_minus_kmu0_sqr) > epsilon(1.0_jprb))
+
+    ! Meador & Weaver (1980) Eq. 14, multiplying top & bottom by
+    ! exp(-k_exponent*od) in case of very high optical depths
+    ref_dir = reftrans_factor &
+         &  * ( (1.0_jprb - k_mu0) * (alpha2 + k_gamma3) &
+         &     -(1.0_jprb + k_mu0) * (alpha2 - k_gamma3)*exponential2 &
+         &     -k_2_exponential*(gamma3 - alpha2*mu0)*trans_dir_dir )
+
+    ! Meador & Weaver (1980) Eq. 15, multiplying top & bottom by
+    ! exp(-k_exponent*od), minus the 1*exp(-od/mu0) term
+    ! representing direct unscattered transmittance.
+    trans_dir_diff = reftrans_factor * ( k_2_exponential*(gamma4 + alpha1*mu0) &
+         & - trans_dir_dir &
+         & * ( (1.0_jprb + k_mu0) * (alpha1 + k_gamma4) &
+         &    -(1.0_jprb - k_mu0) * (alpha1 - k_gamma4) * exponential2) )
+
+    ! Final check that ref_dir + trans_dir_diff <= 1
+    ref_dir        = max(0.0_jprb, min(ref_dir, mu0*(1.0_jprb-trans_dir_dir)))
+    trans_dir_diff = max(0.0_jprb, min(trans_dir_diff, mu0*(1.0_jprb-trans_dir_dir)-ref_dir))
+
+  end subroutine calc_ref_trans_sw_scalar_omp
 
   !---------------------------------------------------------------------
   ! OpenMP-optimized variant that avoids the local allocation of gamma

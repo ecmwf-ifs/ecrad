@@ -139,8 +139,10 @@ contains
     use parkind1, only           : jprb
     use radiation_two_stream, only     : calc_two_stream_gammas_sw_single_band_omp, &
          &                               calc_reflectance_transmittance_sw_single_band_omp, &
-         &                               calc_ref_trans_sw_omp, calc_ref_trans_sw_single_level_omp
-    use radiation_adding_ica_sw, only  : adding_ica_sw_omp
+         &                               calc_ref_trans_sw_omp, calc_ref_trans_sw_single_level_omp, &
+         &                               calc_ref_trans_sw_scalar_omp
+    use radiation_adding_ica_sw, only  : adding_ica_sw_omp, adding_ica_sw_recompute_omp, &
+         &                               adding_ica_sw_recompute_total_omp
     use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
 #ifdef __NVCOMPILER
     use radiation_cloud_generator_acc, only : cloud_generator_block_omp
@@ -463,12 +465,15 @@ contains
              ! transmittance etc at each model level
              if (.not. do_sw_delta_scaling_with_gases) then
                 ! Delta-Eddington scaling has already been performed to the
-                ! aerosol part of od, ssa and g
-                call calc_ref_trans_sw_omp(jg, ng, nlev, &
-                     &  cos_sza, od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), &
-                     &  ref_clear(:,:,jcol), trans_clear(:,:,jcol), &
-                     &  ref_dir_clear(:,:,jcol), trans_dir_diff(:,:,jcol), &
-                     &  trans_dir_dir(:,:,jcol))
+                ! aerosol part of od, ssa and g. The two-stream properties are
+                ! recomputed inside the adding method's sweeps rather than
+                ! stored, so no spectral profile of them ever reaches memory.
+                call adding_ica_sw_recompute_omp(jg, ng, nlev, incoming_sw(:,jcol), &
+                     &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), cos_sza, &
+                     &  od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), &
+                     &  flux_up_clear(:,:,jcol), flux_dn_diffuse_clear(:,:,jcol), &
+                     &  flux_dn_direct_clear(:,:,jcol), flux_up_clear(:,:,jcol), &
+                     &  flux_dn_diffuse_clear(:,:,jcol), source=tmp_work_source(:,:,jcol))
              else
                 ! Apply delta-Eddington scaling to the aerosol-gas mixture
                 do jlev = 1,nlev
@@ -487,25 +492,25 @@ contains
                         &  ref_dir_clear(:,jlev,jcol), trans_dir_diff(:,jlev,jcol), &
                         &  trans_dir_dir(:,jlev,jcol) )
                 end do
+
+                ! Use adding method to compute fluxes, accumulating straight
+                ! into the clear-sky arrays. The total-sky kernel below
+                ! overwrites flux_up/flux_dn_* for every cloudy column and
+                ! nothing reads them for a clear one, so computing into the
+                ! total-sky arrays and copying afterwards moved six spectral
+                ! profiles through HBM for nothing. The longwave equivalent
+                ! already writes direct.
+                call adding_ica_sw_omp(jg, ng, nlev, incoming_sw(:,jcol), &
+                     &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), cos_sza, &
+                     &  ref_clear(:,:,jcol), trans_clear(:,:,jcol), ref_dir_clear(:,:,jcol), trans_dir_diff(:,:,jcol), &
+                     &  trans_dir_dir(:,:,jcol), flux_up_clear(:,:,jcol), flux_dn_diffuse_clear(:,:,jcol), &
+                     &  flux_dn_direct_clear(:,:,jcol), flux_up_clear(:,:,jcol), flux_dn_diffuse_clear(:,:,jcol), &
+                     &  source=tmp_work_source(:,:,jcol))
              end if
 
-             ! Use adding method to compute fluxes
-             call adding_ica_sw_omp(jg, ng, nlev, incoming_sw(:,jcol), &
-                  &  albedo_diffuse(:,jcol), albedo_direct(:,jcol), cos_sza, &
-                  &  ref_clear(:,:,jcol), trans_clear(:,:,jcol), ref_dir_clear(:,:,jcol), trans_dir_diff(:,:,jcol), &
-                  &  trans_dir_dir(:,:,jcol), flux_up(:,:,jcol), flux_dn_diffuse(:,:,jcol), flux_dn_direct(:,:,jcol), &
-                  &  flux_up(:,:,jcol), flux_dn_diffuse(:,:,jcol), source=tmp_work_source(:,:,jcol))
-
-             ! save temporarily clear-sky broadband fluxes
-             do jlev = 1,nlev+1
-                flux_up_clear(jg,jlev,jcol) = flux_up(jg,jlev,jcol)
-                flux_dn_direct_clear(jg,jlev,jcol) = flux_dn_direct(jg,jlev,jcol)
-                flux_dn_diffuse_clear(jg,jlev,jcol) = flux_dn_diffuse(jg,jlev,jcol)
-             end do
-             
              ! Store spectral downwelling fluxes at surface
-             sw_dn_diffuse_surf_clear_g(jg,jcol) = flux_dn_diffuse(jg,nlev+1,jcol)
-             sw_dn_direct_surf_clear_g(jg,jcol)  = flux_dn_direct(jg,nlev+1,jcol)
+             sw_dn_diffuse_surf_clear_g(jg,jcol) = flux_dn_diffuse_clear(jg,nlev+1,jcol)
+             sw_dn_direct_surf_clear_g(jg,jcol)  = flux_dn_direct_clear(jg,nlev+1,jcol)
           else
              sw_dn_diffuse_surf_g(jg,jcol) = 0.0_jprb
              sw_dn_direct_surf_g(jg,jcol)  = 0.0_jprb
@@ -530,6 +535,20 @@ contains
 
              if (cloud_cover_sw(jcol) >= cloud_fraction_threshold) then
                 ! Total-sky calculation
+                if (.not. do_sw_delta_scaling_with_gases) then
+                ! The adding method below combines the optical properties and
+                ! solves the two-stream equations at the point of use, so no
+                ! layer properties need to be staged in memory here.
+                call adding_ica_sw_recompute_total_omp(jg, ng, nlev, &
+                     &  i_band_from_reordered_g_sw(jg), n_bands, n_bands, &
+                     &  incoming_sw(:,jcol), albedo_diffuse(:,jcol), &
+                     &  albedo_direct(:,jcol), cos_sza, &
+                     &  od(:,:,jcol), ssa(:,:,jcol), g(:,:,jcol), od_scaling(:,:,jcol), &
+                     &  od_cloud(:,:,jcol), ssa_cloud(:,:,jcol), g_cloud(:,:,jcol), &
+                     &  frac(:,jcol), cloud_fraction_threshold, &
+                     &  flux_up(:,:,jcol), flux_dn_diffuse(:,:,jcol), flux_dn_direct(:,:,jcol), &
+                     &  flux_up(:,:,jcol), source=tmp_work_source(:,:,jcol))
+                else
                 do jlev = 1,nlev
                    ! Compute combined gas+aerosol+cloud optical properties
                    if (frac(jlev,jcol) >= cloud_fraction_threshold) then
@@ -568,13 +587,24 @@ contains
                            &  reflectance(:,jlev,jcol), transmittance(:,jlev,jcol), &
                            &  ref_dir(:,jlev,jcol), trans_dir_diff(:,jlev,jcol), &
                            &  trans_dir_dir(:,jlev,jcol))
-                   else
+                   else if (do_sw_delta_scaling_with_gases) then
                       ! Clear-sky layer: copy over clear-sky values
                       reflectance(jg,jlev,jcol) = ref_clear(jg,jlev,jcol)
                       transmittance(jg,jlev,jcol) = trans_clear(jg,jlev,jcol)
                       ref_dir(jg,jlev,jcol) = ref_dir_clear(jg,jlev,jcol)
                       !trans_dir_diff(jg,jlev,jcol) = trans_dir_diff_clear(jg,jlev,jcol)
                       !trans_dir_dir(jg,jlev,jcol) = trans_dir_dir_clear(jg,jlev,jcol)
+                   else
+                      ! Clear-sky layer: recompute rather than read back the
+                      ! clear-sky profile, which the clear-sky kernel above no
+                      ! longer stores. This also makes explicit a dependency
+                      ! that was previously implicit in trans_dir_diff and
+                      ! trans_dir_dir being left behind by that kernel.
+                      call calc_ref_trans_sw_scalar_omp(cos_sza, od(jg,jlev,jcol), &
+                           &  ssa(jg,jlev,jcol), g(jg,jlev,jcol), &
+                           &  reflectance(jg,jlev,jcol), transmittance(jg,jlev,jcol), &
+                           &  ref_dir(jg,jlev,jcol), trans_dir_diff(jg,jlev,jcol), &
+                           &  trans_dir_dir(jg,jlev,jcol))
                    end if
                 end do
 
@@ -584,6 +614,7 @@ contains
                      &  reflectance(:,:,jcol), transmittance(:,:,jcol), ref_dir(:,:,jcol), trans_dir_diff(:,:,jcol), &
                      &  trans_dir_dir(:,:,jcol), flux_up(:,:,jcol), flux_dn_diffuse(:,:,jcol), flux_dn_direct(:,:,jcol), &
                      &  flux_up(:,:,jcol), flux_dn_diffuse(:,:,jcol), source=tmp_work_source(:,:,jcol))
+                end if
                 
                 ! Likewise for surface spectral fluxes
                 sw_dn_diffuse_surf_g(jg,jcol) = flux_dn_diffuse(jg,nlev+1,jcol)
@@ -611,6 +642,13 @@ contains
     !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
     ! Loop through columns
+    ! The small THREAD_LIMIT on the AMD path is a cache-blocking parameter, not
+    ! an oversight: the g-point sum below is serial within a thread, so each
+    ! thread streams a contiguous ng*8-byte run while neighbouring lanes are
+    ! that same distance apart. The workgroup's footprint must stay inside the
+    ! 32 kB vL1d for the run to be fetched once and reused. Raising this to 256
+    ! measured a vL1d miss ratio of 0.99 (from 0.06) and 14x the HBM traffic,
+    ! making the kernel 5.6x slower despite the fuller wavefronts.
 #ifdef __NVCOMPILER
     !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(cos_sza, sum_dn_diffuse, sum_dn_direct, sum_up) THREAD_LIMIT(128)
 #else
