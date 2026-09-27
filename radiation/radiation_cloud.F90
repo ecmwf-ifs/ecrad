@@ -42,7 +42,11 @@ module radiation_cloud
     ! For backwards compatibility, we also allow for the two
     ! traditional cloud types, liquid cloud droplets and ice cloud
     ! particles, dimensioned (ncol,nlev)
-    real(jprb), pointer, dimension(:,:) :: &
+    ! These are always associated with a whole (:,:,jtype) slice of the arrays
+    ! above, so they are contiguous. Saying so lets them be passed to
+    ! explicit-shape dummies without the compiler inserting a host copy, which
+    ! on GPU builds would detach them from their device allocation.
+    real(jprb), pointer, contiguous, dimension(:,:) :: &
          &  q_liq,  q_ice,  & ! mass mixing ratio (kg/kg)
          &  re_liq, re_ice    ! effective radius (m)
 
@@ -420,7 +424,47 @@ contains
     !$OMP TARGET UPDATE FROM(thermodynamics%pressure_hl(:,1:2)) IF(LLACC)
 #endif
     !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1) IF(LLACC)
-    if (thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1)) then
+    call set_overlap_param_var_impl(ncol, nlev, this%overlap_param, &
+         &  thermodynamics%pressure_hl, thermodynamics%temperature_hl, &
+         &  decorrelation_length, istartcol, iendcol, &
+         &  thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1), &
+         &  llacc)
+
+    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
+    class default
+      call radiation_abort('*** Error: radiation_cloud:set_overlap_param_var: unexpected dynamic type')
+    end select
+
+  end subroutine set_overlap_param_var
+
+
+  !---------------------------------------------------------------------
+  ! The arrays arrive as explicit-shape dummies rather than being reached
+  ! through this% and thermodynamics%. Referencing an allocatable component
+  ! inside a target region makes the runtime stage that component's array
+  ! descriptor to the device, and the structures are reallocated on every call
+  ! to RADIATION_SCHEME so the descriptors are never already resident. Each
+  ! transfer moves under a hundred bytes but the host blocks for around 70
+  ! microseconds afterwards, and the loops below would otherwise pay for three
+  ! of them apiece.
+  subroutine set_overlap_param_var_impl(ncol, nlev, overlap_param, pressure_hl, &
+       &  temperature_hl, decorrelation_length, istartcol, iendcol, ldincreasing, llacc)
+
+    use radiation_constants, only : GasConstantDryAir, AccelDueToGravity
+
+    integer,    intent(in)    :: ncol, nlev, istartcol, iendcol
+    real(jprb), intent(inout) :: overlap_param(ncol,nlev-1)
+    real(jprb), intent(in)    :: pressure_hl(ncol,nlev+1)
+    real(jprb), intent(in)    :: temperature_hl(ncol,nlev+1)
+    real(jprb), intent(in)    :: decorrelation_length(istartcol:iendcol) ! m
+    logical,    intent(in)    :: ldincreasing, llacc
+
+    ! Ratio of gas constant for dry air to acceleration due to gravity
+    real(jprb), parameter :: R_over_g = GasConstantDryAir / AccelDueToGravity
+
+    integer :: jcol, jlev
+
+    if (ldincreasing) then
       ! Pressure is increasing with index (order of layers is
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
       ! don't take the logarithm of the first pressure in each column.
@@ -430,10 +474,10 @@ contains
       !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
       !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
-        this%overlap_param(jcol,1) = exp(-(R_over_g/decorrelation_length(jcol)) &
-             &                            * thermodynamics%temperature_hl(jcol,2) &
-             &                            *log(thermodynamics%pressure_hl(jcol,3) &
-             &                                /thermodynamics%pressure_hl(jcol,2)))
+        overlap_param(jcol,1) = exp(-(R_over_g/decorrelation_length(jcol)) &
+             &                            * temperature_hl(jcol,2) &
+             &                            *log(pressure_hl(jcol,3) &
+             &                                /pressure_hl(jcol,2)))
       end do
 #if defined(OMPGPU)
       !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
@@ -446,10 +490,10 @@ contains
       do jlev = 2,nlev-1
         !$ACC LOOP GANG(STATIC:1) VECTOR
         do jcol = istartcol,iendcol
-          this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
-              &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
-              &                            *log(thermodynamics%pressure_hl(jcol,jlev+2) &
-              &                                /thermodynamics%pressure_hl(jcol,jlev)))
+          overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
+              &                            * temperature_hl(jcol,jlev+1) &
+              &                            *log(pressure_hl(jcol,jlev+2) &
+              &                                /pressure_hl(jcol,jlev)))
         end do
       end do
       !$ACC END PARALLEL
@@ -469,10 +513,10 @@ contains
       do jlev = 1,nlev-2
         !$ACC LOOP GANG(STATIC:1) VECTOR
         do jcol = istartcol,iendcol
-          this%overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
-              &                            * thermodynamics%temperature_hl(jcol,jlev+1) &
-              &                            *log(thermodynamics%pressure_hl(jcol,jlev) &
-              &                                /thermodynamics%pressure_hl(jcol,jlev+2)))
+          overlap_param(jcol,jlev) = exp(-(0.5_jprb*R_over_g/decorrelation_length(jcol)) &
+              &                            * temperature_hl(jcol,jlev+1) &
+              &                            *log(pressure_hl(jcol,jlev) &
+              &                                /pressure_hl(jcol,jlev+2)))
         end do
       end do
 #if defined(OMPGPU)
@@ -484,10 +528,10 @@ contains
 #endif
       !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
-        this%overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length(jcol)) &
-            &                            * thermodynamics%temperature_hl(jcol,nlev) &
-            &                            *log(thermodynamics%pressure_hl(jcol,nlev-1) &
-            &                                /thermodynamics%pressure_hl(jcol,nlev)))
+        overlap_param(jcol,nlev-1) = exp(-(R_over_g/decorrelation_length(jcol)) &
+            &                            * temperature_hl(jcol,nlev) &
+            &                            *log(pressure_hl(jcol,nlev-1) &
+            &                                /pressure_hl(jcol,nlev)))
       end do
       !$ACC END PARALLEL
 #if defined(OMPGPU)
@@ -495,12 +539,7 @@ contains
 #endif
     end if
 
-    if (lhook) call dr_hook('radiation_cloud:set_overlap_param_var',1,hook_handle)
-    class default
-      call radiation_abort('*** Error: radiation_cloud:set_overlap_param_var: unexpected dynamic type')
-    end select
-
-  end subroutine set_overlap_param_var
+  end subroutine set_overlap_param_var_impl
 
 
   !---------------------------------------------------------------------
@@ -622,20 +661,7 @@ contains
     ! allocate(this%fractional_std(ncol, nlev))
     ! !$ACC ENTER DATA CREATE(this%fractional_std) ASYNC(1) IF(LLACC)
 
-#if defined(OMPGPU)
-    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
-#endif
-    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
-    !$ACC LOOP GANG VECTOR COLLAPSE(2)
-    do jlev = 1, nlev
-      do jcol = 1, ncol
-      this%fractional_std(jcol, jlev) = frac_std
-      end do
-    end do
-    !$ACC END PARALLEL
-#if defined(OMPGPU)
-    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
-#endif
+    call fill_2d_impl(ncol, nlev, this%fractional_std, frac_std, llacc)
 
     if (lhook) call dr_hook('radiation_cloud:create_fractional_std',1,hook_handle)
     class default
@@ -643,6 +669,36 @@ contains
     end select
 
   end subroutine create_fractional_std
+
+
+  !---------------------------------------------------------------------
+  ! See set_overlap_param_var_impl for why the array is an explicit-shape
+  ! dummy.
+  subroutine fill_2d_impl(ncol, nlev, field, value, llacc)
+
+    integer,    intent(in)    :: ncol, nlev
+    real(jprb), intent(inout) :: field(ncol,nlev)
+    real(jprb), intent(in)    :: value
+    logical,    intent(in)    :: llacc
+
+    integer :: jcol, jlev
+
+#if defined(OMPGPU)
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+#endif
+    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
+    do jlev = 1, nlev
+      do jcol = 1, ncol
+        field(jcol, jlev) = value
+      end do
+    end do
+    !$ACC END PARALLEL
+#if defined(OMPGPU)
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
+
+  end subroutine fill_2d_impl
 
 
   !---------------------------------------------------------------------

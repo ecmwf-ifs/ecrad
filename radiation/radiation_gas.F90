@@ -63,6 +63,16 @@ module radiation_gas
     ! been provided
     integer :: icode(NMaxGases) = 0
 
+    ! When true, put, put_well_mixed and set_units skip the small device
+    ! updates of iunits, scale_factor, is_present, is_well_mixed and icode
+    ! above, and the caller must issue one update_device_metadata once it has
+    ! finished populating the object. None of the kernels in those routines
+    ! read these arrays on the device, so deferring is safe. Each of the
+    ! skipped updates moves only a few bytes but the host blocks for around
+    ! 70 microseconds afterwards, which dominates the cost of populating the
+    ! gas object.
+    logical :: defer_device_metadata = .false.
+
    contains
      procedure :: allocate   => allocate_gas
      procedure :: deallocate => deallocate_gas
@@ -80,6 +90,7 @@ module radiation_gas
      procedure :: create_device
      procedure :: update_host
      procedure :: update_device
+     procedure :: update_device_metadata
      procedure :: delete_device
 
   end type gas_type
@@ -178,13 +189,14 @@ contains
     integer,              intent(out)   :: i1, i2
     logical,    optional, intent(in)    :: lacc
 
-    logical :: llacc
+    logical :: llacc, llupd
 
     if (present(lacc)) then
       llacc = lacc
     else
       llacc = .false.
     endif
+    llupd = llacc .and. .not. this%defer_device_metadata
 
     ! Check inputs
     if (igas <= IGasNotPresent .or. iunits > NMaxGases) then
@@ -231,27 +243,28 @@ contains
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
 #if defined(OMPGPU)
-      !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLACC)
+      !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLUPD)
 #endif
-      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
+      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLUPD)
     end if
     this%is_present(igas) = .true.
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
 #if defined(OMPGPU)
-    !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llacc)
+    !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llupd)
 #endif
-    !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) IF(llacc)
+    !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) IF(llupd)
 
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
+
 #if defined(OMPGPU)
-    !$OMP TARGET UPDATE TO(this%scale_factor(igas:igas)) IF(llacc)
+    !$OMP TARGET UPDATE TO(this%scale_factor(igas:igas)) IF(llupd)
 #endif
-    !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
+    !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(llupd)
 
   end subroutine put_gas_check
 
@@ -288,8 +301,8 @@ contains
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
           size(mixing_ratio, 2), scale_factor, istartcol, i1, i2, lacc=llacc)
 
-    call put_gas_jprd_impl(this, igas, size(mixing_ratio, 1), size(mixing_ratio, 2), &
-         mixing_ratio, i1, i2, llacc)
+    call put_gas_jprd_impl(this%ncol, this%nlev, this%mixing_ratio, igas, &
+         size(mixing_ratio, 1), size(mixing_ratio, 2), mixing_ratio, i1, i2, llacc)
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
     class default
@@ -298,10 +311,18 @@ contains
 
   end subroutine put_gas_jprd
 
-  subroutine put_gas_jprd_impl(this, igas, n1, n2, mixing_ratio, i1, i2, llacc)
+  ! The destination arrives as an explicit-shape dummy rather than being
+  ! reached through this%mixing_ratio. Referencing an allocatable component
+  ! inside a target region makes the runtime stage the component's rank-3
+  ! array descriptor to the device, and since the gas structure is reallocated
+  ! on every call to RADIATION_SCHEME the descriptor is never already resident,
+  ! so all ten PUT calls pay for the transfer and the host-side wait that
+  ! follows it. An explicit-shape dummy is passed as a bare address and leaves
+  ! nothing to describe.
+  subroutine put_gas_jprd_impl(ncol, nlev, gas_mixing_ratio, igas, n1, n2, mixing_ratio, i1, i2, llacc)
 
-    type(gas_type), intent(inout) :: this
-    integer,        intent(in)    :: igas, n1, n2, i1, i2
+    integer,        intent(in)    :: ncol, nlev, igas, n1, n2, i1, i2
+    real(jprb),     intent(inout) :: gas_mixing_ratio(ncol, nlev, NMaxGases)
     real(jprd),     intent(in)    :: mixing_ratio(n1, n2)
     logical,        intent(in)    :: llacc
 
@@ -312,9 +333,9 @@ contains
 #endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
-    do jk = 1,this%nlev
+    do jk = 1,nlev
       do jc = i1,i2
-        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+        gas_mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
       end do
     end do
     !$ACC END PARALLEL
@@ -356,8 +377,8 @@ contains
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
           size(mixing_ratio, 2), scale_factor, istartcol, i1, i2, lacc=llacc)
 
-    call put_gas_jprm_impl(this, igas, size(mixing_ratio, 1), size(mixing_ratio, 2), &
-         mixing_ratio, i1, i2, llacc)
+    call put_gas_jprm_impl(this%ncol, this%nlev, this%mixing_ratio, igas, &
+         size(mixing_ratio, 1), size(mixing_ratio, 2), mixing_ratio, i1, i2, llacc)
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
     class default
@@ -366,10 +387,11 @@ contains
 
   end subroutine put_gas_jprm
 
-  subroutine put_gas_jprm_impl(this, igas, n1, n2, mixing_ratio, i1, i2, llacc)
+  ! See put_gas_jprd_impl for why the destination is an explicit-shape dummy.
+  subroutine put_gas_jprm_impl(ncol, nlev, gas_mixing_ratio, igas, n1, n2, mixing_ratio, i1, i2, llacc)
 
-    type(gas_type), intent(inout) :: this
-    integer,        intent(in)    :: igas, n1, n2, i1, i2
+    integer,        intent(in)    :: ncol, nlev, igas, n1, n2, i1, i2
+    real(jprb),     intent(inout) :: gas_mixing_ratio(ncol, nlev, NMaxGases)
     real(jprm),     intent(in)    :: mixing_ratio(n1, n2)
     logical,        intent(in)    :: llacc
 
@@ -380,9 +402,9 @@ contains
 #endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
-    do jk = 1,this%nlev
+    do jk = 1,nlev
       do jc = i1,i2
-        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+        gas_mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
       end do
     end do
     !$ACC END PARALLEL
@@ -411,7 +433,7 @@ contains
 
     real(jphook) :: hook_handle
 
-    logical :: llacc
+    logical :: llacc, llupd
     integer :: i1, i2, jc, jk
 
     select type (this)
@@ -421,6 +443,7 @@ contains
     else
       llacc = .false.
     endif
+    llupd = llacc .and. .not. this%defer_device_metadata
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',0,hook_handle)
 
@@ -466,9 +489,9 @@ contains
       this%ntype = this%ntype + 1
       this%icode(this%ntype) = igas
 #if defined(OMPGPU)
-      !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLACC)
+      !$OMP TARGET UPDATE TO(this%icode(this%ntype:this%ntype)) IF(LLUPD)
 #endif
-      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLACC)
+      !$ACC UPDATE DEVICE(this%icode(this%ntype:this%ntype)) ASYNC(1) IF(LLUPD)
     end if
 
     ! Map uses a negative value to indicate a well-mixed value
@@ -476,24 +499,12 @@ contains
     this%iunits(igas)                  = iunits
     this%is_well_mixed(igas)           = .true.
 #if defined(OMPGPU)
-    !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(LLACC)
+    !$OMP TARGET UPDATE TO(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(LLUPD)
 #endif
-    !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) if(LLACC)
+    !$ACC UPDATE DEVICE(this%is_present(igas:igas), this%iunits(igas:igas), this%is_well_mixed(igas:igas)) ASYNC(1) if(LLUPD)
 
-#if defined(OMPGPU)
-    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
-#endif
-    !$ACC PARALLEL DEFAULT(NONE) PRESENT(this) ASYNC(1) IF(LLACC)
-    !$ACC LOOP GANG VECTOR COLLAPSE(2)
-    do jk = 1,this%nlev
-      do jc = i1,i2
-        this%mixing_ratio(jc,jk,igas) = mixing_ratio
-      end do
-    end do
-    !$ACC END PARALLEL
-#if defined(OMPGPU)
-    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
-#endif
+    call put_well_mixed_gas_impl(this%ncol, this%nlev, this%mixing_ratio, igas, &
+         mixing_ratio, i1, i2, llacc)
 
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
@@ -501,9 +512,9 @@ contains
       this%scale_factor(igas) = 1.0_jprb
     end if
 #if defined(OMPGPU)
-    !$OMP TARGET UPDATE TO(this%scale_factor(igas:igas)) IF(LLACC)
+    !$OMP TARGET UPDATE TO(this%scale_factor(igas:igas)) IF(LLUPD)
 #endif
-    !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(LLACC)
+    !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(LLUPD)
 
     if (lhook) call dr_hook('radiation_gas:put_well_mixed',1,hook_handle)
     class default
@@ -511,6 +522,35 @@ contains
     end select
 
   end subroutine put_well_mixed_gas
+
+
+  !---------------------------------------------------------------------
+  ! See put_gas_jprd_impl for why the destination is an explicit-shape dummy.
+  subroutine put_well_mixed_gas_impl(ncol, nlev, gas_mixing_ratio, igas, mixing_ratio, i1, i2, llacc)
+
+    integer,    intent(in)    :: ncol, nlev, igas, i1, i2
+    real(jprb), intent(inout) :: gas_mixing_ratio(ncol, nlev, NMaxGases)
+    real(jprb), intent(in)    :: mixing_ratio
+    logical,    intent(in)    :: llacc
+
+    integer :: jc, jk
+
+#if defined(OMPGPU)
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
+    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
+    do jk = 1,nlev
+      do jc = i1,i2
+        gas_mixing_ratio(jc,jk,igas) = mixing_ratio
+      end do
+    end do
+    !$ACC END PARALLEL
+#if defined(OMPGPU)
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
+
+  end subroutine put_well_mixed_gas_impl
 
 
   !---------------------------------------------------------------------
@@ -567,7 +607,7 @@ contains
 
     ! New scaling factor to store inside the gas object
     real(jprb) :: new_sf
-    logical :: llacc
+    logical :: llacc, llupd
 
     select type (this)
     type is (gas_type)
@@ -576,6 +616,7 @@ contains
     else
       llacc = .false.
     endif
+    llupd = llacc .and. .not. this%defer_device_metadata
 
     if (present(scale_factor)) then
       ! "sf" is the scaling to be applied now to the numbers (and may
@@ -602,20 +643,7 @@ contains
         sf = sf * this%scale_factor(igas)
 
         if (sf /= 1.0_jprb) then
-#if defined(OMPGPU)
-          !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
-#endif
-          !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
-          !$ACC LOOP GANG VECTOR COLLAPSE(2)
-          do jlev = 1,this%nlev
-            do jcol = 1,this%ncol
-              this%mixing_ratio(jcol,jlev,igas) = this%mixing_ratio(jcol,jlev,igas) * sf
-            enddo
-          enddo
-          !$ACC END PARALLEL
-#if defined(OMPGPU)
-          !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
-#endif
+          call scale_gas_impl(this%ncol, this%nlev, this%mixing_ratio, igas, sf, llacc)
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
@@ -623,9 +651,9 @@ contains
           this%iunits(igas) = iunits
           this%scale_factor(igas) = new_sf
 #if defined(OMPGPU)
-          !$OMP TARGET UPDATE TO(this%iunits(igas:igas), this%scale_factor(igas:igas)) IF(llacc)
+          !$OMP TARGET UPDATE TO(this%iunits(igas:igas), this%scale_factor(igas:igas)) IF(llupd)
 #endif
-          !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
+          !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llupd)
         endif
       end if
     else
@@ -638,6 +666,60 @@ contains
     end select
 
   end subroutine set_units_gas
+
+
+  !---------------------------------------------------------------------
+  ! See put_gas_jprd_impl for why the array is an explicit-shape dummy.
+  subroutine scale_gas_impl(ncol, nlev, gas_mixing_ratio, igas, sf, llacc)
+
+    integer,    intent(in)    :: ncol, nlev, igas
+    real(jprb), intent(inout) :: gas_mixing_ratio(ncol, nlev, NMaxGases)
+    real(jprb), intent(in)    :: sf
+    logical,    intent(in)    :: llacc
+
+    integer :: jcol, jlev
+
+#if defined(OMPGPU)
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
+    !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
+    !$ACC LOOP GANG VECTOR COLLAPSE(2)
+    do jlev = 1,nlev
+      do jcol = 1,ncol
+        gas_mixing_ratio(jcol,jlev,igas) = gas_mixing_ratio(jcol,jlev,igas) * sf
+      enddo
+    enddo
+    !$ACC END PARALLEL
+#if defined(OMPGPU)
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
+
+  end subroutine scale_gas_impl
+
+
+  !---------------------------------------------------------------------
+  ! Send the whole of the metadata arrays to the device in one go. This is
+  ! the counterpart of defer_device_metadata: populating the gas object
+  ! otherwise issues around sixty updates of a single element each, and the
+  ! host blocks after every one of them.
+  subroutine update_device_metadata(this, lacc)
+
+    class(gas_type), intent(in) :: this
+    logical, optional, intent(in) :: lacc
+
+    logical :: llacc
+
+    llacc = .true.
+    if (present(lacc)) llacc = lacc
+
+#if defined(OMPGPU)
+    !$OMP TARGET UPDATE TO(this%iunits, this%scale_factor, this%is_present, &
+    !$OMP&                 this%is_well_mixed, this%icode) IF(LLACC)
+#endif
+    !$ACC UPDATE DEVICE(this%iunits, this%scale_factor, this%is_present, &
+    !$ACC&              this%is_well_mixed, this%icode) ASYNC(1) IF(LLACC)
+
+  end subroutine update_device_metadata
 
 
   !---------------------------------------------------------------------
