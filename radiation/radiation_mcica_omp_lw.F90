@@ -164,7 +164,9 @@ contains
     use radiation_two_stream, only     : calc_ref_trans_lw_single_level_omp, &
          &                               calc_no_scattering_transmittance_lw_omp, &
          &                               calc_no_scattering_transmittance_lw_single_cell_omp
-    use radiation_adding_ica_lw, only  : fast_adding_ica_lw_omp, calc_fluxes_no_scattering_lw_omp
+    use radiation_adding_ica_lw, only  : fast_adding_ica_lw_recompute_omp, &
+         &                               calc_fluxes_no_scattering_lw_omp, &
+         &                               calc_fluxes_no_scattering_lw_recompute_omp
     use radiation_cloud_cover, only    : beta2alpha, MaxCloudFrac
 #ifdef __NVCOMPILER
     use radiation_cloud_generator_acc, only : cloud_generator_block_omp
@@ -477,15 +479,15 @@ contains
           ! Clear-sky calculation
           ! Non-scattering case: use simpler functions for
           ! transmission and emission
-          call calc_no_scattering_transmittance_lw_omp(jg, ng, nlev, od(:,:,jcol), &
-               &  planck_hl(:,:,jcol), trans_clear(:,:,jcol), source_up(:,:,jcol), &
-               &  source_dn(:,:,jcol))
-
-          ! Simpler down-then-up method to compute fluxes
-          call calc_fluxes_no_scattering_lw_omp(jg, ng, nlev, &
-               &  trans_clear(:,:,jcol), source_up(:,:,jcol), source_dn(:,:,jcol), &
-               &  emission(:,jcol), albedo(:,jcol), &
-               &  flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
+          ! Simpler down-then-up method to compute fluxes, recomputing the
+          ! layer transmittance and emission inside each sweep rather than
+          ! storing three spectral profiles and reading them back. trans_clear
+          ! is still written because the total-sky and derivative kernels
+          ! below consume it; source_up and source_dn are dead after this
+          ! kernel, so they never reach memory.
+          call calc_fluxes_no_scattering_lw_recompute_omp(jg, ng, nlev, od(:,:,jcol), &
+               &  planck_hl(:,:,jcol), emission(:,jcol), albedo(:,jcol), &
+               &  trans_clear(:,:,jcol), flux_up_clear(:,:,jcol), flux_dn_clear(:,:,jcol))
 
           ! Store surface spectral downwelling fluxes
           lw_dn_surf_clear_g(jg,jcol) = flux_dn_clear(jg,nlev+1,jcol)
@@ -508,6 +510,20 @@ contains
              ! Total-sky calculation
              i_cloud_top = nlev+1
 
+             if (do_lw_cloud_scattering) then
+                ! The adding method below recomputes each layer's optical
+                ! properties at the point of use, so all that is needed here
+                ! is the cloud bookkeeping, which depends only on the
+                ! non-spectral cloud fraction.
+                do jlev = 1,nlev
+                   if (frac(jlev,jcol) >= cloud_fraction_threshold) then
+                      is_clear_sky_layer(jlev,jcol) = .false.
+                      if (i_cloud_top > jlev) then
+                         i_cloud_top = jlev
+                      end if
+                   end if
+                end do
+             else
              do jlev = 1,nlev
                 ! Compute combined gas+aerosol+cloud optical properties
                 if (frac(jlev,jcol) >= cloud_fraction_threshold) then
@@ -553,22 +569,33 @@ contains
                    end if
 
                 else
-                   ! Clear-sky layer: copy over clear-sky values
+                   ! Clear-sky layer: no reflection, and the transmittance and
+                   ! emission are the clear-sky ones. These are recomputed
+                   ! rather than inherited from the clear-sky kernel, which no
+                   ! longer stores source_up and source_dn. Relying on that
+                   ! kernel to leave them behind was an implicit dependency:
+                   ! this branch never wrote them, yet
+                   ! calc_fluxes_no_scattering_lw_omp below reads them at every
+                   ! level when cloud scattering is off.
                    reflectance(jg,jlev,jcol) = 0.0
-                   transmittance(jg,jlev,jcol) = trans_clear(jg,jlev,jcol)
+                   call calc_no_scattering_transmittance_lw_single_cell_omp(od(jg,jlev,jcol), &
+                        &  planck_hl(jg,jlev,jcol), planck_hl(jg,jlev+1,jcol), transmittance(jg,jlev,jcol), &
+                        &  source_up(jg,jlev,jcol), source_dn(jg,jlev,jcol))
                 end if
              end do
+             end if
 
              if(do_lw_cloud_scattering) then
                 ! Use adding method to compute fluxes but optimize for the
                 ! presence of clear-sky layers
-                call fast_adding_ica_lw_omp(jg, ng, nlev, reflectance(:,:,jcol), transmittance(:,:,jcol), &
-                     &  source_up(:,:,jcol), source_dn(:,:,jcol), &
-                     &  emission(:,jcol), albedo(:,jcol), &
+                call fast_adding_ica_lw_recompute_omp(jg, ng, nlev, &
+                     &  i_band_from_reordered_g_lw(jg), n_bands, n_bands_if_scattering, &
+                     &  od(:,:,jcol), od_scaling(:,:,jcol), od_cloud(:,:,jcol), &
+                     &  ssa_cloud(:,:,jcol), g_cloud(:,:,jcol), planck_hl(:,:,jcol), &
+                     &  do_lw_cloud_scattering, emission(:,jcol), albedo(:,jcol), &
                      &  is_clear_sky_layer(:,jcol), i_cloud_top, flux_dn_clear(:,:,jcol), &
-                     &  flux_up(:,:,jcol), flux_dn(:,:,jcol), &
-                     &  flux_up(:,:,jcol), flux_dn(:,:,jcol), &
-                     &  source=tmp_work_source(:,:,jcol))
+                     &  transmittance(:,:,jcol), flux_up(:,:,jcol), flux_dn(:,:,jcol), &
+                     &  flux_up(:,:,jcol), source=tmp_work_source(:,:,jcol))
              else
                 ! Simpler down-then-up method to compute fluxes
                 call calc_fluxes_no_scattering_lw_omp(jg, ng, nlev, &
