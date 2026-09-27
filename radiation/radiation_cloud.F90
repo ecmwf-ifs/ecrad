@@ -869,6 +869,7 @@ contains
 
     real(jprb) :: cloud_fraction_threshold, cloud_mixing_ratio_threshold
     real(jprb) :: sum_mixing_ratio(istartcol:iendcol)
+    real(jprb) :: sum_mixing_ratio_col
 
     real(jphook) :: hook_handle
 
@@ -879,22 +880,25 @@ contains
     nlev = size(this%fraction,2)
 
 #if defined(OMPGPU)
-    !$OMP TARGET ENTER DATA MAP(ALLOC:sum_mixing_ratio)
+    ! The sum is only live within one (jlev,jcol) iteration, so a private
+    ! scalar serves and there is nothing to map. With the level loop outside
+    ! the target region this launched one kernel per level, each with only
+    ! iendcol-istartcol+1 work items, which left most of the device idle and
+    ! cost more in launch overhead than the arithmetic it performed.
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) PRIVATE(sum_mixing_ratio_col, jh)
     do jlev = 1,nlev
-      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
       do jcol = istartcol,iendcol
-         sum_mixing_ratio(jcol) = 0.0_jprb
+         sum_mixing_ratio_col = 0.0_jprb
          do jh = 1, this%ntype
-            sum_mixing_ratio(jcol) = sum_mixing_ratio(jcol) + this%mixing_ratio(jcol,jlev,jh)
+            sum_mixing_ratio_col = sum_mixing_ratio_col + this%mixing_ratio(jcol,jlev,jh)
          end do
-         if (this%fraction(jcol,jlev)        < cloud_fraction_threshold &
-              &  .or. sum_mixing_ratio(jcol) < cloud_mixing_ratio_threshold) then
+         if (this%fraction(jcol,jlev)            < cloud_fraction_threshold &
+              &  .or. sum_mixing_ratio_col       < cloud_mixing_ratio_threshold) then
             this%fraction(jcol,jlev) = 0.0_jprb
         end if
       end do
-      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     end do
-    !$OMP TARGET EXIT DATA MAP(DELETE:sum_mixing_ratio)
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #else
     !$ACC PARALLEL DEFAULT(PRESENT) CREATE(sum_mixing_ratio) ASYNC(1)
     !$ACC LOOP SEQ

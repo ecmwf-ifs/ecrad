@@ -99,6 +99,7 @@ REAL(KIND=JPRB)   ,INTENT(INOUT) :: PINCSOL(KIDIA:KFDIA,JPGPT) ! Incoming solar 
 !     ------------------------------------------------------------------
 
 INTEGER(KIND=JPIM) :: IB1, IB2, IBM, IGT, IW(KIDIA:KFDIA), JB, JG, JK, JL, ICOUNT
+INTEGER(KIND=JPIM) :: IWOFFSET
 INTEGER(KIND=JPIM) :: laytrop_min, laytrop_max, iplon
 
 !-- Output of SRTM_TAUMOLn routines
@@ -163,6 +164,8 @@ ENDDO
 CALL COMPUTE_LAYTROP_MIN_MAX(KIDIA, KFDIA, KLAYTROP, laytrop_min, laytrop_max)
 
 IF (ICOUNT/=0) THEN
+
+  IWOFFSET = 0
 
   DO JB = IB1, IB2
     IBM = JB-15
@@ -314,12 +317,43 @@ IF (ICOUNT/=0) THEN
 
     ENDIF
 
+#if defined(OMPGPU)
+    ! IW is zeroed for every sunlit column and then incremented once per
+    ! g-point under the same PRMU0 guard, so it holds the identical value in
+    ! every column it is ever read in and is just the cumulative g-point
+    ! offset. Tracking that offset in a host scalar removes the sequential
+    ! dependency that forced JG to stay on the host, which was costing one
+    ! kernel launch per g-point, 112 of them per call.
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+    DO JG=1,IGT
+      DO JL = KIDIA, KFDIA
+        IF (PRMU0(JL) > 0.0_JPRB) THEN
+          ! Incoming solar flux into plane perp to incoming radiation
+          PINCSOL(JL,IWOFFSET+JG) = ZSFLXZEN(JL,JG)
+        ENDIF
+      ENDDO
+    ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+    DO JG=1,IGT
+      DO JK=1,KLEV
+        DO JL = KIDIA, KFDIA
+          IF (PRMU0(JL) > 0.0_JPRB) THEN
+            POD (JL,JK,IWOFFSET+JG) = ZTAUR(JL,JK,JG) + ZTAUG(JL,JK,JG)
+            PSSA(JL,JK,IWOFFSET+JG) = ZTAUR(JL,JK,JG) / POD(JL,JK,IWOFFSET+JG)
+          ENDIF
+        ENDDO
+      ENDDO
+    ENDDO
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+    IWOFFSET = IWOFFSET + IGT
+#else
     !$ACC PARALLEL DEFAULT(NONE) ASYNC(1)
     !$ACC LOOP SEQ
     DO JG=1,IGT
 ! Added for DWD (2020)
 !NEC$ ivdep
-      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
       !$ACC LOOP GANG(STATIC:1) VECTOR
       DO JL = KIDIA, KFDIA
         IF (PRMU0(JL) > 0.0_JPRB) THEN
@@ -328,9 +362,7 @@ IF (ICOUNT/=0) THEN
           PINCSOL(JL,IW(JL)) = ZSFLXZEN(JL,JG)
         ENDIF
       ENDDO
-      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
-      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
       !$ACC LOOP SEQ
       DO JK=1,KLEV
         !$ACC LOOP GANG(STATIC:1) VECTOR PRIVATE(JL)
@@ -341,9 +373,9 @@ IF (ICOUNT/=0) THEN
           ENDIF
         ENDDO
       ENDDO
-      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
     ENDDO   !-- end loop on JG (g point)
     !$ACC END PARALLEL
+#endif
 
   ENDDO     !-- end loop on JB (band)
 
