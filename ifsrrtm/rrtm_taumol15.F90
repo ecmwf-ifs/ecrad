@@ -33,7 +33,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV)
@@ -408,7 +408,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (ka_mn2(jmn2+1,indm+1,ig) - ka_mn2(jmn2,indm+1,ig))
             taun2 = scalen2 * (n2m1 + minorfrac(jl,lay) * (n2m2 - n2m1))
 
-            taug(jl,ngs14+ig,lay) = tau_major(ig) + tau_major1(ig) &
+            taug(ngs14+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                  + tauself + taufor &
                  + taun2
             fracs(jl,ngs14+ig,lay) = fracrefa(ig,jpl) + fpl * &
@@ -426,7 +426,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       do ig = 1, ng15
         do lay = llaytrop_max+1, KLEV
           do jl = KIDIA, KFDIA
-            taug(jl,ngs14+ig,lay) = 0.0_JPRB
+            taug(ngs14+ig,lay,jl) = 0.0_JPRB
             fracs(jl,ngs14+ig,lay) = 0.0_JPRB
           enddo
         enddo
@@ -693,7 +693,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (ka_mn2(jmn2+1,indm+1,ig) - ka_mn2(jmn2,indm+1,ig))
               taun2 = scalen2 * (n2m1 + minorfrac(jl,lay) * (n2m2 - n2m1))
 
-              taug(jl,ngs14+ig,lay) = tau_major(ig) + tau_major1(ig) &
+              taug(ngs14+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                   + tauself + taufor &
                   + taun2
               fracs(jl,ngs14+ig,lay) = fracrefa(ig,jpl) + fpl * &
@@ -717,7 +717,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               jl = ixhigh(ixp,lay)
 #endif
 
-              taug(jl,ngs14+ig,lay) = 0.0_JPRB
+              taug(ngs14+ig,lay,jl) = 0.0_JPRB
               fracs(jl,ngs14+ig,lay) = 0.0_JPRB
             enddo
 #if defined(_OPENACC) || defined(OMPGPU)

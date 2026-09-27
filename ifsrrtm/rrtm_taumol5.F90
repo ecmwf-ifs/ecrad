@@ -34,7 +34,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: wx(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
@@ -402,7 +402,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (ka_mo3(jmo3+1,indm+1,ig)-ka_mo3(jmo3,indm+1,ig))
             abso3 = o3m1 + minorfrac(jl,lay)*(o3m2-o3m1)
 
-            taug(jl,ngs4+ig,lay) = tau_major(ig) + tau_major1(ig) &
+            taug(ngs4+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                  + tauself + taufor &
                  + abso3*colo3(jl,lay) &
                  + wx(jl,1,lay) * ccl4(ig)
@@ -458,7 +458,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           !$ACC LOOP SEQ
 !$NEC unroll(NG5)
           do ig = 1, ng5
-            taug(jl,ngs4+ig,lay) = speccomb * &
+            taug(ngs4+ig,lay,jl) = speccomb * &
                  (fac000 * absb(ind0,ig) + &
                  fac100 * absb(ind0+1,ig) + &
                  fac010 * absb(ind0+5,ig) + &
@@ -734,7 +734,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (ka_mo3(jmo3+1,indm+1,ig)-ka_mo3(jmo3,indm+1,ig))
               abso3 = o3m1 + minorfrac(jl,lay)*(o3m2-o3m1)
 
-              taug(jl,ngs4+ig,lay) = tau_major(ig) + tau_major1(ig) &
+              taug(ngs4+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                   + tauself + taufor &
                   + abso3*colo3(jl,lay) &
                   + wx(jl,1,lay) * ccl4(ig)
@@ -785,7 +785,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 !$NEC unroll(NG5)
             !$ACC LOOP SEQ
             do ig = 1, ng5
-              taug(jl,ngs4+ig,lay) = speccomb * &
+              taug(ngs4+ig,lay,jl) = speccomb * &
                   (fac000 * absb(ind0,ig) + &
                   fac100 * absb(ind0+1,ig) + &
                   fac010 * absb(ind0+5,ig) + &

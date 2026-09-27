@@ -32,7 +32,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV)
@@ -441,7 +441,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (ka_mco(jmco+1,indm+1,ig) - ka_mco(jmco,indm+1,ig))
             absco = com1 + minorfrac(jl,lay) * (com2 - com1)
 
-            taug(jl,ngs12+ig,lay) = tau_major(ig) + tau_major1(ig) &
+            taug(ngs12+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                  + tauself + taufor &
                  + adjcolco2*absco2 &
                  + colco(jl,lay)*absco
@@ -467,7 +467,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           do ig = 1, ng13
             abso3 = kb_mo3(indm,ig) + minorfrac(jl,lay) * &
                  (kb_mo3(indm+1,ig) - kb_mo3(indm,ig))
-            taug(jl,ngs12+ig,lay) = colo3(jl,lay)*abso3
+            taug(ngs12+ig,lay,jl) = colo3(jl,lay)*abso3
             fracs(jl,ngs12+ig,lay) =  fracrefb(ig)
           enddo
         enddo
@@ -757,7 +757,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (ka_mco(jmco+1,indm+1,ig) - ka_mco(jmco,indm+1,ig))
               absco = com1 + minorfrac(jl,lay) * (com2 - com1)
 
-              taug(jl,ngs12+ig,lay) = tau_major(ig) + tau_major1(ig) &
+              taug(ngs12+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                   + tauself + taufor &
                   + adjcolco2*absco2 &
                   + colco(jl,lay)*absco
@@ -782,7 +782,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
             do ig = 1, ng13
               abso3 = kb_mo3(indm,ig) + minorfrac(jl,lay) * &
                   (kb_mo3(indm+1,ig) - kb_mo3(indm,ig))
-              taug(jl,ngs12+ig,lay) = colo3(jl,lay)*abso3
+              taug(ngs12+ig,lay,jl) = colo3(jl,lay)*abso3
               fracs(jl,ngs12+ig,lay) =  fracrefb(ig)
             enddo
 #if defined(_OPENACC) || defined(OMPGPU)

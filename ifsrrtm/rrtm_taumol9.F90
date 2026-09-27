@@ -33,7 +33,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV)
@@ -407,7 +407,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (ka_mn2o(jmn2o+1,indm+1,ig) - ka_mn2o(jmn2o,indm+1,ig))
             absn2o = n2om1 + minorfrac(jl,lay) * (n2om2 - n2om1)
 
-            taug(jl,ngs8+ig,lay) = tau_major(ig) + tau_major1(ig) &
+            taug(ngs8+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                  + tauself + taufor &
                  + adjcoln2o*absn2o
             fracs(jl,ngs8+ig,lay) = fracrefa(ig,jpl) + fpl * &
@@ -446,7 +446,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           do ig = 1, ng9
             absn2o = kb_mn2o(indm,ig) + minorfrac(jl,lay) * &
                  (kb_mn2o(indm+1,ig) - kb_mn2o(indm,ig))
-            taug(jl,ngs8+ig,lay) = colch4(jl,lay) * &
+            taug(ngs8+ig,lay,jl) = colch4(jl,lay) * &
                  (fac00(jl,lay) * absb(ind0,ig) + &
                  fac10(jl,lay) * absb(ind0+1,ig) + &
                  fac01(jl,lay) * absb(ind1,ig) +  &
@@ -729,7 +729,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (ka_mn2o(jmn2o+1,indm+1,ig) - ka_mn2o(jmn2o,indm+1,ig))
               absn2o = n2om1 + minorfrac(jl,lay) * (n2om2 - n2om1)
 
-              taug(jl,ngs8+ig,lay) = tau_major(ig) + tau_major1(ig) &
+              taug(ngs8+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                   + tauself + taufor &
                   + adjcoln2o*absn2o
               fracs(jl,ngs8+ig,lay) = fracrefa(ig,jpl) + fpl * &
@@ -767,7 +767,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
             do ig = 1, ng9
               absn2o = kb_mn2o(indm,ig) + minorfrac(jl,lay) * &
                   (kb_mn2o(indm+1,ig) - kb_mn2o(indm,ig))
-              taug(jl,ngs8+ig,lay) = colch4(jl,lay) * &
+              taug(ngs8+ig,lay,jl) = colch4(jl,lay) * &
                   (fac00(jl,lay) * absb(ind0,ig) + &
                   fac10(jl,lay) * absb(ind0+1,ig) + &
                   fac01(jl,lay) * absb(ind1,ig) +  &

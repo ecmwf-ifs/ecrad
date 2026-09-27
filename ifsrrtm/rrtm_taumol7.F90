@@ -33,7 +33,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac01(KIDIA:KFDIA,KLEV)
@@ -405,7 +405,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (ka_mco2(jmco2+1,indm+1,ig) - ka_mco2(jmco2,indm+1,ig))
             absco2 = co2m1 + minorfrac(jl,lay) * (co2m2 - co2m1)
 
-            taug(jl,ngs6+ig,lay) = tau_major(ig) + tau_major1(ig) &
+            taug(ngs6+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                  + tauself + taufor &
                  + adjcolco2*absco2
             fracs(jl,ngs6+ig,lay) = fracrefa(ig,jpl) + fpl * &
@@ -444,7 +444,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           do ig = 1, ng7
             absco2 = kb_mco2(indm,ig) + minorfrac(jl,lay) * &
                  (kb_mco2(indm+1,ig) - kb_mco2(indm,ig))
-            taug(jl,ngs6+ig,lay) = colo3(jl,lay) * &
+            taug(ngs6+ig,lay,jl) = colo3(jl,lay) * &
                  (fac00(jl,lay) * absb(ind0,ig) + &
                  fac10(jl,lay) * absb(ind0+1,ig) + &
                  fac01(jl,lay) * absb(ind1,ig) + &
@@ -465,12 +465,12 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       !$ACC LOOP GANG VECTOR COLLAPSE(2)
       do lay = llaytrop_max+1, KLEV
         do jl = KIDIA, KFDIA
-          taug(jl,ngs6+6,lay)=taug(jl,ngs6+6,lay)*0.92_JPRB
-          taug(jl,ngs6+7,lay)=taug(jl,ngs6+7,lay)*0.88_JPRB
-          taug(jl,ngs6+8,lay)=taug(jl,ngs6+8,lay)*1.07_JPRB
-          taug(jl,ngs6+9,lay)=taug(jl,ngs6+9,lay)*1.1_JPRB
-          taug(jl,ngs6+10,lay)=taug(jl,ngs6+10,lay)*0.99_JPRB
-          taug(jl,ngs6+11,lay)=taug(jl,ngs6+11,lay)*0.855_JPRB
+          taug(ngs6+6,lay,jl)=taug(ngs6+6,lay,jl)*0.92_JPRB
+          taug(ngs6+7,lay,jl)=taug(ngs6+7,lay,jl)*0.88_JPRB
+          taug(ngs6+8,lay,jl)=taug(ngs6+8,lay,jl)*1.07_JPRB
+          taug(ngs6+9,lay,jl)=taug(ngs6+9,lay,jl)*1.1_JPRB
+          taug(ngs6+10,lay,jl)=taug(ngs6+10,lay,jl)*0.99_JPRB
+          taug(ngs6+11,lay,jl)=taug(ngs6+11,lay,jl)*0.855_JPRB
         enddo
       enddo
       !$ACC END PARALLEL
@@ -746,7 +746,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (ka_mco2(jmco2+1,indm+1,ig) - ka_mco2(jmco2,indm+1,ig))
               absco2 = co2m1 + minorfrac(jl,lay) * (co2m2 - co2m1)
 
-              taug(jl,ngs6+ig,lay) = tau_major(ig) + tau_major1(ig) &
+              taug(ngs6+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                   + tauself + taufor &
                   + adjcolco2*absco2
               fracs(jl,ngs6+ig,lay) = fracrefa(ig,jpl) + fpl * &
@@ -784,7 +784,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
             do ig = 1, ng7
               absco2 = kb_mco2(indm,ig) + minorfrac(jl,lay) * &
                   (kb_mco2(indm+1,ig) - kb_mco2(indm,ig))
-              taug(jl,ngs6+ig,lay) = colo3(jl,lay) * &
+              taug(ngs6+ig,lay,jl) = colo3(jl,lay) * &
                   (fac00(jl,lay) * absb(ind0,ig) + &
                   fac10(jl,lay) * absb(ind0+1,ig) + &
                   fac01(jl,lay) * absb(ind1,ig) + &
@@ -803,12 +803,12 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
           do ixp = 1, ixc0
             jl = ixhigh(ixp,lay)
 #endif
-            taug(jl,ngs6+6,lay)=taug(jl,ngs6+6,lay)*0.92_JPRB
-            taug(jl,ngs6+7,lay)=taug(jl,ngs6+7,lay)*0.88_JPRB
-            taug(jl,ngs6+8,lay)=taug(jl,ngs6+8,lay)*1.07_JPRB
-            taug(jl,ngs6+9,lay)=taug(jl,ngs6+9,lay)*1.1_JPRB
-            taug(jl,ngs6+10,lay)=taug(jl,ngs6+10,lay)*0.99_JPRB
-            taug(jl,ngs6+11,lay)=taug(jl,ngs6+11,lay)*0.855_JPRB
+            taug(ngs6+6,lay,jl)=taug(ngs6+6,lay,jl)*0.92_JPRB
+            taug(ngs6+7,lay,jl)=taug(ngs6+7,lay,jl)*0.88_JPRB
+            taug(ngs6+8,lay,jl)=taug(ngs6+8,lay,jl)*1.07_JPRB
+            taug(ngs6+9,lay,jl)=taug(ngs6+9,lay,jl)*1.1_JPRB
+            taug(ngs6+10,lay,jl)=taug(ngs6+10,lay,jl)*0.99_JPRB
+            taug(ngs6+11,lay,jl)=taug(ngs6+11,lay,jl)*0.855_JPRB
 #if defined(_OPENACC) || defined(OMPGPU)
            endif
 #endif

@@ -33,7 +33,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: wx(KIDIA:KFDIA,JPXSEC,KLEV) ! Amount of trace gases
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: fac00(KIDIA:KFDIA,KLEV)
@@ -157,7 +157,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                (forref(indf+1,ig) - forref(indf,ig)))
             absco2 =  (ka_mco2(indm,ig) + minorfrac(jl,lay) * &
                  (ka_mco2(indm+1,ig) - ka_mco2(indm,ig)))
-            taug(jl,ngs5+ig,lay) = colh2o(jl,lay) * &
+            taug(ngs5+ig,lay,jl) = colh2o(jl,lay) * &
                  (fac00(jl,lay) * absa(ind0,ig) + &
                  fac10(jl,lay) * absa(ind0+1,ig) + &
                  fac01(jl,lay) * absa(ind1,ig) +  &
@@ -181,7 +181,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
       do ig = 1, ng6
         do lay = llaytrop_max+1, KLEV
           do jl = KIDIA, KFDIA
-            taug(jl,ngs5+ig,lay) = 0.0_JPRB &
+            taug(ngs5+ig,lay,jl) = 0.0_JPRB &
                  + wx(jl,2,lay) * cfc11adj(ig) &
                  + wx(jl,3,lay) * cfc12(ig)
             fracs(jl,ngs5+ig,lay) = fracrefa(ig)
@@ -235,7 +235,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                 (forref(indf+1,ig) - forref(indf,ig)))
               absco2 =  (ka_mco2(indm,ig) + minorfrac(jl,lay) * &
                   (ka_mco2(indm+1,ig) - ka_mco2(indm,ig)))
-              taug(jl,ngs5+ig,lay) = colh2o(jl,lay) * &
+              taug(ngs5+ig,lay,jl) = colh2o(jl,lay) * &
                   (fac00(jl,lay) * absa(ind0,ig) + &
                   fac10(jl,lay) * absa(ind0+1,ig) + &
                   fac01(jl,lay) * absa(ind1,ig) +  &
@@ -264,7 +264,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
             do ixp = 1, ixc0
               jl = ixhigh(ixp,lay)
 #endif
-              taug(jl,ngs5+ig,lay) = 0.0_JPRB &
+              taug(ngs5+ig,lay,jl) = 0.0_JPRB &
                   + wx(jl,2,lay) * cfc11adj(ig) &
                   + wx(jl,3,lay) * cfc12(ig)
               fracs(jl,ngs5+ig,lay) = fracrefa(ig)

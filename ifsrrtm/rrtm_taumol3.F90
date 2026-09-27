@@ -34,7 +34,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV
-REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(KIDIA:KFDIA,JPGPT,KLEV)
+REAL(KIND=JPRB)   ,INTENT(INOUT) :: taug(JPGPT,KLEV,KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: FAC00(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: FAC01(KIDIA:KFDIA,KLEV)
@@ -413,7 +413,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                  (ka_mn2o(jmn2o+1,indm+1,ig) - ka_mn2o(jmn2o,indm+1,ig))
             absn2o = n2om1 + minorfrac(jl,lay) * (n2om2 - n2om1)
 
-            taug(jl,ngs2+ig,lay) = tau_major(ig) + tau_major1(ig) &
+            taug(ngs2+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                  + tauself + taufor &
                  + adjcoln2o*absn2o
             fracs(jl,ngs2+ig,lay) = fracrefa(ig,jpl) + fpl * &
@@ -496,7 +496,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
             n2om2 = kb_mn2o(jmn2o,indm+1,ig) + fmn2o * &
                  (kb_mn2o(jmn2o+1,indm+1,ig)-kb_mn2o(jmn2o,indm+1,ig))
             absn2o = n2om1 + minorfrac(jl,lay) * (n2om2 - n2om1)
-            taug(jl,ngs2+ig,lay) = speccomb * &
+            taug(ngs2+ig,lay,jl) = speccomb * &
                  (fac000 * absb(ind0,ig) + &
                  fac100 * absb(ind0+1,ig) + &
                  fac010 * absb(ind0+5,ig) + &
@@ -788,7 +788,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
                   (ka_mn2o(jmn2o+1,indm+1,ig) - ka_mn2o(jmn2o,indm+1,ig))
               absn2o = n2om1 + minorfrac(jl,lay) * (n2om2 - n2om1)
 
-              taug(jl,ngs2+ig,lay) = tau_major(ig) + tau_major1(ig) &
+              taug(ngs2+ig,lay,jl) = tau_major(ig) + tau_major1(ig) &
                   + tauself + taufor &
                   + adjcoln2o*absn2o
               fracs(jl,ngs2+ig,lay) = fracrefa(ig,jpl) + fpl * &
@@ -864,7 +864,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
               n2om2 = kb_mn2o(jmn2o,indm+1,ig) + fmn2o * &
                   (kb_mn2o(jmn2o+1,indm+1,ig)-kb_mn2o(jmn2o,indm+1,ig))
               absn2o = n2om1 + minorfrac(jl,lay) * (n2om2 - n2om1)
-              taug(jl,ngs2+ig,lay) = speccomb * &
+              taug(ngs2+ig,lay,jl) = speccomb * &
                   (fac000 * absb(ind0,ig) + &
                   fac100 * absb(ind0+1,ig) + &
                   fac010 * absb(ind0+5,ig) + &
