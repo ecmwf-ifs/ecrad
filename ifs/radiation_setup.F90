@@ -89,8 +89,11 @@ TYPE :: TRADIATION
   REAL(KIND=JPRB)    :: WEIGHT_PAR(100)
   ! Mass-extinction coefficient (m2 kg-1) of tropospheric and
   ! stratospheric background aerosol at 550 nm
-  REAL(KIND=JPRB)    :: TROP_BG_AER_MASS_EXT
-  REAL(KIND=JPRB)    :: STRAT_BG_AER_MASS_EXT
+  ! Default-initialized because the code that would compute them is
+  ! currently disabled below; without this they are read uninitialized in
+  ! RADIATION_SCHEME, where a positive garbage value is used as a divisor.
+  REAL(KIND=JPRB)    :: TROP_BG_AER_MASS_EXT  = 0.0_JPRB
+  REAL(KIND=JPRB)    :: STRAT_BG_AER_MASS_EXT = 0.0_JPRB
 
 END TYPE TRADIATION
 
@@ -544,8 +547,8 @@ CONTAINS
          &  PRADIATION%NWEIGHT_PAR, PRADIATION%IBAND_PAR, PRADIATION%WEIGHT_PAR,&
          &  'photosynthetically active radiation, PAR')
 
-    ! PRADIATION%TROP_BG_AER_MASS_EXT  = 0.0_JPRB
-    ! PRADIATION%STRAT_BG_AER_MASS_EXT = 0.0_JPRB
+    PRADIATION%TROP_BG_AER_MASS_EXT  = 0.0_JPRB
+    PRADIATION%STRAT_BG_AER_MASS_EXT = 0.0_JPRB
     ! IF (YDERAD%NAERMACC > 0) THEN
     !   ! With the MACC aerosol climatology we need to add in the
     !   ! background aerosol afterwards using the Tegen arrays.  In this

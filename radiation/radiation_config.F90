@@ -46,6 +46,7 @@ module radiation_config
   use radiation_cloud_cover,         only : OverlapName, &
        & IOverlapMaximumRandom, IOverlapExponentialRandom, IOverlapExponential
   use radiation_ecckd,               only : ckd_model_type
+  use radiation_io,                  only : nulerr, radiation_abort
 
   implicit none
   public
@@ -656,10 +657,10 @@ module radiation_config
      procedure :: consolidate_sw_albedo_intervals
      procedure :: consolidate_lw_emiss_intervals
 
-     procedure, nopass :: create_device
-     procedure, nopass :: update_host
-     procedure, nopass :: update_device
-     procedure, nopass :: delete_device
+     procedure :: create_device
+     procedure :: update_host
+     procedure :: update_device
+     procedure :: delete_device
 
   end type config_type
 
@@ -2214,8 +2215,11 @@ contains
   ! creates fields on device
   subroutine create_device(this)
 
-    type(config_type), intent(inout) :: this
+    class(config_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (config_type)
 #if defined(OMPGPU)
     ! cloud_optics, aerosol_optics and pdf_sampler are non-allocatable
     ! components, so they live inside this struct's own storage and mapping
@@ -2226,10 +2230,13 @@ contains
     ! reference count. It has to come first: doing it after the components
     ! hits the same partial-present error. OpenACC does not need this because
     ! its compute regions use DEFAULT(PRESENT) and never map config at all.
+    !
+    ! Must be inside the select type: outside it "this" is class(config_type),
+    ! so the map takes the 40-byte class descriptor on the stack rather than
+    ! the struct, leaving an unmatched entry that outlives the frame and later
+    ! collides with a stack array at the same address.
     !$OMP TARGET ENTER DATA MAP(TO:this)
 #endif
-
-#if defined(_OPENACC) || defined(OMPGPU)
     !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET ENTER DATA MAP(TO:this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2260,17 +2267,20 @@ contains
 
     !$OMP TARGET ENTER DATA MAP(TO:this%cloud_optics)
     !$ACC ENTER DATA COPYIN(this%cloud_optics) ASYNC(1)
-    call this%cloud_optics%create_device(this%cloud_optics)
+    call this%cloud_optics%create_device()
 
     ! NB: general_cloud_optics_type not yet implemented
 
     !$OMP TARGET ENTER DATA MAP(TO:this%aerosol_optics)
     !$ACC ENTER DATA COPYIN(this%aerosol_optics) ASYNC(1)
-    call this%aerosol_optics%create_device(this%aerosol_optics)
+    call this%aerosol_optics%create_device()
 
     !$OMP TARGET ENTER DATA MAP(TO:this%pdf_sampler)
     !$ACC ENTER DATA COPYIN(this%pdf_sampler) ASYNC(1)
-    call this%pdf_sampler%create_device(this%pdf_sampler)
+    call this%pdf_sampler%create_device()
+    class default
+      call radiation_abort('*** Error: radiation_config:create_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine create_device
 
@@ -2278,9 +2288,11 @@ contains
   ! updates fields on host
   subroutine update_host(this)
 
-    type(config_type), intent(inout) :: this
+    class(config_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (config_type)
     !$OMP TARGET UPDATE FROM(this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET UPDATE FROM(this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET UPDATE FROM(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2311,17 +2323,20 @@ contains
 
     !$OMP TARGET UPDATE FROM(this%cloud_optics)
     !$ACC UPDATE HOST(this%cloud_optics) ASYNC(1)
-    call this%cloud_optics%update_host(this%cloud_optics)
+    call this%cloud_optics%update_host()
 
     ! NB: general_cloud_optics_type not yet implemented
 
     !$OMP TARGET UPDATE FROM(this%aerosol_optics)
     !$ACC UPDATE HOST(this%aerosol_optics) ASYNC(1)
-    call this%aerosol_optics%update_host(this%aerosol_optics)
+    call this%aerosol_optics%update_host()
 
     !$OMP TARGET UPDATE FROM(this%pdf_sampler)
     !$ACC UPDATE HOST(this%pdf_sampler) ASYNC(1)
-    call this%pdf_sampler%update_host(this%pdf_sampler)
+    call this%pdf_sampler%update_host()
+    class default
+      call radiation_abort('*** Error: radiation_config:update_host: unexpected dynamic type')
+    end select
 #endif
   end subroutine update_host
 
@@ -2329,9 +2344,11 @@ contains
   ! updates fields on device
   subroutine update_device(this)
 
-    type(config_type), intent(inout) :: this
+    class(config_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (config_type)
     !$OMP TARGET UPDATE TO(this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET UPDATE TO(this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET UPDATE TO(this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2362,17 +2379,20 @@ contains
 
     !$OMP TARGET UPDATE TO(this%cloud_optics)
     !$ACC UPDATE DEVICE(this%cloud_optics) ASYNC(1)
-    call this%cloud_optics%update_device(this%cloud_optics)
+    call this%cloud_optics%update_device()
 
     ! NB: general_cloud_optics_type not yet implemented
 
     !$OMP TARGET UPDATE TO(this%aerosol_optics)
     !$ACC UPDATE DEVICE(this%aerosol_optics) ASYNC(1)
-    call this%aerosol_optics%update_device(this%aerosol_optics)
+    call this%aerosol_optics%update_device()
 
     !$OMP TARGET UPDATE TO(this%pdf_sampler)
     !$ACC UPDATE DEVICE(this%pdf_sampler) ASYNC(1)
-    call this%pdf_sampler%update_device(this%pdf_sampler)
+    call this%pdf_sampler%update_device()
+    class default
+      call radiation_abort('*** Error: radiation_config:update_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine update_device
 
@@ -2380,9 +2400,11 @@ contains
   ! deletes fields on device
   subroutine delete_device(this)
 
-    type(config_type), intent(inout) :: this
+    class(config_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (config_type)
     !$OMP TARGET EXIT DATA MAP(DELETE:this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET EXIT DATA MAP(DELETE:this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2413,22 +2435,25 @@ contains
 
     !$OMP TARGET EXIT DATA MAP(DELETE:this%cloud_optics)
     !$ACC EXIT DATA DELETE(this%cloud_optics) ASYNC(1)
-    call this%cloud_optics%delete_device(this%cloud_optics)
+    call this%cloud_optics%delete_device()
 
     ! NB: general_cloud_optics_type not yet implemented
 
     !$OMP TARGET EXIT DATA MAP(DELETE:this%aerosol_optics)
     !$ACC EXIT DATA DELETE(this%aerosol_optics) ASYNC(1)
-    call this%aerosol_optics%delete_device(this%aerosol_optics)
+    call this%aerosol_optics%delete_device()
 
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pdf_sampler)
     !$ACC EXIT DATA DELETE(this%pdf_sampler) ASYNC(1)
-    call this%pdf_sampler%delete_device(this%pdf_sampler)
-#endif
-
+    call this%pdf_sampler%delete_device()
 #if defined(OMPGPU)
     ! Matches the whole-struct map in create_device, and must come last.
+    ! Inside the select type for the same reason, so the two pair up.
     !$OMP TARGET EXIT DATA MAP(DELETE:this)
+#endif
+    class default
+      call radiation_abort('*** Error: radiation_config:delete_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine delete_device
 

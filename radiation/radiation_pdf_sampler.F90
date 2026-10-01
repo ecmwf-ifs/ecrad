@@ -16,6 +16,7 @@
 module radiation_pdf_sampler
 
   use parkind1, only : jprb
+  use radiation_io, only : radiation_abort
 
   implicit none
   public
@@ -47,10 +48,10 @@ module radiation_pdf_sampler
     procedure :: masked_block_sample => sample_from_pdf_masked_block
     procedure :: deallocate => deallocate_pdf_sampler
 
-    procedure, nopass :: create_device
-    procedure, nopass :: update_host
-    procedure, nopass :: update_device
-    procedure, nopass :: delete_device
+    procedure :: create_device
+    procedure :: update_host
+    procedure :: update_device
+    procedure :: delete_device
 
   end type pdf_sampler_type
 
@@ -329,12 +330,17 @@ contains
   ! creates fields on device
   subroutine create_device(this)
 
-    type(pdf_sampler_type), intent(inout) :: this
+    class(pdf_sampler_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
-    !$OMP TARGET ENTER DATA MAP(TO:this%val) IF(allocated(this%val))
+    select type (this)
+    type is (pdf_sampler_type)
+      !$OMP TARGET ENTER DATA MAP(TO:this%val) IF(allocated(this%val))
 
-    !$ACC ENTER DATA COPYIN(this%val) IF(allocated(this%val)) ASYNC(1)
+      !$ACC ENTER DATA COPYIN(this%val) IF(allocated(this%val)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_pdf_sampler:create_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine create_device
 
@@ -342,12 +348,17 @@ contains
   ! updates fields on host
   subroutine update_host(this)
 
-    type(pdf_sampler_type), intent(inout) :: this
+    class(pdf_sampler_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
-    !$OMP TARGET UPDATE FROM(this%val) IF(allocated(this%val))
+    select type (this)
+    type is (pdf_sampler_type)
+      !$OMP TARGET UPDATE FROM(this%val) IF(allocated(this%val))
 
-    !$ACC UPDATE HOST(this%val) IF(allocated(this%val)) ASYNC(1)
+      !$ACC UPDATE HOST(this%val) IF(allocated(this%val)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_pdf_sampler:update_host: unexpected dynamic type')
+    end select
 #endif
   end subroutine update_host
 
@@ -355,12 +366,17 @@ contains
   ! updates fields on device
   subroutine update_device(this)
 
-    type(pdf_sampler_type), intent(inout) :: this
+    class(pdf_sampler_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
-    !$OMP TARGET UPDATE TO(this%val) IF(allocated(this%val))
+    select type (this)
+    type is (pdf_sampler_type)
+      !$OMP TARGET UPDATE TO(this%val) IF(allocated(this%val))
 
-    !$ACC UPDATE DEVICE(this%val) IF(allocated(this%val)) ASYNC(1)
+      !$ACC UPDATE DEVICE(this%val) IF(allocated(this%val)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_pdf_sampler:update_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine update_device
 
@@ -368,12 +384,17 @@ contains
   ! deletes fields on device
   subroutine delete_device(this)
 
-    type(pdf_sampler_type), intent(inout) :: this
+    class(pdf_sampler_type), intent(inout) :: this
 
 #if defined(_OPENACC) || defined(OMPGPU)
-    !$OMP TARGET EXIT DATA MAP(DELETE:this%val) IF(allocated(this%val))
+    select type (this)
+    type is (pdf_sampler_type)
+      !$OMP TARGET EXIT DATA MAP(DELETE:this%val) IF(allocated(this%val))
 
-    !$ACC EXIT DATA DELETE(this%val) IF(allocated(this%val)) ASYNC(1)
+      !$ACC EXIT DATA DELETE(this%val) IF(allocated(this%val)) ASYNC(1)
+    class default
+      call radiation_abort('*** Error: radiation_pdf_sampler:delete_device: unexpected dynamic type')
+    end select
 #endif
   end subroutine delete_device
 

@@ -206,7 +206,7 @@ contains
     type(gas_type),    intent(inout) :: gas
     logical, optional, intent(in)    :: lacc
 
-    call gas%set_units(gas, IMassMixingRatio, lacc=lacc)
+    call gas%set_units(IMassMixingRatio, lacc=lacc)
 
   end subroutine set_gas_units
 
