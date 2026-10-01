@@ -55,6 +55,16 @@ jobs:
             caching: true
             # caching: false
 
+          # -fast otherwise selects the build runner's CPU, which may differ
+          # from the CPU used to run the tests on GitHub-hosted runners.
+          - name: linux nvhpc-25.9
+            build_type: Bit
+            cmake_options: -DECBUILD_Fortran_FLAGS_BIT=-tp=haswell
+
+          - name: linux nvhpc-25.9
+            build_type: Release
+            cmake_options: -DECBUILD_Fortran_FLAGS_RELEASE=-tp=haswell
+
           - name : linux intel-classic
             os: ubuntu-22.04
             compiler: intel-classic
