@@ -8,8 +8,8 @@
 # nor does it submit to any jurisdiction.
 
 set( TEST_IFS_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian.nc" )
-set( TEST_IFS_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1.nam" )
-set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1_ecckd.nam" )
+set( TEST_IFS_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY50R1.nam" )
+set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY50R1_ecckd.nam" )
 
 if( "${PREC}" STREQUAL "sp" )
     set( TEST_IFS_REFERENCE_LW_THRESHOLD 0.5 )
@@ -208,7 +208,7 @@ function( add_ecrad_ifs_test )
 endfunction( add_ecrad_ifs_test )
 
 ##############################################################################
-# Tests of CY49R1 configuration with RRTMG gas optics model and
+# Tests of CY50R1 configuration with RRTMG gas optics model and
 # various solvers, using ${TEST_IFS_CONFIG} config file
 
 # IFS default: McICA solver with exponential-exponential overlap
