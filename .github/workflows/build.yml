@@ -221,6 +221,31 @@ jobs:
         ctest -VV  --output-on-failure ${{ matrix.ctest_options }}
       working-directory: build
 
+    - name: Diagnose NVHPC illegal instruction
+      if: failure() && matrix.compiler == 'nvhpc' && matrix.build_type == 'Bit'
+      working-directory: build/test/ifs.dp
+      env:
+        OMP_NUM_THREADS: '1'
+      run: |
+        command -v gdb >/dev/null || { sudo apt-get update && sudo apt-get install -y gdb; }
+        lscpu
+        if command -v nvcpuid >/dev/null; then nvcpuid; fi
+        ldd "$GITHUB_WORKSPACE/build/bin/ecrad_dp"
+        ulimit -s unlimited
+
+        gdb -q -batch \
+          -ex 'set pagination off' \
+          -ex 'set disable-randomization off' \
+          -ex 'run' \
+          -ex 'bt' \
+          -ex 'info symbol $pc' \
+          -ex 'x/8i $pc' \
+          -ex 'info sharedlibrary' \
+          --args "$GITHUB_WORKSPACE/build/bin/ecrad_dp" \
+          "$PWD/config_default.nam" \
+          "$GITHUB_WORKSPACE/test/ifs/ecrad_meridian.nc" \
+          output_ecrad_dp_default_diagnostic.nc
+
   make:
     name: Makefile build
 
