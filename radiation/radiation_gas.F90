@@ -248,7 +248,9 @@ contains
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
-
+#if defined(OMPGPU)
+    !$OMP TARGET UPDATE TO(this%scale_factor(igas:igas)) IF(llacc)
+#endif
     !$ACC UPDATE DEVICE(this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
 
   end subroutine put_gas_check
@@ -587,7 +589,7 @@ contains
           this%iunits(igas) = iunits
           this%scale_factor(igas) = new_sf
 #if defined(OMPGPU)
-          !$OMP TARGET UPDATE TO(this%iunits(igas:igas), this%is_well_mixed(igas:igas)) IF(llacc)
+          !$OMP TARGET UPDATE TO(this%iunits(igas:igas), this%scale_factor(igas:igas)) IF(llacc)
 #endif
           !$ACC UPDATE DEVICE(this%iunits(igas:igas),this%scale_factor(igas:igas)) ASYNC(1) IF(llacc)
         endif
