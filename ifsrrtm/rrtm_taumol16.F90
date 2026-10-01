@@ -33,7 +33,7 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAU(JPGPT,KIDIA:KFDIA,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_TAUAERL(KIDIA:KFDIA,KLEV,JPBAND) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC00(KIDIA:KFDIA,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FAC01(KIDIA:KFDIA,KLEV) 
@@ -49,7 +49,7 @@ INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFAC(KIDIA:KFDIA,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_SELFFRAC(KIDIA:KFDIA,KLEV) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDSELF(KIDIA:KFDIA,KLEV) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(KIDIA:KFDIA,JPGPT,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: PFRAC(JPGPT,KIDIA:KFDIA,KLEV) 
 
 REAL(KIND=JPRB)   ,INTENT(IN)   :: P_RAT_H2OCH4(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)   :: P_RAT_H2OCH4_1(KIDIA:KFDIA,KLEV)
@@ -181,64 +181,64 @@ IF (Z_SPECPARM < 0.125_JPRB) THEN
 
       DO IG = 1, NG16
 !- - DS_990714
-        ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(INDS,IG) + P_SELFFRAC(JLON,JLAY) * &
-          &       (SELFREF(INDS+1,IG) - SELFREF(INDS,IG)))
-        ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(INDF,IG) + P_FORFRAC(JLON,JLAY) * &
-          &       (FORREF(INDF+1,IG) - FORREF(INDF,IG))) 
+        ZTAUSELF = P_SELFFAC(JLON,JLAY)* (SELFREF(IG,INDS) + P_SELFFRAC(JLON,JLAY) * &
+          &       (SELFREF(IG,INDS+1) - SELFREF(IG,INDS)))
+        ZTAUFOR = P_FORFAC(JLON,JLAY) * (FORREF(IG,INDF) + P_FORFRAC(JLON,JLAY) * &
+          &       (FORREF(IG,INDF+1) - FORREF(IG,INDF))) 
 
      IF (Z_SPECPARM < 0.125_JPRB) THEN
                ZTAU_MAJOR = Z_SPECCOMB * &
-                 &   (Z_FAC000 * ABSA(IND0,IG) + &
-                 &   Z_FAC100 * ABSA(IND0+1,IG) + &
-                 &   Z_FAC200 * ABSA(IND0+2,IG) + &
-                 &   Z_FAC010 * ABSA(IND0+9,IG) + &
-                 &   Z_FAC110 * ABSA(IND0+10,IG) + &
-                 &   Z_FAC210 * ABSA(IND0+11,IG))
+                 &   (Z_FAC000 * ABSA(IG,IND0) + &
+                 &   Z_FAC100 * ABSA(IG,IND0+1) + &
+                 &   Z_FAC200 * ABSA(IG,IND0+2) + &
+                 &   Z_FAC010 * ABSA(IG,IND0+9) + &
+                 &   Z_FAC110 * ABSA(IG,IND0+10) + &
+                 &   Z_FAC210 * ABSA(IG,IND0+11))
             ELSEIF (Z_SPECPARM > 0.875_JPRB) THEN
                ZTAU_MAJOR = Z_SPECCOMB * &
-                 &   (Z_FAC200 * ABSA(IND0-1,IG) + &
-                 &   Z_FAC100 * ABSA(IND0,IG) + &
-                 &   Z_FAC000 * ABSA(IND0+1,IG) + &
-                 &   Z_FAC210 * ABSA(IND0+8,IG) + &
-                 &   Z_FAC110 * ABSA(IND0+9,IG) + &
-                 &   Z_FAC010 * ABSA(IND0+10,IG))
+                 &   (Z_FAC200 * ABSA(IG,IND0-1) + &
+                 &   Z_FAC100 * ABSA(IG,IND0) + &
+                 &   Z_FAC000 * ABSA(IG,IND0+1) + &
+                 &   Z_FAC210 * ABSA(IG,IND0+8) + &
+                 &   Z_FAC110 * ABSA(IG,IND0+9) + &
+                 &   Z_FAC010 * ABSA(IG,IND0+10))
             ELSE
                ZTAU_MAJOR = Z_SPECCOMB * &
-                 &   (Z_FAC000 * ABSA(IND0,IG) + &
-                 &   Z_FAC100 * ABSA(IND0+1,IG) + &
-                 &   Z_FAC010 * ABSA(IND0+9,IG) + &
-                 &   Z_FAC110 * ABSA(IND0+10,IG))
+                 &   (Z_FAC000 * ABSA(IG,IND0) + &
+                 &   Z_FAC100 * ABSA(IG,IND0+1) + &
+                 &   Z_FAC010 * ABSA(IG,IND0+9) + &
+                 &   Z_FAC110 * ABSA(IG,IND0+10))
             ENDIF
 
             IF (Z_SPECPARM1 < 0.125_JPRB) THEN
                ZTAU_MAJOR1 = Z_SPECCOMB1 * &
-                &    (Z_FAC001 * ABSA(IND1,IG) + &
-                &    Z_FAC101 * ABSA(IND1+1,IG) + &
-                &    Z_FAC201 * ABSA(IND1+2,IG) + &
-                &    Z_FAC011 * ABSA(IND1+9,IG) + &
-                &    Z_FAC111 * ABSA(IND1+10,IG) + &
-                &    Z_FAC211 * ABSA(IND1+11,IG))
+                &    (Z_FAC001 * ABSA(IG,IND1) + &
+                &    Z_FAC101 * ABSA(IG,IND1+1) + &
+                &    Z_FAC201 * ABSA(IG,IND1+2) + &
+                &    Z_FAC011 * ABSA(IG,IND1+9) + &
+                &    Z_FAC111 * ABSA(IG,IND1+10) + &
+                &    Z_FAC211 * ABSA(IG,IND1+11))
             ELSEIF (Z_SPECPARM1 > 0.875_JPRB) THEN
                ZTAU_MAJOR1 = Z_SPECCOMB1 * &
-                &    (Z_FAC201 * ABSA(IND1-1,IG) + &
-                &    Z_FAC101 * ABSA(IND1,IG) + &
-                &    Z_FAC001 * ABSA(IND1+1,IG) + &
-                &    Z_FAC211 * ABSA(IND1+8,IG) + &
-                &    Z_FAC111 * ABSA(IND1+9,IG) + &
-                &    Z_FAC011 * ABSA(IND1+10,IG))
+                &    (Z_FAC201 * ABSA(IG,IND1-1) + &
+                &    Z_FAC101 * ABSA(IG,IND1) + &
+                &    Z_FAC001 * ABSA(IG,IND1+1) + &
+                &    Z_FAC211 * ABSA(IG,IND1+8) + &
+                &    Z_FAC111 * ABSA(IG,IND1+9) + &
+                &    Z_FAC011 * ABSA(IG,IND1+10))
             ELSE
                ZTAU_MAJOR1 = Z_SPECCOMB1 * &
-                &    (Z_FAC001 * ABSA(IND1,IG) +  &
-                &    Z_FAC101 * ABSA(IND1+1,IG) + &
-                &    Z_FAC011 * ABSA(IND1+9,IG) + &
-                &    Z_FAC111 * ABSA(IND1+10,IG))
+                &    (Z_FAC001 * ABSA(IG,IND1) +  &
+                &    Z_FAC101 * ABSA(IG,IND1+1) + &
+                &    Z_FAC011 * ABSA(IG,IND1+9) + &
+                &    Z_FAC111 * ABSA(IG,IND1+10))
             ENDIF
 
 
-        P_TAU(JLON,NGS15+IG,JLAY) = ZTAU_MAJOR + ZTAU_MAJOR1 &
+        P_TAU(NGS15+IG,JLON,JLAY) = ZTAU_MAJOR + ZTAU_MAJOR1 &
                 & + ZTAUSELF + ZTAUFOR &
                 & + P_TAUAERL(JLON,JLAY,16)  
-        PFRAC(JLON,NGS15+IG,JLAY) = FRACREFA(IG,JPL) + Z_FPL * &
+        PFRAC(NGS15+IG,JLON,JLAY) = FRACREFA(IG,JPL) + Z_FPL * &
          & (FRACREFA(IG,JPL+1) - FRACREFA(IG,JPL))
 
         ENDDO
@@ -251,13 +251,13 @@ IF (Z_SPECPARM < 0.125_JPRB) THEN
       IND1 = ((K_JP(JLON,JLAY)-12)*5+(K_JT1(JLON,JLAY)-1))*NSPB(16) + 1
       DO IG = 1, NG16
 
-        P_TAU(JLON,NGS15+IG,JLAY) =  P_COLCH4(JLON,JLAY) * &
-               &  (P_FAC00(JLON,JLAY) * ABSB(IND0,IG) + &
-               &  P_FAC10(JLON,JLAY) * ABSB(IND0+1,IG) + &
-               &  P_FAC01(JLON,JLAY) * ABSB(IND1,IG) + &
-               &  P_FAC11(JLON,JLAY) * ABSB(IND1+1,IG)) + &
+        P_TAU(NGS15+IG,JLON,JLAY) =  P_COLCH4(JLON,JLAY) * &
+               &  (P_FAC00(JLON,JLAY) * ABSB(IG,IND0) + &
+               &  P_FAC10(JLON,JLAY) * ABSB(IG,IND0+1) + &
+               &  P_FAC01(JLON,JLAY) * ABSB(IG,IND1) + &
+               &  P_FAC11(JLON,JLAY) * ABSB(IG,IND1+1)) + &
                &  P_TAUAERL(JLON,JLAY,16)
-        PFRAC(JLON,NGS15+IG,JLAY) = FRACREFB(IG)
+        PFRAC(NGS15+IG,JLON,JLAY) = FRACREFB(IG)
 
       ENDDO
     ENDIF

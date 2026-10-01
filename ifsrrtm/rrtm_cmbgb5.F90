@@ -36,10 +36,10 @@ DO JN = 1,9
         DO IPR = 1, NGN(NGS(4)+IGC)
           IPRSM = IPRSM + 1
 
-          Z_SUMK = Z_SUMK + KAO(JN,JT,JP,IPRSM)*RWGT(IPRSM+64)
+          Z_SUMK = Z_SUMK + KAO(IPRSM,JN,JT,JP)*RWGT(IPRSM+64)
         ENDDO
 
-        KA(JN,JT,JP,IGC) = Z_SUMK
+        KA(IGC,JN,JT,JP) = Z_SUMK
       ENDDO
     ENDDO
   ENDDO
@@ -53,10 +53,10 @@ DO JN = 1,5
         DO IPR = 1, NGN(NGS(4)+IGC)
           IPRSM = IPRSM + 1
 
-          Z_SUMK = Z_SUMK + KBO(JN,JT,JP,IPRSM)*RWGT(IPRSM+64)
+          Z_SUMK = Z_SUMK + KBO(IPRSM,JN,JT,JP)*RWGT(IPRSM+64)
         ENDDO
 
-        KB(JN,JT,JP,IGC) = Z_SUMK
+        KB(IGC,JN,JT,JP) = Z_SUMK
       ENDDO
     ENDDO
   ENDDO
@@ -69,9 +69,9 @@ ENDDO
           Z_SUMK = 0.0_JPRB
           DO IPR = 1, NGN(NGS(4)+IGC)
                IPRSM = IPRSM + 1
-               Z_SUMK = Z_SUMK + KAO_MO3(JN,JT,IPRSM)*RWGT(IPRSM+64)
+               Z_SUMK = Z_SUMK + KAO_MO3(IPRSM,JN,JT)*RWGT(IPRSM+64)
           ENDDO
-          KA_MO3(JN,JT,IGC) = Z_SUMK
+          KA_MO3(IGC,JN,JT) = Z_SUMK
        ENDDO
     ENDDO
 ENDDO
@@ -85,10 +85,10 @@ DO JT = 1,10
     DO IPR = 1, NGN(NGS(4)+IGC)
       IPRSM = IPRSM + 1
 
-      Z_SUMK = Z_SUMK + SELFREFO(JT,IPRSM)*RWGT(IPRSM+64)
+      Z_SUMK = Z_SUMK + SELFREFO(IPRSM,JT)*RWGT(IPRSM+64)
     ENDDO
 
-    SELFREF(JT,IGC) = Z_SUMK
+    SELFREF(IGC,JT) = Z_SUMK
   ENDDO
 ENDDO
 
@@ -98,9 +98,9 @@ DO JT = 1,4
       Z_SUMK = 0.0_JPRB
       DO IPR = 1, NGN(NGS(4)+IGC)
          IPRSM = IPRSM + 1
-         Z_SUMK = Z_SUMK + FORREFO(JT,IPRSM)*RWGT(IPRSM+64)
+         Z_SUMK = Z_SUMK + FORREFO(IPRSM,JT)*RWGT(IPRSM+64)
       ENDDO
-      FORREF(JT,IGC) = Z_SUMK
+      FORREF(IGC,JT) = Z_SUMK
    ENDDO
 ENDDO
 
