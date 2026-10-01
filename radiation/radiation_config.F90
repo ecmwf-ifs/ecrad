@@ -2217,6 +2217,9 @@ contains
 
     class(config_type), intent(inout) :: this
 
+#if defined(_OPENACC) || defined(OMPGPU)
+    select type (this)
+    type is (config_type)
 #if defined(OMPGPU)
     ! cloud_optics, aerosol_optics and pdf_sampler are non-allocatable
     ! components, so they live inside this struct's own storage and mapping
@@ -2227,12 +2230,13 @@ contains
     ! reference count. It has to come first: doing it after the components
     ! hits the same partial-present error. OpenACC does not need this because
     ! its compute regions use DEFAULT(PRESENT) and never map config at all.
+    !
+    ! Must be inside the select type: outside it "this" is class(config_type),
+    ! so the map takes the 40-byte class descriptor on the stack rather than
+    ! the struct, leaving an unmatched entry that outlives the frame and later
+    ! collides with a stack array at the same address.
     !$OMP TARGET ENTER DATA MAP(TO:this)
 #endif
-
-#if defined(_OPENACC) || defined(OMPGPU)
-    select type (this)
-    type is (config_type)
     !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_sw) IF(allocated(this%g_frac_sw))
     !$OMP TARGET ENTER DATA MAP(TO:this%g_frac_lw) IF(allocated(this%g_frac_lw))
     !$OMP TARGET ENTER DATA MAP(TO:this%i_albedo_from_band_sw) IF(allocated(this%i_albedo_from_band_sw))
@@ -2442,14 +2446,14 @@ contains
     !$OMP TARGET EXIT DATA MAP(DELETE:this%pdf_sampler)
     !$ACC EXIT DATA DELETE(this%pdf_sampler) ASYNC(1)
     call this%pdf_sampler%delete_device()
+#if defined(OMPGPU)
+    ! Matches the whole-struct map in create_device, and must come last.
+    ! Inside the select type for the same reason, so the two pair up.
+    !$OMP TARGET EXIT DATA MAP(DELETE:this)
+#endif
     class default
       call radiation_abort('*** Error: radiation_config:delete_device: unexpected dynamic type')
     end select
-#endif
-
-#if defined(OMPGPU)
-    ! Matches the whole-struct map in create_device, and must come last.
-    !$OMP TARGET EXIT DATA MAP(DELETE:this)
 #endif
   end subroutine delete_device
 
