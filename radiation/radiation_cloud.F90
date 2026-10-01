@@ -270,7 +270,7 @@ contains
 
     !$ACC DATA PRESENT(this, thermodynamics) IF(LLACC)
 #if defined(OMPGPU)
-    !$OMP TARGET UPDATE FROM(thermodynamics%pressure_hl(istartcol,1:2))
+    !$OMP TARGET UPDATE FROM(thermodynamics%pressure_hl(:,1:2)) IF(LLACC)
 #endif
     !$ACC UPDATE HOST(thermodynamics%pressure_hl(i1,1:2)) WAIT(1) IF(LLACC)
     if (thermodynamics%pressure_hl(i1,2) > thermodynamics%pressure_hl(i1,1)) then
@@ -417,7 +417,7 @@ contains
     ! end if
 
 #if defined(OMPGPU)
-    !$OMP TARGET UPDATE FROM(thermodynamics%pressure_hl(istartcol,1:2)) IF(LLACC)
+    !$OMP TARGET UPDATE FROM(thermodynamics%pressure_hl(:,1:2)) IF(LLACC)
 #endif
     !$ACC UPDATE HOST(thermodynamics%pressure_hl(istartcol,1:2)) WAIT(1) IF(LLACC)
     if (thermodynamics%pressure_hl(istartcol,2) > thermodynamics%pressure_hl(istartcol,1)) then
