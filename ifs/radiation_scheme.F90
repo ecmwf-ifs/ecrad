@@ -453,6 +453,13 @@ ENDDO
 !$ACC END PARALLEL
 !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 
+! The loop above fills PRESSURE_HL on the device, but RADIATION tests its top
+! two half-levels on the host to determine vertical ordering. Mirroring all
+! KLEV+1 levels instead costs about 2% of kernel throughput.
+IF (LLACC) THEN
+  THERMODYNAMICS%PRESSURE_HL(KIDIA:KFDIA,1:2) = PPRESSURE_H(KIDIA:KFDIA,1:2)
+ENDIF
+
 ! Alternatively we respect the model's atmospheric temperature in the
 ! lowest model level by setting the temperature at the lowest
 ! half-level such that the mean temperature of the layer is correct:
