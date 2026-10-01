@@ -53,6 +53,7 @@ jobs:
             compiler_cxx: nvc++
             compiler_fc: nvfortran
             caching: true
+            deps_cache_suffix: v2-haswell
             # caching: false
 
           # -fast otherwise selects the build runner's CPU, which may differ
@@ -104,6 +105,15 @@ jobs:
         echo "CXX=${{ matrix.compiler_cxx }}"   >> $GITHUB_ENV
         echo "FC=${{ matrix.compiler_fc }}"     >> $GITHUB_ENV
 
+        # HDF5 and NetCDF are built separately from ecRad. Pin their CPU target
+        # too: a cached NVHPC HDF5 library used AVX-512 on a runner without it.
+        if [[ "${{ matrix.compiler }}" == "nvhpc" ]]; then
+          echo "CFLAGS=-tp=haswell"   >> $GITHUB_ENV
+          echo "CXXFLAGS=-tp=haswell" >> $GITHUB_ENV
+          echo "FFLAGS=-tp=haswell"   >> $GITHUB_ENV
+          echo "FCFLAGS=-tp=haswell"  >> $GITHUB_ENV
+        fi
+
         if [[ "${{ matrix.os }}" =~ macos ]]; then
           brew install ninja
         else
@@ -119,7 +129,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.DEPS_DIR }}
-        key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ env.CACHE_SUFFIX }}
+        key: deps-${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ matrix.deps_cache_suffix || env.CACHE_SUFFIX }}
 
     # Free up disk space for nvhpc
     - name: Free Disk Space (Ubuntu)
