@@ -1,5 +1,24 @@
 ! radiation_mcica_omp_sw.F90 - Monte-Carlo Independent Column Approximation shortwave solver
 !
+! THREAD_LIMIT of the large streaming kernels below; see the equivalent comment
+! in radiation_mcica_omp_lw.F90 for the reasoning and for why ECRAD_AMDGPU_ARCH
+! has to come from the build. Measured on gfx950: the clear-sky kernel is 0.84x
+! at 256, while the cloudy two-stream kernel is 1.18x at 256 and 1.46x at 512,
+! so it stays at 1024.
+#if defined(__amdflang__) && defined(_OPENMP) && defined(ECRAD_AMDGPU_ARCH) && (ECRAD_AMDGPU_ARCH == 950)
+#define ECRAD_TL_TUNED_GFX950 1
+#endif
+#ifndef ECRAD_TL_SW_CLEAR
+#ifdef ECRAD_TL_TUNED_GFX950
+#define ECRAD_TL_SW_CLEAR 256
+#else
+#define ECRAD_TL_SW_CLEAR 1024
+#endif
+#endif
+#ifndef ECRAD_TL_SW_CLOUDY
+#define ECRAD_TL_SW_CLOUDY 1024
+#endif
+!
 ! (C) Copyright 2015- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
@@ -453,7 +472,7 @@ contains
     !$OMP& ssa_total, g_total, jcol, jg, jlev) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) &
     !$OMP& NUM_TEAMS(nteams) THREAD_LIMIT(1024)
 #else
-    !$OMP& ssa_total, g_total, jcol, jg, jlev) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+    !$OMP& ssa_total, g_total, jcol, jg, jlev) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(ECRAD_TL_SW_CLEAR)
 #endif
     do jcol = istartcol,iendcol
        do jg = 1, ng
@@ -526,7 +545,7 @@ contains
     !$OMP& ssa_total, g_total, scat_od, jcol, jg, jlev) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) &
     !$OMP& NUM_TEAMS(nteams) THREAD_LIMIT(1024)
 #else
-    !$OMP& ssa_total, g_total, scat_od, jcol, jg, jlev) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+    !$OMP& ssa_total, g_total, scat_od, jcol, jg, jlev) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(ECRAD_TL_SW_CLOUDY)
 #endif
     do jcol = istartcol,iendcol
        do jg = 1, ng
