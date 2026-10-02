@@ -294,6 +294,12 @@ program ecrad_driver
 
   ! Ensure the units of the gas mixing ratios are what is required
   ! by the gas absorption model
+#ifdef BITIDENTITY_TESTING
+  ! The IFS-style drivers first convert gases to mass mixing ratios for
+  ! their interface. Follow the same conversion path so that ecCKD sees
+  ! identically rounded volume mixing ratios in bit-identity tests.
+  call gas%set_units(IMassMixingRatio)
+#endif
   call set_gas_units(config, gas)
 
   ! Compute saturation with respect to liquid (needed for aerosol
