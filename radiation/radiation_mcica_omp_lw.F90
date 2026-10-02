@@ -1,5 +1,40 @@
 ! radiation_mcica_omp_lw.F90 - Monte-Carlo Independent Column Approximation longtwave solver
 !
+! THREAD_LIMIT of the large streaming kernels below. The non-1024 values are
+! measured on gfx950 and are applied only when amdflang is building an OpenMP
+! offload image for that architecture; every other compiler, and every other AMD
+! GPU, keeps 1024. The offload architecture has no predefined macro, so
+! ECRAD_AMDGPU_ARCH is supplied by the build (see build_amd.sh).
+!
+! A smaller workgroup lets the compiler hold more registers per thread and stop
+! spilling to scratch, which the clear-sky kernels and the flux sums gain from;
+! the cloudy two-stream kernels lose more from the resulting drop in waves per
+! SIMD than they gain, so they stay at 1024. The values are deliberately
+! independent because one shared value regresses the set: a uniform 512 costs 9%
+! and a uniform 256 costs 1% of total GPU time. None of this changes L2 miss
+! rates or off-chip traffic; these kernels are concurrency-limited, not
+! cache-limited.
+#if defined(__amdflang__) && defined(_OPENMP) && defined(ECRAD_AMDGPU_ARCH) && (ECRAD_AMDGPU_ARCH == 950)
+#define ECRAD_TL_TUNED_GFX950 1
+#endif
+#ifndef ECRAD_TL_LW_CLEAR
+#ifdef ECRAD_TL_TUNED_GFX950
+#define ECRAD_TL_LW_CLEAR 512
+#else
+#define ECRAD_TL_LW_CLEAR 1024
+#endif
+#endif
+#ifndef ECRAD_TL_LW_CLOUDY
+#define ECRAD_TL_LW_CLOUDY 1024
+#endif
+#ifndef ECRAD_TL_LW_FLUXSUM
+#ifdef ECRAD_TL_TUNED_GFX950
+#define ECRAD_TL_LW_FLUXSUM 512
+#else
+#define ECRAD_TL_LW_FLUXSUM 1024
+#endif
+#endif
+!
 ! (C) Copyright 2015- ECMWF.
 !
 ! This software is licensed under the terms of the Apache Licence Version 2.0
@@ -472,7 +507,7 @@ contains
     !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) &
     !$OMP& NUM_TEAMS(nteams) THREAD_LIMIT(1024)
 #else
-    !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+    !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(ECRAD_TL_LW_CLEAR)
 #endif
     do jcol = istartcol,iendcol
        do jg = 1, ng
@@ -500,7 +535,7 @@ contains
     !$OMP& jcol, jg, jlev, i_cloud_top) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) &
     !$OMP& NUM_TEAMS(nteams) THREAD_LIMIT(1024)
 #else
-    !$OMP& jcol, jg, jlev, i_cloud_top) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+    !$OMP& jcol, jg, jlev, i_cloud_top) FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(ECRAD_TL_LW_CLOUDY)
 #endif
     do jcol = istartcol,iendcol
        do jg = 1, ng
@@ -654,7 +689,7 @@ contains
       !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) &
       !$OMP& NUM_TEAMS(nteams) THREAD_LIMIT(1024)
 #else
-      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(ECRAD_TL_LW_FLUXSUM)
 #endif
       do jcol = istartcol,iendcol
         do jg = 1, ng
@@ -719,7 +754,7 @@ contains
       !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) &
       !$OMP& NUM_TEAMS(nteams) THREAD_LIMIT(1024)
 #else
-      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(1024)
+      !$OMP& FIRSTPRIVATE(istartcol, iendcol, ng, nlev) THREAD_LIMIT(ECRAD_TL_LW_FLUXSUM)
 #endif
       do jcol = istartcol,iendcol
         do jg = 1, ng
