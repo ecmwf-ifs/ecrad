@@ -1,4 +1,39 @@
-version 1.6.1
+Unreleased
+	- Renamed the default Git branch from "master" to "main". Update an
+	  existing clone by running:
+	    git branch -m master main
+	    git fetch origin
+	    git branch -u origin/main main
+	    git remote set-head origin -a
+	  See https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/changing-the-default-branch
+	  for further information.
+
+version 1.7.2 (19 May 2026)
+	- radiation_general_cloud_optics_data: fix non-automatic allocation on
+	  assignment
+	- ecrad_ifs/ecrad_ifs_blocked: fix use of unallocated arrays
+	- Add public specifiers in new radiation_liquid_optics_jahangir/nielsen
+	- Combined yomlun.F90 and yomlun_ifsaux.F90 into yomlun_ecrad.F90
+	- Renamed YOMCST to YOMCST_ECRAD
+	- Improved output validation tests for single-precision and additional
+	  reference output files
+	- Refactored compiler flag composition in CMake
+
+version 1.7.1 (19 August 2025)
+	- radiation_ifs_rrtm: refactored loop and if structure
+	- radiation_ecckd: refactored the provisioning of optional concentration
+	  scaling to reduce the number of present checks
+	- radiation_gas: put_gas now has both double and single precision
+	  interfaces under a generic interface to allow for mixed precision use
+	- Removed allocation of inv_cloud_effective_size from radiation_cloud's
+	  allocate routine
+	- New radiation_cloud_cover: compute_cloud_cover subroutine added as an
+	  alternative cloud_cover API that allows vectorized invocations of
+	  the overlap computations
+	- Shortwave diagnostics can return spectral solar irradiance to
+	  facilitate computing spectral reflectances
+
+version 1.7.0 (9 May 2025)
 	- radiation_cloud:set_overlap_param now has alternative form in
 	  which input decorrelation_length may vary with column, useful for
 	  models with a latitudinal or other dependence
@@ -12,8 +47,6 @@ version 1.6.1
 	- Added radiation_driver:do_save_cloud_optics namelist entry which
 	  saves look-up table averaged to the bands of the radiation scheme
 	  (general cloud optics only)
-	- Increased security value in single-precision SW
-	  reflectance-transmittance calculation from 1e-12 to 1e-6
 	- Added radiation/ecrad_config.h file to provide site-specific
 	  optimization options as preprocessor parameters
 	- Replaced slow "sum" intrinsic function in McICA and Tripleclouds
@@ -35,6 +68,22 @@ version 1.6.1
 	  for heating rates 0.002 K/d in the SW and 0.003 in the LW.
 	- Provide get_uv_biological_weights to enable calculation of UV
 	  index from shortwave g-points (ecCKD only)
+	- Added liquid optics Jahangir (2021) and Nielsen (2020)
+
+ version 1.6.1 (9 May 2025)
+	- Renamed ifsaux/yommp0.F90 to ifsaux/yommp0_ifsaux.F90 and initialize
+	  from fiat/MPL or the dummy mpl_module in ifsaux
+	- Wrapped module variables in yoerdi.F90 and yoesw.F90 in derived types
+	- Increased security value in single-precision SW
+	  reflectance-transmittance calculation from 1e-12 to 1e-6
+	- Use abor1 and parkind1 from fiat, if available
+	- Moved easy_netcdf_read_mpi.F90 to utilities and updated with changes
+	  from IFS
+	- Renamed random_numbers_mix.F90 to radiation_random_numbers_mix.F90
+	- Fix no-aerosol and cloudless configurations in IFS-style drivers
+	- Add CMake build scripts and CTest definitions that allow to compile
+	  ecrad into a libecrad.dp/libecrad.sp that can directly be used to
+	  integrate ecrad into a model.
 
 version 1.6.0 (27 April 2023)
 	- Removed compiler flag specifying to load unformated Fortran

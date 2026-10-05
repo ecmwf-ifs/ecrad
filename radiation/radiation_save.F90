@@ -837,7 +837,7 @@ contains
          &  dim2_name="column", dim1_name="half_level", &
          &  units_str="Pa", long_name="Pressure on half-levels")
 
-    if (allocated(thermodynamics%h2o_sat_liq) .and. config%use_aerosols) then
+    if (associated(thermodynamics%h2o_sat_liq) .and. config%use_aerosols) then
       call out_file%define_variable("q_sat_liquid", &
            &  dim2_name="column", dim1_name="level", &
            &  units_str="kg kg-1", long_name="Specific humidity at liquid saturation")
@@ -932,17 +932,17 @@ contains
     end if
    
     if (config%do_clouds) then
-      if (allocated(cloud%fractional_std)) then
+      if (associated(cloud%fractional_std)) then
         call out_file%define_variable("fractional_std", &
              &  dim2_name="column", dim1_name="level", units_str="1", &
              &  long_name="Fractional standard deviation of cloud optical depth")
       end if
-      if (allocated(cloud%inv_cloud_effective_size)) then
+      if (associated(cloud%inv_cloud_effective_size)) then
         call out_file%define_variable("inv_cloud_effective_size", &
              &  dim2_name="column", dim1_name="level", units_str="m-1", &
              &  long_name="Inverse of cloud effective horizontal size")
       end if
-      if (allocated(cloud%inv_inhom_effective_size)) then
+      if (associated(cloud%inv_inhom_effective_size)) then
         call out_file%define_variable("inv_inhom_effective_size", &
              &  dim2_name="column", dim1_name="level", units_str="m-1", &
              &  long_name="Inverse of cloud inhomogeneity effective horizontal size")
@@ -952,7 +952,7 @@ contains
     ! Write variables
     call out_file%put("pressure_hl", thermodynamics%pressure_hl(istartcol:iendcol,:))
 
-    if (allocated(thermodynamics%h2o_sat_liq) .and. config%use_aerosols) then
+    if (associated(thermodynamics%h2o_sat_liq) .and. config%use_aerosols) then
       call out_file%put("q_sat_liquid", thermodynamics%h2o_sat_liq(istartcol:iendcol,:))
     end if
 
@@ -1002,13 +1002,13 @@ contains
     end if
     
     if (config%do_clouds) then
-      if (allocated(cloud%fractional_std)) then
+      if (associated(cloud%fractional_std)) then
         call out_file%put("fractional_std", cloud%fractional_std(istartcol:iendcol,:))
       end if
-      if (allocated(cloud%inv_cloud_effective_size)) then
+      if (associated(cloud%inv_cloud_effective_size)) then
         call out_file%put("inv_cloud_effective_size", cloud%inv_cloud_effective_size(istartcol:iendcol,:))
       end if
-      if (allocated(cloud%inv_inhom_effective_size)) then
+      if (associated(cloud%inv_inhom_effective_size)) then
         call out_file%put("inv_inhom_effective_size", cloud%inv_inhom_effective_size(istartcol:iendcol,:))
       end if
     end if
@@ -1091,7 +1091,7 @@ contains
     call out_file%define_dimension("column",     ncol)
     call out_file%define_dimension("level",      nlev)
     call out_file%define_dimension("half_level", nlev+1)
-    if (allocated(cloud%overlap_param)) then
+    if (associated(cloud%overlap_param)) then
       call out_file%define_dimension("level_interface", nlev-1)
     end if
     call out_file%define_dimension("sw_albedo_band", &
@@ -1129,7 +1129,7 @@ contains
            &   long_name="Cosine of the solar zenith angle")
     end if
 
-    if (allocated(single_level%sw_albedo_direct)) then
+    if (associated(single_level%sw_albedo_direct)) then
       call out_file%define_variable("sw_albedo", &
            &   dim2_name="column", dim1_name="sw_albedo_band", &
            &   units_str="1", long_name="Shortwave surface albedo to diffuse radiation")
@@ -1146,7 +1146,7 @@ contains
          &   dim2_name="column", dim1_name="lw_emissivity_band", &
          &   units_str="1", long_name="Longwave surface emissivity")
 
-    if (allocated(single_level%iseed)) then
+    if (associated(single_level%iseed)) then
       call out_file%define_variable("iseed", &
            &   dim1_name="column", units_str="1", is_double=.true., &
            &   long_name="Seed for random-number generator")
@@ -1196,22 +1196,22 @@ contains
              &   dim2_name="column", dim1_name="level", &
              &   units_str="m", long_name="Ice effective radius")
       end if
-      if (allocated(cloud%overlap_param)) then
+      if (associated(cloud%overlap_param)) then
         call out_file%define_variable("overlap_param", &
              &  dim2_name="column", dim1_name="level_interface", &
              &  units_str="1", long_name="Cloud overlap parameter")
       end if
-      if (allocated(cloud%fractional_std)) then
+      if (associated(cloud%fractional_std)) then
         call out_file%define_variable("fractional_std", &
              &  dim2_name="column", dim1_name="level", units_str="1", &
              &  long_name="Fractional standard deviation of cloud optical depth")
       end if
-      if (allocated(cloud%inv_cloud_effective_size)) then
+      if (associated(cloud%inv_cloud_effective_size)) then
         call out_file%define_variable("inv_cloud_effective_size", &
              &   dim2_name="column", dim1_name="level", units_str="m-1", &
              &   long_name="Inverse of cloud effective horizontal size")
       end if
-      if (allocated(cloud%inv_inhom_effective_size)) then
+      if (associated(cloud%inv_inhom_effective_size)) then
         call out_file%define_variable("inv_inhom_effective_size", &
              &  dim2_name="column", dim1_name="level", units_str="m-1", &
              &  long_name="Inverse of cloud inhomogeneity effective horizontal size")
@@ -1239,11 +1239,11 @@ contains
       call out_file%put("cos_solar_zenith_angle", single_level%cos_sza)
     end if
     call out_file%put("sw_albedo", single_level%sw_albedo)
-    if (allocated(single_level%sw_albedo_direct)) then
+    if (associated(single_level%sw_albedo_direct)) then
       call out_file%put("sw_albedo_direct", single_level%sw_albedo_direct)
     end if
     call out_file%put("lw_emissivity", single_level%lw_emissivity)
-    if (config%do_clouds .and. allocated(single_level%iseed)) then
+    if (config%do_clouds .and. associated(single_level%iseed)) then
       allocate(seed(ncol))
       seed = single_level%iseed
       call out_file%put("iseed", seed)
@@ -1275,16 +1275,16 @@ contains
       if (associated(cloud%re_ice)) then
         call out_file%put("re_ice", cloud%re_ice)
       end if
-      if (allocated(cloud%overlap_param)) then
+      if (associated(cloud%overlap_param)) then
         call out_file%put("overlap_param", cloud%overlap_param)
       end if
-      if (allocated(cloud%fractional_std)) then
+      if (associated(cloud%fractional_std)) then
         call out_file%put("fractional_std", cloud%fractional_std)
       end if
-      if (allocated(cloud%inv_cloud_effective_size)) then
+      if (associated(cloud%inv_cloud_effective_size)) then
         call out_file%put("inv_cloud_effective_size", cloud%inv_cloud_effective_size)
       end if
-      if (allocated(cloud%inv_inhom_effective_size)) then
+      if (associated(cloud%inv_inhom_effective_size)) then
         call out_file%put("inv_inhom_effective_size", cloud%inv_inhom_effective_size)
       end if
     end if
@@ -1404,7 +1404,7 @@ contains
 
     ! The following are only availble if
     ! config%do_save_spectral_flux=true
-    if (allocated(flux%sw_up_band)) then
+    if (associated(flux%sw_up_band)) then
       call out_file%define_variable("flux_up_sw_toa", &
            &  dim2_name="column", dim1_name="wavelength", &
            &  units_str="W m-2", long_name="Top-of-atmosphere upwelling shortwave flux")
@@ -1414,7 +1414,7 @@ contains
       call out_file%define_variable("flux_up_sw_surf", &
            &  dim2_name="column", dim1_name="wavelength", &
            &  units_str="W m-2", long_name="Surface upwelling shortwave flux")
-      if (allocated(flux%sw_up_clear_band)) then
+      if (associated(flux%sw_up_clear_band)) then
         call out_file%define_variable("flux_up_sw_toa_clear", &
              &  dim2_name="column", dim1_name="wavelength", &
              &  units_str="W m-2", long_name="Top-of-atmosphere upwelling clear-sky shortwave flux")
@@ -1451,14 +1451,14 @@ contains
       call out_file%put("flux_dn_direct_sw_surf_clear", flux_out)
     end if
 
-    if (allocated(flux%sw_up_band)) then
+    if (associated(flux%sw_up_band)) then
       flux_out = MY_MATMUL(mapping, flux%sw_up_band(:,:,n_lev_plus1))
       call out_file%put("flux_up_sw_surf", flux_out)
       flux_out = MY_MATMUL(mapping, flux%sw_up_band(:,:,1))
       call out_file%put("flux_up_sw_toa", flux_out)
       flux_out = MY_MATMUL(mapping, flux%sw_dn_band(:,:,1))
       call out_file%put("flux_dn_sw_toa", flux_out)
-      if (allocated(flux%sw_up_clear_band)) then
+      if (associated(flux%sw_up_clear_band)) then
         flux_out = MY_MATMUL(mapping, flux%sw_up_clear_band(:,:,1))
         call out_file%put("flux_up_sw_toa_clear", flux_out)
         flux_out = MY_MATMUL(mapping, flux%sw_up_clear_band(:,:,n_lev_plus1))

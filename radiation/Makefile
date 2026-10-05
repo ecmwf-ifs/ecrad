@@ -16,6 +16,7 @@ SOURCES = radiation_aerosol.F90 radiation_config.F90 \
 	radiation_homogeneous_sw.F90 radiation_homogeneous_lw.F90 \
 	radiation_ice_optics_fu.F90 radiation_ice_optics_baran.F90 \
 	radiation_ice_optics_baran2017.F90 radiation_ice_optics_yi.F90 \
+	radiation_liquid_optics_jahangir.F90 radiation_liquid_optics_nielsen.F90 \
 	radiation_liquid_optics_socrates.F90 radiation_liquid_optics_slingo.F90 \
 	radiation_tripleclouds_sw.F90 radiation_tripleclouds_lw.F90 \
 	radiation_regions.F90 radiation_ecckd.F90 \
@@ -75,7 +76,8 @@ radiation_cloud_optics.o radiation_config.o: \
 	radiation_cloud_optics_data.o
 radiation_cloud_optics.o: radiation_ice_optics_baran.o radiation_ice_optics_fu.o \
 	radiation_liquid_optics_socrates.o radiation_liquid_optics_slingo.o \
-	radiation_ice_optics_baran2017.o radiation_ice_optics_yi.o
+	radiation_ice_optics_baran2017.o radiation_ice_optics_yi.o \
+	radiation_liquid_optics_jahangir.o radiation_liquid_optics_nielsen.o
 radiation_aerosol_optics.o radiation_config.o: \
 	radiation_aerosol_optics_data.o
 radiation_mcica_sw.o radiation_homogeneous_sw.o: radiation_adding_ica_sw.o radiation_cloud_generator.o

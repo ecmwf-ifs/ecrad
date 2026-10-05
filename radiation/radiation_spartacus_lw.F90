@@ -17,7 +17,7 @@
 !   2017-04-22  R. Hogan  Store surface fluxes at all g-points
 !   2018-09-03  R. Hogan  Security via min_cloud_effective_size
 !   2018-10-08  R. Hogan  Call calc_region_properties
-!   2019-01-12  R. Hogan  Use inv_inhom_effective_size if allocated
+!   2019-01-12  R. Hogan  Use inv_inhom_effective_size if associated
 
 module radiation_spartacus_lw
 
@@ -421,7 +421,7 @@ contains
           ! region and the sky is overcast then 3D calculations must
           ! be turned off as there will be only one region
           if (config%do_3d_effects .and. &
-               &  allocated(cloud%inv_cloud_effective_size) .and. &
+               &  associated(cloud%inv_cloud_effective_size) .and. &
                &  .not. (nreg == 2 .and. cloud%fraction(jcol,jlev) &
                &  > 1.0_jprb-config%cloud_fraction_threshold)) then
             if (cloud%inv_cloud_effective_size(jcol,jlev) &
@@ -464,7 +464,7 @@ contains
                 ! the user may specify the effective size of
                 ! inhomogeneities separately from the cloud effective
                 ! size.
-                if (allocated(cloud%inv_inhom_effective_size)) then
+                if (associated(cloud%inv_inhom_effective_size)) then
                   edge_length(2) = four_over_pi &
                        &  * region_fracs(3,jlev,jcol)*(1.0_jprb-region_fracs(3,jlev,jcol)) &
                        &  * min(cloud%inv_inhom_effective_size(jcol,jlev), &
@@ -947,10 +947,12 @@ contains
 
       ! Store the outgoing longwave radiation at top-of-atmosphere
       flux%lw_up(jcol,1) = sum(sum(total_source(:,:,1),1))
+      flux%lw_up_toa_g(:,jcol) = sum(total_source(:,:,1),2)
       if (config%do_clear) then
         flux%lw_up_clear(jcol,1) = sum(total_source_clear(:,1))
+        flux%lw_up_toa_clear_g(:,jcol) = total_source_clear(:,1)
       end if
-
+      
       if (config%do_save_spectral_flux) then
         call indexed_sum(sum(total_source(:,:,1),2), &
              &           config%i_spec_from_reordered_g_lw, &

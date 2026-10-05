@@ -29,7 +29,7 @@ module radiation_io
   ! equivalent to standard error, and text sent to this unit from any
   ! node will be logged. Normally, nulerr should only be used before
   ! calling radiation_abort.
-  use yomlun_ifsaux, only : nulout, nulerr
+  use yomlun_ecrad, only : nulout, nulerr
 
   implicit none
   public
@@ -44,6 +44,17 @@ contains
   ! log details of the error to nulerr before calling this subroutine.
   subroutine radiation_abort(text)
     character(len=*), intent(in), optional :: text
+
+#ifdef HAVE_FIAT
+#include "abor1.intfb.h"
+
+    if (present(text)) then
+      call abor1(text)
+    else
+      call abor1('Error in radiation scheme')
+    end if
+#else
+
     if (present(text)) then
       write(nulerr,'(a)') text
 #ifdef __PGI
@@ -58,6 +69,7 @@ contains
       error stop 'Error in radiation scheme'
 #endif
     end if
+#endif  /* HAVE_FIAT */
   end subroutine radiation_abort
 
 end module radiation_io

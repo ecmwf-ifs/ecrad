@@ -17,7 +17,7 @@
 
 module radiation_gas
 
-  use parkind1, only : jprb
+  use parkind1, only : jprb, jprd, jprm
   use radiation_gas_constants
 
   implicit none
@@ -45,7 +45,7 @@ module radiation_gas
 
     ! Mixing ratios of variable gases, dimensioned (ncol, nlev,
     ! NMaxGases)
-    real(jprb), allocatable, dimension(:,:,:) :: mixing_ratio
+    real(jprb), pointer, dimension(:,:,:) :: mixing_ratio=>null()
 
     ! Flag to indicate whether a gas is present
     logical :: is_present(NMaxGases) = .false.
@@ -65,7 +65,9 @@ module radiation_gas
    contains
      procedure :: allocate   => allocate_gas
      procedure :: deallocate => deallocate_gas
-     procedure :: put        => put_gas
+     procedure :: put_gas_jprd
+     procedure :: put_gas_jprm
+     generic   :: put => put_gas_jprd, put_gas_jprm
      procedure :: put_well_mixed => put_well_mixed_gas
      procedure :: scale      => scale_gas
      procedure :: set_units  => set_units_gas
@@ -118,7 +120,7 @@ contains
 
     if (lhook) call dr_hook('radiation_gas:deallocate',0,hook_handle)
 
-    if (allocated(this%mixing_ratio)) then
+    if (associated(this%mixing_ratio)) then
        deallocate(this%mixing_ratio)
     end if
 
@@ -137,27 +139,21 @@ contains
 
 
   !---------------------------------------------------------------------
-  ! Put gas mixing ratio corresponding to gas ID "igas" with units
+  ! Put gas properties corresponding to gas ID "igas" with units
   ! "iunits"
-  subroutine put_gas(this, igas, iunits, mixing_ratio, scale_factor, &
-       istartcol)
+  subroutine put_gas_check(this, igas, iunits, mixing_ratio_size_1, mixing_ratio_size_2, scale_factor, &
+       istartcol, i1, i2)
 
-    use yomhook,        only : lhook, dr_hook, jphook
     use radiation_io,   only : nulerr, radiation_abort
 
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: igas
     integer,              intent(in)    :: iunits
-    real(jprb),           intent(in)    :: mixing_ratio(:,:)
+    integer,              intent(in)    :: mixing_ratio_size_1
+    integer,              intent(in)    :: mixing_ratio_size_2
     real(jprb), optional, intent(in)    :: scale_factor
     integer,    optional, intent(in)    :: istartcol
-
-    integer :: i1, i2, jc, jk
-
-
-    real(jphook) :: hook_handle
-
-    if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
+    integer,              intent(out)   :: i1, i2
 
     ! Check inputs
     if (igas <= IGasNotPresent .or. iunits > NMaxGases) then
@@ -173,8 +169,8 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. allocated(this%mixing_ratio)) then
-      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unallocated radiation_gas object'
+    if (.not. associated(this%mixing_ratio)) then
+      write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put data to unassociated radiation_gas object'
       call radiation_abort()
     end if
 
@@ -184,7 +180,7 @@ contains
       i1 = 1
     end if
 
-    i2 = i1 + size(mixing_ratio,1) - 1
+    i2 = i1 + mixing_ratio_size_1 - 1
 
     if (i1 < 1 .or. i2 < 1 .or. i1 > this%ncol .or. i2 > this%ncol) then
       write(nulerr,'(a,i0,a,i0,a,i0)') '*** Error: attempt to put columns indexed ', &
@@ -192,7 +188,7 @@ contains
       call radiation_abort()
     end if
 
-    if (size(mixing_ratio,2) /= this%nlev) then
+    if (mixing_ratio_size_2 /= this%nlev) then
       write(nulerr,'(a,i0,a)') &
            &  '*** Error: gas mixing ratio expected to have ', this%nlev, &
            &  ' levels'
@@ -208,21 +204,85 @@ contains
     this%iunits(igas) = iunits
     this%is_well_mixed(igas) = .false.
 
-    do jk = 1,this%nlev
-      do jc = i1,i2
-        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
-      end do
-    end do
     if (present(scale_factor)) then
       this%scale_factor(igas) = scale_factor
     else
       this%scale_factor(igas) = 1.0_jprb
     end if
 
+  end subroutine put_gas_check
+
+
+  !---------------------------------------------------------------------
+  ! Put gas mixing ratio corresponding to gas ID "igas" with units
+  ! "iunits"
+  subroutine put_gas_jprd(this, igas, iunits, mixing_ratio, scale_factor, &
+       istartcol)
+
+    use yomhook,        only : lhook, dr_hook, jphook
+    use radiation_io,   only : nulerr, radiation_abort
+
+    class(gas_type),      intent(inout) :: this
+    integer,              intent(in)    :: igas
+    integer,              intent(in)    :: iunits
+    real(jprd),           intent(in)    :: mixing_ratio(:,:)
+    real(jprb), optional, intent(in)    :: scale_factor
+    integer,    optional, intent(in)    :: istartcol
+
+    integer :: i1, i2, jc, jk
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
+
+    call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
+          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2)
+
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+      end do
+    end do
+
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
 
-  end subroutine put_gas
+  end subroutine put_gas_jprd
+  
 
+  !---------------------------------------------------------------------
+  ! Put gas mixing ratio corresponding to gas ID "igas" with units
+  ! "iunits"
+  subroutine put_gas_jprm(this, igas, iunits, mixing_ratio, scale_factor, &
+       istartcol)
+
+    use yomhook,        only : lhook, dr_hook, jphook
+    use radiation_io,   only : nulerr, radiation_abort
+
+    class(gas_type),      intent(inout) :: this
+    integer,              intent(in)    :: igas
+    integer,              intent(in)    :: iunits
+    real(jprm),           intent(in)    :: mixing_ratio(:,:)
+    real(jprb), optional, intent(in)    :: scale_factor
+    integer,    optional, intent(in)    :: istartcol
+
+    integer :: i1, i2, jc, jk
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_gas:put',0,hook_handle)
+
+    call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
+          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2)
+
+    do jk = 1,this%nlev
+      do jc = i1,i2
+        this%mixing_ratio(jc,jk,igas) = mixing_ratio(jc-i1+1,jk)
+      end do
+    end do
+
+    if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
+
+  end subroutine put_gas_jprm
 
   !---------------------------------------------------------------------
   ! Put well-mixed gas mixing ratio corresponding to gas ID "igas"
@@ -260,8 +320,8 @@ contains
       call radiation_abort()
     end if
 
-    if (.not. allocated(this%mixing_ratio)) then
-      write(nulerr,'(a)') '*** Error: attempt to put well-mixed gas data to unallocated radiation_gas object'
+    if (.not. associated(this%mixing_ratio)) then
+      write(nulerr,'(a)') '*** Error: attempt to put well-mixed gas data to unassociated radiation_gas object'
       call radiation_abort()
     end if
 
@@ -349,13 +409,13 @@ contains
   ! scale_factor=1.0e-6. If the gas concentrations were currently
   ! dimensionless volume mixing ratios, then the values would be
   ! internally divided by 1.0e-6.
-  recursive subroutine set_units_gas(this, iunits, igas, scale_factor)
+  subroutine set_units_gas(this, iunits, igas, scale_factor)
     class(gas_type),      intent(inout) :: this
     integer,              intent(in)    :: iunits
     integer,    optional, intent(in)    :: igas
     real(jprb), optional, intent(in)    :: scale_factor
 
-    integer :: jg
+    integer :: jg, jlev, jcol, ig
 
     ! Scaling factor to convert from old to new
     real(jprb) :: sf
@@ -388,7 +448,12 @@ contains
         sf = sf * this%scale_factor(igas)
 
         if (sf /= 1.0_jprb) then
-          this%mixing_ratio(:,:,igas) = this%mixing_ratio(:,:,igas) * sf
+
+          do jlev=1,this%nlev
+            do jcol=1,this%ncol
+              this%mixing_ratio(jcol,jlev,igas) = this%mixing_ratio(jcol,jlev,igas) * sf
+            end do
+          end do
         end if
         ! Store the new units and scale factor for this gas inside the
         ! gas object
@@ -396,8 +461,34 @@ contains
         this%scale_factor(igas) = new_sf
       end if
     else
+      ! "Inlined" function in loop instead of recursive call to itself
       do jg = 1,this%ntype
-        call this%set_units(iunits, igas=this%icode(jg), scale_factor=new_sf)
+        sf     = 1.0_jprb / new_sf
+
+        ig = this%icode(jg)
+        if (this%is_present(ig)) then
+          if (iunits == IMassMixingRatio &
+               &   .and. this%iunits(ig) == IVolumeMixingRatio) then
+            sf = sf * GasMolarMass(ig) / AirMolarMass
+          else if (iunits == IVolumeMixingRatio &
+               &   .and. this%iunits(ig) == IMassMixingRatio) then
+            sf = sf * AirMolarMass / GasMolarMass(ig)
+          end if
+          sf = sf * this%scale_factor(ig)
+
+          if (sf /= 1.0_jprb) then
+
+            do jlev=1,this%nlev
+              do jcol=1,this%ncol
+                this%mixing_ratio(jcol,jlev,ig) = this%mixing_ratio(jcol,jlev,ig) * sf
+              end do
+            end do
+          end if
+          ! Store the new units and scale factor for this gas inside the
+          ! gas object
+          this%iunits(ig) = iunits
+          this%scale_factor(ig) = new_sf
+        end if
       end do
     end if
 
@@ -581,9 +672,12 @@ contains
     gas_rev%nlev = this%nlev
     gas_rev%icode = this%icode
 
-    if (allocated(gas_rev%mixing_ratio)) deallocate(gas_rev%mixing_ratio)
+    if (associated(gas_rev%mixing_ratio)) then
+      deallocate(gas_rev%mixing_ratio)
+      gas_rev%mixing_ratio=>null()
+    end if
 
-    if (allocated(this%mixing_ratio)) then
+    if (associated(this%mixing_ratio)) then
       allocate(gas_rev%mixing_ratio(istartcol:iendcol,this%nlev,NMaxGases))
       gas_rev%mixing_ratio(istartcol:iendcol,:,:) &
            &  = this%mixing_ratio(istartcol:iendcol,this%nlev:1:-1,:)

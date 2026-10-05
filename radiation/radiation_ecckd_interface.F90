@@ -236,13 +236,17 @@ contains
     !     &  = 0.5_jprb * (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
     !     &               +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1))
  
-    temperature_fl(istartcol:iendcol,:) &
-         &  = (thermodynamics%temperature_hl(istartcol:iendcol,1:nlev) &
-         &     *thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
-         &    +thermodynamics%temperature_hl(istartcol:iendcol,2:nlev+1) &
-         &     *thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1)) &
-         &  / (thermodynamics%pressure_hl(istartcol:iendcol,1:nlev) &
-         &    +thermodynamics%pressure_hl(istartcol:iendcol,2:nlev+1))
+    ! Keep the temperature interpolation independent of the column-block
+    ! width: Intel vectorization otherwise changes single-precision rounding.
+    do jlev = 1,nlev
+!DIR$ NOVECTOR
+      do jcol = istartcol,iendcol
+        temperature_fl(jcol,jlev) &
+             &  = (thermodynamics%temperature_hl(jcol,jlev) * thermodynamics%pressure_hl(jcol,jlev) &
+             &   + thermodynamics%temperature_hl(jcol,jlev+1) * thermodynamics%pressure_hl(jcol,jlev+1)) &
+             &    / (thermodynamics%pressure_hl(jcol,jlev) + thermodynamics%pressure_hl(jcol,jlev+1))
+      end do
+    end do
 
     ! Check that the gas concentrations are stored in volume mixing
     ! ratio with no scaling; if not, return a vector of scalings

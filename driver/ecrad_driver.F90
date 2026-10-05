@@ -31,6 +31,10 @@ program ecrad_driver
   ! Section 1: Declarations
   ! --------------------------------------------------------
   use parkind1,                 only : jprb, jprd ! Working/double precision
+  use yomhook,                  only : dr_hook_init
+#ifdef HAVE_FIAT
+  use mpl_module,               only : mpl_init, mpl_end
+#endif
 
   use radiation_io,             only : nulout
   use radiation_interface,      only : setup_radiation, radiation, set_gas_units
@@ -51,7 +55,7 @@ program ecrad_driver
   use ecrad_driver_read_input,  only : read_input
   use easy_netcdf
   use print_matrix_mod,         only : print_matrix
-  
+
   implicit none
 
   ! Uncomment this if you want to use the "satur" routine below
@@ -86,7 +90,7 @@ program ecrad_driver
 
   ! Mapping matrix for shortwave spectral diagnostics
   real(jprb), allocatable :: sw_diag_mapping(:,:)
-  
+
 #ifndef NO_OPENMP
   ! OpenMP functions
   integer, external :: omp_get_thread_num
@@ -95,18 +99,22 @@ program ecrad_driver
   real(kind=jprd) :: tstart, tstop
 #endif
 
+!#define DEMONSTRATE_SW_DIAGS 1
+#ifdef DEMONSTRATE_SW_DIAGS
   ! For demonstration of get_sw_weights later on
   ! Ultraviolet weightings
-  !integer    :: nweight_uv
-  !integer    :: iband_uv(200)
-  !real(jprb) :: weight_uv(200)
-  !integer    :: jw
+  integer    :: nweight_uv
+  integer    :: iband_uv(256)
+  real(jprb) :: weight_uv(256)
+  real(jprb) :: solar_fraction
+  integer    :: jw
   
   ! Photosynthetically active radiation weightings
-  !integer    :: nweight_par
-  !integer    :: iband_par(100)
-  !real(jprb) :: weight_par(100)
-
+  integer    :: nweight_par
+  integer    :: iband_par(256)
+  real(jprb) :: weight_par(256)
+#endif
+  
   ! Loop index for repeats (for benchmarking)
   integer :: jrepeat
 
@@ -116,6 +124,11 @@ program ecrad_driver
 !  integer    :: iband(20), nweights
 !  real(jprb) :: weight(20)
 
+  ! Initialise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_init
+#endif
+  call dr_hook_init()
 
   ! --------------------------------------------------------
   ! Section 2: Configure
@@ -173,16 +186,17 @@ program ecrad_driver
   ! Setup the radiation scheme: load the coefficients for gas and
   ! cloud optics, currently from RRTMG
   call setup_radiation(config)
-
+#ifdef DEMONSTRATE_SW_DIAGS
   ! Demonstration of how to get weights for UV and PAR fluxes
-  !if (config%do_sw) then
-  !  call config%get_sw_weights(0.2e-6_jprb, 0.4415e-6_jprb,&
-  !       &  nweight_uv, iband_uv, weight_uv,&
-  !       &  'ultraviolet')
-  !  call config%get_sw_weights(0.4e-6_jprb, 0.7e-6_jprb,&
-  !       &  nweight_par, iband_par, weight_par,&
-  !       &  'photosynthetically active radiation, PAR')
-  !end if
+  if (config%do_sw) then
+    call config%get_sw_weights(0.2e-6_jprb, 0.4415e-6_jprb,&
+         &  nweight_uv, iband_uv, weight_uv,&
+         &  'ultraviolet', solar_fraction)
+    call config%get_sw_weights(0.4e-6_jprb, 0.7e-6_jprb,&
+         &  nweight_par, iband_par, weight_par,&
+         &  'photosynthetically active radiation, PAR', solar_fraction)
+  end if
+#endif
   
   !if (config%do_sw .and. config%gas_optics_sw%spectral_def%ng > 0) then
   !  call config%get_uv_biological_weights(nweight_uv, iband_uv, weight_uv)
@@ -206,7 +220,7 @@ program ecrad_driver
     !  call print_matrix(sw_diag_mapping, 'Shortwave diagnostic mapping', nulout)
     !end if
   end if
-  
+
   if (driver_config%do_save_aerosol_optics) then
     call config%aerosol_optics%save('aerosol_optics.nc', iverbose=driver_config%iverbose)
   end if
@@ -264,7 +278,7 @@ program ecrad_driver
          &  ncol, ')'
     stop 1
   end if
-  
+
   ! Store inputs
   if (driver_config%do_save_inputs) then
     call save_inputs('inputs.nc', config, single_level, thermodynamics, &
@@ -280,6 +294,12 @@ program ecrad_driver
 
   ! Ensure the units of the gas mixing ratios are what is required
   ! by the gas absorption model
+#ifdef BITIDENTITY_TESTING
+  ! The IFS-style drivers first convert gases to mass mixing ratios for
+  ! their interface. Follow the same conversion path so that ecCKD sees
+  ! identically rounded volume mixing ratios in bit-identity tests.
+  call gas%set_units(IMassMixingRatio)
+#endif
   call set_gas_units(config, gas)
 
   ! Compute saturation with respect to liquid (needed for aerosol
@@ -306,31 +326,31 @@ program ecrad_driver
        & .or.          cloud%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
        &                                            driver_config%do_correct_unphysical_inputs) &
        & .or.        aerosol%out_of_physical_bounds(driver_config%istartcol, driver_config%iendcol, &
-       &                                            driver_config%do_correct_unphysical_inputs) 
-  
+       &                                            driver_config%do_correct_unphysical_inputs)
+
   ! Allocate memory for the flux profiles, which may include arrays
   ! of dimension n_bands_sw/n_bands_lw, so must be called after
   ! setup_radiation
   call flux%allocate(config, 1, ncol, nlev)
-  
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)')  'Performing radiative transfer calculations'
   end if
-  
+
   ! Option of repeating calculation multiple time for more accurate
   ! profiling
 #ifndef NO_OPENMP
-  tstart = omp_get_wtime() 
+  tstart = omp_get_wtime()
 #endif
   do jrepeat = 1,driver_config%nrepeat
-    
+
     if (driver_config%do_parallel) then
       ! Run radiation scheme over blocks of columns in parallel
-      
+
       ! Compute number of blocks to process
       nblock = (driver_config%iendcol - driver_config%istartcol &
            &  + driver_config%nblocksize) / driver_config%nblocksize
-     
+
       !$OMP PARALLEL DO PRIVATE(istartcol, iendcol) SCHEDULE(RUNTIME)
       do jblock = 1, nblock
         ! Specify the range of columns to process.
@@ -338,7 +358,7 @@ program ecrad_driver
              &    + driver_config%istartcol
         iendcol = min(istartcol + driver_config%nblocksize - 1, &
              &        driver_config%iendcol)
-          
+
         if (driver_config%iverbose >= 3) then
 #ifndef NO_OPENMP
           write(nulout,'(a,i0,a,i0,a,i0)')  'Thread ', omp_get_thread_num(), &
@@ -347,31 +367,32 @@ program ecrad_driver
           write(nulout,'(a,i0,a,i0)')  'Processing columns ', istartcol, '-', iendcol
 #endif
         end if
-        
+
         ! Call the ECRAD radiation scheme
         call radiation(ncol, nlev, istartcol, iendcol, config, &
              &  single_level, thermodynamics, gas, cloud, aerosol, flux)
-        
+
       end do
       !$OMP END PARALLEL DO
-      
+
     else
       ! Run radiation scheme serially
       if (driver_config%iverbose >= 3) then
         write(nulout,'(a,i0,a)')  'Processing ', ncol, ' columns'
       end if
-      
+
       ! Call the ECRAD radiation scheme
       call radiation(ncol, nlev, driver_config%istartcol, driver_config%iendcol, &
            &  config, single_level, thermodynamics, gas, cloud, aerosol, flux)
-      
+
     end if
-    
+
   end do
 
 #ifndef NO_OPENMP
   tstop = omp_get_wtime()
   write(nulout, '(a,g12.5,a)') 'Time elapsed in radiative transfer: ', tstop-tstart, ' seconds'
+  write(nulout, '(a,i0)') 'Columns/s : ', int((ncol*driver_config%nrepeat)/(tstop-tstart))
 #endif
 
   ! --------------------------------------------------------
@@ -403,9 +424,14 @@ program ecrad_driver
          &  experiment_name=driver_config%experiment_name, &
          &  is_double_precision=driver_config%do_write_double_precision)
   end if
-  
+
   if (driver_config%iverbose >= 2) then
     write(nulout,'(a)') '------------------------------------------------------------------------------------'
   end if
+
+  ! Finalise MPI if not done yet
+#ifdef HAVE_FIAT
+  call mpl_end(ldmeminfo=.false.)
+#endif
 
 end program ecrad_driver

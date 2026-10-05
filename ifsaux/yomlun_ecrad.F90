@@ -9,15 +9,18 @@
 
 ! This is taken from yomlun_ifsaux in the IFS
 
-MODULE YOMLUN_IFSAUX
+MODULE YOMLUN_ECRAD
 
+#ifdef HAVE_FIAT
+USE EC_LUN    ,ONLY : NULOUT, NULERR
+#endif
 USE PARKIND1  ,ONLY : JPIM
 
 IMPLICIT NONE
 
-PUBLIC
-
 SAVE
+PRIVATE
+PUBLIC :: NULOUT, NULERR, NULRAD
 
 !     ------------------------------------------------------------------
 
@@ -26,8 +29,12 @@ SAVE
 !     NULOUT :   output unit
 !     NULERR :   unit number for comparison with reference run
 
+#ifndef HAVE_FIAT
 INTEGER(KIND=JPIM) :: NULOUT = 6
 INTEGER(KIND=JPIM) :: NULERR = 0
+#endif
+
+INTEGER(KIND=JPIM) :: NULRAD = 25
 
 !     ------------------------------------------------------------------
-END MODULE YOMLUN_IFSAUX
+END MODULE YOMLUN_ECRAD

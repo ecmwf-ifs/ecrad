@@ -1,0 +1,24 @@
+owner: ecmwf
+
+maintainers:
+  - MichaelSt98
+
+lead_developers:
+  - rjhogan
+
+checks:
+  ensure-assignee: {}
+  validate-target-branch:
+    allowed-branches:
+      - main
+  assign-reviewers:
+    exclude-author: true
+    exclude-existing: true
+  copyright-audit:
+    reviewer: msleigh
+    skip-label: "prtk:skip-copyright"
+    allowed-holders:
+      - ECMWF
+      - European Centre for Medium-Range Weather Forecasts
+      - Meteo-France
+      - Meteo France

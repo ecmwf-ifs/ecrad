@@ -7,13 +7,13 @@
 ! granted to it by virtue of its status as an intergovernmental organisation
 ! nor does it submit to any jurisdiction.
 
-MODULE YOMMP0
+MODULE YOMMP0_IFSAUX
 
 IMPLICIT NONE
 
 PUBLIC
 
-INTEGER, PARAMETER :: NPROC = 1
-INTEGER, PARAMETER :: MYPROC = 1
+INTEGER :: NPROC
+INTEGER :: MYPROC
 
-END MODULE YOMMP0
+END MODULE YOMMP0_IFSAUX

@@ -1,0 +1,108 @@
+name: build-hpc-reusable
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        description: HPC build matrix supplied by a trusted caller workflow.
+        required: true
+        type: string
+
+env:
+  CTEST_PARALLEL_LEVEL: 1
+  CACHE_SUFFIX: v1
+
+jobs:
+  ci-hpc:
+    name: ci-hpc (${{ matrix.name }})
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.matrix) }}
+
+    runs-on: [self-hosted, linux, hpc]
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: ecmwf/reusable-workflows/ci-hpc-generic@v2
+        with:
+          site: ${{ matrix.site }}
+          troika_user: ${{ secrets[matrix.troika_user_secret] }}
+          sbatch_options: ${{ matrix.sbatch_options }}
+          template_data: |
+            cmake_options:
+              - -DENABLE_BITIDENTITY_TESTING=ON
+              - -DENABLE_SINGLE_PRECISION=ON
+              - ${{ matrix.cmake_options }}
+            dependencies:
+              ecmwf/ecbuild:
+                version: develop
+              ecmwf-ifs/fiat:
+                version: develop
+                cmake_options:
+                  - -DENABLE_TESTS=OFF
+                  - -DENABLE_MPI=OFF
+                  - ${{ matrix.cmake_options }}
+          template: |
+            REPO=${{ github.event.pull_request.head.repo.full_name }}
+            SHA=${{ github.event.pull_request.head.sha }}
+
+            cleanup() {
+              {% for name in dependencies.keys() %}
+                rm -r {{name}}
+              {% endfor %}
+
+              rm -r $REPO
+              rm -r build
+            }
+            error_trap() {
+              cleanup
+
+              echo "Finished: FAILURE"
+              exit 1
+            }
+
+            trap error_trap ERR
+
+            {% for module in "${{ matrix.modules }}".split(',') %}
+              module load {{module}}
+            {% endfor %}
+
+            export CMAKE_TEST_LAUNCHER="srun;-n;1"
+            export DR_HOOK_ASSERT_MPI_INITIALIZED=0
+            BASEDIR=$PWD
+            {% for name, options in dependencies.items() %}
+                mkdir -p {{name}}
+                pushd {{name}}
+                git init
+                git remote add origin ${{ github.server_url }}/{{name}}
+                git fetch origin {{options['version']}}
+                git reset --hard FETCH_HEAD
+                cmake -S . -B build \
+                  {% for name in dependencies %}
+                    {% set org, proj = name.split('/') %}
+                    -D{{proj}}_ROOT=$BASEDIR/{{name}}/installation \
+                  {% endfor %}
+                  {{ options['cmake_options']|join(' ') }}
+                cmake --build build
+                cmake --install build --prefix installation
+                popd
+            {% endfor %}
+            mkdir -p $REPO
+            pushd $REPO
+            git init
+            git remote add origin ${{ github.server_url }}/$REPO
+            git fetch origin $SHA
+            git reset --hard FETCH_HEAD
+            popd
+            cmake -S $REPO -B build \
+              {% for name in dependencies %}
+                {% set org, proj = name.split('/') %}
+                -D{{proj}}_ROOT=$BASEDIR/{{name}}/installation \
+              {% endfor %}
+              {{ cmake_options|join(' ') }}
+            cmake --build build
+
+            ctest --test-dir build --output-on-failure
+
+            cleanup
