@@ -8,8 +8,15 @@ ifdef SINGLE_PRECISION
   # DISORT takes single-precision arguments by default	
   LOCALFLAGS = 
 else
-  # gfortran-specific flags to use double precision
-  LOCALFLAGS = -fdefault-real-8 -fdefault-double-8
+	# Build DISORT in double precision to match callers using jprb.
+	# Use compiler-specific flags.
+	ifeq ($(findstring ifort,$(FC)),ifort)
+		LOCALFLAGS = -real-size 64
+	else ifeq ($(findstring ifx,$(FC)),ifx)
+		LOCALFLAGS = -real-size 64
+	else
+		LOCALFLAGS = -fdefault-real-8 -fdefault-double-8
+	endif
 endif
 
 all: $(LIBDISORT)
