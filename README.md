@@ -136,6 +136,10 @@ Fortran compiler.
    `FIATDIR=/path/to/fiat` to the `make` command line, such that the
    files `$FIATDIR/lib/libfiat.so` and
    `$FIATDIR/module/fiat/yomhook.mod` can be found at build time.
+   
+   To compile without OpenMP:
+
+	   make OMPFLAG=-DNO_OPENMP
 
 
 ## Testing
