@@ -340,8 +340,11 @@ contains
     if (present(lacc)) llacc = lacc
 
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
-          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2)
+          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2, lacc=llacc)
 
+#if defined(OMPGPU)
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
+#endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
     do jk = 1,this%nlev
@@ -350,6 +353,9 @@ contains
       end do
     end do
     !$ACC END PARALLEL
+#if defined(OMPGPU)
+    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+#endif
 
     if (lhook) call dr_hook('radiation_gas:put',1,hook_handle)
     class default
