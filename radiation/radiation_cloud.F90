@@ -46,7 +46,15 @@ module radiation_cloud
     ! above, so they are contiguous. Saying so lets them be passed to
     ! explicit-shape dummies without the compiler inserting a host copy, which
     ! on GPU builds would detach them from their device allocation.
+    ! NVHPC 24.5 and 24.11 miscompile the argument passing of these components
+    ! when CONTIGUOUS is present, giving wrong cloudy-sky fluxes in the
+    ! unblocked IFS driver, so that compiler keeps the plain pointer
+    ! declaration.
+#if defined(__NVCOMPILER)
+    real(jprb), pointer, dimension(:,:) :: &
+#else
     real(jprb), pointer, contiguous, dimension(:,:) :: &
+#endif
          &  q_liq,  q_ice,  & ! mass mixing ratio (kg/kg)
          &  re_liq, re_ice    ! effective radius (m)
 
