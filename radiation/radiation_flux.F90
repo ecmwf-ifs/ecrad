@@ -467,6 +467,7 @@ contains
 
 #if defined(OMPGPU)
         call sum_surf_band_omp(istartcol, iendcol, config%n_g_sw, config%n_bands_sw, &
+             &  lbound(this%sw_dn_direct_surf_g,2), ubound(this%sw_dn_direct_surf_g,2), &
              &  config%i_band_from_reordered_g_sw, this%sw_dn_direct_surf_g, &
              &  this%sw_dn_diffuse_surf_g, this%sw_dn_direct_surf_band, &
              &  this%sw_dn_surf_band)
@@ -505,6 +506,7 @@ contains
         else
 #if defined(OMPGPU)
           call sum_surf_band_omp(istartcol, iendcol, config%n_g_sw, config%n_bands_sw, &
+               &  lbound(this%sw_dn_direct_surf_clear_g,2), ubound(this%sw_dn_direct_surf_clear_g,2), &
                &  config%i_band_from_reordered_g_sw, this%sw_dn_direct_surf_clear_g, &
                &  this%sw_dn_diffuse_surf_clear_g, this%sw_dn_direct_surf_clear_band, &
                &  this%sw_dn_surf_clear_band)
@@ -591,7 +593,8 @@ contains
         nalbedoband = size(config%sw_albedo_weights,1)
 #if defined(OMPGPU)
         call canopy_sw_weights_omp(istartcol, iendcol, nalbedoband, config%n_bands_sw, &
-             &  size(this%sw_dn_diffuse_surf_canopy,1), config%sw_albedo_weights, &
+             &  size(this%sw_dn_diffuse_surf_canopy,1), &
+             &  lbound(this%sw_dn_surf_band,2), ubound(this%sw_dn_surf_band,2), config%sw_albedo_weights, &
              &  this%sw_dn_surf_band, this%sw_dn_direct_surf_band, &
              &  this%sw_dn_diffuse_surf_canopy, this%sw_dn_direct_surf_canopy)
 #else
@@ -660,6 +663,7 @@ contains
 #if defined (OMPGPU)
         call canopy_lw_nearest_omp(istartcol, iendcol, config%n_g_lw, &
              &  size(config%i_emiss_from_band_lw), size(this%lw_dn_surf_canopy,1), &
+             &  lbound(this%lw_dn_surf_g,2), ubound(this%lw_dn_surf_g,2), &
              &  config%i_emiss_from_band_lw, config%i_band_from_reordered_g_lw, &
              &  this%lw_dn_surf_g, this%lw_dn_surf_canopy)
 #else
@@ -792,16 +796,17 @@ contains
 
   ! Sum g-point surface fluxes into bands, then add direct to diffuse to
   ! obtain the total
-  subroutine sum_surf_band_omp(istartcol, iendcol, ng, nband, &
+  subroutine sum_surf_band_omp(istartcol, iendcol, ng, nband, col_lo, col_hi, &
        &  i_band_from_reordered_g, dn_direct_g, dn_diffuse_g, &
        &  dn_direct_band, dn_band)
 
-    integer,    intent(in)    :: istartcol, iendcol, ng, nband
+    integer,    intent(in)    :: istartcol, iendcol, ng, nband, col_lo, col_hi
     integer,    intent(in)    :: i_band_from_reordered_g(ng)
-    real(jprb), intent(in)    :: dn_direct_g(ng,istartcol:iendcol)
-    real(jprb), intent(in)    :: dn_diffuse_g(ng,istartcol:iendcol)
-    real(jprb), intent(inout) :: dn_direct_band(nband,istartcol:iendcol)
-    real(jprb), intent(inout) :: dn_band(nband,istartcol:iendcol)
+    ! Whole-array bounds preserve column addresses when processing a subrange.
+    real(jprb), intent(in)    :: dn_direct_g(ng,col_lo:col_hi)
+    real(jprb), intent(in)    :: dn_diffuse_g(ng,col_lo:col_hi)
+    real(jprb), intent(inout) :: dn_direct_band(nband,col_lo:col_hi)
+    real(jprb), intent(inout) :: dn_band(nband,col_lo:col_hi)
 
     integer :: jcol, jband
 
@@ -821,16 +826,16 @@ contains
 
 
   ! Map band fluxes onto the canopy albedo intervals using weights
-  subroutine canopy_sw_weights_omp(istartcol, iendcol, nalbedoband, nband, ncanopy, &
+  subroutine canopy_sw_weights_omp(istartcol, iendcol, nalbedoband, nband, ncanopy, col_lo, col_hi, &
        &  sw_albedo_weights, dn_surf_band, dn_direct_surf_band, &
        &  dn_diffuse_canopy, dn_direct_canopy)
 
-    integer,    intent(in)  :: istartcol, iendcol, nalbedoband, nband, ncanopy
+    integer,    intent(in)  :: istartcol, iendcol, nalbedoband, nband, ncanopy, col_lo, col_hi
     real(jprb), intent(in)  :: sw_albedo_weights(nalbedoband,nband)
-    real(jprb), intent(in)  :: dn_surf_band(nband,istartcol:iendcol)
-    real(jprb), intent(in)  :: dn_direct_surf_band(nband,istartcol:iendcol)
-    real(jprb), intent(out) :: dn_diffuse_canopy(ncanopy,istartcol:iendcol)
-    real(jprb), intent(out) :: dn_direct_canopy(ncanopy,istartcol:iendcol)
+    real(jprb), intent(in)  :: dn_surf_band(nband,col_lo:col_hi)
+    real(jprb), intent(in)  :: dn_direct_surf_band(nband,col_lo:col_hi)
+    real(jprb), intent(out) :: dn_diffuse_canopy(ncanopy,col_lo:col_hi)
+    real(jprb), intent(out) :: dn_direct_canopy(ncanopy,col_lo:col_hi)
 
     integer    :: jcol, jalbedoband, jband
     real(jprb) :: s1, s2
@@ -879,14 +884,14 @@ contains
 
   ! Sum longwave g-point surface fluxes straight onto the canopy
   ! emissivity intervals
-  subroutine canopy_lw_nearest_omp(istartcol, iendcol, ng, nband, ncanopy, &
+  subroutine canopy_lw_nearest_omp(istartcol, iendcol, ng, nband, ncanopy, col_lo, col_hi, &
        &  i_emiss_from_band, i_band_from_reordered_g, lw_dn_surf_g, lw_dn_surf_canopy)
 
-    integer,    intent(in)  :: istartcol, iendcol, ng, nband, ncanopy
+    integer,    intent(in)  :: istartcol, iendcol, ng, nband, ncanopy, col_lo, col_hi
     integer,    intent(in)  :: i_emiss_from_band(nband)
     integer,    intent(in)  :: i_band_from_reordered_g(ng)
-    real(jprb), intent(in)  :: lw_dn_surf_g(ng,istartcol:iendcol)
-    real(jprb), intent(out) :: lw_dn_surf_canopy(ncanopy,istartcol:iendcol)
+    real(jprb), intent(in)  :: lw_dn_surf_g(ng,col_lo:col_hi)
+    real(jprb), intent(out) :: lw_dn_surf_canopy(ncanopy,col_lo:col_hi)
 
     integer :: jcol, jg
     integer :: i_emiss_from_reordered_g(ng)
