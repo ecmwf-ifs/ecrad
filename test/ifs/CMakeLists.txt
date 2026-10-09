@@ -162,6 +162,40 @@ function( add_ecrad_ifs_test )
     endif()
 endfunction( add_ecrad_ifs_test )
 
+# RRTM CPU scratch must remain private across concurrent driver calls.
+if( HAVE_OMP AND NOT HAVE_GPU AND "${PREC}" STREQUAL "dp" AND TARGET nccmp )
+    set( THREAD_CONFIG "${CMAKE_CURRENT_BINARY_DIR}/config_threaded_rrtm.nam" )
+    add_custom_command(
+        OUTPUT ${THREAD_CONFIG}
+        COMMAND change_namelist.sh ${TEST_IFS_CONFIG} ${THREAD_CONFIG}
+            "directory_name=\\\"data\\\"" nblocksize=4 nrepeat=4 do_parallel=true
+            use_aerosols=false do_save_net_fluxes=true do_write_double_precision=true
+            do_save_spectral_flux=false
+        DEPENDS ${TEST_IFS_CONFIG}
+    )
+    add_custom_target( config_threaded_rrtm_${PREC} DEPENDS ${THREAD_CONFIG} )
+    foreach( mode serial parallel )
+        ecbuild_add_test(
+            TARGET ecrad_${PREC}_rrtm_${mode}_blocks
+            COMMAND ecrad_${PREC}
+            ARGS ${THREAD_CONFIG} ${TEST_IFS_INPUT} output_ecrad_${PREC}_rrtm_${mode}_blocks.nc
+            DEPENDS config_threaded_rrtm_${PREC}
+        )
+        if( mode STREQUAL "serial" )
+            set( THREAD_COUNT 1 )
+        else()
+            set( THREAD_COUNT 8 )
+        endif()
+        set_property( TEST ecrad_${PREC}_rrtm_${mode}_blocks PROPERTY ENVIRONMENT
+            "OMP_NUM_THREADS=${THREAD_COUNT};OMP_DYNAMIC=FALSE;OMP_MAX_ACTIVE_LEVELS=1;OMP_SCHEDULE=static" )
+    endforeach()
+    add_ecrad_nccmp_test(
+        REFERENCE_NAME ecrad_${PREC}_rrtm_serial_blocks
+        TEST_NAME ecrad_${PREC}_rrtm_parallel_blocks
+        LW_THRESHOLD 0.0 SW_THRESHOLD 0.0 ENABLED
+    )
+endif()
+
 ##############################################################################
 # Tests of CY49R1 configuration with RRTMG gas optics model and
 # various solvers, using ${TEST_IFS_CONFIG} config file

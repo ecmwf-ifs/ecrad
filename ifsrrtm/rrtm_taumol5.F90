@@ -1,4 +1,7 @@
 !----------------------------------------------------------------------------
+#if !defined(_OPENACC) && !defined(OMPGPU)
+RECURSIVE &
+#endif
 SUBROUTINE RRTM_TAUMOL5 (KIDIA,KFDIA,KLEV,taug,wx,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
  & colh2o,colco2, colo3,laytrop,selffac,selffrac,indself,fracs, &
@@ -26,10 +29,18 @@ USE PARRRTM  , ONLY : JPBAND ,JPXSEC
 USE YOERRTM  , ONLY : JPGPT  ,NG5    ,NGS4
 USE YOERRTWN , ONLY : NSPA   ,NSPB
 USE YOERRTA5 , ONLY : ABSA   ,ABSB   ,CCL4   , FRACREFA, FRACREFB,SELFREF,FORREF, &
- & KA_MO3, TAU_MAJOR, TAU_MAJOR1
+ & KA_MO3
+#if defined(_OPENACC) || defined(OMPGPU)
+USE YOERRTA5, ONLY : TAU_MAJOR, TAU_MAJOR1
+#endif
 USE YOERRTRF, ONLY : CHI_MLS
 
 IMPLICIT NONE
+
+! CPU scratch must be per-call; device scratch is private in the kernels below.
+#if !defined(_OPENACC) && !defined(OMPGPU)
+REAL(KIND=JPRB) :: TAU_MAJOR(NG5), TAU_MAJOR1(NG5)
+#endif
 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA
 INTEGER(KIND=JPIM),INTENT(IN)    :: KFDIA
