@@ -196,7 +196,9 @@ contains
         if (jlev < nlev_range(jcol)) then
           overlap_range(jcol,jlev) = overlap_param(jcol,itop(jcol)+jlev-1)
         else
-          overlap_range(jcol,jlev) = 0.0_jprb
+          ! Any value gives the same cloud cover; 1 avoids a division
+          ! by zero in beta2alpha when is_beta_overlap is true
+          overlap_range(jcol,jlev) = 1.0_jprb
         end if
       enddo
     enddo
