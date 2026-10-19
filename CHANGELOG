@@ -1,3 +1,23 @@
+version 1.7.3-acc (19 October 2026)
+	- GPU branch release; changes below are relative to 1.7.1-acc
+	- radiation_cloud_cover: optional lev_top and lev_base arguments to
+	  compute_cloud_cover allow per-column level ranges, enabling the IFS
+	  caller to compute high, mid and low cloud cover independently of
+	  block size over varying surface pressure (IFS-5308, #121). Results
+	  without these arguments are unchanged
+	- Pad overlap parameters with 1 for shorter level ranges to avoid
+	  division by zero when using beta overlap parameters
+	- radiation_gas:get_gas accepts LACC to switch between CPU and GPU
+	  execution; disable OpenMP threading when running on GPU and remove
+	  acc_attach from input reading in the standalone driver (#65)
+	- Add OpenMP offload build infrastructure (#58) and fix ROCTX profiling
+	  integration in CMake (#61)
+	- Force OpenACC flags in HPC CI and remove a duplicate update directive
+	  in rrtm_cmbgb2 (#68)
+	- Compute laytrop reductions once outside the RRTM taumol routines
+	  (#69) and make the new laytrop_min/max arguments optional for IFS
+	  integration (#75)
+
 version 1.7.1 (19 August 2025)
 	- radiation_ifs_rrtm: refactored loop and if structure
 	- radiation_ecckd: refactored the provisioning of optional concentration
