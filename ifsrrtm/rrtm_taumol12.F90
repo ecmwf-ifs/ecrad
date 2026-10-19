@@ -1,7 +1,7 @@
 !----------------------------------------------------------------------------
 SUBROUTINE RRTM_TAUMOL12 (KIDIA,KFDIA,KLEV,taug,&
  & P_TAUAERL,fac00,fac01,fac10,fac11,forfac,forfrac,indfor,jp,jt,jt1,oneminus,&
- & colh2o,colco2,laytrop,selffac,selffrac,indself,fracs, &  
+ & colh2o,colco2,laytrop,selffac,selffrac,indself,fracs, &
  & rat_h2oco2, rat_h2oco2_1,laytrop_min,laytrop_max)
 
 !     BAND 12:  1800-2080 cm-1 (low - H2O,CO2; high - nothing)
@@ -85,7 +85,7 @@ INTEGER(KIND=JPIM) :: llaytrop_min, llaytrop_max
 
 #define MOD1(x) ((x) - AINT((x)))
 
-#include "rrtm_utils.intfb.h"
+#include "compute_laytrop_min_max.intfb.h"
 
     if (present(laytrop_min) .AND. present(laytrop_max)) then
        llaytrop_min = laytrop_min

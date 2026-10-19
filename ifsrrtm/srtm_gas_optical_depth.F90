@@ -123,7 +123,7 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "srtm_taumol27.intfb.h"
 #include "srtm_taumol28.intfb.h"
 #include "srtm_taumol29.intfb.h"
-#include "rrtm_utils.intfb.h"
+#include "compute_laytrop_min_max.intfb.h"
 
 !     ------------------------------------------------------------------
 

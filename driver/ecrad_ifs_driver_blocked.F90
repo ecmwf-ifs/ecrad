@@ -67,8 +67,9 @@ program ecrad_ifs_driver
   use radiation_constants,      only : Pi
   use ecrad_driver_config,      only : driver_config_type
   use ecrad_driver_read_input,  only : read_input
+  use radintg_zrgp_mod,         only : radintg_zrgp_type
+  use ifs_blocking,             only : ifs_copy_inputs_to_blocked, ifs_copy_fluxes_from_blocked
   use easy_netcdf
-  use ifs_blocking
 #ifdef HAVE_NVTX
   use nvtx
 #endif
@@ -97,14 +98,14 @@ program ecrad_ifs_driver
   type(flux_type)           :: flux
 
   ! Additional arrays passed to radiation_scheme
-  real(jprb), allocatable, dimension(:) :: ccn_land, ccn_sea, sin_latitude, longitude_rad, land_frac
+  real(jprb), allocatable, dimension(:) :: sin_latitude, longitude_rad, land_frac
   real(jprb), allocatable, dimension(:,:) :: pressure_fl, temperature_fl
   real(jprb), allocatable, dimension(:) :: flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
        &  emissivity_out
   real(jprb), allocatable, dimension(:,:) :: flux_diffuse_band, flux_direct_band
 
   ! Bespoke data types to set-up the blocked memory layout
-  type(ifs_config_type)        :: ifs_config
+  type(radintg_zrgp_type)      :: zrgp_fields
   real(kind=jprb), allocatable :: zrgp(:,:,:) ! monolithic IFS data structure
 #ifdef BITIDENTITY_TESTING
   integer, allocatable         :: iseed(:,:) ! Seed for random number generator
@@ -215,6 +216,10 @@ program ecrad_ifs_driver
   !     &   1.064e-06_jprb, 1.24e-06_jprb, 1.64e-06_jprb, 2.13e-06_jprb, 1.0e-05_jprb])
 
   call yradiation%rad_config%read(file_name=file_name)
+
+#ifdef _OPENACC
+  yradiation%yrerad%lecrad_on_gpu = .true.
+#endif
 
   ! Setup aerosols
   if (yradiation%rad_config%use_aerosols) then
@@ -354,8 +359,6 @@ program ecrad_ifs_driver
   flux%lw_derivatives(:,:) = 0._jprb
 
   ! Allocate memory for additional arrays
-  allocate(ccn_land(ncol))
-  allocate(ccn_sea(ncol))
   allocate(land_frac(ncol))
   allocate(pressure_fl(ncol,nlev))
   allocate(temperature_fl(ncol,nlev))
@@ -367,8 +370,6 @@ program ecrad_ifs_driver
   allocate(flux_diffuse_band(ncol,yradiation%yrerad%nsw))
   allocate(flux_direct_band(ncol,yradiation%yrerad%nsw))
 
-  ccn_land = yradiation%yrerad%rccnlnd
-  ccn_sea = yradiation%yrerad%rccnsea
   pressure_fl = 0.5_jprb * (thermodynamics%pressure_hl(:,1:nlev)+thermodynamics%pressure_hl(:,2:nlev+1))
   temperature_fl = 0.5_jprb * (thermodynamics%temperature_hl(:,1:nlev)+thermodynamics%temperature_hl(:,2:nlev+1))
 
@@ -376,9 +377,16 @@ program ecrad_ifs_driver
   ! Section 4a: Reshuffle into blocked memory layout
   ! --------------------------------------------------------
 
-  call ifs_setup_indices(driver_config, ifs_config, yradiation, nlev)
-  call ifs_copy_inputs_to_blocked(driver_config, ifs_config, yradiation,&
-        & ncol, nlev, single_level, thermodynamics, gas, cloud, aerosol,&
+  call zrgp_fields%setup(nlev, &
+      & yradiation%yrerad%nlwemiss, yradiation%yrerad%nlwout, &
+      & yradiation%yrerad%nsw, 0, 0, 0, &
+      & yradiation%rad_config%n_aerosol_types, &
+      & driver_config%iverbose>4, .false., .false., &
+      & yradiation%yrerad%lapproxlwupdate, yradiation%yrerad%lapproxswupdate, &
+      & .false., yradiation%yrerad%ldiagforcing)
+
+  call ifs_copy_inputs_to_blocked(zrgp_fields, yradiation,&
+        & ncol, nlev, nproma, single_level, thermodynamics, gas, cloud, aerosol,&
         & sin_latitude, longitude_rad, land_frac, pressure_fl, temperature_fl,&
         & zrgp &
 #ifdef BITIDENTITY_TESTING
@@ -409,8 +417,8 @@ program ecrad_ifs_driver
     !$acc&     async(2)
 
     next_il = min(nproma,ncol)
-    !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,1), &
-    !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,1)) async(2)
+    !$acc update device(zrgp(:,zrgp_fields%iinbeg:zrgp_fields%iinend,1), &
+    !$acc&              zrgp(:,zrgp_fields%ioutend+1:zrgp_fields%ifldstot,1)) async(2)
 #endif
 
 #ifndef NO_OPENMP
@@ -450,8 +458,8 @@ program ecrad_ifs_driver
           !$acc&     async(2) wait(2)
 
           next_il = min(iend+nproma,ncol) - (ibeg+nproma) + 1
-          !$acc update device(zrgp(:,ifs_config%iinbeg:ifs_config%iinend,ib+1), &
-          !$acc&              zrgp(:,ifs_config%ioutend+1:ifs_config%ifldstot,ib+1)) async(2)
+          !$acc update device(zrgp(:,zrgp_fields%iinbeg:zrgp_fields%iinend,ib+1), &
+          !$acc&              zrgp(:,zrgp_fields%ioutend+1:zrgp_fields%ifldstot,ib+1)) async(2)
         endif
 
 #else  /* COPY_ASYNC */
@@ -462,8 +470,14 @@ program ecrad_ifs_driver
 #endif
         !$acc&
 
-        !$acc update device(zrgp(1:il,ifs_config%iinbeg:ifs_config%iinend,ib), &
-        !$acc&            zrgp(1:il,ifs_config%ioutend+1:ifs_config%ifldstot,ib)) &
+        !$acc update device(zrgp(1:il,zrgp_fields%iinbeg:zrgp_fields%iinend,ib), &
+        !$acc&              zrgp(1:il,zrgp_fields%ioutend+1:zrgp_fields%ifldstot,ib)) &
+        !$acc& async(1)
+
+        ! iaero is an input and output variable but only listed as an output variable in zrgp_fields;
+        !   to work around this, we explicitly offload it here
+        !$acc update device( &
+        !$acc&   zrgp(1:il,zrgp_fields%iaero:zrgp_fields%iaero+yradiation%rad_config%n_aerosol_types*nlev,ib)) &
         !$acc& async(1)
 #endif /* COPY_ASYNC */
 
@@ -474,48 +488,48 @@ program ecrad_ifs_driver
              &  nlev, size(aerosol%mixing_ratio,3), &    ! nlev, naerosols
              &  single_level%solar_irradiance, &                               ! solar_irrad
              ! array inputs
-             &  zrgp(:,ifs_config%iamu0,ib), zrgp(:,ifs_config%its,ib), &    ! mu0, skintemp
-             &  zrgp(:,ifs_config%iald,ib) , zrgp(:,ifs_config%ialp,ib), &    ! albedo_dif, albedo_dir
-             &  zrgp(:,ifs_config%iemiss,ib), &                   ! spectral emissivity
-             &  zrgp(:,ifs_config%iccnl,ib), zrgp(:,ifs_config%iccno,ib) ,&  ! CCN concentration, land and sea
-             &  zrgp(:,ifs_config%igelam,ib),zrgp(:,ifs_config%igemu,ib), &  ! longitude, sine of latitude
-             &  zrgp(:,ifs_config%islm,ib), &                     ! land sea mask
-             &  zrgp(:,ifs_config%ipr,ib),   zrgp(:,ifs_config%iti,ib),  &   ! full level pressure and temperature
-             &  zrgp(:,ifs_config%iaprs,ib), zrgp(:,ifs_config%ihti,ib), &   ! half-level pressure and temperature
-             &  zrgp(:,ifs_config%iwv,ib),   zrgp(:,ifs_config%iico2,ib), &
-             &  zrgp(:,ifs_config%iich4,ib), zrgp(:,ifs_config%iin2o,ib), &
-             &  zrgp(:,ifs_config%ino2,ib),  zrgp(:,ifs_config%ic11,ib), &
-             &  zrgp(:,ifs_config%ic12,ib),  zrgp(:,ifs_config%ic22,ib), &
-             &  zrgp(:,ifs_config%icl4,ib),  zrgp(:,ifs_config%ioz,ib), &
-             &  zrgp(:,ifs_config%iclc,ib),  zrgp(:,ifs_config%ilwa,ib), &
-             &  zrgp(:,ifs_config%iiwa,ib),  zrgp(:,ifs_config%irwa,ib), &
-             &  zrgp(:,ifs_config%iswa,ib), &
-             &  zrgp(:,ifs_config%iaer,ib),  zrgp(:,ifs_config%iaero,ib), &
+             &  zrgp(:,zrgp_fields%iamu0,ib), zrgp(:,zrgp_fields%its,ib), &    ! mu0, skintemp
+             &  zrgp(:,zrgp_fields%iald,ib) , zrgp(:,zrgp_fields%ialp,ib), &    ! albedo_dif, albedo_dir
+             &  zrgp(:,zrgp_fields%iemiss,ib), &                   ! spectral emissivity
+             &  zrgp(:,zrgp_fields%iccnl,ib), zrgp(:,zrgp_fields%iccno,ib) ,&  ! CCN concentration, land and sea
+             &  zrgp(:,zrgp_fields%igelam,ib),zrgp(:,zrgp_fields%igemu,ib), &  ! longitude, sine of latitude
+             &  zrgp(:,zrgp_fields%islm,ib), &                     ! land sea mask
+             &  zrgp(:,zrgp_fields%ipr,ib),   zrgp(:,zrgp_fields%iti,ib),  &   ! full level pressure and temperature
+             &  zrgp(:,zrgp_fields%iaprs,ib), zrgp(:,zrgp_fields%ihti,ib), &   ! half-level pressure and temperature
+             &  zrgp(:,zrgp_fields%iwv,ib),   zrgp(:,zrgp_fields%iico2,ib), &
+             &  zrgp(:,zrgp_fields%iich4,ib), zrgp(:,zrgp_fields%iin2o,ib), &
+             &  zrgp(:,zrgp_fields%ino2,ib),  zrgp(:,zrgp_fields%ic11,ib), &
+             &  zrgp(:,zrgp_fields%ic12,ib),  zrgp(:,zrgp_fields%ic22,ib), &
+             &  zrgp(:,zrgp_fields%icl4,ib),  zrgp(:,zrgp_fields%ioz,ib), &
+             &  zrgp(:,zrgp_fields%iclc,ib),  zrgp(:,zrgp_fields%ilwa,ib), &
+             &  zrgp(:,zrgp_fields%iiwa,ib),  zrgp(:,zrgp_fields%irwa,ib), &
+             &  zrgp(:,zrgp_fields%iswa,ib), &
+             &  zrgp(:,zrgp_fields%iaer,ib),  zrgp(:,zrgp_fields%iaero,ib), &
              ! flux outputs
-             &  zrgp(:,ifs_config%ifrso,ib), zrgp(:,ifs_config%ifrth,ib), &
-             &  zrgp(:,ifs_config%iswfc,ib), zrgp(:,ifs_config%ilwfc,ib),&
-             &  zrgp(:,ifs_config%ifrsod,ib),zrgp(:,ifs_config%ifrted,ib), &
-             &  zrgp(:,ifs_config%ifrsodc,ib),zrgp(:,ifs_config%ifrtedc,ib),&
-             &  zrgp(:,ifs_config%ifdir,ib), zrgp(:,ifs_config%icdir,ib), &
-             &  zrgp(:,ifs_config%isudu,ib), &
-             &  zrgp(:,ifs_config%iuvdf,ib), zrgp(:,ifs_config%iparf,ib), &
-             &  zrgp(:,ifs_config%iparcf,ib),zrgp(:,ifs_config%itincf,ib), &
-             &  zrgp(:,ifs_config%iemit,ib) ,zrgp(:,ifs_config%ilwderivative,ib), &
-             &  zrgp(:,ifs_config%iswdiffuseband,ib), zrgp(:,ifs_config%iswdirectband,ib)&
+             &  zrgp(:,zrgp_fields%ifrso,ib), zrgp(:,zrgp_fields%ifrth,ib), &
+             &  zrgp(:,zrgp_fields%iswfc,ib), zrgp(:,zrgp_fields%ilwfc,ib),&
+             &  zrgp(:,zrgp_fields%ifrsod,ib),zrgp(:,zrgp_fields%ifrted,ib), &
+             &  zrgp(:,zrgp_fields%ifrsodc,ib),zrgp(:,zrgp_fields%ifrtedc,ib),&
+             &  zrgp(:,zrgp_fields%ifdir,ib), zrgp(:,zrgp_fields%icdir,ib), &
+             &  zrgp(:,zrgp_fields%isudu,ib), &
+             &  zrgp(:,zrgp_fields%iuvdf,ib), zrgp(:,zrgp_fields%iparf,ib), &
+             &  zrgp(:,zrgp_fields%iparcf,ib),zrgp(:,zrgp_fields%itincf,ib), &
+             &  zrgp(:,zrgp_fields%iemit,ib) ,zrgp(:,zrgp_fields%ilwderivative,ib), &
+             &  zrgp(:,zrgp_fields%iswdiffuseband,ib), zrgp(:,zrgp_fields%iswdirectband,ib)&
 #ifdef BITIDENTITY_TESTING
             ! To validate results against standalone ecrad, we overwrite effective
             ! radii, cloud overlap and seed with input values
-             &  ,pre_liq=zrgp(:,ifs_config%ire_liq,ib), &
-             &  pre_ice=zrgp(:,ifs_config%ire_ice,ib), &
-             &  pcloud_overlap=zrgp(:,ifs_config%ioverlap,ib), &
+             &  ,pre_liq=zrgp(:,zrgp_fields%ire_liq,ib), &
+             &  pre_ice=zrgp(:,zrgp_fields%ire_ice,ib), &
+             &  pcloud_overlap=zrgp(:,zrgp_fields%ioverlap,ib), &
              &  iseed=iseed(:,ib) &
 #endif
-             & )
+             &  ,lacc=yradiation%yrerad%lecrad_on_gpu)
 #ifdef COPY_ASYNC
-          !$acc update host(zrgp(:,ifs_config%ioutbeg:ifs_config%ioutend,ib)) async(3) wait(1)
+          !$acc update host(zrgp(:,zrgp_fields%ioutbeg:zrgp_fields%ioutend,ib)) async(3) wait(1)
           !$acc exit data delete(zrgp(:,:,ib)) async(3)
 #else
-          !$acc update host(zrgp(1:il,ifs_config%ioutbeg:ifs_config%ioutend,ib)) async(1)
+          !$acc update host(zrgp(1:il,zrgp_fields%ioutbeg:zrgp_fields%ioutend,ib)) async(1)
           !$acc end data
 #endif
       end do
@@ -556,7 +570,7 @@ program ecrad_ifs_driver
   ! Section 4c: Copy fluxes from blocked memory data
   ! --------------------------------------------------------
 
-  call ifs_copy_fluxes_from_blocked(driver_config, ifs_config, yradiation, ncol, nlev,&
+  call ifs_copy_fluxes_from_blocked(zrgp_fields, yradiation, ncol, nlev, nproma, &
           & zrgp, flux, flux_sw_direct_normal, flux_uv, flux_par, flux_par_clear, &
           & emissivity_out, flux_diffuse_band, flux_direct_band)
 

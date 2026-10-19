@@ -89,7 +89,7 @@ REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
 #include "rrtm_taumol7.intfb.h"
 #include "rrtm_taumol8.intfb.h"
 #include "rrtm_taumol9.intfb.h"
-#include "rrtm_utils.intfb.h"
+#include "compute_laytrop_min_max.intfb.h"
 
 IF (LHOOK) CALL DR_HOOK('RRTM_GAS_OPTICAL_DEPTH',0,ZHOOK_HANDLE)
 

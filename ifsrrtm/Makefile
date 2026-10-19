@@ -1,5 +1,5 @@
 OBJECTS = parrrtm.o parsrtm.o rrtm_prepare_gases.o	\
-rrtm_gas_optical_depth.o rrtm_setcoef_140gp.o	\
+rrtm_gas_optical_depth.o rrtm_setcoef_140gp.o compute_laytrop_min_max.o	\
 rrtm_taumol1.o rrtm_taumol10.o rrtm_taumol11.o rrtm_taumol12.o		\
 rrtm_taumol13.o rrtm_taumol14.o rrtm_taumol15.o rrtm_taumol16.o		\
 rrtm_taumol2.o rrtm_taumol3.o rrtm_taumol4.o rrtm_taumol5.o		\
@@ -58,7 +58,7 @@ $(LIBIFSRRTM): $(OBJECTS)
 %.o: %.F90
 	$(FC) $(FCFLAGS) -c $<
 
-$(DEPS_FILE): $(SOURCES) 
+$(DEPS_FILE): $(SOURCES)
 	$(MAKE_DEPS) $(SOURCES) > $(DEPS_FILE)
 
 dummy_includes:
@@ -81,4 +81,3 @@ clean-deps:
 .PHONY: deps dummy_includes includes clean-deps
 
 include $(DEPS_FILE)
-

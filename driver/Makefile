@@ -28,7 +28,7 @@ $(IFS_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_ifs_driver.o
 	$(FC) $(FCFLAGS) ecrad_ifs_driver.o $(OBJECTS) -lifs $(LIBS) -o $(IFS_EXECUTABLE)
 
 $(IFS_BLOCKED_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_ifs_driver_blocked.o
-	$(FC) $(FCFLAGS) ifs_blocking.o ecrad_ifs_driver_blocked.o $(OBJECTS) -lifs $(LIBS) -o $(IFS_BLOCKED_EXECUTABLE)
+	$(FC) $(FCFLAGS) ecrad_ifs_driver_blocked.o $(OBJECTS) -lifs $(LIBS) -o $(IFS_BLOCKED_EXECUTABLE)
 
 test_%: test_%.F90 ../lib/*.a
 	$(FC) $(FCFLAGS) $< $(LIBS) -o $@
