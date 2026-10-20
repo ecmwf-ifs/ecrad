@@ -319,7 +319,7 @@ contains
     if (present(lacc)) llacc = lacc
 
     call put_gas_check(this, igas, iunits, size(mixing_ratio, 1), &
-          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2)
+          size(mixing_ratio, 2), scale_factor, istartcol, i1, i2, lacc=llacc)
 
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
