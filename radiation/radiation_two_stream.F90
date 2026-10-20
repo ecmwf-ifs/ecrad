@@ -513,8 +513,9 @@ contains
         ! Meador & Weaver (1980) Eq. 25
         ref_diff(jg) = gamma2(jg) * (1.0_jprd - exponential2) * reftrans_factor
 
-        ! Meador & Weaver (1980) Eq. 26
+        ! Meador & Weaver (1980) Eq. 26, with security
         trans_diff(jg) = k_2_exponential * reftrans_factor
+        trans_diff(jg) = max(0.0_jprb, min(trans_diff(jg), 1.0_jprb-ref_diff(jg)))
 
         ! Here we need mu0 even though it wasn't in Meador and Weaver
         ! because we are assuming the incoming direct flux is defined
