@@ -51,9 +51,9 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FORFAC(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_FORFRAC(KIDIA:KFDIA,KLEV) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: K_INDFOR(KIDIA:KFDIA,KLEV) 
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_SFLUXZEN(KIDIA:KFDIA,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUG(KIDIA:KFDIA,KLEV,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUR(KIDIA:KFDIA,KLEV,JPG) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_SFLUXZEN(JPG,KIDIA:KFDIA) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUG(JPG,KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUR(JPG,KIDIA:KFDIA,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
 !- from INTFAC      
 !- from INTIND
@@ -110,7 +110,7 @@ DO I_LAY = 1, I_NLAYERS
         DO IG = 1 , NG24
           Z_TAURAY = P_COLMOL(IPLON,I_LAY) * (RAYLAC(IG,JS) + &
            & Z_FS * (RAYLAC(IG,JS+1) - RAYLAC(IG,JS)))  
-          P_TAUG(IPLON,I_LAY,IG) = Z_SPECCOMB * &
+          P_TAUG(IG,IPLON,I_LAY) = Z_SPECCOMB * &
            !    & (Z_FAC000 * ABSA(IND0,IG) + &
            !    & Z_FAC100 * ABSA(IND0+1,IG) + &
            !    & Z_FAC010 * ABSA(IND0+9,IG) + &
@@ -120,28 +120,28 @@ DO I_LAY = 1, I_NLAYERS
            !    & Z_FAC011 * ABSA(IND1+9,IG) + &
            !    & Z_FAC111 * ABSA(IND1+10,IG)) + &
            & (&
-           & (1. - Z_FS) * ( ABSA(IND0,IG) * P_FAC00(IPLON,I_LAY) + &
-           &                 ABSA(IND0+9,IG) * P_FAC10(IPLON,I_LAY) + &
-           &                 ABSA(IND1,IG) * P_FAC01(IPLON,I_LAY) + &
-           &                 ABSA(IND1+9,IG) * P_FAC11(IPLON,I_LAY) ) + &
-           & Z_FS        * ( ABSA(IND0+1,IG) * P_FAC00(IPLON,I_LAY) + &
-           &                 ABSA(IND0+10,IG) * P_FAC10(IPLON,I_LAY) + &
-           &                 ABSA(IND1+1,IG) * P_FAC01(IPLON,I_LAY) + &
-           &                 ABSA(IND1+10,IG) * P_FAC11(IPLON,I_LAY) ) &
+           & (1. - Z_FS) * ( ABSA(IG,IND0) * P_FAC00(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND0+9) * P_FAC10(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND1) * P_FAC01(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND1+9) * P_FAC11(IPLON,I_LAY) ) + &
+           & Z_FS        * ( ABSA(IG,IND0+1) * P_FAC00(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND0+10) * P_FAC10(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND1+1) * P_FAC01(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND1+10) * P_FAC11(IPLON,I_LAY) ) &
            & ) + &
            & P_COLO3(IPLON,I_LAY) * ABSO3AC(IG) + &
            & P_COLH2O(IPLON,I_LAY) *  &
-           & (P_SELFFAC(IPLON,I_LAY) * (SELFREFC(INDS,IG) + &
+           & (P_SELFFAC(IPLON,I_LAY) * (SELFREFC(IG,INDS) + &
            & P_SELFFRAC(IPLON,I_LAY) * &
-           & (SELFREFC(INDS+1,IG) - SELFREFC(INDS,IG))) + &
-           & P_FORFAC(IPLON,I_LAY) * (FORREFC(INDF,IG) +  &
+           & (SELFREFC(IG,INDS+1) - SELFREFC(IG,INDS))) + &
+           & P_FORFAC(IPLON,I_LAY) * (FORREFC(IG,INDF) +  &
            & P_FORFRAC(IPLON,I_LAY) * &
-           & (FORREFC(INDF+1,IG) - FORREFC(INDF,IG))))  
+           & (FORREFC(IG,INDF+1) - FORREFC(IG,INDF))))  
           !     &           + TAURAY
           !    SSA(LAY,IG) = TAURAY/TAUG(LAY,IG)
-          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG,JS) &
+          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IG,IPLON) = SFLUXREFC(IG,JS) &
            & + Z_FS * (SFLUXREFC(IG,JS+1) - SFLUXREFC(IG,JS))  
-          P_TAUR(IPLON,I_LAY,IG) =  Z_TAURAY
+          P_TAUR(IG,IPLON,I_LAY) =  Z_TAURAY
         ENDDO
       ENDIF
     ENDIF
@@ -159,15 +159,15 @@ DO I_LAY = 1, I_NLAYERS
 !CDIR UNROLL=NG24
         DO IG = 1 , NG24
           Z_TAURAY = P_COLMOL(IPLON,I_LAY) * RAYLBC(IG)
-          P_TAUG(IPLON,I_LAY,IG) = P_COLO2(IPLON,I_LAY) * &
-           & (P_FAC00(IPLON,I_LAY) * ABSB(IND0,IG) + &
-           & P_FAC10(IPLON,I_LAY) * ABSB(IND0+1,IG) + &
-           & P_FAC01(IPLON,I_LAY) * ABSB(IND1,IG) + &
-           & P_FAC11(IPLON,I_LAY) * ABSB(IND1+1,IG)) + &
+          P_TAUG(IG,IPLON,I_LAY) = P_COLO2(IPLON,I_LAY) * &
+           & (P_FAC00(IPLON,I_LAY) * ABSB(IG,IND0) + &
+           & P_FAC10(IPLON,I_LAY) * ABSB(IG,IND0+1) + &
+           & P_FAC01(IPLON,I_LAY) * ABSB(IG,IND1) + &
+           & P_FAC11(IPLON,I_LAY) * ABSB(IG,IND1+1)) + &
            & P_COLO3(IPLON,I_LAY) * ABSO3BC(IG)  
           !     &          + TAURAY
           !    SSA(LAY,IG) = TAURAY/TAUG(LAY,IG)
-          P_TAUR(IPLON,I_LAY,IG) = Z_TAURAY
+          P_TAUR(IG,IPLON,I_LAY) = Z_TAURAY
         ENDDO
       ENDIF
     ENDIF

@@ -68,7 +68,7 @@ contains
           & /)
 
     logical :: do_sw, do_lw
-    
+
     real(jphook) :: hook_handle
 
 !#include "surdi.intfb.h"
@@ -82,7 +82,7 @@ contains
 
     do_sw = (config%do_sw .and. config%i_gas_model_sw == IGasModelIFSRRTMG)
     do_lw = (config%do_lw .and. config%i_gas_model_lw == IGasModelIFSRRTMG)
-    
+
     ! The IFS implementation of RRTMG uses many global variables.  In
     ! the IFS these will have been set up already; otherwise set them
     ! up now.
@@ -100,7 +100,7 @@ contains
     end if
 
     if (do_sw) then
-      
+
       ! Cloud and aerosol properties can only be defined per band
       config%do_cloud_aerosol_per_sw_g_point = .false.
       config%n_g_sw = jpgsw
@@ -146,7 +146,7 @@ contains
         config%n_spec_sw = 0
         nullify(config%i_spec_from_reordered_g_sw)
       end if
-      
+
     end if
 
     if (do_lw) then
@@ -192,7 +192,7 @@ contains
       end if
 
     end if
-    
+
     if (lhook) call dr_hook('radiation_ifs_rrtm:setup_gas_optics',1,hook_handle)
 
   end subroutine setup_gas_optics
@@ -214,15 +214,15 @@ contains
   ! Compute gas optical depths, shortwave scattering, Planck function
   ! and incoming shortwave radiation at top-of-atmosphere
   subroutine gas_optics(ncol,nlev,istartcol,iendcol, &
-       &  config, single_level, thermodynamics, gas, & 
+       &  config, single_level, thermodynamics, gas, &
        &  od_lw, od_sw, ssa_sw, lw_albedo, planck_hl, lw_emission, &
        &  incoming_sw)
 
     use parkind1,                 only : jprb, jpim
 
-    USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX 
+    USE PARRRTM  , ONLY : JPBAND, JPXSEC, JPINPX
     USE YOERRTM  , ONLY : JPGPT_LW => JPGPT
-    USE YOESRTM  , ONLY : JPGPT_SW => JPGPT  
+    USE YOESRTM  , ONLY : JPGPT_SW => JPGPT
     use yomhook  , only : lhook, dr_hook, jphook
 
     use radiation_config,         only : config_type, ISolverSpartacus, IGasModelIFSRRTMG
@@ -270,9 +270,9 @@ contains
     ! equivalent routine in the IFS
 
     real(jprb) :: ZOD_LW(JPGPT_LW,nlev,istartcol:iendcol) ! Note ordering of dimensions
-    real(jprb) :: ZOD_SW(istartcol:iendcol,nlev,JPGPT_SW)
-    real(jprb) :: ZSSA_SW(istartcol:iendcol,nlev,JPGPT_SW)
-    real(jprb) :: ZINCSOL(istartcol:iendcol,JPGPT_SW)
+    real(jprb) :: ZOD_SW(JPGPT_SW,nlev,istartcol:iendcol)
+    real(jprb) :: ZSSA_SW(JPGPT_SW,nlev,istartcol:iendcol)
+    real(jprb) :: ZINCSOL(JPGPT_SW,istartcol:iendcol)
 
     real(jprb) :: ZCOLMOL(istartcol:iendcol,nlev)
     real(jprb) :: ZCOLDRY(istartcol:iendcol,nlev)
@@ -281,46 +281,46 @@ contains
     real(jprb) :: ZWKL(istartcol:iendcol,JPINPX,nlev)
 
     real(jprb) :: ZWX(istartcol:iendcol,JPXSEC,nlev) ! Amount of trace gases
-    
+
     real(jprb) :: ZFLUXFAC, ZPI
 
     ! - from AER
     real(jprb) :: ZTAUAERL(istartcol:iendcol,nlev,JPBAND)
 
-    !- from INTFAC      
+    !- from INTFAC
     real(jprb) :: ZFAC00(istartcol:iendcol,nlev)
     real(jprb) :: ZFAC01(istartcol:iendcol,nlev)
     real(jprb) :: ZFAC10(istartcol:iendcol,nlev)
     real(jprb) :: ZFAC11(istartcol:iendcol,nlev)
-    
+
     !- from FOR
     real(jprb) :: ZFORFAC(istartcol:iendcol,nlev)
     real(jprb) :: ZFORFRAC(istartcol:iendcol,nlev)
-    integer    :: INDFOR(istartcol:iendcol,nlev) 
+    integer    :: INDFOR(istartcol:iendcol,nlev)
 
     !- from MINOR
-    integer    :: INDMINOR(istartcol:iendcol,nlev) 
-    real(jprb) :: ZSCALEMINOR(istartcol:iendcol,nlev) 
-    real(jprb) :: ZSCALEMINORN2(istartcol:iendcol,nlev) 
-    real(jprb) :: ZMINORFRAC(istartcol:iendcol,nlev) 
-    
-    real(jprb)     :: &                 
+    integer    :: INDMINOR(istartcol:iendcol,nlev)
+    real(jprb) :: ZSCALEMINOR(istartcol:iendcol,nlev)
+    real(jprb) :: ZSCALEMINORN2(istartcol:iendcol,nlev)
+    real(jprb) :: ZMINORFRAC(istartcol:iendcol,nlev)
+
+    real(jprb)     :: &
          &  ZRAT_H2OCO2(istartcol:iendcol,nlev),ZRAT_H2OCO2_1(istartcol:iendcol,nlev), &
-         &  ZRAT_H2OO3(istartcol:iendcol,nlev) ,ZRAT_H2OO3_1(istartcol:iendcol,nlev), & 
+         &  ZRAT_H2OO3(istartcol:iendcol,nlev) ,ZRAT_H2OO3_1(istartcol:iendcol,nlev), &
          &  ZRAT_H2ON2O(istartcol:iendcol,nlev),ZRAT_H2ON2O_1(istartcol:iendcol,nlev), &
          &  ZRAT_H2OCH4(istartcol:iendcol,nlev),ZRAT_H2OCH4_1(istartcol:iendcol,nlev), &
          &  ZRAT_N2OCO2(istartcol:iendcol,nlev),ZRAT_N2OCO2_1(istartcol:iendcol,nlev), &
          &  ZRAT_O3CO2(istartcol:iendcol,nlev) ,ZRAT_O3CO2_1(istartcol:iendcol,nlev)
-    
+
     !- from INTIND
     integer :: JP(istartcol:iendcol,nlev)
     integer :: JT(istartcol:iendcol,nlev)
     integer :: JT1(istartcol:iendcol,nlev)
 
-    !- from PRECISE             
+    !- from PRECISE
     real(jprb) :: ZONEMINUS, ZONEMINUS_ARRAY(istartcol:iendcol)
 
-    !- from PROFDATA             
+    !- from PROFDATA
     real(jprb) :: ZCOLH2O(istartcol:iendcol,nlev)
     real(jprb) :: ZCOLCO2(istartcol:iendcol,nlev)
     real(jprb) :: ZCOLO3(istartcol:iendcol,nlev)
@@ -332,21 +332,21 @@ contains
     integer    :: ILAYSWTCH(istartcol:iendcol)
     integer    :: ILAYLOW(istartcol:iendcol)
 
-    !- from PROFILE             
+    !- from PROFILE
     real(jprb) :: ZPAVEL(istartcol:iendcol,nlev)
     real(jprb) :: ZTAVEL(istartcol:iendcol,nlev)
     real(jprb) :: ZPZ(istartcol:iendcol,0:nlev)
     real(jprb) :: ZTZ(istartcol:iendcol,0:nlev)
-    
-    !- from SELF             
+
+    !- from SELF
     real(jprb) :: ZSELFFAC(istartcol:iendcol,nlev)
     real(jprb) :: ZSELFFRAC(istartcol:iendcol,nlev)
     integer :: INDSELF(istartcol:iendcol,nlev)
 
-    !- from SP             
-    real(jprb) :: ZPFRAC(istartcol:iendcol,JPGPT_LW,nlev)
-    
-    !- from SURFACE             
+    !- from SP
+    real(jprb) :: ZPFRAC(JPGPT_LW,istartcol:iendcol,nlev)
+
+    !- from SURFACE
     integer :: IREFLECT(istartcol:iendcol)
 
     real(jprb) :: pressure_fl(ncol, nlev), temperature_fl(ncol, nlev)
@@ -359,7 +359,7 @@ contains
     integer :: istartlev, iendlev
 
     logical :: do_sw, do_lw
-    
+
     integer :: jlev, jgreorder, jg, ig, iband, jcol
 
     real(jphook) :: hook_handle
@@ -395,7 +395,7 @@ contains
             &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
       end do
     end do
-    
+
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
 
@@ -419,19 +419,19 @@ contains
          &   gas%mixing_ratio(:,istartlev:iendlev,ICCl4), &
          &   gas%mixing_ratio(:,istartlev:iendlev,IO3), &
          &  ZCOLDRY, ZWBRODL,ZWKL, ZWX, &
-         &  ZPAVEL , ZTAVEL , ZPZ , ZTZ, IREFLECT)  
+         &  ZPAVEL , ZTAVEL , ZPZ , ZTZ, IREFLECT)
 
     if (do_lw) then
-    
+
       CALL RRTM_SETCOEF_140GP &
            &( istartcol, iendcol, nlev , ZCOLDRY  , ZWBRODL , ZWKL , &
            &  ZFAC00 , ZFAC01   , ZFAC10 , ZFAC11 , ZFORFAC,ZFORFRAC,INDFOR, JP, JT, JT1 , &
-           &  ZCOLH2O, ZCOLCO2  , ZCOLO3 , ZCOLN2O, ZCOLCH4, ZCOLO2,ZCO2MULT , ZCOLBRD, & 
+           &  ZCOLH2O, ZCOLCO2  , ZCOLO3 , ZCOLN2O, ZCOLCH4, ZCOLO2,ZCO2MULT , ZCOLBRD, &
            &  ILAYTROP,ILAYSWTCH, ILAYLOW, ZPAVEL , ZTAVEL , ZSELFFAC, ZSELFFRAC, INDSELF, &
            &  INDMINOR,ZSCALEMINOR,ZSCALEMINORN2,ZMINORFRAC,&
            &  ZRAT_H2OCO2, ZRAT_H2OCO2_1, ZRAT_H2OO3, ZRAT_H2OO3_1, &
            &  ZRAT_H2ON2O, ZRAT_H2ON2O_1, ZRAT_H2OCH4, ZRAT_H2OCH4_1, &
-           &  ZRAT_N2OCO2, ZRAT_N2OCO2_1, ZRAT_O3CO2, ZRAT_O3CO2_1)   
+           &  ZRAT_N2OCO2, ZRAT_N2OCO2_1, ZRAT_O3CO2, ZRAT_O3CO2_1)
 
       ZTAUAERL(istartcol:iendcol,:,:) = 0.0_jprb
 
@@ -444,10 +444,10 @@ contains
            &  INDMINOR,ZSCALEMINOR,ZSCALEMINORN2,ZMINORFRAC,&
            &  ZRAT_H2OCO2, ZRAT_H2OCO2_1, ZRAT_H2OO3, ZRAT_H2OO3_1, &
            &  ZRAT_H2ON2O, ZRAT_H2ON2O_1, ZRAT_H2OCH4, ZRAT_H2OCH4_1, &
-           &  ZRAT_N2OCO2, ZRAT_N2OCO2_1, ZRAT_O3CO2, ZRAT_O3CO2_1)      
-    
+           &  ZRAT_N2OCO2, ZRAT_N2OCO2_1, ZRAT_O3CO2, ZRAT_O3CO2_1)
+
       if (present(lw_albedo)) then
-    
+
         call planck_function_atmos(nlev, istartcol, iendcol, config, &
              &                     thermodynamics, ZPFRAC, planck_hl)
 
@@ -455,12 +455,12 @@ contains
           call planck_function_surf(istartcol, iendcol, config, &
                &                    single_level%skin_temperature, ZPFRAC(:,:,1), &
                &                    lw_emission)
-          
+
           ! The following can be used to extract the parameters defined at
           ! the top of the planck_function routine below:
           !write(*,'(a,140(e12.5,","),a)') 'ZPFRAC_surf=[', &
           !&  sum(ZPFRAC(istartcol:iendcol,:,1),1) / (iendcol+1-istartcol), ']'
-        
+
           ! lw_emission at this point is actually the planck function of
           ! the surface
           lw_emission = lw_emission * (1.0_jprb - lw_albedo)
@@ -488,7 +488,7 @@ contains
         do jgreorder = 1,config%n_g_lw
           iband = config%i_band_from_reordered_g_lw(jgreorder)
           ig = config%i_g_from_reordered_g_lw(jgreorder)
-          
+
           ! Top-of-atmosphere half level
           do jlev = 1,nlev
             do jcol = istartcol,iendcol
@@ -502,7 +502,7 @@ contains
           end do
         end do
       else
-        ! G points have not been reordered 
+        ! G points have not been reordered
         do jcol = istartcol,iendcol
           do jlev = 1,nlev
             ! Check for negative optical depth
@@ -514,7 +514,7 @@ contains
     end if
 
     if (do_sw) then
-    
+
       CALL SRTM_SETCOEF &
            & ( istartcol, iendcol, nlev,&
            & ZPAVEL  , ZTAVEL,&
@@ -524,13 +524,13 @@ contains
            & ZFORFAC , ZFORFRAC , INDFOR  , ZSELFFAC, ZSELFFRAC, INDSELF, &
            & ZFAC00  , ZFAC01   , ZFAC10  , ZFAC11,&
            & JP      , JT       , JT1     , single_level%cos_sza(istartcol:iendcol)  &
-           & )  
-    
+           & )
+
       ! SRTM_GAS_OPTICAL_DEPTH will not initialize profiles when the sun
       ! is below the horizon, so we do it here
-      ZOD_SW(istartcol:iendcol,:,:)  = 0.0_jprb
-      ZSSA_SW(istartcol:iendcol,:,:) = 0.0_jprb
-      ZINCSOL(istartcol:iendcol,:)   = 0.0_jprb
+      ZOD_SW(:,:,istartcol:iendcol)  = 0.0_jprb
+      ZSSA_SW(:,:,istartcol:iendcol) = 0.0_jprb
+      ZINCSOL(:,istartcol:iendcol)   = 0.0_jprb
 
       CALL SRTM_GAS_OPTICAL_DEPTH &
            &( istartcol, iendcol , nlev  , ZONEMINUS_ARRAY,&
@@ -540,12 +540,12 @@ contains
            & ZFAC00  , ZFAC01   , ZFAC10 , ZFAC11  ,&
            & JP      , JT       , JT1    ,&
            & ZOD_SW  , ZSSA_SW  , ZINCSOL )
-    
+
       ! Scale the incoming solar per band, if requested
       if (config%use_spectral_solar_scaling) then
         do jg = 1,JPGPT_SW
-          do jcol = istartcol,iendcol 
-            ZINCSOL(jcol,jg) = ZINCSOL(jcol,jg) * &
+          do jcol = istartcol,iendcol
+            ZINCSOL(jg,jcol) = ZINCSOL(jg,jcol) * &
                  &   single_level%spectral_solar_scaling(config%i_band_from_reordered_g_sw(jg))
           end do
         end do
@@ -559,7 +559,7 @@ contains
           if (single_level%cos_sza(jcol) > 0.0_jprb) then
 ! Added for DWD (2020)
 !NEC$ nounroll
-            incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(jcol,:))
+            incoming_sw_scale(jcol) = single_level%solar_irradiance / sum(ZINCSOL(:,jcol))
           else
             incoming_sw_scale(jcol) = 1.0_jprb
           end if
@@ -575,13 +575,13 @@ contains
             do jcol = istartcol,iendcol
               ! Check for negative optical depth
               od_sw (jgreorder,nlev+1-jlev,jcol) &
-                   &  = max(config%min_gas_od_sw, ZOD_SW (jcol,jlev,ig))
-              ssa_sw(jgreorder,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,ig)
+                   &  = max(config%min_gas_od_sw, ZOD_SW (ig,jlev,jcol))
+              ssa_sw(jgreorder,nlev+1-jlev,jcol) = ZSSA_SW(ig,jlev,jcol)
             end do
           end do
           if (present(incoming_sw)) then
             incoming_sw(jgreorder,:) &
-                 &  = incoming_sw_scale(:) * ZINCSOL(:,ig)
+                 &  = incoming_sw_scale(:) * ZINCSOL(ig,:)
           end if
         end do
       else
@@ -590,8 +590,8 @@ contains
           do jlev = 1,nlev
             do jg = 1,config%n_g_sw
               ! Check for negative optical depth
-              od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jcol,jlev,jg))
-              ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jcol,jlev,jg)
+              od_sw (jg,nlev+1-jlev,jcol) = max(config%min_gas_od_sw, ZOD_SW(jg,jlev,jcol))
+              ssa_sw(jg,nlev+1-jlev,jcol) = ZSSA_SW(jg,jlev,jcol)
             end do
           end do
         end do
@@ -599,7 +599,7 @@ contains
         if (present(incoming_sw)) then
           do jcol = istartcol,iendcol
             do jg = 1,config%n_g_sw
-              incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jcol,jg)
+              incoming_sw(jg,jcol) = incoming_sw_scale(jcol) * ZINCSOL(jg,jcol)
             end do
           end do
         end if
@@ -607,11 +607,11 @@ contains
       end if
 
     end if
-    
+
     if (lhook) call dr_hook('radiation_ifs_rrtm:gas_optics',1,hook_handle)
-    
+
   end subroutine gas_optics
-  
+
 
   !---------------------------------------------------------------------
   ! Compute Planck function of the atmosphere
@@ -634,7 +634,7 @@ contains
     integer, intent(in) :: istartcol, iendcol ! range of columns to process
     type(config_type), intent(in) :: config
     type(thermodynamics_type),intent(in) :: thermodynamics
-    real(jprb), intent(in) :: PFRAC(istartcol:iendcol,JPGPT_LW,nlev)
+    real(jprb), intent(in) :: PFRAC(JPGPT_LW,istartcol:iendcol,nlev)
 
     ! The Planck function (emitted flux from a black body) at half
     ! levels at each longwave g-point
@@ -661,7 +661,7 @@ contains
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_atmos',0,hook_handle)
 
     ZFLUXFAC = 2.0_jprb*ASIN(1.0_jprb) * 1.0e4_jprb
-    
+
     ! nlev may be less than the number of original levels, in which
     ! case we assume that the user wants the lower part of the
     ! atmosphere
@@ -717,7 +717,7 @@ contains
             iband = config%i_band_from_reordered_g_lw(jgreorder)
             ig = config%i_g_from_reordered_g_lw(jgreorder)
             planck_hl(jgreorder,1,:) = planck_store(:,jlev,iband) &
-                 &   * PFRAC(:,ig,nlev)
+                 &   * PFRAC(ig,:,nlev)
           end do
         else
           do jgreorder = 1,config%n_g_lw
@@ -725,7 +725,7 @@ contains
             ig = config%i_g_from_reordered_g_lw(jgreorder)
             planck_hl(jgreorder,jlev,:) &
                    &   = planck_store(:,jlev,iband) &
-                   &   * PFRAC(:,ig,nlev+2-jlev)
+                   &   * PFRAC(ig,:,nlev+2-jlev)
           end do
         end if
       end do
@@ -734,13 +734,13 @@ contains
         do jlev = 1,nlev+1
           do jg = 1,config%n_g_lw
             iband = config%i_band_from_g_lw(jg)
-            ! G points have not been reordered 
+            ! G points have not been reordered
             if (jlev == 1) then
               ! Top-of-atmosphere half level - note that PFRAC is on model
               ! levels not half levels
-              planck_hl(jg,1,jcol) = planck_store(jcol,1,iband) * PFRAC(jcol,jg,nlev)
+              planck_hl(jg,1,jcol) = planck_store(jcol,1,iband) * PFRAC(jg,jcol,nlev)
             else
-              planck_hl(jg,jlev,jcol) = planck_store(jcol,jlev,iband) * PFRAC(jcol,jg,nlev+2-jlev)
+              planck_hl(jg,jlev,jcol) = planck_store(jcol,jlev,iband) * PFRAC(jg,jcol,nlev+2-jlev)
             end if
           end do
         end do
@@ -771,7 +771,7 @@ contains
     type(config_type), intent(in) :: config
     real(jprb), intent(in) :: temperature(:)
 
-    real(jprb), intent(in) :: PFRAC(istartcol:iendcol,JPGPT_LW)
+    real(jprb), intent(in) :: PFRAC(JPGPT_LW,istartcol:iendcol)
 
     ! Planck function of the surface (W m-2)
     real(jprb), dimension(config%n_g_lw,istartcol:iendcol), &
@@ -837,18 +837,18 @@ contains
       do jgreorder = 1,config%n_g_lw
         iband = config%i_band_from_reordered_g_lw(jgreorder)
         ig = config%i_g_from_reordered_g_lw(jgreorder)
-        planck_surf(jgreorder,:) = planck_store(:,iband) * PFRAC(:,ig)
+        planck_surf(jgreorder,:) = planck_store(:,iband) * PFRAC(ig,:)
       end do
     else
-      ! G points have not been reordered 
+      ! G points have not been reordered
       do jg = 1,config%n_g_lw
         iband = config%i_band_from_g_lw(jg)
-        planck_surf(jg,:) = planck_store(:,iband) * PFRAC(:,jg)
+        planck_surf(jg,:) = planck_store(:,iband) * PFRAC(jg,:)
       end do
     end if
 
     if (lhook) call dr_hook('radiation_ifs_rrtm:planck_function_surf',1,hook_handle)
-    
+
   end subroutine planck_function_surf
 
 

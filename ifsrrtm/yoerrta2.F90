@@ -20,11 +20,11 @@ INTEGER(KIND=JPIM), PARAMETER :: NG2  = 12
 !     The ith set of reference fractions are from the ith reference
 !     pressure level.
 REAL(KIND=JPRB) :: FRACREFA(NG2), FRACREFB(NG2)
-REAL(KIND=JPRB) :: KA(5,13,NG2)   , ABSA(65,NG2)
-REAL(KIND=JPRB) :: KB(5,13:59,NG2), ABSB(235,NG2)
-REAL(KIND=JPRB) :: SELFREF(10,NG2), FORREF(4,NG2)
+REAL(KIND=JPRB) :: KA(NG2,5,13)   , ABSA(NG2,65)
+REAL(KIND=JPRB) :: KB(NG2,5,13:59), ABSB(NG2,235)
+REAL(KIND=JPRB) :: SELFREF(NG2,10), FORREF(NG2,4)
 
-EQUIVALENCE (KA(1,1,1),ABSA(1,1)),(KB(1,13,1),ABSB(1,1))
+EQUIVALENCE (KA(1,1,1),ABSA(1,1)),(KB(1,1,13),ABSB(1,1))
 
 !     -----------------------------------------------------------------
 !        * E.C.M.W.F. PHYSICS PACKAGE ** RRTM LW RADIATION **
