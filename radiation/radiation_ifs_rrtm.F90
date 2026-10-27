@@ -349,8 +349,6 @@ contains
     !- from SURFACE
     integer :: IREFLECT(istartcol:iendcol)
 
-    real(jprb) :: pressure_fl(ncol, nlev), temperature_fl(ncol, nlev)
-
     ! If nlev is less than the number of heights at which gas mixing
     ! ratios are stored, then we assume that the lower part of the
     ! atmosphere is required. This enables nlev=1 to be passed in to
@@ -385,17 +383,6 @@ contains
     ZONEMINUS = 1.0_jprb - 1.0e-6_jprb
     ZONEMINUS_ARRAY = ZONEMINUS
 
-    do jlev=1,nlev
-      do jcol= istartcol,iendcol
-        pressure_fl(jcol,jlev) &
-            &  = 0.5_jprb * (thermodynamics%pressure_hl(jcol,jlev+istartlev-1) &
-            &               +thermodynamics%pressure_hl(jcol,jlev+istartlev))
-        temperature_fl(jcol,jlev) &
-            &  = 0.5_jprb * (thermodynamics%temperature_hl(jcol,jlev+istartlev-1) &
-            &               +thermodynamics%temperature_hl(jcol,jlev+istartlev))
-      end do
-    end do
-
     ! Check we have gas mixing ratios in the right units
     call gas%assert_units(IMassMixingRatio)
 
@@ -405,9 +392,8 @@ contains
     CALL RRTM_PREPARE_GASES &
          & ( istartcol, iendcol, ncol, nlev, &
          &   thermodynamics%pressure_hl(:,istartlev:iendlev+1), &
-         &   pressure_fl, &
          &   thermodynamics%temperature_hl(:,istartlev:iendlev+1), &
-         &   temperature_fl, &
+         &   istartlev, &
          &   gas%mixing_ratio(:,istartlev:iendlev,IH2O), &
          &   gas%mixing_ratio(:,istartlev:iendlev,ICO2), &
          &   gas%mixing_ratio(:,istartlev:iendlev,ICH4), &
