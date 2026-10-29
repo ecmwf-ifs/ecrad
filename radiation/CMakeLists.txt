@@ -230,6 +230,11 @@ install(
 if( CMAKE_Fortran_COMPILER_ID MATCHES "Intel" )
     set_source_files_properties( radiation_mcica_sw.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
     set_source_files_properties( radiation_cloud_generator.F90 PROPERTIES COMPILE_OPTIONS "-vecabi=cmdtarget")
+elseif( CMAKE_Fortran_COMPILER_ID MATCHES "LLVMFlang" )
+    # LLVM assumes FP operations do not trap; with DR_HOOK_TRAPFPE these files trap on
+    # vectorizer masked lanes or on divisions speculated above their guards.
+    set_source_files_properties( radiation_mcica_lw.F90 PROPERTIES COMPILE_OPTIONS "-fno-vectorize")
+    set_source_files_properties( radiation_cloud_cover.F90 PROPERTIES COMPILE_OPTIONS "-O1")
 elseif( CMAKE_FORTRAN_COMPILER_ID MATCHES "PGI|NVHPC" )
     if( HAVE_GPU )
         set_source_files_properties(

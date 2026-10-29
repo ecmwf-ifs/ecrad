@@ -265,3 +265,18 @@ install(
     DESTINATION ${ecrad_${PREC}_INSTALL_INCLUDEDIR}
 )
 install( TARGETS ifsrrtm.${PREC} EXPORT ecrad-targets )
+
+# Compile flag overwrites
+if( CMAKE_Fortran_COMPILER_ID MATCHES "LLVMFlang" )
+    # LLVM assumes FP operations do not trap; with DR_HOOK_TRAPFPE these files trap on
+    # vectorizer padding/masked lanes.
+    set_source_files_properties( rrtm_taumol3.F90 PROPERTIES COMPILE_OPTIONS "-fno-slp-vectorize")
+    set_source_files_properties( rrtm_taumol5.F90 PROPERTIES COMPILE_OPTIONS "-fno-slp-vectorize;-fno-vectorize")
+    if( HAVE_GPU AND GPU_OFFLOAD STREQUAL "OMP" )
+        # With OMPGPU the host side of each taumol is only scalar setup, whose
+        # ratios of reference profiles SLP-vectorize into divides by zero-padded lanes
+        file( GLOB _taumol_sources RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} rrtm_taumol*.F90 )
+        list( REMOVE_ITEM _taumol_sources rrtm_taumol5.F90 )
+        set_source_files_properties( ${_taumol_sources} PROPERTIES COMPILE_OPTIONS "-fno-slp-vectorize")
+    endif()
+endif()

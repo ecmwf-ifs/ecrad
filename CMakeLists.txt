@@ -123,6 +123,15 @@ if( HAVE_GPU )
   endif()
 endif()
 
+# Compilers other than NVHPC need their OpenMP offload flags passed explicitly,
+# e.g. "-fopenmp --offload-arch=gfx942" for amdflang
+set( ECRAD_OMP_OFFLOAD_FLAGS "" CACHE STRING "Fortran compile and link flags for OpenMP offload" )
+if( HAVE_GPU AND GPU_OFFLOAD STREQUAL "OMP" AND ECRAD_OMP_OFFLOAD_FLAGS )
+  separate_arguments( _ecrad_offload_flags UNIX_COMMAND "${ECRAD_OMP_OFFLOAD_FLAGS}" )
+  add_compile_options( "$<$<COMPILE_LANGUAGE:Fortran>:${_ecrad_offload_flags}>" )
+  add_link_options( ${_ecrad_offload_flags} )
+endif()
+
 ecbuild_add_option(
   FEATURE ROCTX
   DEFAULT OFF
