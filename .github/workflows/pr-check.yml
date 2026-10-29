@@ -33,9 +33,11 @@ jobs:
 
       - name: Install prtk
         env:
-          PRTK_READ_ACCESS_TOKEN: ${{ secrets.PRTK_READ_ACCESS }}
+          GH_TOKEN: ${{ secrets.PRTK_READ_ACCESS }}
         run: |
-          uv tool install "git+https://${PRTK_READ_ACCESS_TOKEN}@github.com/ecmwf-ifs/prtk"
+          set -euo pipefail
+          gh auth setup-git --hostname github.com
+          uv tool install "git+https://github.com/ecmwf-ifs/prtk.git"
 
       - name: Run prtk checks
         env:
