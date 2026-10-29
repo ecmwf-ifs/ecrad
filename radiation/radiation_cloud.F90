@@ -477,7 +477,7 @@ contains
       ! top-of-atmosphere to surface). In case pressure_hl(:,1)=0, we
       ! don't take the logarithm of the first pressure in each column.
 #if defined(OMPGPU)
-      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO IF(LLACC)
 #endif
       !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
       !$ACC LOOP GANG(STATIC:1) VECTOR
@@ -492,7 +492,7 @@ contains
 #endif
 
 #if defined(OMPGPU)
-      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
 #endif
       !$ACC LOOP SEQ
       do jlev = 2,nlev-1
@@ -514,7 +514,7 @@ contains
        ! to top-of-atmosphere).  In case pressure_hl(:,nlev+1)=0, we
        ! don't take the logarithm of the last pressure in each column.
 #if defined(OMPGPU)
-      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
 #endif
       !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
       !$ACC LOOP SEQ
@@ -532,7 +532,7 @@ contains
 #endif
 
 #if defined(OMPGPU)
-      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO IF(LLACC)
 #endif
       !$ACC LOOP GANG(STATIC:1) VECTOR
       do jcol = istartcol,iendcol
@@ -692,7 +692,7 @@ contains
     integer :: jcol, jlev
 
 #if defined(OMPGPU)
-    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2)
+    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(2) IF(LLACC)
 #endif
     !$ACC PARALLEL DEFAULT(PRESENT) ASYNC(1) IF(LLACC)
     !$ACC LOOP GANG VECTOR COLLAPSE(2)
