@@ -26,8 +26,25 @@ module radiation_interface
 
   implicit none
 
-  public  :: setup_radiation, set_gas_units, radiation
+  public  :: setup_radiation, set_gas_units, radiation, radiation_offload
+  public  :: radiation_offload_config, radiation_release_config
+  public  :: radiation_offload_begin, radiation_offload_run
+  public  :: radiation_map_to, radiation_unmap
   private :: radiation_reverse
+
+  interface radiation_map_to
+    module procedure radiation_map_to_1d, radiation_map_to_2d
+  end interface radiation_map_to
+
+  interface radiation_unmap
+    module procedure radiation_unmap_1d, radiation_unmap_2d
+  end interface radiation_unmap
+
+  ! True between radiation_offload_config and radiation_release_config, when
+  ! radiation_offload leaves config on the device. delete_device unmaps
+  ! regardless of reference count, so concurrent radiation_offload calls
+  ! from several threads must not map and unmap config themselves
+  logical, private :: config_on_device = .false.
 
 contains
 
@@ -674,6 +691,221 @@ contains
     if (lhook) call dr_hook('radiation_interface:radiation',1,hook_handle)
 
   end subroutine radiation
+
+
+  !---------------------------------------------------------------------
+  ! As radiation, but for callers that fill the derived types on the
+  ! host and are not compiled for the device: in a GPU build the
+  ! inputs are copied to the device, radiation is run there and flux
+  ! is copied back. Otherwise this is the same as radiation.
+  subroutine radiation_offload(ncol, nlev, istartcol, iendcol, config, &
+       &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+
+    use yomhook,                  only : lhook, dr_hook, jphook
+    use radiation_config,         only : config_type
+    use radiation_single_level,   only : single_level_type
+    use radiation_thermodynamics, only : thermodynamics_type
+    use radiation_gas,            only : gas_type
+    use radiation_cloud,          only : cloud_type
+    use radiation_aerosol,        only : aerosol_type
+    use radiation_flux,           only : flux_type
+
+    integer, intent(in) :: ncol, nlev, istartcol, iendcol
+    type(config_type),        intent(inout) :: config
+    type(single_level_type),  intent(inout) :: single_level
+    type(thermodynamics_type),intent(inout) :: thermodynamics
+    type(gas_type),           intent(inout) :: gas
+    type(cloud_type),         intent(inout) :: cloud
+    type(aerosol_type),       intent(inout) :: aerosol
+    type(flux_type),          intent(inout) :: flux
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_interface:radiation_offload',0,hook_handle)
+
+    call radiation_offload_begin(config, single_level, thermodynamics, &
+         &  gas, cloud, aerosol, flux)
+    call radiation_offload_run(ncol, nlev, istartcol, iendcol, config, &
+         &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+
+    if (lhook) call dr_hook('radiation_interface:radiation_offload',1,hook_handle)
+
+  end subroutine radiation_offload
+
+
+  !---------------------------------------------------------------------
+  ! First half of radiation_offload: map the derived types and copy
+  ! their host contents to the device. With gas_on_device, the gas
+  ! mixing ratios are not copied and must instead be filled on the
+  ! device (gas%put with lacc) before radiation_offload_run.
+  subroutine radiation_offload_begin(config, single_level, thermodynamics, &
+       &  gas, cloud, aerosol, flux, gas_on_device)
+
+    use yomhook,                  only : lhook, dr_hook, jphook
+    use radiation_config,         only : config_type
+    use radiation_single_level,   only : single_level_type
+    use radiation_thermodynamics, only : thermodynamics_type
+    use radiation_gas,            only : gas_type
+    use radiation_cloud,          only : cloud_type
+    use radiation_aerosol,        only : aerosol_type
+    use radiation_flux,           only : flux_type
+
+    type(config_type),        intent(inout) :: config
+    type(single_level_type),  intent(inout) :: single_level
+    type(thermodynamics_type),intent(inout) :: thermodynamics
+    type(gas_type),           intent(inout) :: gas
+    type(cloud_type),         intent(inout) :: cloud
+    type(aerosol_type),       intent(inout) :: aerosol
+    type(flux_type),          intent(inout) :: flux
+    logical, optional,        intent(in)    :: gas_on_device
+
+    logical :: llgas_on_device
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_interface:radiation_offload_begin',0,hook_handle)
+
+    llgas_on_device = .false.
+    if (present(gas_on_device)) llgas_on_device = gas_on_device
+
+#if defined(OMPGPU)
+    ! Mapping the parents carries their scalars and allocatable components;
+    ! create_device then zeroes some device arrays, so update_device comes last
+    !$OMP TARGET ENTER DATA MAP(TO: single_level, thermodynamics, gas, cloud, aerosol, flux)
+    if (.not. config_on_device) call config%create_device()
+    call single_level%create_device()
+    call thermodynamics%create_device()
+    call gas%create_device()
+    call aerosol%create_device()
+    call cloud%create_device()
+    call flux%create_device()
+    call single_level%update_device()
+    call thermodynamics%update_device()
+    if (.not. llgas_on_device) call gas%update_device()
+    call aerosol%update_device()
+    call cloud%update_device()
+#endif
+
+    if (lhook) call dr_hook('radiation_interface:radiation_offload_begin',1,hook_handle)
+
+  end subroutine radiation_offload_begin
+
+
+  !---------------------------------------------------------------------
+  ! Second half of radiation_offload: run radiation, copy flux back to
+  ! the host and unmap what radiation_offload_begin mapped
+  subroutine radiation_offload_run(ncol, nlev, istartcol, iendcol, config, &
+       &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+
+    use yomhook,                  only : lhook, dr_hook, jphook
+    use radiation_config,         only : config_type
+    use radiation_single_level,   only : single_level_type
+    use radiation_thermodynamics, only : thermodynamics_type
+    use radiation_gas,            only : gas_type
+    use radiation_cloud,          only : cloud_type
+    use radiation_aerosol,        only : aerosol_type
+    use radiation_flux,           only : flux_type
+
+    integer, intent(in) :: ncol, nlev, istartcol, iendcol
+    type(config_type),        intent(inout) :: config
+    type(single_level_type),  intent(inout) :: single_level
+    type(thermodynamics_type),intent(inout) :: thermodynamics
+    type(gas_type),           intent(inout) :: gas
+    type(cloud_type),         intent(inout) :: cloud
+    type(aerosol_type),       intent(inout) :: aerosol
+    type(flux_type),          intent(inout) :: flux
+
+    real(jphook) :: hook_handle
+
+    if (lhook) call dr_hook('radiation_interface:radiation_offload_run',0,hook_handle)
+
+    call radiation(ncol, nlev, istartcol, iendcol, config, &
+         &  single_level, thermodynamics, gas, cloud, aerosol, flux)
+
+#if defined(OMPGPU)
+    call flux%update_host()
+    call flux%delete_device()
+    call cloud%delete_device()
+    call aerosol%delete_device()
+    call gas%delete_device()
+    call thermodynamics%delete_device()
+    call single_level%delete_device()
+    if (.not. config_on_device) call config%delete_device()
+    !$OMP TARGET EXIT DATA MAP(DELETE: single_level, thermodynamics, gas, cloud, aerosol, flux)
+#endif
+
+    if (lhook) call dr_hook('radiation_interface:radiation_offload_run',1,hook_handle)
+
+  end subroutine radiation_offload_run
+
+
+  !---------------------------------------------------------------------
+  ! Copy a host input array to the device so that ecRad routines called
+  ! with lacc find it present, for callers not compiled for the device;
+  ! undo with radiation_unmap
+  subroutine radiation_map_to_1d(x)
+    use parkind1, only : jprb
+    real(jprb), intent(in) :: x(:)
+#if defined(OMPGPU)
+    !$OMP TARGET ENTER DATA MAP(TO: x)
+#endif
+  end subroutine radiation_map_to_1d
+
+  subroutine radiation_map_to_2d(x)
+    use parkind1, only : jprb
+    real(jprb), intent(in) :: x(:,:)
+#if defined(OMPGPU)
+    !$OMP TARGET ENTER DATA MAP(TO: x)
+#endif
+  end subroutine radiation_map_to_2d
+
+  subroutine radiation_unmap_1d(x)
+    use parkind1, only : jprb
+    real(jprb), intent(in) :: x(:)
+#if defined(OMPGPU)
+    !$OMP TARGET EXIT DATA MAP(DELETE: x)
+#endif
+  end subroutine radiation_unmap_1d
+
+  subroutine radiation_unmap_2d(x)
+    use parkind1, only : jprb
+    real(jprb), intent(in) :: x(:,:)
+#if defined(OMPGPU)
+    !$OMP TARGET EXIT DATA MAP(DELETE: x)
+#endif
+  end subroutine radiation_unmap_2d
+
+
+  !---------------------------------------------------------------------
+  ! Keep config on the device across radiation_offload calls, which may
+  ! then run concurrently; call from outside any parallel region
+  subroutine radiation_offload_config(config)
+
+    use radiation_config, only : config_type
+
+    type(config_type), intent(inout) :: config
+
+#if defined(OMPGPU)
+    call config%create_device()
+    config_on_device = .true.
+#endif
+
+  end subroutine radiation_offload_config
+
+
+  !---------------------------------------------------------------------
+  ! Undo radiation_offload_config
+  subroutine radiation_release_config(config)
+
+    use radiation_config, only : config_type
+
+    type(config_type), intent(inout) :: config
+
+#if defined(OMPGPU)
+    config_on_device = .false.
+    call config%delete_device()
+#endif
+
+  end subroutine radiation_release_config
 
 
   !---------------------------------------------------------------------
