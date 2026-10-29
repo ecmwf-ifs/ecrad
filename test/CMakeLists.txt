@@ -10,6 +10,7 @@
 add_subdirectory(common)
 
 foreach( PREC IN LISTS _PRECISIONS )
+    add_subdirectory(cloud_cover cloud_cover.${PREC})
     add_subdirectory(ifs ifs.${PREC})
     add_subdirectory(i3rc i3rc.${PREC})
 endforeach()
