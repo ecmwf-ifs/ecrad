@@ -393,7 +393,6 @@ contains
          & ( istartcol, iendcol, ncol, nlev, &
          &   thermodynamics%pressure_hl(:,istartlev:iendlev+1), &
          &   thermodynamics%temperature_hl(:,istartlev:iendlev+1), &
-         &   istartlev, &
          &   gas%mixing_ratio(:,istartlev:iendlev,IH2O), &
          &   gas%mixing_ratio(:,istartlev:iendlev,ICO2), &
          &   gas%mixing_ratio(:,istartlev:iendlev,ICH4), &

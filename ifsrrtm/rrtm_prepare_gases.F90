@@ -2,7 +2,6 @@ SUBROUTINE RRTM_PREPARE_GASES &
  &( KIDIA, KFDIA, KLON, KLEV, &
  & PAPH ,&
  & PTH ,&
- & istartlev ,&
  &  PQ   , PCO2 , PCH4, PN2O  , PNO2, PC11, PC12, PC22, PCL4, POZN, &
  &  PCOLDRY, PWBRODL, PWKL, PWX , &
  &  PAVEL  , PTAVEL , PZ  , PTZ , KREFLECT)  
@@ -32,7 +31,6 @@ IMPLICIT NONE
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLON! Number of atmospheres (longitudes) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KLEV! Number of atmospheric layers 
 INTEGER(KIND=JPIM),INTENT(IN)    :: KIDIA, KFDIA 
-INTEGER(KIND=JPIM),INTENT(IN)    :: istartlev
 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PAPH(KLON,KLEV+1) ! Interface pressures (Pa)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PTH(KLON,KLEV+1) ! Interface temperatures (K)
@@ -174,8 +172,9 @@ ENDDO
 
   DO JK = 1, KLEV
     DO JL = KIDIA, KFDIA
-    PAVEL(JL,JK) = ((0.5_jprb * (PAPH(JL,KLEV-JK+1+istartlev-1) + PAPH(JL,KLEV-JK+1+istartlev))))/100._JPRB
-    PTAVEL(JL,JK) = ((0.5_jprb * (PTH(JL,KLEV-JK+1+istartlev-1) + PTH(JL,KLEV-JK+1+istartlev))))
+    ! Half-level arrays are already sliced by the caller: indices are local.
+    PAVEL(JL,JK) = 0.5_JPRB * (PAPH(JL,KLEV-JK+1) + PAPH(JL,KLEV-JK+2)) / 100.0_JPRB
+    PTAVEL(JL,JK) = 0.5_JPRB * (PTH(JL,KLEV-JK+1) + PTH(JL,KLEV-JK+2))
     PZ(JL,JK) = PAPH(JL,KLEV-JK+1)/100._JPRB
     PTZ(JL,JK) = PTH(JL,KLEV-JK+1)
     ! RRTMG cannot cope with zero or negative water vapour

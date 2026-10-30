@@ -11,6 +11,12 @@ set( TEST_IFS_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian.nc" )
 set( TEST_IFS_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY50R1.nam" )
 set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY50R1_ecckd.nam" )
 
+ecbuild_add_test(
+    TARGET rrtm_prepare_gases_levels_${PREC}
+    SOURCES rrtm_prepare_gases_levels.F90
+    LIBS ecrad.${PREC} ecrad_base.${PREC}
+)
+
 if( "${PREC}" STREQUAL "sp" )
     set( TEST_IFS_REFERENCE_LW_THRESHOLD 0.5 )
     set( TEST_IFS_REFERENCE_SW_THRESHOLD 0.5 )

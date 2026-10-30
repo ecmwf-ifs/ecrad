@@ -1,0 +1,74 @@
+! (C) Copyright 2026- ECMWF.
+!
+! This software is licensed under the terms of the Apache Licence Version 2.0
+! which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+!
+! In applying this licence, ECMWF does not waive the privileges and immunities
+! granted to it by virtue of its status as an intergovernmental organisation
+! nor does it submit to any jurisdiction.
+
+PROGRAM RRTM_PREPARE_GASES_LEVELS
+
+USE PARKIND1, ONLY : JPIM, JPRB
+USE PARRRTM, ONLY : JPINPX, JPXSEC
+USE YOMHOOK, ONLY : LHOOK, DR_HOOK, JPHOOK
+
+IMPLICIT NONE
+
+INTEGER(KIND=JPIM), PARAMETER :: ILON=4, ILEV=6, ISTARTCOL=2, IENDCOL=3
+INTEGER(KIND=JPIM) :: JK, JL, INLEV, ISTARTLEV
+INTEGER(KIND=JPIM) :: IREFLECT(ISTARTCOL:IENDCOL)
+REAL(KIND=JPRB) :: ZPH(ILON,ILEV+1), ZTH(ILON,ILEV+1), ZQ(ILON,ILEV)
+REAL(KIND=JPHOOK) :: ZHOOK_HANDLE
+
+#include "rrtm_prepare_gases.intfb.h"
+#include "abor1.intfb.h"
+
+IF (LHOOK) CALL DR_HOOK('RRTM_PREPARE_GASES_LEVELS',0,ZHOOK_HANDLE)
+
+! Distinct columns and heights expose horizontal and vertical indexing errors.
+DO JK=1,ILEV+1
+  DO JL=1,ILON
+    ZPH(JL,JK)=1000.0_JPRB*REAL(JK*JK+JL,KIND=JPRB)
+    ZTH(JL,JK)=200.0_JPRB+REAL(JK*JK+JL,KIND=JPRB)
+  ENDDO
+ENDDO
+ZQ(:,:)=0.001_JPRB
+
+! Full atmosphere, lower-atmosphere slices, and the one-layer canopy path.
+DO INLEV=ILEV,1,-1
+  ISTARTLEV=ILEV-INLEV+1
+  BLOCK
+    REAL(KIND=JPRB) :: ZCOLDRY(ISTARTCOL:IENDCOL,INLEV), ZWBRODL(ISTARTCOL:IENDCOL,INLEV)
+    REAL(KIND=JPRB) :: ZWKL(ISTARTCOL:IENDCOL,JPINPX,INLEV), ZWX(ISTARTCOL:IENDCOL,JPXSEC,INLEV)
+    REAL(KIND=JPRB) :: ZAVEL(ISTARTCOL:IENDCOL,INLEV), ZTAVEL(ISTARTCOL:IENDCOL,INLEV)
+    REAL(KIND=JPRB) :: ZZ(ISTARTCOL:IENDCOL,0:INLEV), ZTZ(ISTARTCOL:IENDCOL,0:INLEV)
+    REAL(KIND=JPRB) :: ZEXPECTED
+    INTEGER(KIND=JPIM) :: ILEVEL
+
+    CALL RRTM_PREPARE_GASES(ISTARTCOL,IENDCOL,ILON,INLEV, &
+     & ZPH(:,ISTARTLEV:ILEV+1),ZTH(:,ISTARTLEV:ILEV+1), &
+     & ZQ(:,ISTARTLEV:ILEV),ZQ(:,ISTARTLEV:ILEV),ZQ(:,ISTARTLEV:ILEV), &
+     & ZQ(:,ISTARTLEV:ILEV),ZQ(:,ISTARTLEV:ILEV),ZQ(:,ISTARTLEV:ILEV), &
+     & ZQ(:,ISTARTLEV:ILEV),ZQ(:,ISTARTLEV:ILEV),ZQ(:,ISTARTLEV:ILEV), &
+     & ZQ(:,ISTARTLEV:ILEV),ZCOLDRY,ZWBRODL,ZWKL,ZWX,ZAVEL,ZTAVEL,ZZ,ZTZ,IREFLECT)
+
+    DO JK=1,INLEV
+      ILEVEL=ILEV-JK+1
+      DO JL=ISTARTCOL,IENDCOL
+        ! Analytic means of the original global half-level profiles, bottom up.
+        ZEXPECTED=5.0_JPRB*REAL(ILEVEL*ILEVEL+(ILEVEL+1)*(ILEVEL+1)+2*JL,KIND=JPRB)
+        IF (ZAVEL(JL,JK) /= ZEXPECTED) CALL ABOR1('Incorrect sliced RRTM layer pressure')
+        ZEXPECTED=200.0_JPRB+0.5_JPRB*REAL(ILEVEL*ILEVEL+(ILEVEL+1)*(ILEVEL+1)+2*JL,KIND=JPRB)
+        IF (ZTAVEL(JL,JK) /= ZEXPECTED) CALL ABOR1('Incorrect sliced RRTM layer temperature')
+        IF (ZZ(JL,JK) /= ZPH(JL,ILEVEL)/100.0_JPRB) CALL ABOR1('Incorrect RRTM interface pressure')
+        IF (ZTZ(JL,JK) /= ZTH(JL,ILEVEL)) CALL ABOR1('Incorrect RRTM interface temperature')
+        IF (ZCOLDRY(JL,JK) <= 0.0_JPRB) CALL ABOR1('Nonpositive RRTM dry column')
+      ENDDO
+    ENDDO
+  END BLOCK
+ENDDO
+
+IF (LHOOK) CALL DR_HOOK('RRTM_PREPARE_GASES_LEVELS',1,ZHOOK_HANDLE)
+
+END PROGRAM RRTM_PREPARE_GASES_LEVELS
