@@ -35,8 +35,8 @@ cmake --build <build-dir> --parallel <jobs>
 
 This retains the default double-precision build and adds single precision.
 Use separate build directories for different compilers and configurations.
-On accelerator branches, add the explicit backend options in the supplement
-below to the configure command.
+On accelerator branches, consult that branch's build definitions and CI
+workflows for the explicit backend options to add to the configure command.
 
 - A Fortran compiler and compiler-compatible NetCDF Fortran installation
   are required. Follow the minimum CMake version in `CMakeLists.txt`.
