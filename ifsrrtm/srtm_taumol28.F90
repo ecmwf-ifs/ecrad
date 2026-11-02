@@ -43,9 +43,9 @@ REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO2(KIDIA:KFDIA,KLEV)
 REAL(KIND=JPRB)   ,INTENT(IN)    :: P_COLO3(KIDIA:KFDIA,KLEV) 
 INTEGER(KIND=JPIM),INTENT(IN)    :: K_LAYTROP(KIDIA:KFDIA) 
 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_SFLUXZEN(KIDIA:KFDIA,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUG(KIDIA:KFDIA,KLEV,JPG) 
-REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUR(KIDIA:KFDIA,KLEV,JPG) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_SFLUXZEN(JPG,KIDIA:KFDIA) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUG(JPG,KIDIA:KFDIA,KLEV) 
+REAL(KIND=JPRB)   ,INTENT(OUT)   :: P_TAUR(JPG,KIDIA:KFDIA,KLEV) 
 REAL(KIND=JPRB)   ,INTENT(IN)    :: PRMU0(KIDIA:KFDIA)
 !- from INTFAC      
 !- from INTIND
@@ -92,7 +92,7 @@ DO I_LAY = 1, I_NLAYERS
         !  DO IG = 1, NG(28)
 !CDIR UNROLL=NG28
         DO IG = 1 , NG28
-          P_TAUG(IPLON,I_LAY,IG) = Z_SPECCOMB * &
+          P_TAUG(IG,IPLON,I_LAY) = Z_SPECCOMB * &
            !    & (Z_FAC000 * ABSA(IND0,IG) + &
            !    & Z_FAC100 * ABSA(IND0+1,IG) + &
            !    & Z_FAC010 * ABSA(IND0+9,IG) + &
@@ -102,18 +102,18 @@ DO I_LAY = 1, I_NLAYERS
            !    & Z_FAC011 * ABSA(IND1+9,IG) + &
            !    & Z_FAC111 * ABSA(IND1+10,IG))   
            & (&
-           & (1. - Z_FS) * ( ABSA(IND0,IG) * P_FAC00(IPLON,I_LAY) + &
-           &                 ABSA(IND0+9,IG) * P_FAC10(IPLON,I_LAY) + &
-           &                 ABSA(IND1,IG) * P_FAC01(IPLON,I_LAY) + &
-           &                 ABSA(IND1+9,IG) * P_FAC11(IPLON,I_LAY) ) + &
-           & Z_FS        * ( ABSA(IND0+1,IG) * P_FAC00(IPLON,I_LAY) + &
-           &                 ABSA(IND0+10,IG) * P_FAC10(IPLON,I_LAY) + &
-           &                 ABSA(IND1+1,IG) * P_FAC01(IPLON,I_LAY) + &
-           &                 ABSA(IND1+10,IG) * P_FAC11(IPLON,I_LAY) ) &
+           & (1. - Z_FS) * ( ABSA(IG,IND0) * P_FAC00(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND0+9) * P_FAC10(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND1) * P_FAC01(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND1+9) * P_FAC11(IPLON,I_LAY) ) + &
+           & Z_FS        * ( ABSA(IG,IND0+1) * P_FAC00(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND0+10) * P_FAC10(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND1+1) * P_FAC01(IPLON,I_LAY) + &
+           &                 ABSA(IG,IND1+10) * P_FAC11(IPLON,I_LAY) ) &
            & ) 
           !     &           + TAURAY
           !    SSA(LAY,IG) = TAURAY/TAUG(LAY,IG)
-          P_TAUR(IPLON,I_LAY,IG) = Z_TAURAY
+          P_TAUR(IG,IPLON,I_LAY) = Z_TAURAY
         ENDDO
       ENDIF
     ENDIF
@@ -149,7 +149,7 @@ DO I_LAY = 1, I_NLAYERS
         !  DO IG = 1, NG(28)
 !CDIR UNROLL=NG28
         DO IG = 1 , NG28
-          P_TAUG(IPLON,I_LAY,IG) = Z_SPECCOMB * &
+          P_TAUG(IG,IPLON,I_LAY) = Z_SPECCOMB * &
            !    & (Z_FAC000 * ABSB(IND0,IG) + &
            !    & Z_FAC100 * ABSB(IND0+1,IG) + &
            !    & Z_FAC010 * ABSB(IND0+5,IG) + &
@@ -159,25 +159,25 @@ DO I_LAY = 1, I_NLAYERS
            !    & Z_FAC011 * ABSB(IND1+5,IG) + &
            !    & Z_FAC111 * ABSB(IND1+6,IG))   
            & (&
-           & (1. - Z_FS) * ( ABSB(IND0,IG) * P_FAC00(IPLON,I_LAY) + &
-           &                 ABSB(IND0+5,IG) * P_FAC10(IPLON,I_LAY) + &
-           &                 ABSB(IND1,IG) * P_FAC01(IPLON,I_LAY) + &
-           &                 ABSB(IND1+5,IG) * P_FAC11(IPLON,I_LAY) ) + &
-           & Z_FS        * ( ABSB(IND0+1,IG) * P_FAC00(IPLON,I_LAY) + &
-           &                 ABSB(IND0+6,IG) * P_FAC10(IPLON,I_LAY) + &
-           &                 ABSB(IND1+1,IG) * P_FAC01(IPLON,I_LAY) + &
-           &                 ABSB(IND1+6,IG) * P_FAC11(IPLON,I_LAY) ) &
+           & (1. - Z_FS) * ( ABSB(IG,IND0) * P_FAC00(IPLON,I_LAY) + &
+           &                 ABSB(IG,IND0+5) * P_FAC10(IPLON,I_LAY) + &
+           &                 ABSB(IG,IND1) * P_FAC01(IPLON,I_LAY) + &
+           &                 ABSB(IG,IND1+5) * P_FAC11(IPLON,I_LAY) ) + &
+           & Z_FS        * ( ABSB(IG,IND0+1) * P_FAC00(IPLON,I_LAY) + &
+           &                 ABSB(IG,IND0+6) * P_FAC10(IPLON,I_LAY) + &
+           &                 ABSB(IG,IND1+1) * P_FAC01(IPLON,I_LAY) + &
+           &                 ABSB(IG,IND1+6) * P_FAC11(IPLON,I_LAY) ) &
            & ) 
           !     &           + TAURAY
           !    SSA(LAY,IG) = TAURAY/TAUG(LAY,IG)
-          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG,JS) &
+          IF (I_LAY == I_LAYSOLFR(IPLON)) P_SFLUXZEN(IG,IPLON) = SFLUXREFC(IG,JS) &
            & + Z_FS * (SFLUXREFC(IG,JS+1) - SFLUXREFC(IG,JS))  
 ! The following actually improves this band by setting the solar
 ! spectrum at each g point equal to what would be computed if
 ! molecular oxygen was set to zero. But it is worse overall due to a
 ! compensating error with the previous band 27.
 !          IF (I_LAY == I_LAYSOLFR) P_SFLUXZEN(IPLON,IG) = SFLUXREFC(IG,5)
-          P_TAUR(IPLON,I_LAY,IG) = Z_TAURAY
+          P_TAUR(IG,IPLON,I_LAY) = Z_TAURAY
         ENDDO
       ENDIF
     ENDIF

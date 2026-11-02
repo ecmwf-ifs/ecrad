@@ -8,6 +8,20 @@ Unreleased
 	  See https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/changing-the-default-branch
 	  for further information.
 
+version 1.7.3 (19 October 2026)
+	- radiation_cloud_cover: optional lev_top and lev_base arguments to
+	  compute_cloud_cover allow per-column level ranges, enabling the IFS
+	  caller to compute high, mid and low cloud cover independently of
+	  block size over varying surface pressure (IFS-5308, #120). Results
+	  without these arguments are unchanged
+	- Pad overlap parameters with 1 for shorter level ranges to avoid
+	  division by zero when using beta overlap parameters
+	- Transpose the g-point dimension to first in longwave and shortwave
+	  RRTM gas optics arrays and adapt the associated routines (#110)
+	- Reduce temporary stack-array usage in ICA adding methods by reusing
+	  output arrays (#110)
+	- Enable -fpe3 for Intel builds
+
 version 1.7.2 (19 May 2026)
 	- radiation_general_cloud_optics_data: fix non-automatic allocation on
 	  assignment

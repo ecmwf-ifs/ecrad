@@ -121,8 +121,14 @@ contains
 
   end function cloud_cover
 
+  !---------------------------------------------------------------------
+  ! Compute the cloud cover of columns istartcol to iendcol according
+  ! to the specified overlap rule. If lev_top and lev_base are present,
+  ! the cloud cover of each column is computed over its own range of
+  ! levels lev_top(jcol) to lev_base(jcol), which can be used to compute
+  ! the high, mid and low cloud cover; otherwise all nlev levels are used
   subroutine compute_cloud_cover(istartcol, iendcol, ncol, nlev, i_overlap_scheme, cloud_cover, frac, overlap_param, &
-       &               is_beta_overlap)
+       &               is_beta_overlap, lev_top, lev_base)
 
     implicit none
 
@@ -137,6 +143,10 @@ contains
     ! Default is false.
     logical, intent(in), optional :: is_beta_overlap
 
+    ! First and last level of the range used for each column; these
+    ! must be present together
+    integer, intent(in), optional :: lev_top(ncol), lev_base(ncol)
+
     ! Return cloud cover
     real(jprb), intent(inout)     :: cloud_cover(ncol)
 
@@ -145,21 +155,69 @@ contains
 
     ! Cloud cover of a pair of layers
     real(jprb) :: pair_cloud_cover(ncol, nlev-1)
-    integer :: jcol
+
+    ! Cloud fraction and overlap parameter of the range of each column,
+    ! shifted to start at level 1 and padded with clear layers below
+    real(jprb) :: frac_range(ncol, nlev), overlap_range(ncol, nlev-1)
+
+    ! First level and number of levels of the range of each column
+    integer :: itop(ncol), nlev_range(ncol)
+
+    integer :: jcol, jlev
+
+    if (present(lev_top) .and. present(lev_base)) then
+      do jcol=istartcol,iendcol
+        itop(jcol)       = lev_top(jcol)
+        nlev_range(jcol) = lev_base(jcol) - lev_top(jcol) + 1
+      enddo
+    else
+      do jcol=istartcol,iendcol
+        itop(jcol)       = 1
+        nlev_range(jcol) = nlev
+      enddo
+    end if
+
+    ! The cumulative cloud cover at a level does not depend on the
+    ! layers below it, so padding with clear layers gives the cloud
+    ! cover of the range at level nlev_range
+    do jlev=1,nlev
+      do jcol=istartcol,iendcol
+        if (jlev <= nlev_range(jcol)) then
+          frac_range(jcol,jlev) = frac(jcol,itop(jcol)+jlev-1)
+        else
+          frac_range(jcol,jlev) = 0.0_jprb
+        end if
+      enddo
+    enddo
+    do jlev=1,nlev-1
+      do jcol=istartcol,iendcol
+        if (jlev < nlev_range(jcol)) then
+          overlap_range(jcol,jlev) = overlap_param(jcol,itop(jcol)+jlev-1)
+        else
+          ! Any value gives the same cloud cover; 1 avoids a division
+          ! by zero in beta2alpha when is_beta_overlap is true
+          overlap_range(jcol,jlev) = 1.0_jprb
+        end if
+      enddo
+    enddo
 
     if (i_overlap_scheme == IOverlapExponentialRandom) then
-      call cum_cloud_cover_exp_ran(istartcol, iendcol, ncol, nlev, frac, overlap_param, &
+      call cum_cloud_cover_exp_ran(istartcol, iendcol, ncol, nlev, frac_range, overlap_range, &
            &   cum_cloud_cover, pair_cloud_cover, is_beta_overlap)
     else if (i_overlap_scheme == IOverlapExponential) then
-      call cum_cloud_cover_exp_exp(istartcol, iendcol, ncol, nlev, frac, overlap_param, &
+      call cum_cloud_cover_exp_exp(istartcol, iendcol, ncol, nlev, frac_range, overlap_range, &
            &   cum_cloud_cover, pair_cloud_cover, is_beta_overlap)
     else
-      call cum_cloud_cover_max_ran(istartcol, iendcol, ncol, nlev, frac, cum_cloud_cover, &
+      call cum_cloud_cover_max_ran(istartcol, iendcol, ncol, nlev, frac_range, cum_cloud_cover, &
            &                       pair_cloud_cover)
     end if
 
     do jcol=istartcol,iendcol
-      cloud_cover(jcol) = cum_cloud_cover(jcol,nlev)
+      if (nlev_range(jcol) >= 1) then
+        cloud_cover(jcol) = cum_cloud_cover(jcol,nlev_range(jcol))
+      else
+        cloud_cover(jcol) = 0.0_jprb
+      end if
     enddo
 
   end subroutine compute_cloud_cover
