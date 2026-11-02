@@ -389,7 +389,7 @@ program ecrad_ifs_driver
   call roctxStartRange("ecrad_offload"//c_null_char)
 #endif
 
-#if defined(_OPENACC) 
+#if defined(_OPENACC)
   !$ACC DATA COPYIN(yradiation, yradiation%rad_config, single_level, thermodynamics, &
   !$ACC&            gas, aerosol, cloud, ccn_land, ccn_sea, longitude_rad, sin_latitude, &
   !$ACC&            land_frac, pressure_fl, temperature_fl, cloud_fraction, cloud_q_liq, &
@@ -412,8 +412,9 @@ program ecrad_ifs_driver
   call yradiation%rad_config%create_device()
   call single_level%create_device()
   call thermodynamics%create_device()
-  call gas%create_device()
-  call aerosol%create_device()
+  ! gas and aerosol already filled on host (must not be zeroed on device)
+  call gas%create_device(lzero=.false.)
+  call aerosol%create_device(lzero=.false.)
   call cloud%create_device()
   call flux%create_device()
 
