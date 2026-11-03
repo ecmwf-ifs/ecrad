@@ -17,6 +17,11 @@ ecbuild_add_test(
     LIBS ecrad.${PREC} ecrad_base.${PREC}
 )
 
+# Keep the other precision's modules out of the compiler's module search path.
+set_target_properties( rrtm_prepare_gases_levels_${PREC} PROPERTIES
+    Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module" )
+file( MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module" )
+
 if( "${PREC}" STREQUAL "sp" )
     set( TEST_IFS_REFERENCE_LW_THRESHOLD 0.5 )
     set( TEST_IFS_REFERENCE_SW_THRESHOLD 0.5 )
