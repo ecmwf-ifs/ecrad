@@ -83,7 +83,7 @@ if ( "${PREC}" STREQUAL "dp" OR NOT HAVE_DOUBLE_PRECISION )
                 POST_BUILD
                 COMMAND
                     "${CMAKE_COMMAND}" -E create_symlink ${tgt}_${PREC} ${tgt}
-                BYPRODUCTS ${tgt}
+                BYPRODUCTS "${CMAKE_BINARY_DIR}/bin/${tgt}"
                 WORKING_DIRECTORY
                     "${CMAKE_BINARY_DIR}/bin"
                 COMMENT "Creating symbolic link from ${tgt} to ${tgt}_${PREC}"
