@@ -1,4 +1,4 @@
-version 1.8.0 (3 November 2026)
+version 1.8.0 (4 November 2026)
 	- Array components in single_level_type, thermodynamics_type, gas_type,
 	  cloud_type, aerosol_type and flux_type now use pointers rather than
 	  allocatables (#81). Callers inspecting these components must use
@@ -26,6 +26,15 @@ version 1.8.0 (3 November 2026)
 	  rounding differences (#118)
 	- Align gas unit conversion between the offline and IFS-style drivers
 	  when ENABLE_BITIDENTITY_TESTING is enabled (#118)
+	- Apply consistent clipping of shortwave diffuse transmission in the
+	  two-stream routines, resolving CPU/GPU inconsistencies (#113)
+	- Reduce temporary-array storage in RRTMG gas preparation by deriving
+	  full-level pressure and temperature directly from half levels; correct
+	  slice-local indexing for reduced-level and partial-column calls (#123)
+	- Add RRTMG gas-preparation regression tests in both precisions for
+	  exact-sized level ranges, including a single layer and column subsets;
+	  retain Intel LLVM Debug compatibility and isolate precision-specific
+	  module output directories (#123)
 	- In the Tripleclouds longwave clear-sky calculation, use the
 	  no-scattering path when aerosols are disabled, irrespective of the
 	  aerosol-scattering setting (#33). This can change floating-point
