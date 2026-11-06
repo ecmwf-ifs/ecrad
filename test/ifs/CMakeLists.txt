@@ -11,6 +11,17 @@ set( TEST_IFS_INPUT "${CMAKE_CURRENT_SOURCE_DIR}/ecrad_meridian.nc" )
 set( TEST_IFS_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1.nam" )
 set( TEST_ECCKD_CONFIG "${CMAKE_CURRENT_SOURCE_DIR}/configCY49R1_ecckd.nam" )
 
+ecbuild_add_test(
+    TARGET ecrad_${PREC}_missing_gases
+    SOURCES missing_gases.F90
+    LIBS driver_lib.${PREC}
+    ARGS ${TEST_IFS_CONFIG} ${TEST_IFS_INPUT}
+)
+# Encourage nonzero uninitialized host allocations on glibc systems.
+set_property( TEST ecrad_${PREC}_missing_gases PROPERTY ENVIRONMENT "MALLOC_PERTURB_=165" )
+set_target_properties( ecrad_${PREC}_missing_gases PROPERTIES
+    Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module" )
+
 # Create symbolic link to test data
 file( CREATE_LINK "${PROJECT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data" SYMBOLIC )
 

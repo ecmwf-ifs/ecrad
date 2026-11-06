@@ -563,6 +563,9 @@ contains
     ! other gases (see below)
 
     call gas%allocate(ncol, nlev)
+    ! GPU builds do not initialize the host array in gas%allocate. Missing
+    ! input species must still have zero mixing ratio on the host and device.
+    gas%mixing_ratio(:,:,:) = 0.0_jprb
 
     ! Loop through all radiatively important gases
     do jgas = 1,NMaxGases
