@@ -1023,37 +1023,48 @@ contains
 
   !---------------------------------------------------------------------
   ! creates fields on device
-  subroutine create_device(this)
+  !
+  ! By default the device mixing ratios are set to zero. A caller that has
+  ! already filled the object on the host and copies it with update_device
+  ! must pass lzero=.false.
+  subroutine create_device(this, lzero)
 
     class(gas_type), intent(inout) :: this
+    logical, optional, intent(in)  :: lzero
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    logical :: llzero
 #if defined(OMPGPU)
     integer :: i,j,k
 #endif
+    llzero = .true.
+    if (present(lzero)) llzero = lzero
+
     select type (this)
     type is (gas_type)
 
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%mixing_ratio) IF(allocated(this%mixing_ratio))
     !$ACC ENTER DATA CREATE(this%mixing_ratio) IF(allocated(this%mixing_ratio)) ASYNC(1)
 
+    if (llzero) then
 #if defined(_OPENACC)
-    !$ACC KERNELS DEFAULT(PRESENT) ASYNC(1)
-    this%mixing_ratio(:,:,:) = 0.0_jprb
-    !$ACC END KERNELS
+      !$ACC KERNELS DEFAULT(PRESENT) ASYNC(1)
+      this%mixing_ratio(:,:,:) = 0.0_jprb
+      !$ACC END KERNELS
 #endif
 #if defined(OMPGPU)
-    ! Leave this until work distribute is available : PJM 9/12/2025
-    !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
-    do k = 1,SIZE(this%mixing_ratio, 3)
-      do j = 1,SIZE(this%mixing_ratio, 2)
-        do i = 1,SIZE(this%mixing_ratio, 1)
-           this%mixing_ratio(i,j,k) = 0.0_jprb
+      ! Leave this until work distribute is available : PJM 9/12/2025
+      !$OMP TARGET TEAMS DISTRIBUTE PARALLEL DO COLLAPSE(3)
+      do k = 1,SIZE(this%mixing_ratio, 3)
+        do j = 1,SIZE(this%mixing_ratio, 2)
+          do i = 1,SIZE(this%mixing_ratio, 1)
+             this%mixing_ratio(i,j,k) = 0.0_jprb
+          end do
         end do
       end do
-    end do
-    !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
+      !$OMP END TARGET TEAMS DISTRIBUTE PARALLEL DO
 #endif
+    end if
     class default
       call radiation_abort('*** Error: radiation_gas:create_device: unexpected dynamic type')
     end select

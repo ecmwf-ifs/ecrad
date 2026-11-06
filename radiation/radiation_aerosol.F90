@@ -221,14 +221,23 @@ contains
 
   !---------------------------------------------------------------------
   ! Creates fields on device
-  subroutine create_device_aerosol(this)
+  !
+  ! By default ssa_lw and g_lw are set to zero on the device. A caller
+  ! that has already filled the object on the host and copies it with
+  ! update_device must pass lzero=.false.
+  subroutine create_device_aerosol(this, lzero)
 
     class(aerosol_type), intent(inout) :: this
+    logical, optional, intent(in)      :: lzero
 
 #if defined(_OPENACC) || defined(OMPGPU)
+    logical :: llzero
 #if defined(OMPGPU)
     integer :: i,j,k
 #endif
+    llzero = .true.
+    if (present(lzero)) llzero = lzero
+
     select type (this)
     type is (aerosol_type)
     !$OMP TARGET ENTER DATA MAP(ALLOC:this%mixing_ratio) IF(allocated(this%mixing_ratio))
@@ -248,7 +257,7 @@ contains
     !$ACC ENTER DATA CREATE(this%g_lw) IF(allocated(this%g_lw)) ASYNC(1)
 
     ! (note that both should always be allocated)
-    if (allocated(this%ssa_lw) .or. allocated(this%g_lw)) then
+    if (llzero .and. (allocated(this%ssa_lw) .or. allocated(this%g_lw))) then
       ! If longwave scattering by aerosol is not to be represented,
       ! then the user may wish to just provide absorption optical
       ! depth in od_lw, in which case we must set the following two

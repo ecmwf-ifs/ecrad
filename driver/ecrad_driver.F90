@@ -344,8 +344,9 @@ program ecrad_driver
   call config%create_device()
   call single_level%create_device()
   call thermodynamics%create_device()
-  call gas%create_device()
-  call aerosol%create_device()
+  ! gas and aerosol already filled on host (must not be zeroed on device)
+  call gas%create_device(lzero=.false.)
+  call aerosol%create_device(lzero=.false.)
   call cloud%create_device()
   call flux%create_device()
 
