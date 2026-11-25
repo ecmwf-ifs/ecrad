@@ -1,4 +1,54 @@
-Unreleased
+version 1.8.0 (4 November 2026)
+	- Array components in single_level_type, thermodynamics_type, gas_type,
+	  cloud_type, aerosol_type and flux_type now use pointers rather than
+	  allocatables (#81). Callers inspecting these components must use
+	  ASSOCIATED rather than ALLOCATED and account for pointer lifetime
+	  and assignment semantics: derived-type assignment copies pointer
+	  associations rather than the pointed-to arrays
+	- Add pointer-based get_ptr methods to easy_netcdf and update driver
+	  input handling and cleanup for the pointer-based types (#81)
+	- Make gas unit conversion non-recursive and report columns per second
+	  in the offline drivers (#81)
+	- Add the optional ecrad_ifs_field_api driver, radintg_zrgp_mod field
+	  packaging and radiation_scheme_layer_mod dispatch layer (#92).
+	  FIELD_API is an optional dependency; FYPP regeneration is optional
+	  and disabled by default, using committed generated sources instead
+	- Share blocking/indexing infrastructure between the blocked and
+	  FIELD_API drivers, and exercise partial blocks in driver tests (#92)
+	- Add CY50R1 RRTMG, ecCKD and mixed gas-optics configurations, and use
+	  CY50R1 as the default configuration in CTest (#102). IFS setup now
+	  uses 13 aerosol classes, aerosol_ifs_50R1.nc for general aerosol
+	  optics, updated background aerosol handling and nearest-band
+	  shortwave albedo mapping. Update input data and reference outputs
+	  for these science changes
+	- Stabilize ecCKD full-level temperature interpolation across column
+	  block sizes, avoiding Intel single-precision vectorization-dependent
+	  rounding differences (#118)
+	- Align gas unit conversion between the offline and IFS-style drivers
+	  when ENABLE_BITIDENTITY_TESTING is enabled (#118)
+	- Apply consistent clipping of shortwave diffuse transmission in the
+	  two-stream routines, resolving CPU/GPU inconsistencies (#113)
+	- Reduce temporary-array storage in RRTMG gas preparation by deriving
+	  full-level pressure and temperature directly from half levels; correct
+	  slice-local indexing for reduced-level and partial-column calls (#123)
+	- Add RRTMG gas-preparation regression tests in both precisions for
+	  exact-sized level ranges, including a single layer and column subsets;
+	  retain Intel LLVM Debug compatibility and isolate precision-specific
+	  module output directories (#123)
+	- In the Tripleclouds longwave clear-sky calculation, use the
+	  no-scattering path when aerosols are disabled, irrespective of the
+	  aerosol-scattering setting (#33). This can change floating-point
+	  rounding relative to the scattering path
+	- Add cloud-cover level-range regression tests in both precisions,
+	  including empty and single-level ranges and partial-column calls
+	  (#124)
+	- Correct driver symlink byproduct paths to avoid unnecessary relinking
+	  in incremental Ninja builds (#129)
+	- Make change_namelist.sh portable across GNU and BSD tools (#81),
+	  and document how to disable OpenMP in Makefile builds (#32)
+	- Update compiler CI configurations and NVHPC dependency targeting;
+	  add trusted GPU CI for approved fork PRs and update PR automation
+	- Add repository-specific coding-agent guidance in AGENTS.md (#130)
 	- Renamed the default Git branch from "master" to "main". Update an
 	  existing clone by running:
 	    git branch -m master main
