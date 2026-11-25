@@ -113,6 +113,17 @@ if( HAVE_BITIDENTITY_TESTING )
     list( APPEND ECRAD_COMPILE_DEFINITIONS BITIDENTITY_TESTING )
 endif()
 
+ecbuild_add_option(
+    FEATURE PYECRAD
+    DEFAULT OFF
+    DESCRIPTION "Build the libecrad4py shared library used by the pyecrad Python package"
+)
+if( HAVE_PYECRAD AND NOT BUILD_SHARED_LIBS )
+    # libecrad4py is a shared library into which the static ecRad
+    # libraries are linked, so they must be position independent
+    set( CMAKE_POSITION_INDEPENDENT_CODE ON )
+endif()
+
 
 ecbuild_override_compiler_flags(
     COMPILE_FLAGS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ecrad_compile_flags.cmake
@@ -156,6 +167,22 @@ foreach( PREC IN LISTS _PRECISIONS )
     add_subdirectory(ifs ifs.${PREC})
     add_subdirectory(driver driver.${PREC})
 endforeach()
+
+# When building the pyecrad wheel with scikit-build-core (see
+# pyproject.toml), install the data files needed at run time into the
+# Python package; the library itself is installed in driver/CMakeLists.txt
+if( HAVE_PYECRAD AND SKBUILD )
+    install(
+        DIRECTORY ${PROJECT_SOURCE_DIR}/data/
+        DESTINATION pyecrad/data
+        COMPONENT pyecrad
+    )
+    install(
+        FILES ${PROJECT_SOURCE_DIR}/VERSION
+        DESTINATION pyecrad
+        COMPONENT pyecrad
+    )
+endif()
 
 # Include test directories only if tests are enabled (which is the default
 # and can be disabled by setting ENABLE_TESTS=OFF)

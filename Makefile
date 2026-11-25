@@ -67,6 +67,17 @@ ifdef BITIDENTITY_TESTING
 CPPFLAGS += -DBITIDENTITY_TESTING
 endif
 
+# The "python" target builds the shared library used by the pyecrad
+# Python package, so all code must be compiled as position-independent
+# code (run "make clean" first if ecRad was built without "python").
+# The flags may be overridden in Makefile_include.<prof>.
+PICFLAG ?= -fPIC
+SHAREDLIBFLAGS ?= -shared
+ifneq ($(filter python,$(MAKECMDGOALS)),)
+BASICFLAGS += $(PICFLAG)
+endif
+export SHAREDLIBFLAGS
+
 # Consolidate flags
 export FC
 export FCFLAGS = $(WARNFLAGS) $(BASICFLAGS) $(CPPFLAGS) -I../include \
@@ -102,6 +113,7 @@ help:
 	@echo "  SINGLE_PRECISION=1   Compile with single precision"
 	@echo "  FIATDIR=/my/path     Compile with Dr Hook, specifying the directory containing lib/libfiat.so and module/fiat/yomhook.mod"
 	@echo "  test                 Run test cases in test directory"
+	@echo "  python               Build pyecrad/libecrad4py.so for the pyecrad Python package"
 	@echo "  clean                Remove all compiled files"
 
 ifndef FIATDIR
@@ -158,6 +170,9 @@ ifsdriver: libifsaux libifsrrtm libutilities libradiation libifs
 test_programs: driver
 	cd driver && $(MAKE) test_programs
 
+python: build
+	cd driver && $(MAKE) python
+
 symlinks: clean-symlinks
 	cd practical && ln -s ../bin/ecrad
 	cd practical && ln -s ../data
@@ -201,5 +216,5 @@ clean-autosaves:
 	rm -f *~ .gitignore~ */*~ */*/*~
 
 .PHONY: all build help deps clean-deps libifsaux libdummydrhook libutilities libifsrrtm \
-	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver \
+	libradiation driver symlinks clean clean-toplevel test test_ifs ifsdriver python \
 	test_i3rc clean-tests clean-utilities clean-mods clean-symlinks

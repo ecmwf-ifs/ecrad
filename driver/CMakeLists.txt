@@ -60,6 +60,41 @@ ecbuild_add_executable(
 )
 
 
+# Shared library called from Python by the pyecrad package. Like the
+# ecRad libraries, it is named after its target (libecrad4py.dp and
+# libecrad4py.sp). When the ecRad libraries are static
+# (BUILD_SHARED_LIBS=OFF, as when building the wheel), the resulting
+# library only depends on system libraries (NetCDF, compiler runtime
+# and OpenMP).
+if( HAVE_PYECRAD )
+    ecbuild_add_library(
+        TARGET ecrad4py.${PREC}
+        TYPE SHARED
+        SOURCES
+            ecrad4py.F90
+        PRIVATE_LIBS
+            ecrad.${PREC}
+            ecrad_base.${PREC}
+            $<${HAVE_OMP}:OpenMP::OpenMP_Fortran>
+        LINKER_LANGUAGE Fortran
+        NOINSTALL
+    )
+    set_target_properties( ecrad4py.${PREC}
+        PROPERTIES
+            Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/module_ecrad4py"
+    )
+
+    # Install into the Python package when building the wheel with
+    # scikit-build-core (see pyproject.toml)
+    if( SKBUILD )
+        install(
+            TARGETS ecrad4py.${PREC}
+            LIBRARY DESTINATION pyecrad COMPONENT pyecrad
+            RUNTIME DESTINATION pyecrad COMPONENT pyecrad
+        )
+    endif()
+endif()
+
 if( HAVE_FIELD_API )
     ecbuild_add_executable(
         TARGET ecrad_ifs_field_api_${PREC}
