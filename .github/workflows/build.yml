@@ -218,7 +218,7 @@ jobs:
         dependency_cmake_options: |
           ecmwf-ifs/fiat: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_TESTS=OFF"
           ecmwf-ifs/field_api: "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_TESTS=OFF"
-        cmake_options:    "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_options }} -DENABLE_SINGLE_PRECISION=ON -DENABLE_BITIDENTITY_TESTING=ON"
+        cmake_options:    "-G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.cmake_options }} -DENABLE_SINGLE_PRECISION=ON -DENABLE_BITIDENTITY_TESTING=ON -DENABLE_PYECRAD=ON"
         self_build: true
         self_test: false
 
@@ -261,3 +261,32 @@ jobs:
       run: |
         make PROFILE=${{ matrix.profile }} -j
         make test PROFILE=${{ matrix.profile }}
+
+  python:
+    name: pyecrad pip install
+
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install gfortran libnetcdff-dev
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Build and install pyecrad
+      run: python -m pip install -v ".[test]"
+
+    - name: Test pyecrad
+      # Run from the test directory so that the installed package is
+      # imported rather than the source directory
+      working-directory: test/pyecrad
+      run: |
+        ulimit -s unlimited
+        python -m pytest -v

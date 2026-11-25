@@ -14,3 +14,7 @@ foreach( PREC IN LISTS _PRECISIONS )
     add_subdirectory(ifs ifs.${PREC})
     add_subdirectory(i3rc i3rc.${PREC})
 endforeach()
+
+if( HAVE_PYECRAD )
+    add_subdirectory(pyecrad)
+endif()
