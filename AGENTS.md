@@ -17,6 +17,8 @@ between gas optics, cloud/aerosol optics, and radiative-transfer solvers.
 - `include/`: interface blocks for non-module routines.
 - `test/`: configurations, input data, reference results, and validation tools.
 - `practical/`: introductory examples and exercises.
+- `pyecrad/`: Python package calling ecRad through the C-interoperable
+  wrapper `driver/ecrad4py.F90`; packaged by `pyproject.toml`.
 - `cmake/` and `.github/workflows/`: build configuration and CI workflows.
 
 Read `README.md` for usage and `radiation/CONVENTIONS` for core coding
