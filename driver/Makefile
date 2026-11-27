@@ -10,6 +10,7 @@ OBJECTS := $(SOURCES:.F90=.o)
 EXECUTABLE = ../bin/ecrad
 IFS_EXECUTABLE = ../bin/ecrad_ifs
 IFS_BLOCKED_EXECUTABLE = ../bin/ecrad_ifs_blocked
+PYTHON_LIBRARY = ../pyecrad/libecrad4py.so
 
 all: driver ifs_driver test_programs
 
@@ -18,6 +19,8 @@ driver: $(EXECUTABLE)
 ifs_driver: $(IFS_EXECUTABLE) $(IFS_BLOCKED_EXECUTABLE)
 
 test_programs: $(TEST_PROGRAMS)
+
+python: $(PYTHON_LIBRARY)
 
 # Link ecrad executable; add "-lifs" if you want to use the "satur"
 # routine in ecrad_driver.F90
@@ -29,6 +32,11 @@ $(IFS_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_ifs_driver.o
 
 $(IFS_BLOCKED_EXECUTABLE): $(OBJECTS) ../lib/*.a ecrad_ifs_driver_blocked.o
 	$(FC) $(FCFLAGS) ecrad_ifs_driver_blocked.o $(OBJECTS) -lifs $(LIBS) -o $(IFS_BLOCKED_EXECUTABLE)
+
+# Shared library for the pyecrad Python package (see "make python" in
+# the top-level Makefile)
+$(PYTHON_LIBRARY): ../lib/*.a ecrad4py.o
+	$(FC) $(SHAREDLIBFLAGS) $(FCFLAGS) ecrad4py.o $(LIBS) -o $(PYTHON_LIBRARY)
 
 test_%: test_%.F90 ../lib/*.a
 	$(FC) $(FCFLAGS) $< $(LIBS) -o $@
@@ -43,11 +51,11 @@ test_%: test_%.F90 ../lib/*.a
 
 clean:
 	rm -f *.o $(EXECUTABLE) $(IFS_EXECUTABLE) $(IFS_BLOCKED_EXECUTABLE) \
-		$(TEST_PROGRAMS)
+		$(TEST_PROGRAMS) $(PYTHON_LIBRARY)
 
 ecrad_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_ifs_driver.o: ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_ifs_driver_blocked.o: ecrad_driver_config.o ecrad_driver_read_input.o
 ecrad_driver_read_input.o: ecrad_driver_config.o
 
-.PHONY: driver ifs_driver test_programs all
+.PHONY: driver ifs_driver test_programs python all

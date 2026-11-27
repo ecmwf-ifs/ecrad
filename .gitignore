@@ -11,3 +11,9 @@ mod
 /bin/ecrad
 /bin/ecrad_ifs
 /bin/ecrad_ifs_blocked
+
+# pyecrad Python package
+__pycache__
+/pyecrad/libecrad4py*
+/dist
+*.egg-info

@@ -1,3 +1,13 @@
+Unreleased
+	- Add the pyecrad Python package (pyecrad/), calling ecRad through
+	  the libecrad4py shared library built from driver/ecrad4py.F90 when
+	  ENABLE_PYECRAD is on, or with "make python". It provides in-memory
+	  calls on numpy arrays and a Python version of the offline driver
+	  (pyecrad command). It can be installed with pip, including directly
+	  from the git repository, using scikit-build-core (pyproject.toml)
+	- Add CTest tests comparing the Python and Fortran offline drivers in
+	  both precisions, and pytest tests of the Python interface (test/pyecrad)
+
 version 1.8.0 (4 November 2026)
 	- Array components in single_level_type, thermodynamics_type, gas_type,
 	  cloud_type, aerosol_type and flux_type now use pointers rather than

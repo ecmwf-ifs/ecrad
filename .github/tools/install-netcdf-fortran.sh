@@ -45,8 +45,9 @@ fi
 mkdir -p ${TEMPORARY_FILES}/build-${FOLDER} && cd ${TEMPORARY_FILES}/build-${FOLDER}
 rm -rf ./*
 NETCDF_LIB_DIR="$(${NETCDF_ROOT}/bin/nc-config --libdir)"
+# Additional CMake options can be given in NETCDF_FORTRAN_EXTRA_CMAKE_ARGS
 cmake -G Ninja ${TEMPORARY_FILES}/${FOLDER} \
     -DnetCDF_LIBRARIES="${NETCDF_LIB_DIR}/libnetcdf.so" -DnetCDF_INCLUDE_DIR="${NETCDF_ROOT}/include" \
-    -DENABLE_TESTS=OFF -DCMAKE_INSTALL_PREFIX="${NETCDF_INSTALL_DIR}"
+    -DENABLE_TESTS=OFF -DCMAKE_INSTALL_PREFIX="${NETCDF_INSTALL_DIR}" ${NETCDF_FORTRAN_EXTRA_CMAKE_ARGS:-}
 cmake --build . --config Release
 cmake --install .

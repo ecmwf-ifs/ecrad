@@ -1,0 +1,81 @@
+# (C) Copyright 2025- ECMWF.
+#
+# This software is licensed under the terms of the Apache Licence Version 2.0
+# which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# In applying this licence, ECMWF does not waive the privileges and immunities
+# granted to it by virtue of its status as an intergovernmental organisation
+# nor does it submit to any jurisdiction.
+
+# Build of the pyecrad Python package. The libecrad4py shared library is
+# compiled by CMake (through scikit-build-core) with static ecRad libraries
+# linked in; a Fortran compiler and NetCDF-Fortran are therefore required:
+#
+#   pip install .
+#   pip install git+https://github.com/ecmwf-ifs/ecrad
+#
+# CMake options can be changed with, e.g.,
+#   pip install . -Ccmake.define.ENABLE_OMP=OFF -Ccmake.define.NetCDF_ROOT=/path
+# or through the CMAKE_ARGS environment variable.
+
+[build-system]
+requires = ["scikit-build-core>=0.11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pyecrad"
+dynamic = ["version"]
+description = "Python interface to the ecRad atmospheric radiation scheme"
+readme = "pyecrad/README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+  {name = "Sébastien Riette", email = "sebastien.riette@meteo.fr"},
+]
+dependencies = [
+  "ctypesForFortran>=1.3.0,!=2.0.*,!=2.1.*",
+  "numpy",
+  "f90nml",
+  "netCDF4",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "xarray"]
+
+[project.scripts]
+pyecrad = "pyecrad.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/ecmwf-ifs/ecrad"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.20"
+# Only build and install the Python library and its data files
+build.targets = ["ecrad4py.dp"]
+install.components = ["pyecrad"]
+wheel.packages = ["pyecrad"]
+# The library is loaded with ctypes and does not depend on the Python version
+wheel.py-api = "py3"
+sdist.exclude = ["test/", "practical/", "bin/", "lib/", "mod/", "build*/",
+                 "dist/", "wheelhouse/", "tmp/", "**/__pycache__",
+                 "pyecrad/libecrad4py*", "pyecrad/data/", "pyecrad/VERSION"]
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "VERSION"
+regex = '(?P<value>\S+)'
+
+[tool.scikit-build.cmake.define]
+ENABLE_PYECRAD = "ON"
+ENABLE_TESTS = "OFF"
+ENABLE_FIAT = "OFF"
+ENABLE_FIELD_API = "OFF"
+ENABLE_FYPP = "OFF"
+ENABLE_DOUBLE_PRECISION = "ON"
+ENABLE_SINGLE_PRECISION = "OFF"
+# Link static ecRad libraries into libecrad4py, and keep the path to
+# NetCDF and other external libraries in its RPATH
+BUILD_SHARED_LIBS = "OFF"
+CMAKE_INSTALL_RPATH_USE_LINK_PATH = "ON"

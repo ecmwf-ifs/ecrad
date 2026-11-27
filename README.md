@@ -16,7 +16,8 @@ optics, cloud optics and solver are completely separated (see
 `radiation/radiation_interface.F90` where they are called in sequence),
 thereby facilitating future changes where different gas models or
 solvers may be switched in and out independently. The offline code is
-parallelized using OpenMP.
+parallelized using OpenMP. In addition, ecRad can be called from Python
+with the pyecrad package (see "Python package" below).
 
 Five solvers are currently available:
 
@@ -93,6 +94,9 @@ The subdirectories are as follows:
 - `include` - automatically generated interface blocks for non-module routines
 
 - `practical` - exercises to get started with ecRad
+
+- `pyecrad` - Python package calling ecRad through the shared library
+  built from `driver/ecrad4py.F90`
 
 
 ## Compilation
@@ -217,6 +221,8 @@ dependency. Other build options are:
 * `DOUBLE_PRECISION`: build double-precision version (default: ON)
 * `SINGLE_PRECISION`: build single-precision version (default: OFF)
 * `OMP`: build with OpenMP thread-parallelism if supported by the compiler (default: ON)
+* `PYECRAD`: build the `libecrad4py` shared library used by the pyecrad Python
+  package, and its tests (default: OFF)
 
 The options can be enabled/disabled by providing `-DENABLE_<OPTION>=ON|OFF` to the first command.
 
@@ -227,6 +233,28 @@ Execute the tests after successful compilation using:
 cd <build-dir>
 ctest
 ```
+
+
+## Python package
+
+The pyecrad Python package runs ecRad from Python, either on NetCDF
+files like the offline driver or on numpy arrays in memory. It is
+built with CMake (a Fortran compiler and NetCDF-Fortran are needed) and
+installed with pip, either from a clone of the repository or directly
+from GitHub:
+
+```sh
+pip install .
+pip install git+https://github.com/ecmwf-ifs/ecrad
+```
+
+The Python driver can then be used like the Fortran offline driver:
+
+```sh
+pyecrad <namelist.nam> <input_file.nc> <output_file.nc>
+```
+
+See `pyecrad/README.md` for details and examples.
 
 
 ## Licence
