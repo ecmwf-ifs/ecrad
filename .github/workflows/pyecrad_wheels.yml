@@ -1,0 +1,151 @@
+name: pyecrad wheels
+
+# Build the pyecrad wheels (Linux x86_64 and aarch64) in manylinux containers,
+# test them, build the sdist (not tested) and publish them on PyPI when both
+# wheels have been built and tested and the sdist has been built.
+#
+# Triggered by the push of a version tag (e.g. 1.8.1), which must be equal to
+# the content of the VERSION file. It can also be run manually: the
+# distributions are then built and tested, but not published.
+# The PYPI_API_TOKEN secret must contain a PyPI API token allowed to upload the
+# pyecrad package.
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheel:
+    name: Wheel (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            image: quay.io/pypa/manylinux2014_x86_64
+          - arch: aarch64
+            runner: ubuntu-26.04-arm
+            image: quay.io/pypa/manylinux_2_28_aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the version
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "${TAG}" != "$(cat VERSION)" ]; then
+            echo "The tag (${TAG}) differs from the VERSION file ($(cat VERSION))"
+            exit 1
+          fi
+
+      - name: Restore HDF5 and NetCDF
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/deps
+          key: pyecrad-wheel-deps-${{ matrix.image }}-${{ hashFiles('.github/scripts/build_wheel_deps.sh', '.github/tools/install-hdf5.sh', '.github/tools/install-netcdf-c.sh', '.github/tools/install-netcdf-fortran.sh') }}
+
+      - name: Build the wheel in the manylinux container
+        run: |
+          mkdir -p "${RUNNER_TEMP}/deps"
+          docker run --rm \
+            -v "${PWD}:/src" -v "${RUNNER_TEMP}/deps:/deps" -w /src \
+            "${{ matrix.image }}" \
+            bash .github/scripts/build_wheel.sh "$(id -u)" "$(id -g)"
+
+      - name: Save HDF5 and NetCDF
+        if: always() && steps.deps-cache.outputs.cache-hit != 'true' && hashFiles('wheelhouse/*.whl') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/deps
+          key: ${{ steps.deps-cache.outputs.cache-primary-key }}
+
+      - name: Set up Python (test of the wheel outside the container)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test the wheel
+        # Outside the container, where NetCDF is not installed: the wheel must
+        # contain everything. Run from the test directory so that the installed
+        # package is imported rather than the source directory.
+        working-directory: test/pyecrad
+        run: |
+          wheel=$(ls "${GITHUB_WORKSPACE}"/wheelhouse/*.whl)
+          python -m pip install "${wheel}[test]"
+          ulimit -s unlimited
+          python -m pytest -v
+
+      - name: Upload the wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-wheel-${{ matrix.arch }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  sdist:
+    name: Source distribution
+    # Not tested: building a wheel from it needs a Fortran compiler and NetCDF
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the version
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "${TAG}" != "$(cat VERSION)" ]; then
+            echo "The tag (${TAG}) differs from the VERSION file ($(cat VERSION))"
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build the sdist
+        run: |
+          python -m pip install build
+          python -m build --sdist -o dist/ .
+          ls -l dist/
+
+      - name: Upload the sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish on PyPI
+    # Only if the wheels of all the architectures and the sdist have been built,
+    # and for a tag (a manual run only builds and tests the distributions)
+    needs: [wheel, sdist]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the wheels and the sdist
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist/
+
+      - name: List the distributions
+        run: ls -l dist/
+
+      - name: Publish on PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: dist/

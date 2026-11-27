@@ -43,8 +43,9 @@ fi
 
 mkdir -p ${TEMPORARY_FILES}/build-${FOLDER} && cd ${TEMPORARY_FILES}/build-${FOLDER}
 rm -rf ./*
+# Additional CMake options can be given in NETCDF_C_EXTRA_CMAKE_ARGS
 cmake -G Ninja ${TEMPORARY_FILES}/${FOLDER} \
     -DHDF5_DIR=${HDF5_ROOT}/cmake -DCMAKE_INSTALL_PREFIX="${NETCDF_INSTALL_DIR}" \
-    -DENABLE_TESTS=OFF
+    -DENABLE_TESTS=OFF ${NETCDF_C_EXTRA_CMAKE_ARGS:-}
 cmake --build . --config Release
 cmake --install .

@@ -51,6 +51,8 @@ fi
 
 mkdir -p ${TEMPORARY_FILES}/build-${FOLDER} && cd ${TEMPORARY_FILES}/build-${FOLDER}
 rm -rf ./*
-cmake -G Ninja ${TEMPORARY_FILES}/${FOLDER} -DHDF5_BUILD_FORTRAN=ON -DHDF5_BUILD_HL_LIB=ON -DBUILD_TESTING=OFF
+# Additional CMake options can be given in HDF5_EXTRA_CMAKE_ARGS
+cmake -G Ninja ${TEMPORARY_FILES}/${FOLDER} -DHDF5_BUILD_FORTRAN=ON -DHDF5_BUILD_HL_LIB=ON -DBUILD_TESTING=OFF \
+    ${HDF5_EXTRA_CMAKE_ARGS:-}
 cmake --build . --config Release
 cmake --install . --prefix "${HDF5_INSTALL_DIR}"
